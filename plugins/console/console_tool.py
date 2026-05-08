@@ -9,10 +9,10 @@ Registrado como uma aba no Workspace.
 from __future__ import annotations
 
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QTextBrowser, QPushButton
+    QWidget, QVBoxLayout, QHBoxLayout, QTextBrowser
 )
 from PySide6.QtCore import Qt
-from resources.styles.styles import AppStyles
+from resources.widgets.buttons import SimpleGhostButton
 
 
 class ConsoleTool(QWidget):
@@ -38,10 +38,7 @@ class ConsoleTool(QWidget):
         toolbar_layout.setContentsMargins(8, 6, 8, 6)
         toolbar_layout.setSpacing(6)
 
-        self.btn_clear_console = QPushButton("Limpar Console")
-        self.btn_clear_console.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_clear_console.setStyleSheet(AppStyles.btn_ghost_style())
-        self.btn_clear_console.setFixedHeight(28)
+        self.btn_clear_console = SimpleGhostButton("Limpar Console")
         toolbar_layout.addWidget(self.btn_clear_console)
         toolbar_layout.addStretch()
         layout.addWidget(toolbar)

@@ -19,6 +19,10 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 from resources.styles.styles import AppStyles, Palette
+from resources.widgets.buttons import (
+    SimplePrimaryButton, SimpleSecondaryButton,
+    SimpleDangerButton, SimpleGhostButton, SimpleRemoveButton
+)
 from plugins.tensorflow_classifier.ui_field_specs import UI_FIELD_SPECS
 
 
@@ -140,34 +144,17 @@ class ClassificationTool(QWidget):
         al = QHBoxLayout(ab)
         al.setContentsMargins(0, 0, 0, 0)
         al.setSpacing(6)
-        self.btn_load_cfg = QPushButton("Carregar Config")
-        self.btn_load_cfg.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_load_cfg.setStyleSheet(AppStyles.btn_secondary_style())
-        self.btn_load_cfg.setMinimumHeight(32)
-        self.btn_save_cfg = QPushButton("Salvar Config")
-        self.btn_save_cfg.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_save_cfg.setStyleSheet(AppStyles.btn_secondary_style())
-        self.btn_save_cfg.setMinimumHeight(32)
-        self.btn_reset_cfg = QPushButton("Restaurar Padrao")
-        self.btn_reset_cfg.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_reset_cfg.setStyleSheet(AppStyles.btn_secondary_style())
-        self.btn_reset_cfg.setMinimumHeight(32)
-        self.btn_cancelar = QPushButton("CANCELAR")
-        self.btn_cancelar.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_load_cfg = SimpleSecondaryButton("Carregar Config")
+        self.btn_save_cfg = SimpleSecondaryButton("Salvar Config")
+        self.btn_reset_cfg = SimpleSecondaryButton("Restaurar Padrao")
+        self.btn_cancelar = SimpleDangerButton("CANCELAR")
         self.btn_cancelar.setEnabled(False)
-        self.btn_cancelar.setStyleSheet(AppStyles.btn_danger_style())
-        self.btn_cancelar.setMinimumHeight(32)
-        self.btn_cancelar.setMinimumWidth(100)
         al.addWidget(self.btn_load_cfg)
         al.addWidget(self.btn_save_cfg)
         al.addWidget(self.btn_reset_cfg)
         al.addWidget(self.btn_cancelar)
         al.addStretch()
-        self.btn_executar = QPushButton("EXECUTAR PIPELINE")
-        self.btn_executar.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_executar.setStyleSheet(AppStyles.btn_primary_style())
-        self.btn_executar.setMinimumWidth(180)
-        self.btn_executar.setMinimumHeight(34)
+        self.btn_executar = SimplePrimaryButton("EXECUTAR PIPELINE")
         al.addWidget(self.btn_executar)
         main_layout.addWidget(ab)
 
@@ -213,9 +200,7 @@ class ClassificationTool(QWidget):
             file_filter="Keras Model (*.keras)")
         self.row_modelo_existente.setVisible(False)
         lm.addWidget(self.row_modelo_existente)
-        self.btn_listar_modelos = QPushButton("Listar Modelos")
-        self.btn_listar_modelos.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_listar_modelos.setStyleSheet(AppStyles.btn_ghost_style())
+        self.btn_listar_modelos = SimpleGhostButton("Listar Modelos")
         self.btn_listar_modelos.setVisible(False)
         lm.addWidget(self.btn_listar_modelos, alignment=Qt.AlignmentFlag.AlignLeft)
         self.chk_salvar_modelo = QCheckBox("Salvar modelo (.keras)")
@@ -245,11 +230,8 @@ class ClassificationTool(QWidget):
         self.table_shp.setMinimumHeight(100)
         self.table_shp.verticalHeader().setDefaultSectionSize(24)
         ls.addWidget(self.table_shp)
-        btn_add_shp = QPushButton("+ Adicionar Shapefile")
-        btn_add_shp.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn_add_shp.setStyleSheet(AppStyles.btn_ghost_style())
-        self.btn_add_shp = btn_add_shp
-        ls.addWidget(btn_add_shp, alignment=Qt.AlignmentFlag.AlignLeft)
+        self.btn_add_shp = SimpleGhostButton("+ Adicionar Shapefile")
+        ls.addWidget(self.btn_add_shp, alignment=Qt.AlignmentFlag.AlignLeft)
         ls.addStretch()
         grid.addWidget(grp_shp, 1, 0)
 
@@ -411,9 +393,7 @@ class ClassificationTool(QWidget):
         el.setPlaceholderText("Legenda...")
         el.setStyleSheet("background-color: transparent; border: none;")
         self.table_shp.setCellWidget(row, 2, el)
-        br = QPushButton("Remover")
-        br.setCursor(Qt.CursorShape.PointingHandCursor)
-        br.setStyleSheet(AppStyles.btn_remove_style())
+        br = SimpleRemoveButton("Remover")
         br.clicked.connect(lambda checked, r=row: self._remove_shp_row_ui(r))
         self.table_shp.setCellWidget(row, 3, br)
 
