@@ -2,22 +2,24 @@
 """
 ConsoleTool — Console de execução compartilhado
 ================================================
-Widget de console independente que pode ser registrado como
-uma aba no Workspace. O controller redireciona as mensagens
-para este console.
+Widget de console independente com botão "Limpar Console" incluso.
+Registrado como uma aba no Workspace.
 """
 
 from __future__ import annotations
 
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QTextBrowser
+from PySide6.QtWidgets import (
+    QWidget, QVBoxLayout, QHBoxLayout, QTextBrowser, QPushButton
+)
 from PySide6.QtCore import Qt
+from core.styles import AppStyles
 
 
 class ConsoleTool(QWidget):
     """
     Console de execução compartilhado.
     Exibe logs formatados com HTML, suporte a links.
-    Pode ser acessado de qualquer ferramenta no workspace.
+    Inclui botão "Limpar Console" na barra superior.
     """
 
     def __init__(self, parent=None):
@@ -29,6 +31,22 @@ class ConsoleTool(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
+        # Toolbar do console
+        toolbar = QWidget()
+        toolbar.setObjectName("console_toolbar")
+        toolbar_layout = QHBoxLayout(toolbar)
+        toolbar_layout.setContentsMargins(8, 6, 8, 6)
+        toolbar_layout.setSpacing(6)
+
+        self.btn_clear_console = QPushButton("Limpar Console")
+        self.btn_clear_console.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_clear_console.setStyleSheet(AppStyles.btn_ghost_style())
+        self.btn_clear_console.setFixedHeight(28)
+        toolbar_layout.addWidget(self.btn_clear_console)
+        toolbar_layout.addStretch()
+        layout.addWidget(toolbar)
+
+        # Text browser do log
         self.txt_log = QTextBrowser()
         self.txt_log.setReadOnly(True)
         self.txt_log.setOpenLinks(False)
@@ -36,7 +54,7 @@ class ConsoleTool(QWidget):
         self.txt_log.setPlaceholderText(
             "Console compartilhado — mensagens de execucao aparecem aqui..."
         )
-        layout.addWidget(self.txt_log)
+        layout.addWidget(self.txt_log, 1)
 
     def append_log(self, html: str) -> None:
         """Adiciona uma mensagem formatada em HTML ao console."""

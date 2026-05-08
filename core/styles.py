@@ -227,6 +227,12 @@ class AppStyles:
             color: {p.BG_DEEPEST};
         }}
 
+        /* ===== CONSOLE TOOLBAR ===== */
+        QWidget#console_toolbar {{
+            background-color: {p.BG_PANEL};
+            border-bottom: 1px solid {p.DIVIDER};
+        }}
+
         /* ===== WORKSPACE TABS ===== */
         QTabBar#workspace_tabs {{
             background-color: {p.TITLE_BAR_BG};

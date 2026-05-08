@@ -139,17 +139,20 @@ class MainWindow(QMainWindow):
     def __getattr__(self, name):
         """
         Redireciona acesso a atributos da UI:
-        - Se for console/atributos de log → console_tool
-        - Se for atributo de classificacao → classification_tool
+        - Atributos do console (btn_clear_console, txt_log, anchorClicked) → console_tool
+        - Atributos de classificacao → classification_tool
         """
         # Atributos do console (compartilhado)
-        if name in ("txt_log", "anchorClicked"):
+        console_attrs = ("txt_log", "anchorClicked", "btn_clear_console")
+        if name in console_attrs:
             if self.__dict__.get("console_tool") is not None:
                 tool = self.console_tool
                 if name == "txt_log":
                     return tool.txt_log
                 elif name == "anchorClicked":
                     return tool.anchorClicked
+                elif name == "btn_clear_console":
+                    return tool.btn_clear_console
                 return getattr(tool, name, None)
 
         # Atributos da ferramenta de classificacao
