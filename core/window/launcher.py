@@ -33,7 +33,7 @@ try:
     from PySide6.QtGui import QFont
     
     from ui_main import MainWindow
-    from core.styles import DarkCharcoalStyle
+    from resources.styles.styles import DarkCharcoalStyle
     
     app = QApplication(sys.argv)
     app.setStyleSheet(DarkCharcoalStyle.stylesheet())

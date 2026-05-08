@@ -12,7 +12,7 @@ from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QTextBrowser, QPushButton
 )
 from PySide6.QtCore import Qt
-from core.styles import AppStyles
+from resources.styles.styles import AppStyles
 
 
 class ConsoleTool(QWidget):

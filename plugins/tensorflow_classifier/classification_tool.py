@@ -18,8 +18,8 @@ from PySide6.QtWidgets import (
     QSizePolicy, QGridLayout, QScrollArea
 )
 from PySide6.QtCore import Qt
-from core.styles import AppStyles, Palette
-from core.ui_field_specs import UI_FIELD_SPECS
+from resources.styles.styles import AppStyles, Palette
+from plugins.tensorflow_classifier.ui_field_specs import UI_FIELD_SPECS
 
 
 # =============================================================================

@@ -24,7 +24,7 @@ from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import QTableWidgetItem, QLineEdit, QSpinBox, QPushButton, QFileDialog, QInputDialog, QMessageBox
 
 from utils.Preferences import Preferences
-from core.styles import AppStyles, Palette
+from resources.styles.styles import AppStyles, Palette
 from core.classifier_pipeline import ClassifierPipeline
 from core.pipeline_config import PipelineConfig, PipelineConfigError
 
