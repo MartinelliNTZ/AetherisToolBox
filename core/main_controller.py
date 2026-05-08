@@ -476,6 +476,9 @@ class MainController:
                 self.view.loader_overlay.show_loader()
             self.view.badge_status.setText("EXECUTANDO")
             self.view.badge_status.setStyleSheet(AppStyles.badge_running())
+            # Switch to Console tab to show logs
+            if hasattr(self.view, "switch_to_console"):
+                self.view.switch_to_console()
         else:
             self._cancel_requested = False
             if self._progress_timer.isActive():

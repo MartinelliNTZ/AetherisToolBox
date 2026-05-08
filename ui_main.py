@@ -120,6 +120,10 @@ class MainWindow(QMainWindow):
         """Callback quando o usuario troca de aba."""
         pass  # Future: update appbar title, etc.
 
+    def switch_to_console(self):
+        """Muda para a aba Console para mostrar logs da execucao."""
+        self.workspace.set_current_tool(TAB_CONSOLE)
+
     def initialize_controller(self):
         """Inicializa o controller APOS a UI estar pronta."""
         self.controller = MainController(self)
