@@ -227,6 +227,32 @@ class AppStyles:
             color: {p.BG_DEEPEST};
         }}
 
+        /* ===== WORKSPACE TABS ===== */
+        QTabBar#workspace_tabs {{
+            background-color: {p.TITLE_BAR_BG};
+            border: none;
+            padding: 0;
+            font-size: 12px;
+        }}
+        QTabBar::tab {{
+            background-color: transparent;
+            color: {p.TEXT_SECONDARY};
+            border: none;
+            padding: 6px 18px;
+            margin: 0;
+            font-weight: 600;
+            font-size: 11px;
+        }}
+        QTabBar::tab:hover {{
+            background-color: {p.BG_PANEL};
+            color: {p.TEXT_PRIMARY};
+        }}
+        QTabBar::tab:selected {{
+            background-color: {p.BG_DARK};
+            color: {p.TEXT_GOLD};
+            border-bottom: 2px solid {p.GOLD};
+        }}
+
         /* ===== WORKSPACE SEPARATOR ===== */
         QFrame#workspace_separator {{
             background-color: {p.BORDER};

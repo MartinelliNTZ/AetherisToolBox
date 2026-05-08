@@ -2,35 +2,46 @@
 """
 UI Principal — Aetheris ToolBox
 ================================
-MainWindow modular com AppBar, Workspace e Ferramentas.
-A ferramenta de classificacao (ClassificationTool) e registrada
-no workspace como o principal modulo do sistema.
+MainWindow modular com AppBar, Workspace (QTabBar + QStackedWidget),
+ClassificationTool e ConsoleTool como abas independentes.
 """
 
 from __future__ import annotations
 
 import sys
 from pathlib import Path
-from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout
+from PySide6.QtWidgets import (
+    QApplication, QMainWindow, QWidget, QVBoxLayout, QProgressBar
+)
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont, QIcon
 
 from core.app_bar import AppBar
 from core.workspace import Workspace
 from core.classification_tool import ClassificationTool
+from core.console_tool import ConsoleTool
 from core.styles import AppStyles, Palette
 from core.hud_loader import HudCircularRingsLoader
 from core.main_controller import MainController
 
 
+# ────────────────────────────────────────────────────────────────────────────
+# Índices das abas (para referência)
+# ────────────────────────────────────────────────────────────────────────────
+TAB_CLASSIFIER = 0
+TAB_CONSOLE    = 1
+
+
 class MainWindow(QMainWindow):
     """
     Janela principal do Aetheris ToolBox.
-    Organizacao:
-      [AppBar]          → título, toolbar, controles de janela
-      [Workspace]       → side panel + stacked widget com ferramentas
-        ├── Classifier  → ClassificationTool
-        └── ...         → futuras ferramentas
+
+    Layout:
+      [AppBar]            → título, toolbar, controles de janela
+      [Workspace]         → QTabBar + QStackedWidget
+        ├── Classifier    → ClassificationTool
+        └── Console       → ConsoleTool (compartilhado)
+      [Progress Bar]      → barra global de progresso (rodapé)
     """
 
     def __init__(self):
@@ -47,6 +58,7 @@ class MainWindow(QMainWindow):
 
         # --- Ferramentas ---
         self.classification_tool: ClassificationTool | None = None
+        self.console_tool: ConsoleTool | None = None
 
         # --- Build UI ---
         self._build_ui()
@@ -81,16 +93,31 @@ class MainWindow(QMainWindow):
         self.workspace.register_tool(
             name="Classifier",
             widget=self.classification_tool,
-            tooltip="Classificacao Raster com Redes Neurais",
-            icon_text="CL"
+            tooltip="Classificacao Raster com Redes Neurais"
         )
 
+        # === REGISTRAR CONSOLE COMPARTILHADO ===
+        self.console_tool = ConsoleTool()
+        self.workspace.register_tool(
+            name="Console",
+            widget=self.console_tool,
+            tooltip="Console de execucao compartilhado"
+        )
+
+        # === PROGRESS BAR GLOBAL ===
+        self.progress = QProgressBar()
+        self.progress.setValue(0)
+        self.progress.setTextVisible(True)
+        self.progress.setFormat(" %p% — aguardando... ")
+        self.progress.setFixedHeight(20)
+        root_layout.addWidget(self.progress)
+
     def _connect_signals(self):
-        """Conecta sinais do AppBar/Workspace a acoes globais."""
+        """Conecta sinais do Workspace a acoes globais."""
         self.workspace.current_tool_changed.connect(self._on_tool_changed)
 
     def _on_tool_changed(self, index: int, tool_widget):
-        """Callback quando o usuario troca de ferramenta no workspace."""
+        """Callback quando o usuario troca de aba."""
         pass  # Future: update appbar title, etc.
 
     def initialize_controller(self):
@@ -101,19 +128,32 @@ class MainWindow(QMainWindow):
 
     # ────────────────────────────────────────────────────────────────────────
     # PROPRIEDADES DE DELEGACAO (compatibilidade com MainController)
-    # O controller acessa self.view.btn_executar, self.view.spin_epochs, etc.
-    # Delegamos automaticamente para o classification_tool.
+    # O controller acessa self.view.btn_executar, self.view.spin_epochs,
+    # self.view.txt_log, self.view.anchorClicked, etc.
     # ────────────────────────────────────────────────────────────────────────
 
     def __getattr__(self, name):
         """
-        Redireciona acesso a atributos da UI para o classification_tool,
-        mantendo compatibilidade total com MainController.
+        Redireciona acesso a atributos da UI:
+        - Se for console/atributos de log → console_tool
+        - Se for atributo de classificacao → classification_tool
         """
+        # Atributos do console (compartilhado)
+        if name in ("txt_log", "anchorClicked"):
+            if self.__dict__.get("console_tool") is not None:
+                tool = self.console_tool
+                if name == "txt_log":
+                    return tool.txt_log
+                elif name == "anchorClicked":
+                    return tool.anchorClicked
+                return getattr(tool, name, None)
+
+        # Atributos da ferramenta de classificacao
         if self.__dict__.get("classification_tool") is not None:
             tool = self.classification_tool
             if hasattr(tool, name):
                 return getattr(tool, name)
+
         raise AttributeError(
             f"'{type(self).__name__}' object has no attribute '{name}'"
         )
@@ -132,9 +172,6 @@ class MainWindow(QMainWindow):
         super().resizeEvent(event)
         if hasattr(self, "loader_overlay") and self.loader_overlay is not None:
             self.loader_overlay.setGeometry(self.rect())
-
-    # Nota: eventos de mouse para arrasto sao tratados pelo AppBar,
-    # nao precisam mais estar no MainWindow.
 
 
 # =============================================================================

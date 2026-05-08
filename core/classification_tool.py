@@ -4,6 +4,7 @@ ClassificationTool — Ferramenta de Classificação Raster
 =========================================================
 Widget extraído da UI principal para ser uma ferramenta
 hospedada no Workspace do Aetheris ToolBox.
+Console removido — agora é compartilhado via ConsoleTool.
 """
 
 from __future__ import annotations
@@ -13,7 +14,7 @@ from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
     QPushButton, QSpinBox, QDoubleSpinBox, QComboBox, QCheckBox,
     QTableWidget, QTableWidgetItem, QHeaderView, QFileDialog,
-    QGroupBox, QTextEdit, QTextBrowser, QProgressBar, QFrame,
+    QGroupBox, QTextEdit, QProgressBar, QFrame,
     QSizePolicy, QGridLayout, QScrollArea
 )
 from PySide6.QtCore import Qt
@@ -176,7 +177,7 @@ class ClassificationTool(QWidget):
         main_layout.addWidget(ab)
 
         # =====================================================================
-        # GRID 2x2 + CONSOLE
+        # GRID 2x2
         # =====================================================================
         grid = QGridLayout()
         grid.setSpacing(10)
@@ -362,28 +363,6 @@ class ClassificationTool(QWidget):
         self.lbl_resumo.setVisible(False)
         main_layout.addWidget(self.lbl_resumo)
 
-        # --- CONSOLE ---
-        grp_log = self._make_group_box("Console de Execucao")
-        ll = QVBoxLayout(grp_log)
-        ll.setSpacing(4)
-        ll.setContentsMargins(6, 6, 6, 6)
-        self.txt_log = QTextBrowser()
-        self.txt_log.setReadOnly(True)
-        self.txt_log.setOpenLinks(False)
-        self.txt_log.setOpenExternalLinks(False)
-        self.txt_log.setPlaceholderText("Aguardando inicio do pipeline...")
-        self.txt_log.setMinimumHeight(140)
-        ll.addWidget(self.txt_log)
-        main_layout.addWidget(grp_log)
-
-        # --- PROGRESS ---
-        self.progress = QProgressBar()
-        self.progress.setValue(0)
-        self.progress.setTextVisible(True)
-        self.progress.setFormat(" %p% — aguardando... ")
-        self.progress.setFixedHeight(18)
-        main_layout.addWidget(self.progress)
-
         # --- Apply field tooltips ---
         self._apply_field_tooltips()
 
@@ -446,7 +425,6 @@ class ClassificationTool(QWidget):
     def _remove_shp_row_ui(self, row: int):
         """Remove uma linha da tabela de shapefiles."""
         self.table_shp.removeRow(row)
-        # Rebind remover buttons to correct rows
         for r in range(self.table_shp.rowCount()):
             btn = self.table_shp.cellWidget(r, 3)
             if btn:
