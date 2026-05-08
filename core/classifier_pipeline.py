@@ -21,9 +21,9 @@ from .hardware_manager import configure_hardware
 from .model_factory import ModelFactory
 from .pipeline_config import PipelineConfig
 from .raster_predictor import RasterPredictor
-from ..utils.raster_source import RasterSource
+from utils.raster_source import RasterSource
 from .shapefile_dataset import ShapefileDataset
-from ..plugins.tensorflow_classifier.trainer import Trainer
+from plugins.tensorflow_classifier.trainer import Trainer
 
 
 @dataclass(frozen=True)

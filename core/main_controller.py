@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """
 Controlador Principal para a UI do Classificador Raster Neural v6
 =================================================================
