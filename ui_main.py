@@ -16,12 +16,12 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont, QIcon
 
-from core.app_bar import AppBar
+from resources.widgets.app_bar import AppBar
 from core.workspace import Workspace
 from core.classification_tool import ClassificationTool
 from core.console_tool import ConsoleTool
 from core.styles import AppStyles, Palette
-from core.hud_loader import HudCircularRingsLoader
+from core.ui.hud_loader import HudCircularRingsLoader
 from core.main_controller import MainController
 
 

@@ -3,7 +3,7 @@
 import numpy as np
 from typing import Tuple
 
-from .raster_source import RasterSource
+from ..utils.raster_source import RasterSource
 
 
 class FeatureExtractor:

@@ -23,7 +23,7 @@ from PySide6.QtCore import Qt, QThread, Signal, QTimer
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import QTableWidgetItem, QLineEdit, QSpinBox, QPushButton, QFileDialog, QInputDialog, QMessageBox
 
-from core.Preferences import Preferences
+from utils.Preferences import Preferences
 from core.styles import AppStyles, Palette
 from core.classifier_pipeline import ClassifierPipeline
 from core.pipeline_config import PipelineConfig, PipelineConfigError
@@ -602,7 +602,7 @@ class MainController:
         pixels = 0.0
         gb = 0.0
         try:
-            from core.raster_source import RasterSource
+            from utils.raster_source import RasterSource
             raster = RasterSource(path)
             pixels = float(raster.width * raster.height)
         except Exception:
