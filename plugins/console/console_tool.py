@@ -13,9 +13,10 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 from resources.widgets.buttons import SimpleGhostButton
+from core.model.BasePlugin import BasePlugin
 
 
-class ConsoleTool(QWidget):
+class ConsoleTool(BasePlugin):
     """
     Console de execução compartilhado.
     Exibe logs formatados com HTML, suporte a links.
@@ -23,11 +24,10 @@ class ConsoleTool(QWidget):
     """
 
     def __init__(self, parent=None):
-        super().__init__(parent)
+        super().__init__(tool_key="Console", parent=parent)
         self._build_ui()
-        from core.config.LogUtils import LogUtils
-        self._logger = LogUtils(tool="Console", class_name="ConsoleTool")
-        self._logger.info("ConsoleTool carregada", code="TOOL_READY")
+        self.load_prefs()
+        self.logger.info("ConsoleTool carregada", code="TOOL_READY")
 
     def _build_ui(self):
         layout = QVBoxLayout(self)
@@ -63,7 +63,7 @@ class ConsoleTool(QWidget):
     def clear_log(self) -> None:
         """Limpa o console."""
         self.txt_log.clear()
-        self._logger.info("Console limpo", code="CONSOLE_CLEAR")
+        self.logger.info("Console limpo", code="CONSOLE_CLEAR")
 
     def set_placeholder(self, text: str) -> None:
         self.txt_log.setPlaceholderText(text)
@@ -72,3 +72,13 @@ class ConsoleTool(QWidget):
     def anchorClicked(self):
         """Expoe o sinal para conexao externa."""
         return self.txt_log.anchorClicked
+
+    # ── Preferences ─────────────────────────────────────────────────
+
+    def load_prefs(self) -> None:
+        """Carrega preferencias do Console (vazio por enquanto)."""
+        pass
+
+    def save_prefs(self) -> None:
+        """Salva preferencias do Console (vazio por enquanto)."""
+        pass
