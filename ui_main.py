@@ -22,7 +22,7 @@ from plugins.tensorflow_classifier.classification_tool import ClassificationTool
 from plugins.console.console_tool import ConsoleTool
 from resources.styles.styles import AppStyles, Palette
 from core.ui.hud_loader import HudCircularRingsLoader
-from core.main_controller import MainController
+from plugins.tensorflow_classifier.main_controller import MainController
 
 
 # ────────────────────────────────────────────────────────────────────────────
