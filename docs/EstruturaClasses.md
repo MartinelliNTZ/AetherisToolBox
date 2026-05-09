@@ -1,127 +1,195 @@
 # Estrutura de Classes — Aetheris ToolBox
 
-> Documentação leve das classes atualmente ativas no projeto (excluindo o módulo TensorFlow Classifier, que foi isolado/desativado).
+> Documentação leve das classes atualmente ativas no projeto.
 
 ---
 
-## 1. Entrada da Aplicação
+## 1. Ponto de Entrada
 
-### `core/window/BootStrap.py`
-**Classe:** _(script único, sem classe)_
-**Função:** Launcher oficial da aplicação. Antes de importar qualquer coisa, silencia os warnings do TensorFlow (`TF_CPP_MIN_LOG_LEVEL=3`). Cria a `QApplication`, aplica o tema `DarkCharcoalStyle`, instancia a `MainWindow` e exibe a janela.
-
-
----
-
-## 2. Núcleo da Interface
-
-### `ui_main.py`
-**Classe:** `MainWindow(QMainWindow)`
-**Função:** Janela principal do Aetheris ToolBox.
-- **AppBar** → barra de título com controles de janela (min/max/close) e arrasto.
-- **Workspace** → gerenciador de abas (QTabBar + QStackedWidget).
-- **ProgressBar** → barra de progresso global no rodapé.
-- Atualmente exibe duas abas: **Classifier** (UI vazia, desativada) e **Console**.
-- `__getattr__` redireciona `txt_log`, `anchorClicked`, `btn_clear_console` para o `ConsoleTool`.
+### `main.py` (raiz do projeto)
+**Função:** Único executável. Duplo clique → `python main.py`.
+- Insere a raiz do projeto no `sys.path`.
+- Chama `BootStrap().run()` — singleton que orquestra toda a inicialização.
 
 ---
 
-## 3. Workspace
+## 2. Bootstrap (Singleton)
 
-### `core/window/workspace.py`
-**Classe:** `Workspace(QWidget)`
-**Função:** Área de trabalho que gerencia múltiplas ferramentas via abas.
-- `QTabBar` no topo + `QStackedWidget` para alternar entre ferramentas.
-- `register_tool(name, widget, tooltip)` → registra uma ferramenta e retorna seu índice.
-- Cada ferramenta ganha um `QScrollArea` automático.
-- Sinal `current_tool_changed(index, widget)` emitido ao trocar de aba.
+### `core/config/BootStrap.py`
+**Classe:** `BootStrap` (singleton)
+**Função:** Centraliza toda a inicialização da aplicação em etapas:
+
+| Etapa | Método | Descrição |
+|---|---|---|
+| 1 | `_setup_environment()` | Configura `TF_CPP_MIN_LOG_LEVEL=3`, filtra warnings |
+| 2 | `_create_application()` | Cria `QApplication`, aplica `DarkCharcoalStyle`, fonte Segoe UI |
+| 3 | `_register_tools()` | Instancia cada tool e registra no `ToolRegistry` (lazy) |
+| 4 | `_create_main_window()` | Cria `MainWindow(tools=registry.get_all())` |
+| 5 | `_show_and_run()` | Exibe janela e inicia `app.exec()` |
+
+**Propriedades de acesso:**
+- `BootStrap().window` → `MainWindow`
+- `BootStrap().application` → `QApplication`
 
 ---
 
-## 4. Widgets de Interface
+## 3. Modelo de Ferramenta
 
-### `resources/widgets/app_bar.py`
-**Classe:** `AppBar(QWidget)`
-**Função:** Barra de título personalizada para janela frameless.
-- Ícone + título "Aetheris ToolBox".
-- Botões de minimizar, maximizar/restaurar, fechar.
-- Suporte a arrasto da janela (drag) via eventos de mouse.
-- Toolbar lateral para adicionar botões de ação (`add_tool_button`, `add_tool_widget`).
+### `core/model/Tool.py`
+**Classe:** `Tool`
+**Função:** Representa uma ferramenta com **lazy loading**.
+- `name` → nome visível
+- `widget` → property que **só instancia o QWidget na primeira vez** que é acessada
+- `tooltip` → texto de dica
+- `is_loaded` → True se o widget já foi criado
+- `unload()` → libera o widget da memória
+- `to_dict()` → representação serializável
 
-### `resources/widgets/buttons.py`
-**Classes:**
-| Classe | Função |
+```python
+tool = Tool(name="Console", widget_factory=lambda: ConsoleTool())
+w = tool.widget  # só cria aqui
+```
+
+---
+
+## 4. Registro de Ferramentas
+
+### `core/config/tool_registry.py`
+**Classe:** `ToolRegistry` (singleton)
+**Função:** Registro centralizado de todas as ferramentas. Usa `Tool` objects.
+
+| Método | Descrição |
 |---|---|
-| `SimplePrimaryButton(QPushButton)` | Botão principal gradiente ouro (ex: Executar). |
-| `SimpleSecondaryButton(QPushButton)` | Botão secundário escuro com texto dourado. |
-| `SimpleDangerButton(QPushButton)` | Botão vermelho para ações destrutivas (Cancelar). |
-| `SimpleGhostButton(QPushButton)` | Botão invisível que aparece no hover (ações sutis). |
-| `SimpleRemoveButton(QPushButton)` | Botão de remover com hover vermelho. |
+| `register(name, widget_factory, tooltip)` | Adiciona ferramenta (lazy), retorna índice |
+| `unregister(name)` | Remove pelo nome, descarrega widget |
+| `get_all()` | Lista de objetos `Tool` na ordem de registro |
+| `get(name)` | Busca por nome |
+| `count()` | Quantidade de tools |
+| `names()` | Lista de nomes |
 
-Obs: Os arquivos individuais `primary_button.py`, `secondary_button.py`, `danger_button.py` são versões soltas (legado) das mesmas classes definidas em `buttons.py` — **ambas funcionam, mas a centralizada é a recomendada**.
+**Onde registrar uma nova tool:** em `BootStrap._register_tools()`.
 
 ---
 
-## 5. Console
+## 5. Núcleo da Interface
+
+### `core/ui/ui_main.py`
+**Classe:** `MainWindow(QMainWindow)`
+**Função:** Janela principal que recebe `List[Tool]` via construtor.
+
+```python
+MainWindow(tools=List[Tool])
+```
+
+**Layout:**
+- **AppBar** → barra de título frameless (min/max/close + drag)
+- **Workspace** → QTabBar + QStackedWidget (tools via objetos Tool)
+- **ProgressBar** → barra global no rodapé
+
+**Métodos:**
+- `get_tool(name)` → objeto `Tool` pelo nome
+- `switch_to_tool(name)` → muda para aba específica
+- `switch_to_console()` → atalho para aba Console
+
+---
+
+## 6. Workspace
+
+### `core/ui/workspace.py`
+**Classe:** `Workspace(QWidget)`
+**Função:** Área de trabalho que gerencia ferramentas via abas com **lazy loading**.
+
+- `register_tool(tool: Tool)` → registra um objeto `Tool`. O widget **só é instanciado** quando a aba é selecionada pela primeira vez.
+- Placeholder `QWidget` até o primeiro acesso, depois substituído pelo widget real + `QScrollArea`.
+- Sinal `current_tool_changed(index, widget)` ao trocar de aba.
+
+---
+
+## 7. Ferramentas
+
+### `plugins/home/home_tool.py`
+**Classe:** `HomeTool(QWidget)`
+**Função:** Página inicial do software. Exibida por padrão ao abrir (aba ativa #0).
+- Título "Aetheris ToolBox"
+- Subtítulo + separador + placeholder informativo
 
 ### `plugins/console/console_tool.py`
 **Classe:** `ConsoleTool(QWidget)`
-**Função:** Console de execução compartilhado. Exibe logs formatados com HTML e suporte a links.
-- Toolbar com botão `btn_clear_console` ("Limpar Console").
-- `txt_log` (`QTextBrowser`) para exibição de log.
-- `anchorClicked` → sinal exposto para conectar eventos de clique em links.
-- `append_log(html)` → adiciona mensagem formatada.
-- `clear_log()` → limpa o console.
+**Função:** Console de execução compartilhado.
+- `btn_clear_console` → limpa logs
+- `txt_log` → `QTextBrowser` com HTML
+- `anchorClicked` → sinal para links
+- `append_log(html)`, `clear_log()`
 
 ---
 
-## 6. Estilos e Temas
+## 8. Widgets de Interface
 
-### `resources/styles/styles.py`
-**Classes:**
+### `resources/widgets/app_bar.py`
+**Classe:** `AppBar(QWidget)`
+**Função:** Barra de título frameless. Ícone, título, botões min/max/close, toolbar lateral, suporte a arrasto.
 
+### `resources/widgets/buttons.py`
 | Classe | Função |
 |---|---|
-| `Palette` | Paleta de cores com 6 níveis de profundidade, cores de texto, acento ouro, cores de status (sucesso/warning/danger). |
-| `AppStyles` | Métodos estáticos que geram QSS para botões, labels, groupboxes, inputs, tabelas, scrollbars, progress bar, tabs, etc. |
-| `DarkCharcoalStyle` | Classe de compatibilidade legada. Mapeia constantes antigas para `Palette`. Usada por `BootStrap.py` e `HudCircularRingsLoader`. |
+| `SimplePrimaryButton(QPushButton)` | Gradiente ouro — ações principais |
+| `SimpleSecondaryButton(QPushButton)` | Escuro + texto dourado |
+| `SimpleDangerButton(QPushButton)` | Vermelho — ações destrutivas |
+| `SimpleGhostButton(QPushButton)` | Invisível, aparece no hover |
+| `SimpleRemoveButton(QPushButton)` | Hover vermelho — remover |
+
+> Arquivos soltos `primary_button.py`, `secondary_button.py`, `danger_button.py` são legado.
 
 ---
 
-## 7. Utilitários
+## 9. Estilos e Temas
+
+### `resources/styles/styles.py`
+| Classe | Função |
+|---|---|
+| `Palette` | Paleta 6 níveis de profundidade + acento ouro + status |
+| `AppStyles` | Geração de QSS global e por componente |
+| `DarkCharcoalStyle` | Compatibilidade legada |
+
+---
+
+## 10. Utilitários
 
 ### `utils/Preferences.py`
 **Classe:** `Preferences`
-**Função:** Gerenciamento de preferências em JSON.
-- `loadpreferences()` → carrega do arquivo.
-- `savepreferences(data)` → salva no arquivo.
-- `get(key, default)`, `set(key, value)` → acesso a chaves individuais.
-- Arquivo padrão: `config/preferences.json`.
+**Função:** Gerencia configurações em JSON (`config/preferences.json`).
 
 ---
 
-## 8. Componentes Aninhados (desativados junto com o Classifier)
+## 11. Componentes Desativados
 
-> Mantidos no código porém sem uso ativo no momento:
+> Preservados para rejunção futura:
 
 | Arquivo | Classe | Função Original |
 |---|---|---|
-| `core/ui/hud_loader.py` | `HudCircularRingsLoader(QWidget)` | Overlay animado com anéis concêntricos (loader de progresso). |
-| `plugins/tensorflow_classifier/classification_tool.py` | `ClassificationTool(QWidget)` | UI da ferramenta de classificação raster. |
-| `plugins/tensorflow_classifier/main_controller.py` | `MainController` | Orquestrador da pipeline de classificação. |
+| `core/ui/hud_loader.py` | `HudCircularRingsLoader` | Overlay loader animado |
+| `plugins/tensorflow_classifier/classification_tool.py` | `ClassificationTool` | UI de classificação raster |
+| `plugins/tensorflow_classifier/main_controller.py` | `MainController` | Orquestrador da pipeline TF |
 
 ---
 
-## 9. Fluxo de Inicialização (Atual)
+## 12. Fluxo de Inicialização (Atual)
 
 ```
-BootStrap.py
+main.py
     ↓
-MainWindow.__init__()
-    ├── AppBar()
-    ├── Workspace()
-    │   ├── register_tool("Classifier",   ClassificationTool) → inativo
-    │   └── register_tool("Console",      ConsoleTool)
-    └── QProgressBar()
-    ↓
-window.show()
+BootStrap().run()
+    ├── _setup_environment()       → TF_CPP_MIN_LOG_LEVEL=3
+    ├── _create_application()      → QApplication + DarkCharcoalStyle
+    ├── _register_tools()          → ToolRegistry (lazy)
+    │       ├── Tool("Home",       factory=HomeTool)
+    │       ├── Tool("Console",    factory=ConsoleTool)
+    │       └── Tool("Classifier", factory=ClassificationTool) [inativo]
+    ├── _create_main_window()      → MainWindow(tools=registry.get_all())
+    │       ├── AppBar()
+    │       ├── Workspace()
+    │       │   ├── [0] "Home"      → carregado na inicializacao
+    │       │   ├── [1] "Console"   → carregado sob demanda
+    │       │   └── [2] "Classifier" → carregado sob demanda
+    │       └── QProgressBar()
+    └── _show_and_run()            → window.show() + app.exec()

@@ -8,11 +8,15 @@ Cada ferramenta é um widget registrado com um nome único.
 
 from __future__ import annotations
 
+from typing import List
+
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QStackedWidget, QHBoxLayout,
     QTabBar, QSizePolicy, QScrollArea, QFrame
 )
+
+from core.model.Tool import Tool
 
 
 class Workspace(QWidget):
@@ -25,7 +29,8 @@ class Workspace(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._tools: list[tuple[str, QWidget]] = []
+        self._tools: list[Tool] = []
+        self._tab_to_index: dict[int, int] = {}  # tab_bar_id -> nosso index
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -51,26 +56,25 @@ class Workspace(QWidget):
         self.stack = QStackedWidget()
         layout.addWidget(self.stack, 1)
 
-    def register_tool(self, name: str, widget: QWidget, tooltip: str = "") -> int:
+    def register_tool(self, tool: Tool) -> int:
         """
-        Registra uma ferramenta no workspace.
-        Retorna o índice da ferramenta.
+        Registra uma ferramenta (objeto Tool) no workspace.
+        O widget so e instanciado (lazy) quando a aba e selecionada
+        pela primeira vez.
+        Retorna o indice da ferramenta.
         """
         index = len(self._tools)
-        self._tools.append((name, widget))
+        self._tools.append(tool)
 
-        # Add tab
-        tab_index = self.tab_bar.addTab(name)
-        if tooltip:
-            self.tab_bar.setTabToolTip(tab_index, tooltip)
+        # Cria uma pagina placeholder no stacked widget
+        placeholder = QWidget()
+        self.stack.addWidget(placeholder)
 
-        # Add to stacked widget (with scroll)
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        scroll.setWidget(widget)
-        scroll.setObjectName(f"workspace_scroll_{name}")
-        self.stack.addWidget(scroll)
+        # Adiciona a aba
+        tab_index = self.tab_bar.addTab(tool.name)
+        if tool.tooltip:
+            self.tab_bar.setTabToolTip(tab_index, tool.tooltip)
+        self._tab_to_index[tab_index] = index
 
         return index
 
@@ -79,20 +83,44 @@ class Workspace(QWidget):
 
     def current_tool_widget(self) -> QWidget | None:
         idx = self.tab_bar.currentIndex()
-        if 0 <= idx < len(self._tools):
-            return self._tools[idx][1]
+        tool_idx = self._tab_to_index.get(idx, -1)
+        if 0 <= tool_idx < len(self._tools):
+            return self._tools[tool_idx].widget
         return None
 
     def set_current_tool(self, index: int) -> None:
-        if 0 <= index < self.tab_bar.count():
-            self.tab_bar.setCurrentIndex(index)
+        """Muda para a aba no indice interno especificado."""
+        # Procura o tab_bar_id correspondente ao nosso index
+        for tab_id, our_idx in self._tab_to_index.items():
+            if our_idx == index:
+                self.tab_bar.setCurrentIndex(tab_id)
+                return
 
     def set_tab_text(self, index: int, text: str) -> None:
-        if 0 <= index < self.tab_bar.count():
-            self.tab_bar.setTabText(index, text)
+        """Altera o texto de uma aba pelo indice interno."""
+        for tab_id, our_idx in self._tab_to_index.items():
+            if our_idx == index:
+                self.tab_bar.setTabText(tab_id, text)
+                return
 
-    def _on_tab_changed(self, index: int) -> None:
-        if 0 <= index < self.stack.count():
-            self.stack.setCurrentIndex(index)
-            tool_widget = self._tools[index][1] if index < len(self._tools) else None
-            self.current_tool_changed.emit(index, tool_widget)
+    def _on_tab_changed(self, tab_index: int) -> None:
+        """Quando a aba muda, carrega o widget real (lazy) se necessario."""
+        tool_idx = self._tab_to_index.get(tab_index, -1)
+        if tool_idx < 0 or tool_idx >= len(self._tools):
+            return
+
+        tool = self._tools[tool_idx]
+
+        # Se o widget ainda nao foi carregado pelo Tool, carrega agora
+        if not tool.is_loaded:
+            widget = tool.widget  # aciona a factory
+            scroll = QScrollArea()
+            scroll.setWidgetResizable(True)
+            scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+            scroll.setWidget(widget)
+            scroll.setObjectName(f"workspace_scroll_{tool.name}")
+            self.stack.removeWidget(self.stack.widget(tab_index))
+            self.stack.insertWidget(tab_index, scroll)
+
+        self.stack.setCurrentIndex(tab_index)
+        self.current_tool_changed.emit(tool_idx, tool.widget if tool.is_loaded else None)

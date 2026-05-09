@@ -3,33 +3,23 @@
 UI Principal — Aetheris ToolBox
 ================================
 MainWindow modular com AppBar, Workspace (QTabBar + QStackedWidget),
-ClassificationTool e ConsoleTool como abas independentes.
+e ferramentas registradas via ToolRegistry.
 """
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
+from typing import Dict, List
+
 from PySide6.QtWidgets import (
-    QApplication, QMainWindow, QWidget, QVBoxLayout, QProgressBar
+    QMainWindow, QWidget, QVBoxLayout, QProgressBar
 )
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QFont, QIcon
+from PySide6.QtGui import QIcon
 
+from core.model.Tool import Tool
 from resources.widgets.app_bar import AppBar
 from core.ui.workspace import Workspace
-from plugins.tensorflow_classifier.classification_tool import ClassificationTool
-from plugins.console.console_tool import ConsoleTool
-from resources.styles.styles import AppStyles, Palette
-from core.ui.hud_loader import HudCircularRingsLoader
-# from plugins.tensorflow_classifier.main_controller import MainController
-
-
-# ────────────────────────────────────────────────────────────────────────────
-# Índices das abas (para referência)
-# ────────────────────────────────────────────────────────────────────────────
-TAB_CLASSIFIER = 0
-TAB_CONSOLE    = 1
 
 
 class MainWindow(QMainWindow):
@@ -38,39 +28,35 @@ class MainWindow(QMainWindow):
 
     Layout:
       [AppBar]            → título, toolbar, controles de janela
-      [Workspace]         → QTabBar + QStackedWidget
-        ├── Classifier    → ClassificationTool
-        └── Console       → ConsoleTool (compartilhado)
+      [Workspace]         → QTabBar + QStackedWidget (tools registradas)
       [Progress Bar]      → barra global de progresso (rodapé)
     """
 
-    def __init__(self):
+    def __init__(self, tools: List[Tool]):
+        """
+        Parametros:
+            tools: Lista de objetos Tool vindos do ToolRegistry.get_all()
+        """
         super().__init__()
         self.setWindowTitle("Aetheris ToolBox")
         self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.Window)
         self.setMinimumSize(1000, 650)
+        self.resize(1100, 700)
 
-        icon_path = Path(__file__).parent / "Aetheris.png"
+        icon_path = Path(__file__).parent.parent.parent / "Aetheris.png"
         if icon_path.exists():
             self.setWindowIcon(QIcon(str(icon_path)))
 
-        self.resize(1100, 700)
-
-        # --- Ferramentas ---
-        self.classification_tool: ClassificationTool | None = None
-        self.console_tool: ConsoleTool | None = None
+        # Guarda referencias das tools (nome -> Tool)
+        self._tool_map: Dict[str, Tool] = {t.name: t for t in tools}
 
         # --- Build UI ---
-        self._build_ui()
+        self._build_ui(tools)
 
-        # # --- Controller (deve vir DEPOIS da UI montada) --- #
-        # self.controller: MainController | None = None
-        # self.loader_overlay: HudCircularRingsLoader | None = None
+        # Seleciona a primeira aba (Home) por padrao
+        self.workspace.set_current_tool(0)
 
-        # # Connect signals #
-        # self._connect_signals()
-
-    def _build_ui(self):
+    def _build_ui(self, tools: List[Tool]) -> None:
         root = QWidget()
         root_layout = QVBoxLayout(root)
         root_layout.setContentsMargins(0, 0, 0, 0)
@@ -88,21 +74,9 @@ class MainWindow(QMainWindow):
         self.workspace = Workspace()
         root_layout.addWidget(self.workspace, 1)
 
-        # === REGISTRAR FERRAMENTA DE CLASSIFICACAO ===
-        self.classification_tool = ClassificationTool()
-        self.workspace.register_tool(
-            name="Classifier",
-            widget=self.classification_tool,
-            tooltip="Classificacao Raster com Redes Neurais"
-        )
-
-        # === REGISTRAR CONSOLE COMPARTILHADO ===
-        self.console_tool = ConsoleTool()
-        self.workspace.register_tool(
-            name="Console",
-            widget=self.console_tool,
-            tooltip="Console de execucao compartilhado"
-        )
+        # === REGISTRAR FERRAMENTAS NO WORKSPACE (objetos Tool) ===
+        for tool in tools:
+            self.workspace.register_tool(tool)
 
         # === PROGRESS BAR GLOBAL ===
         self.progress = QProgressBar()
@@ -112,92 +86,32 @@ class MainWindow(QMainWindow):
         self.progress.setFixedHeight(20)
         root_layout.addWidget(self.progress)
 
-    # def _connect_signals(self):
-    #     """Conecta sinais do Workspace a acoes globais."""
-    #     self.workspace.current_tool_changed.connect(self._on_tool_changed)
+    # ------------------------------------------------------------------
+    # Acesso às tools registradas
+    # ------------------------------------------------------------------
 
-    # def _on_tool_changed(self, index: int, tool_widget):
-    #     """Callback quando o usuario troca de aba."""
-    #     pass  # Future: update appbar title, etc.
+    def get_tool(self, name: str) -> Tool | None:
+        """Retorna o objeto Tool pelo nome."""
+        return self._tool_map.get(name)
 
-    def switch_to_console(self):
-        """Muda para a aba Console para mostrar logs da execucao."""
-        self.workspace.set_current_tool(TAB_CONSOLE)
+    def switch_to_tool(self, name: str) -> bool:
+        """Muda para a aba de uma tool pelo nome."""
+        for i, tool in enumerate(self.workspace._tools):
+            if tool.name == name:
+                self.workspace.set_current_tool(i)
+                return True
+        return False
 
-    # def initialize_controller(self):
-    #     """Inicializa o controller APOS a UI estar pronta."""
-    #     self.controller = MainController(self)
-    #     self.loader_overlay = HudCircularRingsLoader(self)
-    #     self.loader_overlay.setGeometry(self.rect())
+    def switch_to_console(self) -> None:
+        """Muda para a aba Console."""
+        self.switch_to_tool("Console")
 
-    # ────────────────────────────────────────────────────────────────────────
-    # PROPRIEDADES DE DELEGACAO (compatibilidade com MainController)
-    # O controller acessa self.view.btn_executar, self.view.spin_epochs,
-    # self.view.txt_log, self.view.anchorClicked, etc.
-    # ────────────────────────────────────────────────────────────────────────
-
-    def __getattr__(self, name):
-        """
-        Redireciona acesso a atributos da UI:
-        - Atributos do console (btn_clear_console, txt_log, anchorClicked) → console_tool
-        - Atributos de classificacao → classification_tool
-        """
-        # Atributos do console (compartilhado)
-        console_attrs = ("txt_log", "anchorClicked", "btn_clear_console")
-        if name in console_attrs:
-            if self.__dict__.get("console_tool") is not None:
-                tool = self.console_tool
-                if name == "txt_log":
-                    return tool.txt_log
-                elif name == "anchorClicked":
-                    return tool.anchorClicked
-                elif name == "btn_clear_console":
-                    return tool.btn_clear_console
-                return getattr(tool, name, None)
-
-        # # --- Atributos da ferramenta de classificacao (COMENTADO — isolado) --- #
-        # if self.__dict__.get("classification_tool") is not None:
-        #     tool = self.classification_tool
-        #     if hasattr(tool, name):
-        #         return getattr(tool, name)
-
-        raise AttributeError(
-            f"'{type(self).__name__}' object has no attribute '{name}'"
-        )
-
-    # ────────────────────────────────────────────────────────────────────────
+    # ------------------------------------------------------------------
     # CONTROLE DE JANELA
-    # ────────────────────────────────────────────────────────────────────────
+    # ------------------------------------------------------------------
 
-    def _toggle_maximize_restore(self):
+    def _toggle_maximize_restore(self) -> None:
         if self.isMaximized():
             self.showNormal()
         else:
             self.showMaximized()
-
-    # def resizeEvent(self, event):
-    #     super().resizeEvent(event)
-    #     if hasattr(self, "loader_overlay") and self.loader_overlay is not None:
-    #         self.loader_overlay.setGeometry(self.rect())
-
-
-# =============================================================================
-# PONTO DE ENTRADA
-# =============================================================================
-
-def main():
-    app = QApplication(sys.argv)
-    app.setStyleSheet(AppStyles.global_stylesheet())
-
-    font = QFont("Segoe UI", 10)
-    font.setStyleHint(QFont.StyleHint.SansSerif)
-    app.setFont(font)
-
-    window = MainWindow()
-    # window.initialize_controller()  # ← comentado — classification tool isolada
-    window.show()
-    sys.exit(app.exec())
-
-
-if __name__ == "__main__":
-    main()

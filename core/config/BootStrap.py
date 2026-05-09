@@ -1,55 +1,126 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Launcher para a UI do Classificador Raster Neural v6
-==================================================
-Inicia a aplicacao Qt com suppressao de warnings do TensorFlow.
+BootStrap — Singleton de inicialização da aplicação
+=====================================================
+Responsável por:
+  1. Configurações iniciais de ambiente (TF, warnings)
+  2. Criar a QApplication e aplicar o tema
+  3. Registrar todas as ferramentas no ToolRegistry
+  4. Instanciar a MainWindow com as ferramentas registradas
+  5. Exibir a janela e iniciar o event loop
+
+Uso:
+    from core.config.BootStrap import BootStrap
+    BootStrap().run()
 """
+
+from __future__ import annotations
 
 import os
 import sys
+from typing import Optional
 
-# ═══════════════════════════════════════════════════════════════════════
-# CONFIGURACOES INICIAIS — DEVEM VIR ANTES DE QUALQUER IMPORT
-# ═══════════════════════════════════════════════════════════════════════════
+from PySide6.QtWidgets import QApplication
+from PySide6.QtGui import QFont
 
-# Suprime warnings do TensorFlow (deve ser definido antes do primeiro import)
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"  # 0=DEBUG, 1=INFO, 2=WARNING, 3=ERROR
-os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"  # Desabilita oneDNN custom operations
-os.environ["TF_CPP_MAX_LOG_LEVEL"] = "3"  # Alternativo para algumas versoes
+from core.config.tool_registry import ToolRegistry
+from core.ui.ui_main import MainWindow
+from resources.styles.styles import DarkCharcoalStyle
 
-# Suprime warnings de deprecacao de bibliotecas externas
-import warnings
-warnings.filterwarnings("ignore", category=DeprecationWarning)
-warnings.filterwarnings("ignore", category=FutureWarning)
-warnings.filterwarnings("ignore", category=UserWarning, module="keras")
 
-# ═══════════════════════════════════════════════════════════════════════
-# INICIA APLICACAO
-# ═══════════════════════════════════════════════════════════════════════
+class BootStrap:
+    """
+    Singleton que centraliza toda a inicialização da aplicação.
+    """
 
-try:
-    from PySide6.QtWidgets import QApplication
-    from PySide6.QtGui import QFont
-    
-    from core.ui.ui_main import MainWindow
-    from resources.styles.styles import DarkCharcoalStyle
-    
-    app = QApplication(sys.argv)
-    app.setStyleSheet(DarkCharcoalStyle.stylesheet())
-    
-    font = QFont("Segoe UI", 10)
-    font.setStyleHint(QFont.StyleHint.SansSerif)
-    app.setFont(font)
-    
-    window = MainWindow()
-    # window.initialize_controller()  # ← comentado — classification tool isolada
-    window.show()
-    
-    sys.exit(app.exec())
-    
-except Exception as e:
-    print(f"\n[ERRO] Falha ao iniciar: {e}")
-    import traceback
-    traceback.print_exc()
-    sys.exit(1)
+    _instance: Optional["BootStrap"] = None
+
+    def __new__(cls) -> "BootStrap":
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance._initialized = False
+            cls._instance._app: Optional[QApplication] = None
+            cls._instance._window: Optional[MainWindow] = None
+        return cls._instance
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # Método principal
+    # ═══════════════════════════════════════════════════════════════════════
+
+    def run(self) -> None:
+        """Executa o bootstrap completo da aplicação."""
+        if self._initialized:
+            return  # já inicializou, ignora
+
+        self._setup_environment()
+        self._create_application()
+        self._register_tools()
+        self._create_main_window()
+        self._initialized = True
+        self._show_and_run()
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # Etapas internas
+    # ═══════════════════════════════════════════════════════════════════════
+
+    def _setup_environment(self) -> None:
+        """
+        Configura variáveis de ambiente e filtra warnings
+        antes de qualquer import das bibliotecas pesadas.
+        """
+        # Suprime warnings do TensorFlow
+        os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+        os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
+        os.environ["TF_CPP_MAX_LOG_LEVEL"] = "3"
+
+        # Suprime warnings de deprecação
+        import warnings
+        warnings.filterwarnings("ignore", category=DeprecationWarning)
+        warnings.filterwarnings("ignore", category=FutureWarning)
+        warnings.filterwarnings("ignore", category=UserWarning, module="keras")
+
+    def _create_application(self) -> None:
+        """Cria a QApplication e aplica o tema global."""
+        self._app = QApplication(sys.argv)
+        self._app.setStyleSheet(DarkCharcoalStyle.stylesheet())
+
+        font = QFont("Segoe UI", 10)
+        font.setStyleHint(QFont.StyleHint.SansSerif)
+        self._app.setFont(font)
+
+    def _register_tools(self) -> None:
+        """
+        Registra todas as ferramentas padrao no ToolRegistry.
+        As definicoes das ferramentas estao em ToolRegistry._TOOL_DEFINITIONS.
+        """
+        registry = ToolRegistry()
+        registry.register_default_tools()
+
+    def _create_main_window(self) -> None:
+        """Instancia a MainWindow passando as tools registradas."""
+        if self._app is None:
+            raise RuntimeError("QApplication nao foi criada. Chame run().")
+        registry = ToolRegistry()
+        self._window = MainWindow(tools=registry.get_all())
+
+    def _show_and_run(self) -> None:
+        """Exibe a janela e entra no event loop."""
+        if self._window is None:
+            raise RuntimeError("MainWindow nao foi criada.")
+        self._window.show()
+        sys.exit(self._app.exec())
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # Acesso à instância (para uso externo)
+    # ═══════════════════════════════════════════════════════════════════════
+
+    @property
+    def window(self) -> Optional[MainWindow]:
+        """Retorna a MainWindow já instanciada."""
+        return self._window
+
+    @property
+    def application(self) -> Optional[QApplication]:
+        """Retorna a QApplication já criada."""
+        return self._app
