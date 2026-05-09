@@ -75,6 +75,11 @@ class ToolRegistry:
             "class_name": "ClassificationTool",
             "tooltip": "Classificacao Raster com Redes Neurais (inativo)",
         },
+        ToolKey.LOGVIEWER: {
+            "module": "plugins.log_viewer.log_viewer",
+            "class_name": "LogViewerTool",
+            "tooltip": "Visualizador de logs do sistema",
+        },
         # ── Exemplo de como adicionar uma nova ferramenta ─────────────
         # ToolKey.MINHA_FERRAMENTA: {
         #     "module": "plugins.minha_ferramenta.minha_ferramenta",

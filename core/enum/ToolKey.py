@@ -18,6 +18,7 @@ class ToolKey(str, Enum):
     HOME = "Home"
     CONSOLE = "Console"
     CLASSIFIER = "Classifier"
+    LOGVIEWER = "LogViewer"
     SYSTEM = "System"
 
     # ── Método utilitário ──────────────────────────────────────────────
