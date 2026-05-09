@@ -19,10 +19,11 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 from resources.styles.styles import AppStyles, Palette
-from resources.widgets.buttons import (
-    SimplePrimaryButton, SimpleSecondaryButton,
-    SimpleDangerButton, SimpleGhostButton, SimpleRemoveButton
-)
+from resources.widgets.SimplePrimaryButton import SimplePrimaryButton
+from resources.widgets.SimpleSecondaryButton import SimpleSecondaryButton
+from resources.widgets.SimpleDangerButton import SimpleDangerButton
+from resources.widgets.SimpleGhostButton import SimpleGhostButton
+from resources.widgets.SimpleRemoveButton import SimpleRemoveButton
 from plugins.tensorflow_classifier.ui_field_specs import UI_FIELD_SPECS
 
 

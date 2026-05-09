@@ -12,7 +12,7 @@ from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QTextBrowser
 )
 from PySide6.QtCore import Qt
-from resources.widgets.buttons import SimpleGhostButton
+from resources.widgets.SimpleGhostButton import SimpleGhostButton
 from core.model.BasePlugin import BasePlugin
 
 
