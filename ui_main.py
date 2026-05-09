@@ -22,7 +22,7 @@ from plugins.tensorflow_classifier.classification_tool import ClassificationTool
 from plugins.console.console_tool import ConsoleTool
 from resources.styles.styles import AppStyles, Palette
 from core.ui.hud_loader import HudCircularRingsLoader
-from plugins.tensorflow_classifier.main_controller import MainController
+# from plugins.tensorflow_classifier.main_controller import MainController
 
 
 # ────────────────────────────────────────────────────────────────────────────
@@ -48,13 +48,13 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle("Aetheris ToolBox")
         self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.Window)
-        self.setMinimumSize(1200, 800)
+        self.setMinimumSize(1000, 650)
 
         icon_path = Path(__file__).parent / "Aetheris.png"
         if icon_path.exists():
             self.setWindowIcon(QIcon(str(icon_path)))
 
-        self.resize(1400, 880)
+        self.resize(1100, 700)
 
         # --- Ferramentas ---
         self.classification_tool: ClassificationTool | None = None
@@ -63,12 +63,12 @@ class MainWindow(QMainWindow):
         # --- Build UI ---
         self._build_ui()
 
-        # --- Controller (deve vir DEPOIS da UI montada) ---
-        self.controller: MainController | None = None
-        self.loader_overlay: HudCircularRingsLoader | None = None
+        # # --- Controller (deve vir DEPOIS da UI montada) --- #
+        # self.controller: MainController | None = None
+        # self.loader_overlay: HudCircularRingsLoader | None = None
 
-        # Connect signals
-        self._connect_signals()
+        # # Connect signals #
+        # self._connect_signals()
 
     def _build_ui(self):
         root = QWidget()
@@ -112,23 +112,23 @@ class MainWindow(QMainWindow):
         self.progress.setFixedHeight(20)
         root_layout.addWidget(self.progress)
 
-    def _connect_signals(self):
-        """Conecta sinais do Workspace a acoes globais."""
-        self.workspace.current_tool_changed.connect(self._on_tool_changed)
+    # def _connect_signals(self):
+    #     """Conecta sinais do Workspace a acoes globais."""
+    #     self.workspace.current_tool_changed.connect(self._on_tool_changed)
 
-    def _on_tool_changed(self, index: int, tool_widget):
-        """Callback quando o usuario troca de aba."""
-        pass  # Future: update appbar title, etc.
+    # def _on_tool_changed(self, index: int, tool_widget):
+    #     """Callback quando o usuario troca de aba."""
+    #     pass  # Future: update appbar title, etc.
 
     def switch_to_console(self):
         """Muda para a aba Console para mostrar logs da execucao."""
         self.workspace.set_current_tool(TAB_CONSOLE)
 
-    def initialize_controller(self):
-        """Inicializa o controller APOS a UI estar pronta."""
-        self.controller = MainController(self)
-        self.loader_overlay = HudCircularRingsLoader(self)
-        self.loader_overlay.setGeometry(self.rect())
+    # def initialize_controller(self):
+    #     """Inicializa o controller APOS a UI estar pronta."""
+    #     self.controller = MainController(self)
+    #     self.loader_overlay = HudCircularRingsLoader(self)
+    #     self.loader_overlay.setGeometry(self.rect())
 
     # ────────────────────────────────────────────────────────────────────────
     # PROPRIEDADES DE DELEGACAO (compatibilidade com MainController)
@@ -155,11 +155,11 @@ class MainWindow(QMainWindow):
                     return tool.btn_clear_console
                 return getattr(tool, name, None)
 
-        # Atributos da ferramenta de classificacao
-        if self.__dict__.get("classification_tool") is not None:
-            tool = self.classification_tool
-            if hasattr(tool, name):
-                return getattr(tool, name)
+        # # --- Atributos da ferramenta de classificacao (COMENTADO — isolado) --- #
+        # if self.__dict__.get("classification_tool") is not None:
+        #     tool = self.classification_tool
+        #     if hasattr(tool, name):
+        #         return getattr(tool, name)
 
         raise AttributeError(
             f"'{type(self).__name__}' object has no attribute '{name}'"
@@ -175,10 +175,10 @@ class MainWindow(QMainWindow):
         else:
             self.showMaximized()
 
-    def resizeEvent(self, event):
-        super().resizeEvent(event)
-        if hasattr(self, "loader_overlay") and self.loader_overlay is not None:
-            self.loader_overlay.setGeometry(self.rect())
+    # def resizeEvent(self, event):
+    #     super().resizeEvent(event)
+    #     if hasattr(self, "loader_overlay") and self.loader_overlay is not None:
+    #         self.loader_overlay.setGeometry(self.rect())
 
 
 # =============================================================================
@@ -194,7 +194,7 @@ def main():
     app.setFont(font)
 
     window = MainWindow()
-    window.initialize_controller()
+    # window.initialize_controller()  # ← comentado — classification tool isolada
     window.show()
     sys.exit(app.exec())
 

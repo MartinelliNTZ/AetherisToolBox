@@ -43,7 +43,7 @@ try:
     app.setFont(font)
     
     window = MainWindow()
-    window.initialize_controller()
+    # window.initialize_controller()  # ← comentado — classification tool isolada
     window.show()
     
     sys.exit(app.exec())
