@@ -6,6 +6,7 @@ Exibe todos os eventos de log em uma tabela com suporte a:
 - Pesquisa por texto (filtra em tempo real)
 - Filtro por nivel (DEBUG, INFO, WARNING, ERROR, CRITICAL)
 - Ordenacao por coluna (clique no cabecalho)
+- Cores de fonte via ColorProvider (tool, class, level)
 - Botao Refresh para recarregar os arquivos de log
 
 Uso:
@@ -23,7 +24,7 @@ from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QTableWidget, QTableWidgetItem,
     QLineEdit, QComboBox, QPushButton, QHeaderView, QLabel, QAbstractItemView,
 )
-from PySide6.QtGui import QColor, QIcon
+from PySide6.QtGui import QColor, QIcon, QBrush
 
 
 class LogViewerTool(QWidget):
@@ -38,15 +39,6 @@ class LogViewerTool(QWidget):
     # Colunas da tabela
     COLUMNS = ["timestamp", "level", "tool", "class", "message", "code"]
 
-    # Cores para cada nivel (background da celula level)
-    LEVEL_COLORS = {
-        "DEBUG": QColor("#F3F4F6"),      # cinza claro
-        "INFO": QColor("#D1FAE5"),       # verde claro
-        "WARNING": QColor("#FEF3C7"),    # amarelo claro
-        "ERROR": QColor("#FEE2E2"),      # vermelho claro
-        "CRITICAL": QColor("#FECACA"),   # vermelho mais forte
-    }
-
     def __init__(self, parent=None):
         super().__init__(parent)
         self._raw_events: List[dict] = []
@@ -60,6 +52,8 @@ class LogViewerTool(QWidget):
     # ═════════════════════════════════════════════════════════════════════
 
     def _build_ui(self) -> None:
+        from utils.ColorProvider import ColorProvider
+
         layout = QVBoxLayout(self)
         layout.setContentsMargins(8, 8, 8, 8)
         layout.setSpacing(6)
@@ -94,6 +88,32 @@ class LogViewerTool(QWidget):
         self.table.setAlternatingRowColors(True)
         self.table.verticalHeader().setVisible(False)
         self.table.setSortingEnabled(False)  # manual
+
+        # Cores do tema escuro para a tabela
+        self.table.setStyleSheet(f"""
+            QTableWidget {{
+                background-color: #0C0C0F;
+                alternate-background-color: #121216;
+                border: none;
+                border-radius: 8px;
+                gridline-color: #1A1A20;
+                color: {ColorProvider.text_primary()};
+            }}
+            QTableWidget::item:selected {{
+                background-color: #24242B;
+                color: #F0F0F0;
+            }}
+            QHeaderView::section {{
+                background-color: #18181D;
+                color: #888890;
+                padding: 4px 6px;
+                border: none;
+                border-bottom: 2px solid #C9A84C;
+                font-weight: 700;
+                font-size: 11px;
+                letter-spacing: 0.3px;
+            }}
+        """)
 
         # Configurar cabecalho para ordenacao ao clicar
         header = self.table.horizontalHeader()
@@ -141,6 +161,7 @@ class LogViewerTool(QWidget):
     def _render_table(self) -> None:
         """Aplica filtros atuais, ordena e preenche a tabela."""
         from core.config.LogFilter import LogFilter
+        from utils.ColorProvider import ColorProvider
 
         events = self._raw_events
 
@@ -171,11 +192,17 @@ class LogViewerTool(QWidget):
                 item = QTableWidgetItem(str(value))
                 item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
 
-                # Cor de fundo para coluna level
+                # ── Cor da fonte conforme a coluna ─────────────────────
                 if col_name == "level":
-                    color = self.LEVEL_COLORS.get(str(value).upper())
-                    if color:
-                        item.setBackground(color)
+                    color_hex = ColorProvider.level_color(str(value))
+                elif col_name == "tool":
+                    color_hex = ColorProvider.tool_color(str(value))
+                elif col_name == "class":
+                    color_hex = ColorProvider.class_color(str(value))
+                else:
+                    color_hex = ColorProvider.text_primary()
+
+                item.setForeground(QBrush(QColor(color_hex)))
 
                 self.table.setItem(row, col, item)
 
