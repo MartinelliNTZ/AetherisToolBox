@@ -5,17 +5,6 @@ ToolKey — Enum de chaves das ferramentas do sistema
 Centraliza os nomes das ferramentas em um Enum para evitar
 strings soltas no código e facilitar manutenção.
 
-Uso:
-    from core.enum.ToolKey import ToolKey
-
-    ToolKey.HOME.value          # "Home"
-    ToolKey.CONSOLE.value       # "Console"
-    ToolKey.CLASSIFIER.value    # "Classifier"
-    ToolKey.SYSTEM.value        # "System"
-
-    # Iterar sobre todas:
-    for key in ToolKey:
-        print(key.value)
 """
 
 from __future__ import annotations

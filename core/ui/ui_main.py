@@ -57,6 +57,11 @@ class MainWindow(QMainWindow):
         self.workspace.set_current_tool(0)
 
     def _build_ui(self, tools: List[Tool]) -> None:
+        from core.config.LogUtils import LogUtils
+
+        logger = LogUtils(tool="System", class_name="MainWindow")
+        logger.info("Construindo interface", code="UI_BUILD", num_tools=len(tools))
+
         root = QWidget()
         root_layout = QVBoxLayout(root)
         root_layout.setContentsMargins(0, 0, 0, 0)

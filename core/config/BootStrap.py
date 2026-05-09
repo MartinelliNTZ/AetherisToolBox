@@ -54,6 +54,7 @@ class BootStrap:
             return  # já inicializou, ignora
 
         self._setup_environment()
+        self._init_logging()
         self._create_application()
         self._register_tools()
         self._create_main_window()
@@ -79,6 +80,18 @@ class BootStrap:
         warnings.filterwarnings("ignore", category=DeprecationWarning)
         warnings.filterwarnings("ignore", category=FutureWarning)
         warnings.filterwarnings("ignore", category=UserWarning, module="keras")
+
+    def _init_logging(self) -> None:
+        """
+        Inicializa o sistema de logs: limpa arquivos antigos
+        e registra o inicio da execucao.
+        """
+        from core.config.LogCleanup import LogCleanup
+        from core.config.LogUtils import LogUtils
+
+        removed = LogCleanup.run(max_files=5)
+        logger = LogUtils(tool="System", class_name="BootStrap")
+        logger.info("Inicializacao do sistema", code="BOOT_OK", logs_removidos=removed)
 
     def _create_application(self) -> None:
         """Cria a QApplication e aplica o tema global."""

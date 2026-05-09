@@ -75,11 +75,6 @@ class ToolRegistry:
             "class_name": "ClassificationTool",
             "tooltip": "Classificacao Raster com Redes Neurais (inativo)",
         },
-        ToolKey.SYSTEM: {
-            "module": "plugins.system.system_tool",
-            "class_name": "SystemTool",
-            "tooltip": "Informacoes do sistema",
-        },
         # ── Exemplo de como adicionar uma nova ferramenta ─────────────
         # ToolKey.MINHA_FERRAMENTA: {
         #     "module": "plugins.minha_ferramenta.minha_ferramenta",
@@ -93,7 +88,8 @@ class ToolRegistry:
         Registra todas as ferramentas definidas em _TOOL_DEFINITIONS.
         Cada tool e registrada com lazy loading (factory).
         """
-        for name, info in self._TOOL_DEFINITIONS.items():
+        for key, info in self._TOOL_DEFINITIONS.items():
+            name = key.value  # ToolKey.HOME → "Home"
             if name not in self._tools:  # evita duplicatas
                 self.register(
                     name=name,

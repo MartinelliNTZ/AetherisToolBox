@@ -63,6 +63,8 @@ class Workspace(QWidget):
         pela primeira vez.
         Retorna o indice da ferramenta.
         """
+        from core.config.LogUtils import LogUtils
+
         index = len(self._tools)
         self._tools.append(tool)
 
@@ -75,6 +77,9 @@ class Workspace(QWidget):
         if tool.tooltip:
             self.tab_bar.setTabToolTip(tab_index, tool.tooltip)
         self._tab_to_index[tab_index] = index
+
+        logger = LogUtils(tool="System", class_name="Workspace")
+        logger.info(f"Tool registrada: {tool.name}", code="TOOL_REG", index=index)
 
         return index
 
@@ -105,14 +110,17 @@ class Workspace(QWidget):
 
     def _on_tab_changed(self, tab_index: int) -> None:
         """Quando a aba muda, carrega o widget real (lazy) se necessario."""
+        from core.config.LogUtils import LogUtils
+
         tool_idx = self._tab_to_index.get(tab_index, -1)
         if tool_idx < 0 or tool_idx >= len(self._tools):
             return
 
         tool = self._tools[tool_idx]
+        logger = LogUtils(tool="System", class_name="Workspace")
 
-        # Se o widget ainda nao foi carregado pelo Tool, carrega agora
         if not tool.is_loaded:
+            logger.info(f"Carregando tool (lazy): {tool.name}", code="LAZY_LOAD")
             widget = tool.widget  # aciona a factory
             scroll = QScrollArea()
             scroll.setWidgetResizable(True)
@@ -121,6 +129,8 @@ class Workspace(QWidget):
             scroll.setObjectName(f"workspace_scroll_{tool.name}")
             self.stack.removeWidget(self.stack.widget(tab_index))
             self.stack.insertWidget(tab_index, scroll)
+        else:
+            logger.debug(f"Aba selecionada: {tool.name}", code="TAB_SWITCH")
 
         self.stack.setCurrentIndex(tab_index)
         self.current_tool_changed.emit(tool_idx, tool.widget if tool.is_loaded else None)

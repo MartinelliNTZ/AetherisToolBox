@@ -25,6 +25,9 @@ class ConsoleTool(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._build_ui()
+        from core.config.LogUtils import LogUtils
+        self._logger = LogUtils(tool="Console", class_name="ConsoleTool")
+        self._logger.info("ConsoleTool carregada", code="TOOL_READY")
 
     def _build_ui(self):
         layout = QVBoxLayout(self)
@@ -60,6 +63,7 @@ class ConsoleTool(QWidget):
     def clear_log(self) -> None:
         """Limpa o console."""
         self.txt_log.clear()
+        self._logger.info("Console limpo", code="CONSOLE_CLEAR")
 
     def set_placeholder(self, text: str) -> None:
         self.txt_log.setPlaceholderText(text)
