@@ -6,6 +6,9 @@ Exibe todos os eventos de log em uma tabela com suporte a:
 - Pesquisa por texto (filtra em tempo real)
 - Filtro por nivel (DEBUG, INFO, WARNING, ERROR, CRITICAL)
 - Ordenacao por coluna (clique no cabecalho)
+- Selecao multipla (CTRL / SHIFT)
+- Copiar filtro ou selecao para clipboard
+- Duplo clique abre dialog de detalhes
 - Cores de fonte via ColorProvider (tool, class, level)
 - Botao Refresh para recarregar os arquivos de log
 
@@ -22,9 +25,93 @@ from typing import List
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QTableWidget, QTableWidgetItem,
-    QLineEdit, QComboBox, QPushButton, QHeaderView, QLabel, QAbstractItemView,
+    QLineEdit, QComboBox, QPushButton, QHeaderView, QLabel,
+    QAbstractItemView, QDialog, QTextEdit, QVBoxLayout as QVBoxDialog,
+    QHBoxLayout as QHBoxDialog, QApplication,
 )
-from PySide6.QtGui import QColor, QIcon, QBrush
+from PySide6.QtGui import QColor, QIcon, QBrush, QFont
+
+
+class LogDetailDialog(QDialog):
+    """
+    Dialog de detalhes de um evento de log.
+    Exibe todos os campos em formato texto selecionavel.
+    """
+
+    def __init__(self, event: dict, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Detalhes do Evento")
+        self.setMinimumSize(600, 400)
+        self.setWindowFlags(
+            Qt.WindowType.Dialog |
+            Qt.WindowType.WindowCloseButtonHint |
+            Qt.WindowType.WindowStaysOnTopHint
+        )
+        self._build_ui(event)
+
+    def _build_ui(self, event: dict) -> None:
+        from utils.ColorProvider import ColorProvider
+
+        layout = QVBoxDialog(self)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(8)
+
+        # Monta texto formatado com todas as chaves do evento
+        lines: List[str] = []
+        for key, value in event.items():
+            if isinstance(value, dict):
+                value = str(value)
+            if value is None:
+                value = ""
+            lines.append(f"{key}: {value}")
+
+        text_content = "\n".join(lines)
+
+        self.text_edit = QTextEdit()
+        self.text_edit.setPlainText(text_content)
+        self.text_edit.setReadOnly(False)  # permite selecionar e copiar
+        self.text_edit.setStyleSheet(f"""
+            QTextEdit {{
+                background-color: #0C0C0F;
+                color: {ColorProvider.text_primary()};
+                border: 1px solid #1A1A20;
+                border-radius: 6px;
+                padding: 12px;
+                font-family: 'Consolas', 'Courier New', monospace;
+                font-size: 13px;
+                selection-background-color: #C9A84C;
+                selection-color: #08080A;
+            }}
+        """)
+        layout.addWidget(self.text_edit, 1)
+
+        # Botoes
+        btn_layout = QHBoxDialog()
+        btn_layout.addStretch()
+
+        from resources.widgets.buttons import SimpleGhostButton
+
+        copy_btn = SimpleGhostButton("Copiar Tudo")
+        copy_btn.clicked.connect(self._copy_all)
+        btn_layout.addWidget(copy_btn)
+
+        close_btn = SimpleGhostButton("Fechar")
+        close_btn.clicked.connect(self.accept)
+        btn_layout.addWidget(close_btn)
+
+        layout.addLayout(btn_layout)
+
+        # Aplica tema escuro no dialog
+        self.setStyleSheet(f"""
+            QDialog {{
+                background-color: #121216;
+                color: {ColorProvider.text_primary()};
+            }}
+        """)
+
+    def _copy_all(self) -> None:
+        """Copia todo o texto para a clipboard."""
+        QApplication.clipboard().setText(self.text_edit.toPlainText())
 
 
 class LogViewerTool(QWidget):
@@ -32,7 +119,7 @@ class LogViewerTool(QWidget):
     Visualizador de logs com tabela, pesquisa e filtro.
 
     Layout:
-      [Barra de ferramentas: campo busca | combo nivel | botao Refresh]
+      [Barra de ferramentas: campo busca | combo nivel | Export Filter | Export Select | Refresh]
       [Tabela: timestamp | level | tool | class | message | code]
     """
 
@@ -42,6 +129,7 @@ class LogViewerTool(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._raw_events: List[dict] = []
+        self._filtered_events: List[dict] = []
         self._sort_column: str = "timestamp"
         self._sort_ascending: bool = False
         self._build_ui()
@@ -53,41 +141,66 @@ class LogViewerTool(QWidget):
 
     def _build_ui(self) -> None:
         from utils.ColorProvider import ColorProvider
+        from resources.widgets.buttons import SimpleGhostButton
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(8, 8, 8, 8)
         layout.setSpacing(6)
 
-        # ── Barra de ferramentas ──────────────────────────────────────
-        toolbar = QHBoxLayout()
-        toolbar.setSpacing(8)
+        # ── Barra de ferramentas (linha 1: busca e filtro) ────────────
+        toolbar1 = QHBoxLayout()
+        toolbar1.setSpacing(8)
 
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("Pesquisar nos logs...")
         self.search_input.textChanged.connect(self._on_filter_changed)
-        toolbar.addWidget(self.search_input, 1)
+        toolbar1.addWidget(self.search_input, 1)
 
         self.level_combo = QComboBox()
         self.level_combo.addItems(["ALL", "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"])
         self.level_combo.currentTextChanged.connect(self._on_filter_changed)
-        toolbar.addWidget(self.level_combo)
+        toolbar1.addWidget(self.level_combo)
 
-        self.refresh_btn = QPushButton("Refresh")
+        self.refresh_btn = SimpleGhostButton("Refresh")
         self.refresh_btn.clicked.connect(self._load_and_refresh)
-        toolbar.addWidget(self.refresh_btn)
+        toolbar1.addWidget(self.refresh_btn)
 
-        layout.addLayout(toolbar)
+        layout.addLayout(toolbar1)
+
+        # ── Barra de ferramentas (linha 2: exportacao) ─────────────────
+        toolbar2 = QHBoxLayout()
+        toolbar2.setSpacing(8)
+
+        self.export_filter_btn = SimpleGhostButton("Exportar Filtro")
+        self.export_filter_btn.setToolTip(
+            "Copia para a clipboard todos os eventos filtrados "
+            "(separados por tab, cola direto no Excel)"
+        )
+        self.export_filter_btn.clicked.connect(self._export_filter)
+        toolbar2.addWidget(self.export_filter_btn)
+
+        self.export_selection_btn = SimpleGhostButton("Exportar Selecao")
+        self.export_selection_btn.setToolTip(
+            "Copia para a clipboard somente as celulas selecionadas"
+        )
+        self.export_selection_btn.clicked.connect(self._export_selection)
+        toolbar2.addWidget(self.export_selection_btn)
+
+        toolbar2.addStretch()
+        layout.addLayout(toolbar2)
 
         # ── Tabela ────────────────────────────────────────────────────
         self.table = QTableWidget()
         self.table.setColumnCount(len(self.COLUMNS))
         self.table.setHorizontalHeaderLabels(self.COLUMNS)
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
-        self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
-        self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectItems)
+        self.table.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         self.table.setAlternatingRowColors(True)
         self.table.verticalHeader().setVisible(False)
         self.table.setSortingEnabled(False)  # manual
+
+        self.table.cellDoubleClicked.connect(self._on_cell_double_clicked)
 
         # Cores do tema escuro para a tabela
         self.table.setStyleSheet(f"""
@@ -178,6 +291,9 @@ class LogViewerTool(QWidget):
         # Ordenacao
         events = LogFilter.sort(events, self._sort_column, self._sort_ascending)
 
+        # Guarda os eventos filtrados para exportacao
+        self._filtered_events = events
+
         # Preencher tabela
         self.table.setRowCount(len(events))
 
@@ -189,8 +305,15 @@ class LogViewerTool(QWidget):
                 if value is None:
                     value = ""
 
+                # Formata timestamp
+                if col_name == "timestamp":
+                    value = self._format_timestamp(str(value))
+
                 item = QTableWidgetItem(str(value))
                 item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+
+                # Armazena dados originais no item para exportacao/detalhes
+                item.setData(Qt.ItemDataRole.UserRole, event)
 
                 # ── Cor da fonte conforme a coluna ─────────────────────
                 if col_name == "level":
@@ -214,6 +337,88 @@ class LogViewerTool(QWidget):
                 f"{filtered} de {total} evento(s) (filtrado)"
             )
 
+    @staticmethod
+    def _format_timestamp(ts: str) -> str:
+        """
+        Formata timestamp ISO para exibicao mais legivel.
+
+        "2026-05-08T22:52:00.341898" → "2026-05-08 22:52:00"
+        """
+        if not ts:
+            return ts
+        # Remove milissegundos e substitui T por espaco
+        ts = ts.replace("T", " ")
+        if "." in ts:
+            ts = ts.split(".")[0]
+        return ts
+
+    # ═════════════════════════════════════════════════════════════════════
+    # Exportacao (clipboard)
+    # ═════════════════════════════════════════════════════════════════════
+
+    def _export_filter(self) -> None:
+        """
+        Copia todos os eventos filtrados para clipboard como TSV
+        (tab-separated, cola direto no Excel).
+        """
+        if not self._filtered_events:
+            return
+
+        lines: List[str] = []
+        # Cabecalho
+        lines.append("\t".join(self.COLUMNS))
+
+        for event in self._filtered_events:
+            row_values: List[str] = []
+            for col_name in self.COLUMNS:
+                value = event.get(col_name, "")
+                if isinstance(value, dict):
+                    value = str(value)
+                if value is None:
+                    value = ""
+                # Remove tabs internos para nao quebrar o TSV
+                row_values.append(str(value).replace("\t", " "))
+            lines.append("\t".join(row_values))
+
+        text = "\n".join(lines)
+        QApplication.clipboard().setText(text)
+
+        self.status_label.setText(
+            f"{len(self._filtered_events)} evento(s) copiados para clipboard (filtro)"
+        )
+
+    def _export_selection(self) -> None:
+        """
+        Copia as celulas selecionadas para clipboard como TSV.
+        Mantem a estrutura de linhas e colunas da selecao.
+        """
+        selected_ranges = self.table.selectedRanges()
+        if not selected_ranges:
+            return
+
+        lines: List[str] = []
+
+        for sel_range in selected_ranges:
+            for row in range(sel_range.topRow(), sel_range.bottomRow() + 1):
+                row_values: List[str] = []
+                for col in range(sel_range.leftColumn(), sel_range.rightColumn() + 1):
+                    item = self.table.item(row, col)
+                    value = item.text() if item else ""
+                    row_values.append(value.replace("\t", " "))
+                lines.append("\t".join(row_values))
+
+        text = "\n".join(lines)
+        QApplication.clipboard().setText(text)
+
+        # Conta celulas
+        cell_count = sum(
+            (r.bottomRow() - r.topRow() + 1) * (r.rightColumn() - r.leftColumn() + 1)
+            for r in selected_ranges
+        )
+        self.status_label.setText(
+            f"{cell_count} celula(s) copiadas para clipboard (selecao)"
+        )
+
     # ═════════════════════════════════════════════════════════════════════
     # Eventos
     # ═════════════════════════════════════════════════════════════════════
@@ -231,11 +436,29 @@ class LogViewerTool(QWidget):
         col_name = self.COLUMNS[logical_index]
 
         if self._sort_column == col_name:
-            # Inverte direcao
             self._sort_ascending = not self._sort_ascending
         else:
-            # Nova coluna: ASC primeiro
             self._sort_column = col_name
             self._sort_ascending = True
 
         self._render_table()
+
+    def _on_cell_double_clicked(self, row: int, col: int) -> None:
+        """
+        Chamado quando o usuario da duplo clique em uma celula.
+        Abre o dialog de detalhes para a linha correspondente.
+        """
+        item = self.table.item(row, 0)  # Pega qualquer item da linha
+        if item is None:
+            return
+
+        event = item.data(Qt.ItemDataRole.UserRole)
+        if event is None:
+            # Fallback: se nao tem dados guardados, monta do display
+            event = {}
+            for c, col_name in enumerate(self.COLUMNS):
+                cell = self.table.item(row, c)
+                event[col_name] = cell.text() if cell else ""
+
+        dialog = LogDetailDialog(event, self)
+        dialog.exec()
