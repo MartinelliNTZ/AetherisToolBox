@@ -24,7 +24,7 @@ from typing import Optional
 from PySide6.QtWidgets import QApplication
 from PySide6.QtGui import QFont
 
-from core.config.tool_registry import ToolRegistry
+from core.config.ToolRegistry import ToolRegistry
 from core.ui.ui_main import MainWindow
 from resources.styles.styles import DarkCharcoalStyle
 
