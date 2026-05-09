@@ -19,6 +19,7 @@ from typing import Callable, List, Optional
 
 from PySide6.QtWidgets import QWidget
 
+from core.enum.ToolKey import ToolKey
 from core.model.Tool import Tool
 
 
@@ -59,23 +60,28 @@ class ToolRegistry:
     # ──────────────────────────────────────────────────────────────────
 
     _TOOL_DEFINITIONS: dict = {
-        "Home": {
+        ToolKey.HOME: {
             "module": "plugins.home.home_tool",
             "class_name": "HomeTool",
             "tooltip": "Pagina inicial do Aetheris ToolBox",
         },
-        "Console": {
+        ToolKey.CONSOLE: {
             "module": "plugins.console.console_tool",
             "class_name": "ConsoleTool",
             "tooltip": "Console de execucao compartilhado",
         },
-        "Classifier": {
+        ToolKey.CLASSIFIER: {
             "module": "plugins.tensorflow_classifier.classification_tool",
             "class_name": "ClassificationTool",
             "tooltip": "Classificacao Raster com Redes Neurais (inativo)",
         },
+        ToolKey.SYSTEM: {
+            "module": "plugins.system.system_tool",
+            "class_name": "SystemTool",
+            "tooltip": "Informacoes do sistema",
+        },
         # ── Exemplo de como adicionar uma nova ferramenta ─────────────
-        # "MinhaFerramenta": {
+        # ToolKey.MINHA_FERRAMENTA: {
         #     "module": "plugins.minha_ferramenta.minha_ferramenta",
         #     "class_name": "MinhaFerramentaWidget",
         #     "tooltip": "Descricao da minha ferramenta",
