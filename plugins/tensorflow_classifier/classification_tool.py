@@ -24,6 +24,7 @@ from resources.widgets.SimpleSecondaryButton import SimpleSecondaryButton
 from resources.widgets.SimpleDangerButton import SimpleDangerButton
 from resources.widgets.SimpleGhostButton import SimpleGhostButton
 from resources.widgets.SimpleRemoveButton import SimpleRemoveButton
+from resources.widgets.GroupDiv import GroupDiv
 from plugins.tensorflow_classifier.ui_field_specs import UI_FIELD_SPECS
 
 
@@ -109,11 +110,6 @@ class ClassificationTool(QWidget):
         super().__init__(parent)
         self._build_ui()
 
-    def _make_group_box(self, title: str) -> QGroupBox:
-        """Cria um GroupBox com titulo DENTRO do box (nao sobre a borda)."""
-        gb = QGroupBox(title)
-        return gb
-
     def _build_ui(self):
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(18, 10, 18, 10)
@@ -166,8 +162,8 @@ class ClassificationTool(QWidget):
         grid.setSpacing(10)
 
         # ---- (0,0) - IMAGENS & SAIDA ----
-        grp_img = self._make_group_box("Imagens & Saida")
-        li = QVBoxLayout(grp_img)
+        grp_img = GroupDiv("Imagens & Saida")
+        li = grp_img.group_layout
         li.setSpacing(6)
         li.setContentsMargins(6, 6, 6, 6)
         self.row_img_treino = PathBrowseRow("Imagem Treino", "dados/imagemTreino.tif",
@@ -183,8 +179,8 @@ class ClassificationTool(QWidget):
         grid.addWidget(grp_img, 0, 0)
 
         # ---- (0,1) - PERSISTENCIA DO MODELO ----
-        grp_mod = self._make_group_box("Persistencia do Modelo")
-        lm = QVBoxLayout(grp_mod)
+        grp_mod = GroupDiv("Persistencia do Modelo")
+        lm = grp_mod.group_layout
         lm.setSpacing(6)
         lm.setContentsMargins(6, 6, 6, 6)
         rm = QHBoxLayout()
@@ -214,8 +210,8 @@ class ClassificationTool(QWidget):
         grid.addWidget(grp_mod, 0, 1)
 
         # ---- (1,0) - SHAPEFILES ----
-        grp_shp = self._make_group_box("Shapefiles por Classe")
-        ls = QVBoxLayout(grp_shp)
+        grp_shp = GroupDiv("Shapefiles por Classe")
+        ls = grp_shp.group_layout
         ls.setSpacing(6)
         ls.setContentsMargins(6, 6, 6, 6)
         self.table_shp = QTableWidget(0, 4)
@@ -237,8 +233,8 @@ class ClassificationTool(QWidget):
         grid.addWidget(grp_shp, 1, 0)
 
         # ---- (1,1) - REDE NEURAL & TREINAMENTO ----
-        grp_rede = self._make_group_box("Rede Neural & Treinamento")
-        lr = QGridLayout(grp_rede)
+        grp_rede = GroupDiv("Rede Neural & Treinamento", layout_type=QGridLayout)
+        lr = grp_rede.group_layout
         lr.setSpacing(6)
         lr.setContentsMargins(6, 6, 6, 6)
 
