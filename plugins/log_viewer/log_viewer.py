@@ -133,7 +133,32 @@ class LogViewerTool(QWidget):
         self._sort_column: str = "timestamp"
         self._sort_ascending: bool = False
         self._build_ui()
+        self._restore_preferences()
         self._load_and_refresh()
+
+    def _restore_preferences(self) -> None:
+        """Carrega as preferencias salvas (search_text, level_filter)."""
+        from utils.Preferences import Preferences
+
+        prefs = Preferences(section="LogViewer")
+
+        search_text = prefs.get("search_text", "")
+        if search_text:
+            self.search_input.setText(search_text)
+
+        level_filter = prefs.get("level_filter", "ALL")
+        index = self.level_combo.findText(level_filter)
+        if index >= 0:
+            self.level_combo.setCurrentIndex(index)
+
+    def _save_preferences(self) -> None:
+        """Salva as preferencias atuais (search_text, level_filter)."""
+        from utils.Preferences import Preferences
+
+        prefs = Preferences(section="LogViewer")
+        prefs.set("search_text", self.search_input.text())
+        prefs.set("level_filter", self.level_combo.currentText())
+        prefs.save()
 
     # ═════════════════════════════════════════════════════════════════════
     # Construcao da UI
@@ -147,47 +172,39 @@ class LogViewerTool(QWidget):
         layout.setContentsMargins(8, 8, 8, 8)
         layout.setSpacing(6)
 
-        # ── Barra de ferramentas (linha 1: busca e filtro) ────────────
-        toolbar1 = QHBoxLayout()
-        toolbar1.setSpacing(8)
+        # ── Barra de ferramentas unica ───────────────────────────────
+        toolbar = QHBoxLayout()
+        toolbar.setSpacing(6)
 
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("Pesquisar nos logs...")
         self.search_input.textChanged.connect(self._on_filter_changed)
-        toolbar1.addWidget(self.search_input, 1)
+        toolbar.addWidget(self.search_input, 1)
 
         self.level_combo = QComboBox()
         self.level_combo.addItems(["ALL", "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"])
         self.level_combo.currentTextChanged.connect(self._on_filter_changed)
-        toolbar1.addWidget(self.level_combo)
-
-        self.refresh_btn = SimpleGhostButton("Refresh")
-        self.refresh_btn.clicked.connect(self._load_and_refresh)
-        toolbar1.addWidget(self.refresh_btn)
-
-        layout.addLayout(toolbar1)
-
-        # ── Barra de ferramentas (linha 2: exportacao) ─────────────────
-        toolbar2 = QHBoxLayout()
-        toolbar2.setSpacing(8)
+        toolbar.addWidget(self.level_combo)
 
         self.export_filter_btn = SimpleGhostButton("Exportar Filtro")
         self.export_filter_btn.setToolTip(
-            "Copia para a clipboard todos os eventos filtrados "
-            "(separados por tab, cola direto no Excel)"
+            "Copia para clipboard todos os eventos filtrados (TSV)"
         )
         self.export_filter_btn.clicked.connect(self._export_filter)
-        toolbar2.addWidget(self.export_filter_btn)
+        toolbar.addWidget(self.export_filter_btn)
 
         self.export_selection_btn = SimpleGhostButton("Exportar Selecao")
         self.export_selection_btn.setToolTip(
-            "Copia para a clipboard somente as celulas selecionadas"
+            "Copia para clipboard as celulas selecionadas (TSV)"
         )
         self.export_selection_btn.clicked.connect(self._export_selection)
-        toolbar2.addWidget(self.export_selection_btn)
+        toolbar.addWidget(self.export_selection_btn)
 
-        toolbar2.addStretch()
-        layout.addLayout(toolbar2)
+        self.refresh_btn = SimpleGhostButton("Refresh")
+        self.refresh_btn.clicked.connect(self._load_and_refresh)
+        toolbar.addWidget(self.refresh_btn)
+
+        layout.addLayout(toolbar)
 
         # ── Tabela ────────────────────────────────────────────────────
         self.table = QTableWidget()
@@ -426,6 +443,7 @@ class LogViewerTool(QWidget):
     def _on_filter_changed(self) -> None:
         """Chamado quando o texto de busca ou combo de nivel muda."""
         self._render_table()
+        self._save_preferences()
 
     def _on_header_clicked(self, logical_index: int) -> None:
         """
