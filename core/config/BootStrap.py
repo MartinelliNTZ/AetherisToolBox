@@ -32,7 +32,7 @@ try:
     from PySide6.QtWidgets import QApplication
     from PySide6.QtGui import QFont
     
-    from ui_main import MainWindow
+    from core.ui.ui_main import MainWindow
     from resources.styles.styles import DarkCharcoalStyle
     
     app = QApplication(sys.argv)
