@@ -5,6 +5,10 @@ from PySide6.QtWidgets import QWidget, QHBoxLayout, QLabel, QSizePolicy
 
 
 class WorkspaceTab(QWidget):
+    """
+    Aba customizada do Workspace.
+    A formatação visual (fundo, bordas, fonte) é feita via QSS em styles.py.
+    """
 
     def __init__(self, title: str, tooltip: str = "", parent=None):
         super().__init__(parent)
@@ -23,9 +27,9 @@ class WorkspaceTab(QWidget):
         self._label.setObjectName("workspace_tab_label")
         self._label.setAttribute(Qt.WA_TransparentForMouseEvents)
         self._label.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
+        self._label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self._label)
 
-        # Widget se ajusta ao conteúdo automaticamente
         self.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
         self.adjustSize()
 

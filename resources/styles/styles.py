@@ -243,7 +243,7 @@ class AppStyles:
             background-color: transparent;
             color: {p.TEXT_SECONDARY};
             border: none;
-            padding: 0;          /* zeramos — WorkspaceTab já tem seus próprios margins */
+            padding: 0;
             margin: 0;
             font-weight: 600;
             font-size: 11px;
@@ -273,6 +273,22 @@ class AppStyles:
         QTabBar::close-button:hover {{
             background-color: {p.DANGER};
             border-radius: 3px;
+        }}
+
+        /* ===== WORKSPACE TAB CUSTOM WIDGET ===== */
+        QWidget#workspace_tab {{
+            background-color: #000000;
+            border-top-right-radius: 8px;
+            border-top-left-radius: 0px;
+            border-bottom-right-radius: 0px;
+            border-bottom-left-radius: 0px;
+        }}
+        QLabel#workspace_tab_label {{
+            color: {p.TEXT_GOLD};
+            font-weight: bold;
+            font-size: 12px;
+            text-align: center;
+            padding: 0px 4px;
         }}
 
         /* ===== WORKSPACE SEPARATOR ===== */
