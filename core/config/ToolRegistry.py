@@ -17,10 +17,13 @@ from __future__ import annotations
 
 from typing import Callable, List, Optional
 
+from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QWidget
 
 from core.enum.ToolKey import ToolKey
+from core.enum.ToolType import ToolType
 from core.model.Tool import Tool
+from resources.IconManager import IconManager
 
 
 class ToolRegistry:
@@ -64,27 +67,37 @@ class ToolRegistry:
             "module": "plugins.home.home_tool",
             "class_name": "HomeTool",
             "tooltip": "Pagina inicial do Aetheris ToolBox",
+            "tool_type": ToolType.SYSTEM,
+            "icon_alias": "SYSTEM",
         },
         ToolKey.CONSOLE: {
             "module": "plugins.console.console_tool",
             "class_name": "ConsoleTool",
             "tooltip": "Console de execucao compartilhado",
+            "tool_type": ToolType.SYSTEM,
+            "icon_alias": "SYSTEM",
         },
         ToolKey.CLASSIFIER: {
             "module": "plugins.tensorflow_classifier.classification_tool",
             "class_name": "ClassificationTool",
             "tooltip": "Classificacao Raster com Redes Neurais (inativo)",
+            "tool_type": ToolType.RASTER,
+            "icon_alias": "RASTER",
         },
         ToolKey.LOGVIEWER: {
             "module": "plugins.log_viewer.log_viewer",
             "class_name": "LogViewerTool",
             "tooltip": "Visualizador de logs do sistema",
+            "tool_type": ToolType.SYSTEM,
+            "icon_alias": "SYSTEM",
         },
         # ── Exemplo de como adicionar uma nova ferramenta ─────────────
         # ToolKey.MINHA_FERRAMENTA: {
         #     "module": "plugins.minha_ferramenta.minha_ferramenta",
         #     "class_name": "MinhaFerramentaWidget",
         #     "tooltip": "Descricao da minha ferramenta",
+        #     "tool_type": ToolType.VECTOR,
+        #     "icon_alias": "VECTOR",
         # },
     }
 
@@ -96,12 +109,16 @@ class ToolRegistry:
         for key, info in self._TOOL_DEFINITIONS.items():
             name = key.value  # ToolKey.HOME → "Home"
             if name not in self._tools:  # evita duplicatas
+                tool_type = info.get("tool_type", ToolType.SYSTEM)
+                icon_alias = info.get("icon_alias", "SYSTEM")
                 self.register(
                     name=name,
                     widget_factory=self._make_factory(
                         info["module"], info["class_name"]
                     ),
                     tooltip=info["tooltip"],
+                    tool_type=tool_type,
+                    icon=IconManager.from_alias(icon_alias),
                 )
 
     @staticmethod
@@ -126,6 +143,8 @@ class ToolRegistry:
         name: str,
         widget_factory: Callable[[], QWidget],
         tooltip: str = "",
+        tool_type: ToolType = ToolType.SYSTEM,
+        icon: Optional[QIcon] = None,
     ) -> int:
         """
         Registra uma ferramenta no sistema com lazy loading.
@@ -134,13 +153,16 @@ class ToolRegistry:
             name           : Nome unico da ferramenta (ex: "Home", "Console")
             widget_factory : Callable sem argumentos que retorna um QWidget.
             tooltip        : Texto de dica (opcional).
+            tool_type      : Categoria visual (ToolType.SYSTEM, RASTER, etc.)
+            icon           : QIcon personalizado.
 
         Retorna:
             Indice da ferramenta na ordem de registro.
         """
         if name in self._tools:
             raise ValueError(f"Tool '{name}' ja esta registrada.")
-        tool = Tool(name=name, widget_factory=widget_factory, tooltip=tooltip)
+        tool = Tool(name=name, widget_factory=widget_factory, tooltip=tooltip,
+                    tool_type=tool_type, icon=icon)
         self._tools[name] = tool
         self._order.append(name)
         return len(self._order) - 1

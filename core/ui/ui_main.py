@@ -9,10 +9,10 @@ e ferramentas registradas via ToolRegistry.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from PySide6.QtWidgets import (
-    QMainWindow, QWidget, QVBoxLayout, QProgressBar
+    QMainWindow, QWidget, QVBoxLayout, QProgressBar, QHBoxLayout
 )
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QIcon
@@ -20,6 +20,7 @@ from PySide6.QtGui import QIcon
 from core.model.Tool import Tool
 from resources.widgets.app_bar import AppBar
 from core.ui.workspace import Workspace
+from core.config.MenuManager import MenuManager
 
 
 class MainWindow(QMainWindow):
@@ -27,8 +28,8 @@ class MainWindow(QMainWindow):
     Janela principal do Aetheris ToolBox.
 
     Layout:
-      [AppBar]            → título, toolbar, controles de janela
-      [Workspace]         → QTabBar + QStackedWidget (tools registradas)
+      [AppBar]            → título, toolbar com ToolGroups, controles de janela
+      [Workspace]         → área de trabalho com as ferramentas
       [Progress Bar]      → barra global de progresso (rodapé)
     """
 
@@ -75,6 +76,28 @@ class MainWindow(QMainWindow):
         self.appbar.close_clicked.connect(self.close)
         root_layout.addWidget(self.appbar)
 
+        # === TOOLBAR (grupos de ferramentas) ===
+        self._menu_manager = MenuManager()
+        self._menu_manager.tool_activated.connect(self._on_tool_activated)
+        groups = self._menu_manager.build()
+
+        if groups:
+            toolbar_container = QWidget()
+            toolbar_container.setObjectName("toolbar_panel")
+            toolbar_container.setStyleSheet("""
+                QWidget#toolbar_panel {
+                    background-color: #0A0A0D;
+                    border-bottom: 1px solid #1A1A20;
+                }
+            """)
+            toolbar_layout = QHBoxLayout(toolbar_container)
+            toolbar_layout.setContentsMargins(4, 2, 4, 2)
+            toolbar_layout.setSpacing(0)
+            for group in groups:
+                toolbar_layout.addWidget(group)
+            toolbar_layout.addStretch()
+            root_layout.addWidget(toolbar_container)
+
         # === WORKSPACE ===
         self.workspace = Workspace()
         root_layout.addWidget(self.workspace, 1)
@@ -90,6 +113,14 @@ class MainWindow(QMainWindow):
         self.progress.setFormat(" %p% — aguardando... ")
         self.progress.setFixedHeight(20)
         root_layout.addWidget(self.progress)
+
+    # ------------------------------------------------------------------
+    # MenuManager callback
+    # ------------------------------------------------------------------
+
+    def _on_tool_activated(self, tool_name: str):
+        """Quando um botão do ToolGroup é clicado, muda para a tool."""
+        self.switch_to_tool(tool_name)
 
     # ------------------------------------------------------------------
     # Acesso às tools registradas

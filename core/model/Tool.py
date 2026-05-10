@@ -11,7 +11,11 @@ from __future__ import annotations
 
 from typing import Any, Callable, Optional
 
+from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QWidget
+
+from core.enum.ToolType import ToolType
+from resources.IconManager import IconManager
 
 
 class Tool:
@@ -26,7 +30,8 @@ class Tool:
         tool = Tool(
             name="Console",
             widget_factory=lambda: ConsoleTool(),
-            tooltip="Console de execução"
+            tooltip="Console de execução",
+            tool_type=ToolType.SYSTEM,
         )
         w = tool.widget  # ← cria o widget aqui, na primeira vez
     """
@@ -36,6 +41,8 @@ class Tool:
         name: str,
         widget_factory: Callable[[], QWidget],
         tooltip: str = "",
+        tool_type: ToolType = ToolType.SYSTEM,
+        icon: Optional[QIcon] = None,
     ) -> None:
         """
         Parâmetros:
@@ -43,10 +50,14 @@ class Tool:
             widget_factory : Callable sem argumentos que retorna um QWidget.
                              Só será chamado quando ``self.widget`` for acessado.
             tooltip        : Texto de dica ao passar o mouse (opcional).
+            tool_type      : Categoria visual (ToolType.SYSTEM, RASTER, etc.)
+            icon           : QIcon personalizado. Se None, usa o default do IconManager.
         """
         self._name = name
         self._factory = widget_factory
         self._tooltip = tooltip
+        self._tool_type = tool_type
+        self._icon = icon or IconManager.default_icon()
         self._widget: Optional[QWidget] = None
 
     # ────────────────────────────────────────────────────────────────────────
@@ -77,6 +88,16 @@ class Tool:
     def tooltip(self) -> str:
         """Texto de dica da ferramenta."""
         return self._tooltip
+
+    @property
+    def tool_type(self) -> ToolType:
+        """Categoria visual da ferramenta."""
+        return self._tool_type
+
+    @property
+    def icon(self) -> QIcon:
+        """Ícone da ferramenta."""
+        return self._icon
 
     # ────────────────────────────────────────────────────────────────────────
     # Métodos úteis
