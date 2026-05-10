@@ -1,229 +1,195 @@
 # -*- coding: utf-8 -*-
 """
-SideWorkspace — Painel lateral direito com abas verticais expansíveis
-======================================================================
+SideWorkspace — Painel lateral direito expansível
+===================================================
 Gerencia ferramentas do tipo SIDE (ex: Console).
-Abas ficam na vertical à direita e ao clicar expandem/recolhem o painel.
-Um QSplitter permite redimensionar entre o CentralWorkspace e este painel.
+Funciona com largura fixa controlada: 36px (colapsado, mostra só as abas)
+ou 400px (expandido, mostra conteúdo).
+
+O CentralWorkspace se ajusta automaticamente via layout.
 """
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt, Signal, Slot
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout,
-    QStackedWidget, QFrame, QLabel, QListWidget,
-    QListWidgetItem, QSizePolicy
+    QStackedWidget, QFrame, QLabel
 )
 
 from core.config.LogUtils import LogUtils
 from core.model.Tool import Tool
-from core.enum.CategoryTool import CategoryTool
+from resources.widgets.VerticalTab import VerticalTab
 
 
 class SideWorkspace(QWidget):
     """
     Painel lateral com abas verticais à direita.
-    Cada aba representa uma ferramenta SIDE.
 
-    Ao clicar em uma aba, o painel expande para mostrar o conteúdo.
-    Ao clicar novamente (mesma aba), recolhe.
-    O QSplitter no MainWindow permite redimensionar.
+    O conteúdo SEMPRE existe dentro do widget.
+    Quando colapsado (36px), o conteúdo fica simplesmente
+    recortado — não precisa de hide/show.
     """
 
     tool_activated = Signal(str)
     tool_closed    = Signal(str)
-    _EXPANDED_WIDTH = 400
-    _COLLAPSED_WIDTH = 40
+
+    # largura colapsado = mostra só a aba vertical (36px)
+    # largura expandido = mostra conteúdo (400px)
+    _W_COLLAPSED = 36
+    _W_EXPANDED  = 400
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self._tools: dict[str, Tool] = {}
+        self._tabs:  dict[str, VerticalTab] = {}
         self._expanded = False
         self._current_name: str | None = None
         self._log = LogUtils(tool="System", class_name="SideWorkspace")
 
         self.setObjectName("side_workspace")
-        self.setFixedWidth(self._COLLAPSED_WIDTH)
+        self.setFixedWidth(self._W_COLLAPSED)
 
-        # Layout horizontal: conteúdo | abas verticais
-        main_layout = QHBoxLayout(self)
-        main_layout.setContentsMargins(0, 0, 0, 0)
-        main_layout.setSpacing(0)
+        # Layout principal: conteúdo + abas
+        mlo = QHBoxLayout(self)
+        mlo.setContentsMargins(0, 0, 0, 0)
+        mlo.setSpacing(0)
 
-        # --- Conteúdo expandido (oculto inicialmente) ---
+        # ── Conteúdo (stack) ──────────────────────────────────────
         self._content = QWidget()
-        content_layout = QVBoxLayout(self._content)
-        content_layout.setContentsMargins(0, 0, 0, 0)
-        content_layout.setSpacing(0)
+        clo = QVBoxLayout(self._content)
+        clo.setContentsMargins(0, 0, 0, 0)
+        clo.setSpacing(0)
 
-        title_frame = QFrame()
-        title_frame.setObjectName("side_title_frame")
-        title_frame.setFixedHeight(32)
-        title_layout = QHBoxLayout(title_frame)
-        title_layout.setContentsMargins(8, 0, 8, 0)
+        tf = QFrame()
+        tf.setObjectName("side_title_frame")
+        tf.setFixedHeight(32)
+        tl = QHBoxLayout(tf)
+        tl.setContentsMargins(8, 0, 8, 0)
         self._title_label = QLabel("Ferramentas")
         self._title_label.setObjectName("side_title_label")
-        title_layout.addWidget(self._title_label)
-        title_layout.addStretch()
-        content_layout.addWidget(title_frame)
+        tl.addWidget(self._title_label)
+        tl.addStretch()
+        clo.addWidget(tf)
 
         self.stack = QStackedWidget()
-        content_layout.addWidget(self.stack, 1)
-        self._content.hide()
+        clo.addWidget(self.stack, 1)
 
-        main_layout.addWidget(self._content, 1)
+        mlo.addWidget(self._content, 1)
 
-        # --- Abas verticais (sempre visível) ---
-        self._tab_list = QListWidget()
-        self._tab_list.setObjectName("side_tab_list")
-        self._tab_list.setFixedWidth(self._COLLAPSED_WIDTH)
-        self._tab_list.setSpacing(2)
-        self._tab_list.setHorizontalScrollBarPolicy(
-            Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self._tab_list.setVerticalScrollBarPolicy(
-            Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self._tab_list.setSelectionMode(
-            QListWidget.SelectionMode.SingleSelection)
-        self._tab_list.itemClicked.connect(self._on_tab_clicked)
-        main_layout.addWidget(self._tab_list)
+        # ── Abas verticais ─────────────────────────────────────────
+        self._tab_box = QWidget()
+        self._tab_box.setObjectName("side_tabs_container")
+        self._tab_box.setFixedWidth(self._W_COLLAPSED)
+        tbl = QVBoxLayout(self._tab_box)
+        tbl.setContentsMargins(0, 0, 0, 0)
+        tbl.setSpacing(2)
+        tbl.setAlignment(Qt.AlignmentFlag.AlignTop)
+        self._tabs_layout = tbl
+        mlo.addWidget(self._tab_box)
 
-    # ------------------------------------------------------------------
-    # API pública
-    # ------------------------------------------------------------------
+    # ── API ──────────────────────────────────────────────────────────
 
     def register_tool(self, tool: Tool) -> str:
-        """Registra uma ferramenta SIDE. Retorna o nome."""
         name = tool.name
         if name in self._tools:
             return name
-
         self._tools[name] = tool
+        self.stack.addWidget(QWidget())  # placeholder
 
-        # Placeholder no stack
-        placeholder = QWidget()
-        self.stack.addWidget(placeholder)
-
-        # Item na lista vertical
-        item = QListWidgetItem(tool.title)
-        item.setData(Qt.ItemDataRole.UserRole, name)
-        item.setToolTip(tool.tooltip or tool.title)
-        self._tab_list.addItem(item)
+        tab = VerticalTab(title=tool.title,
+                          tooltip=tool.tooltip or tool.title)
+        tab.clicked.connect(lambda n=name: self._on_tab_clicked(n))
+        self._tabs[name] = tab
+        self._tabs_layout.addWidget(tab)
 
         self._log.info(f"Tool SIDE registrada: {name}", code="SIDE_REG")
         return name
 
     def open_tool(self, tool: Tool) -> str:
-        """Abre ou foca uma ferramenta SIDE. Se já está aberta, recolhe."""
         name = tool.name
         if name in self._tools:
             if self._expanded and self._current_name == name:
-                self.collapse()
+                self._set_collapsed()
             else:
-                self.expand(name)
+                self._set_expanded(name)
             return name
-
         self.register_tool(tool)
-        self.expand(name)
+        self._set_expanded(name)
         return name
 
-    def expand(self, name: str) -> None:
-        """Expande o painel e mostra a ferramenta."""
-        for i in range(self._tab_list.count()):
-            item = self._tab_list.item(i)
-            if item.data(Qt.ItemDataRole.UserRole) == name:
-                self._tab_list.setCurrentItem(item)
-                self._current_name = name
-                self._expanded = True
-                self.setFixedWidth(self._EXPANDED_WIDTH)
-                self._content.show()
-                self._load_tool_content(name)
-                self.tool_activated.emit(name)
-                return
+    # ── Controle de estado ────────────────────────────────────────────
 
-    def collapse(self) -> None:
-        """Recolhe o painel."""
+    def _set_collapsed(self):
         self._expanded = False
         self._current_name = None
-        self._tab_list.clearSelection()
-        self.setFixedWidth(self._COLLAPSED_WIDTH)
-        self._content.hide()
-        self.stack.setCurrentIndex(-1)
+        for tab in self._tabs.values():
+            tab.selected = False
+        self.setFixedWidth(self._W_COLLAPSED)
 
-    def is_tool_open(self, name: str) -> bool:
-        return name in self._tools
+    def _set_expanded(self, name: str):
+        if name not in self._tools:
+            return
+        self._current_name = name
+        self._expanded = True
 
-    @property
-    def expanded(self) -> bool:
-        return self._expanded
+        for n, tab in self._tabs.items():
+            tab.selected = (n == name)
 
-    # ------------------------------------------------------------------
-    # Internals
-    # ------------------------------------------------------------------
+        self._load_tool(name)
+        self.setFixedWidth(self._W_EXPANDED)
+        self.tool_activated.emit(name)
 
-    def _load_tool_content(self, name: str) -> None:
-        """Carrega (lazy) e mostra o widget da ferramenta."""
+    def collapse(self):
+        self._set_collapsed()
+
+    def expand(self, name: str):
+        self._set_expanded(name)
+
+    # ── Helpers ────────────────────────────────────────────────────────
+
+    def _load_tool(self, name: str):
         tool = self._tools.get(name)
         if not tool:
             return
-
-        # Encontra o índice no stack pelo nome no tabData
-        tab_index = -1
-        for i in range(self._tab_list.count()):
-            item = self._tab_list.item(i)
-            if item.data(Qt.ItemDataRole.UserRole) == name:
-                tab_index = i
-                break
-
-        if tab_index < 0:
+        keys = list(self._tools.keys())
+        if name not in keys:
             return
+        idx = keys.index(name)
 
         if not tool.is_loaded:
             self._log.info(f"Carregando tool SIDE (lazy): {name}",
                            code="SIDE_LAZY")
-            widget = tool.widget
-            old = self.stack.widget(tab_index)
+            w = tool.widget
+            old = self.stack.widget(idx)
             if old:
                 self.stack.removeWidget(old)
                 old.deleteLater()
-            self.stack.insertWidget(tab_index, widget)
+            self.stack.insertWidget(idx, w)
+        self.stack.setCurrentIndex(idx)
 
-        self.stack.setCurrentIndex(tab_index)
+    # ── Slots ──────────────────────────────────────────────────────────
 
-    # ------------------------------------------------------------------
-    # Slots
-    # ------------------------------------------------------------------
-
-    @Slot(QListWidgetItem)
-    def _on_tab_clicked(self, item: QListWidgetItem) -> None:
-        name = item.data(Qt.ItemDataRole.UserRole)
-        if not name:
-            return
-
+    def _on_tab_clicked(self, name: str):
         if self._expanded and self._current_name == name:
-            self.collapse()
+            self._set_collapsed()
         else:
-            self.expand(name)
+            self._set_expanded(name)
 
-    def _on_tab_close_requested(self, name: str) -> None:
-        """Remove uma ferramenta SIDE."""
+    def remove_tool(self, name: str):
         if name not in self._tools:
             return
-
         tool = self._tools[name]
-        tab_index = -1
 
-        # Encontra e remove o item da lista
-        for i in range(self._tab_list.count()):
-            item = self._tab_list.item(i)
-            if item.data(Qt.ItemDataRole.UserRole) == name:
-                self._tab_list.takeItem(i)
-                tab_index = i
-                break
+        tab = self._tabs.pop(name, None)
+        if tab:
+            self._tabs_layout.removeWidget(tab)
+            tab.deleteLater()
 
-        # Remove do stack
-        if tab_index >= 0:
-            w = self.stack.widget(tab_index)
+        keys = list(self._tools.keys())
+        if name in keys:
+            idx = keys.index(name)
+            w = self.stack.widget(idx)
             if w:
                 self.stack.removeWidget(w)
                 w.deleteLater()
@@ -233,5 +199,12 @@ class SideWorkspace(QWidget):
         self.tool_closed.emit(name)
         self._log.info(f"Tool SIDE fechada: {name}", code="SIDE_CLOSED")
 
-        if self._tab_list.count() == 0:
-            self.collapse()
+        if len(self._tools) == 0:
+            self._set_collapsed()
+
+    def is_tool_open(self, name: str) -> bool:
+        return name in self._tools
+
+    @property
+    def expanded(self) -> bool:
+        return self._expanded
