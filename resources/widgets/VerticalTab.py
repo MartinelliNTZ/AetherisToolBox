@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from PySide6.QtCore    import Qt, Signal, QRect, QSize
 from PySide6.QtGui     import QPainter, QPen, QColor, QFont, QFontMetrics
-from PySide6.QtWidgets import QWidget
+from PySide6.QtWidgets import QWidget, QSizePolicy
 
 from resources.styles.styles import Palette
 
@@ -28,8 +28,8 @@ class VerticalTab(QWidget):
 
     clicked = Signal()
 
-    _WIDTH  = 32               # largura compacta — padding lateral mínimo
-    _HEIGHT = 100              # altura inicial, ajusta via sizeHint
+    _WIDTH  = 28               # espessura da aba (largura real na tela)
+    _HEIGHT = 80               # altura inicial (vira largura do texto após rotação -90°)
 
     def __init__(
         self,
@@ -49,7 +49,8 @@ class VerticalTab(QWidget):
             self.setToolTip(tooltip)
 
         self.setFixedWidth(self._WIDTH)
-        self.setMinimumHeight(self._HEIGHT)
+        self.setFixedHeight(self._HEIGHT)
+        self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
 
         # Rastreia hover sem filtro de evento
