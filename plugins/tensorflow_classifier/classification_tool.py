@@ -25,6 +25,8 @@ from resources.widgets.SimpleDangerButton import SimpleDangerButton
 from resources.widgets.SimpleGhostButton import SimpleGhostButton
 from resources.widgets.SimpleRemoveButton import SimpleRemoveButton
 from resources.widgets.GroupDiv import GroupDiv
+from resources.widgets.SimpleSelector import SimpleSelector
+from resources.widgets.SelectorGrid import SelectorGrid
 from plugins.tensorflow_classifier.ui_field_specs import UI_FIELD_SPECS
 
 
@@ -46,54 +48,6 @@ class Separator(QFrame):
         self.setFrameShape(QFrame.Shape.HLine)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.setFixedHeight(1)
-
-
-class PathBrowseRow(QWidget):
-    def __init__(self, label_text: str, default_path: str = "", file_mode=True,
-                 file_filter="Todos (*.*)", browse_mode: str = "open_file", parent=None):
-        super().__init__(parent)
-        self.file_mode = file_mode
-        self.file_filter = file_filter
-        self.browse_mode = browse_mode
-
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(6)
-
-        self.label = QLabel(label_text)
-        self.label.setFixedWidth(130)
-
-        self.edit = QLineEdit(default_path)
-        self.edit.setPlaceholderText("Caminho do arquivo...")
-
-        self.btn = QPushButton("...")
-        self.btn.setObjectName("btn_secondary")
-        self.btn.setFixedWidth(30)
-        self.btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn.clicked.connect(self._browse)
-
-        layout.addWidget(self.label)
-        layout.addWidget(self.edit, 1)
-        layout.addWidget(self.btn)
-
-    def _browse(self):
-        if self.browse_mode == "save_file":
-            path, _ = QFileDialog.getSaveFileName(
-                self, "Salvar arquivo", self.edit.text().strip() or "", self.file_filter
-            )
-        elif self.browse_mode == "directory":
-            path = QFileDialog.getExistingDirectory(self, "Selecionar pasta")
-        elif self.file_mode:
-            path, _ = QFileDialog.getOpenFileName(
-                self, "Selecionar arquivo", "", self.file_filter
-            )
-        else:
-            path = QFileDialog.getExistingDirectory(self, "Selecionar pasta")
-        if path:
-            self.edit.setText(path)
-
-    def path(self) -> str:
-        return self.edit.text().strip()
 
 
 # =============================================================================
@@ -162,20 +116,14 @@ class ClassificationTool(QWidget):
         grid.setSpacing(10)
 
         # ---- (0,0) - IMAGENS & SAIDA ----
-        grp_img = GroupDiv("Imagens & Saida")
-        li = grp_img.group_layout
-        li.setSpacing(6)
-        li.setContentsMargins(6, 6, 6, 6)
-        self.row_img_treino = PathBrowseRow("Imagem Treino", "dados/imagemTreino.tif",
-            file_filter="GeoTIFF (*.tif *.tiff)")
-        self.row_img_classif = PathBrowseRow("Imagem Classif.", "dados/imagemCompleta.tif",
-            file_filter="GeoTIFF (*.tif *.tiff)")
-        self.row_img_saida = PathBrowseRow("Saida GeoTIFF", "resultado/mapa_classificado_ui.tif",
-            file_filter="GeoTIFF (*.tif *.tiff)", browse_mode="save_file")
-        li.addWidget(self.row_img_treino)
-        li.addWidget(self.row_img_classif)
-        li.addWidget(self.row_img_saida)
-        li.addStretch()
+        grp_img = SelectorGrid({
+            "Imagem Treino":   {"file_filter": "GeoTIFF (*.tif *.tiff)", "default_path": "dados/imagemTreino.tif"},
+            "Imagem Classif.": {"file_filter": "GeoTIFF (*.tif *.tiff)", "default_path": "dados/imagemCompleta.tif"},
+            "Saida GeoTIFF":   {"file_filter": "GeoTIFF (*.tif *.tiff)", "default_path": "resultado/mapa_classificado_ui.tif", "browse_mode": "save_file"},
+        }, title="Imagens & Saida")
+        self._sel_img_treino = grp_img["Imagem Treino"]
+        self._sel_img_classif = grp_img["Imagem Classif."]
+        self._sel_img_saida = grp_img["Saida GeoTIFF"]
         grid.addWidget(grp_img, 0, 0)
 
         # ---- (0,1) - PERSISTENCIA DO MODELO ----
@@ -193,7 +141,7 @@ class ClassificationTool(QWidget):
         self.combo_model_action.setCurrentText("Treinar modelo novo")
         rm.addWidget(self.combo_model_action, 1)
         lm.addLayout(rm)
-        self.row_modelo_existente = PathBrowseRow("Modelo Existente", "",
+        self.row_modelo_existente = SimpleSelector("Modelo Existente", "",
             file_filter="Keras Model (*.keras)")
         self.row_modelo_existente.setVisible(False)
         lm.addWidget(self.row_modelo_existente)
@@ -203,8 +151,8 @@ class ClassificationTool(QWidget):
         self.chk_salvar_modelo = QCheckBox("Salvar modelo (.keras)")
         self.chk_salvar_modelo.setChecked(True)
         lm.addWidget(self.chk_salvar_modelo)
-        self.row_modelo_path = PathBrowseRow("Caminho", "resultado/modelo_ui.keras",
-            file_filter="Keras Model (*.keras)")
+        self.row_modelo_path = SimpleSelector("Caminho", "resultado/modelo_ui.keras",
+            file_filter="Keras Model (*.keras)", browse_mode="save_file")
         lm.addWidget(self.row_modelo_path)
         lm.addStretch()
         grid.addWidget(grp_mod, 0, 1)
@@ -342,9 +290,9 @@ class ClassificationTool(QWidget):
 
     def _apply_field_tooltips(self):
         mapping = [
-            ("training_image", [self.row_img_treino.label, self.row_img_treino.edit, self.row_img_treino.btn]),
-            ("classification_image", [self.row_img_classif.label, self.row_img_classif.edit, self.row_img_classif.btn]),
-            ("output_tiff", [self.row_img_saida.label, self.row_img_saida.edit, self.row_img_saida.btn]),
+            ("training_image", [self._sel_img_treino.label, self._sel_img_treino.edit, self._sel_img_treino.btn]),
+            ("classification_image", [self._sel_img_classif.label, self._sel_img_classif.edit, self._sel_img_classif.btn]),
+            ("output_tiff", [self._sel_img_saida.label, self._sel_img_saida.edit, self._sel_img_saida.btn]),
             ("hidden_layers", [self.edit_camadas]),
             ("activation", [self.combo_ativacao]),
             ("dropout_rate", [self.spin_dropout]),
