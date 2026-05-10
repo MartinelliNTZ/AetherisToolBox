@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
 )
 
 from core.model.Tool import Tool
+from resources.widgets.WorkspaceTab import WorkspaceTab
 
 
 class Workspace(QWidget):
@@ -71,11 +72,14 @@ class Workspace(QWidget):
         Registra uma ferramenta (objeto Tool) no workspace.
         O widget so e instanciado (lazy) quando a aba e selecionada
         pela primeira vez.
-        
+
+        A aba exibe o nome da ferramenta via WorkspaceTab, com tamanho
+        calculado dinamicamente com base no texto.
+
         Parametros:
             tool  : Objeto Tool a ser registrado
             focus : Se True, seleciona a nova aba automaticamente.
-        
+
         Retorna o indice da ferramenta.
         """
         from core.config.LogUtils import LogUtils
@@ -88,11 +92,18 @@ class Workspace(QWidget):
         placeholder = QWidget()
         self.stack.addWidget(placeholder)
 
-        # Adiciona a aba
-        tab_index = self.tab_bar.addTab(tool.name)
+        # Adiciona a aba vazia (texto gerenciado pelo WorkspaceTab)
+        tab_index = self.tab_bar.addTab("")
         if tool.tooltip:
             self.tab_bar.setTabToolTip(tab_index, tool.tooltip)
         self._tab_to_index[tab_index] = index
+
+        # Cria o widget customizado com o titulo e tamanho dinâmico
+        tab_widget = WorkspaceTab(
+            title=tool.name,
+            tooltip=tool.tooltip or tool.name,
+        )
+        self.tab_bar.setTabButton(tab_index, QTabBar.LeftSide, tab_widget)
 
         logger = LogUtils(tool="System", class_name="Workspace")
         logger.info(f"Tool registrada: {tool.name}", code="TOOL_REG", index=index)
