@@ -2,8 +2,11 @@
 """
 UI Principal — Aetheris ToolBox
 ================================
-MainWindow modular com AppBar, Workspace (QTabBar + QStackedWidget),
-e ferramentas registradas via ToolRegistry.
+MainWindow modular com AppBar, CentralWorkspace (QTabBar + QStackedWidget),
+SideWorkspace (painel lateral direito) e ferramentas registradas via ToolRegistry.
+
+Tools de categoria CENTRAL vão para o CentralWorkspace (abas horizontais no topo).
+Tools de categoria SIDE vão para o SideWorkspace (painel lateral direito expansível).
 """
 
 from __future__ import annotations
@@ -12,14 +15,17 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from PySide6.QtWidgets import (
-    QMainWindow, QWidget, QVBoxLayout, QProgressBar, QHBoxLayout
+    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
+    QProgressBar, QSplitter
 )
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QIcon
 
 from core.model.Tool import Tool
+from core.enum.CategoryTool import CategoryTool
 from resources.widgets.app_bar import AppBar
 from core.ui.CentralWorkspace import CentralWorkspace
+from core.ui.SideWorkspace import SideWorkspace
 from core.config.MenuManager import MenuManager
 
 
@@ -29,7 +35,9 @@ class MainWindow(QMainWindow):
 
     Layout:
       [AppBar]            → título, toolbar com ToolGroups, controles de janela
-      [Workspace]         → área de trabalho com as ferramentas
+      [QSplitter]         → separa CentralWorkspace (esquerda) do SideWorkspace (direita)
+        [CentralWorkspace]  → abas horizontais no topo (ferramentas CENTRAL)
+        [SideWorkspace]     → painel lateral direito expansível (ferramentas SIDE)
       [Progress Bar]      → barra global de progresso (rodapé)
     """
 
@@ -55,7 +63,7 @@ class MainWindow(QMainWindow):
         self._build_ui(tools)
 
         # Seleciona a primeira aba (Home) por padrao
-        self.workspace.set_current_tool("Home")
+        self.central_workspace.set_current_tool("Home")
 
     def _build_ui(self, tools: List[Tool]) -> None:
         from core.config.LogUtils import LogUtils
@@ -98,17 +106,34 @@ class MainWindow(QMainWindow):
             toolbar_layout.addStretch()
             root_layout.addWidget(toolbar_container)
 
-        # === WORKSPACE ===
-        self.workspace = CentralWorkspace()
-        root_layout.addWidget(self.workspace, 1)
+        # === SPLITTER: CentralWorkspace + SideWorkspace ===
+        self.splitter = QSplitter(Qt.Orientation.Horizontal)
+        self.splitter.setObjectName("main_splitter")
+        self.splitter.setHandleWidth(4)
+
+        # CentralWorkspace (ferramentas CENTRAL)
+        self.central_workspace = CentralWorkspace()
+        self.splitter.addWidget(self.central_workspace)
+
+        # SideWorkspace (ferramentas SIDE)
+        self.side_workspace = SideWorkspace()
+        self.splitter.addWidget(self.side_workspace)
+
+        # Define proporção inicial: central toma todo o espaço, side começa colapsado
+        self.splitter.setStretchFactor(0, 1)  # central workspace expande
+        self.splitter.setStretchFactor(1, 0)  # side workspace não expande
+        self.splitter.setSizes([800, 40])     # side começa colapsado
+
+        root_layout.addWidget(self.splitter, 1)
 
         # === REGISTRAR FERRAMENTAS NO WORKSPACE ===
-        # Apenas Home é registrada por padrão (sem focar, pois o set_current_tool já foca).
-        # As demais são abertas sob demanda via toolbar (open_tool).
+        # CENTRAL: Home registrada por padrão (sem focar)
+        # SIDE: Console registrada por padrão no SideWorkspace
         for tool in tools:
-            if tool.name == "Home":
-                self.workspace.register_tool(tool, focus=False)
-                break
+            if tool.category == CategoryTool.SIDE:
+                self.side_workspace.register_tool(tool)
+            elif tool.name == "Home":
+                self.central_workspace.register_tool(tool, focus=False)
 
         # === PROGRESS BAR GLOBAL ===
         self.progress = QProgressBar()
@@ -123,10 +148,16 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------------
 
     def _on_tool_activated(self, tool_name: str):
-        """Quando um botão do ToolGroup é clicado, abre ou foca a tool."""
+        """Quando um botão do ToolGroup é clicado, abre ou foca a tool
+        no workspace apropriado conforme sua categoria."""
         tool = self._tool_map.get(tool_name)
-        if tool:
-            self.workspace.open_tool(tool)
+        if not tool:
+            return
+
+        if tool.category == CategoryTool.SIDE:
+            self.side_workspace.open_tool(tool)
+        else:
+            self.central_workspace.open_tool(tool)
 
     # ------------------------------------------------------------------
     # Acesso às tools registradas
@@ -137,14 +168,17 @@ class MainWindow(QMainWindow):
         return self._tool_map.get(name)
 
     def switch_to_tool(self, name: str) -> bool:
-        """Muda para a aba de uma tool pelo nome."""
-        if self.workspace.is_tool_open(name):
-            self.workspace.set_current_tool(name)
+        """Muda para uma tool. Procura primeiro no Central, depois no Side."""
+        if self.central_workspace.is_tool_open(name):
+            self.central_workspace.set_current_tool(name)
+            return True
+        if self.side_workspace.is_tool_open(name):
+            self.side_workspace.expand(name)
             return True
         return False
 
     def switch_to_console(self) -> None:
-        """Muda para a aba Console."""
+        """Muda para o Console (SideWorkspace)."""
         self.switch_to_tool("Console")
 
     # ------------------------------------------------------------------
