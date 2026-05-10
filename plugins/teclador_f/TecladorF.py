@@ -224,6 +224,7 @@ class TecladorF(BasePlugin):
         )
         self._worker.finished.connect(self._on_worker_finished)
         self._worker.start()
+        self._running = True
 
         self._btn_executar.setText("PARAR")
         self._set_inputs_enabled(False)
@@ -246,8 +247,13 @@ class TecladorF(BasePlugin):
         """Para o worker."""
         if self._worker:
             self._worker.stop()
-            self._worker.quit()
-            self._worker.wait(2000)
+            try:
+                import keyboard
+                keyboard.press_and_release("esc")
+            except ImportError:
+                pass
+            if not self._worker.wait(3000):
+                self._worker.terminate()
         self._on_worker_finished()
 
     def _on_worker_finished(self):
