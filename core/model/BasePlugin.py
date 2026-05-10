@@ -3,8 +3,9 @@
 BasePlugin — Classe base para todos os plugins do Aetheris ToolBox
 ====================================================================
 Centraliza:
-- Logger automatico (via LogUtils) — self.logger
-- Metodos load_prefs() / save_prefs() — override nos filhos
+- Logger automático (via LogUtils) — self.logger
+- Métodos load_prefs() / save_prefs() — override nos filhos
+- Emissão de tool_opened e tool_closed via SignalManager
 
 Uso:
     from core.model.BasePlugin import BasePlugin
@@ -14,7 +15,6 @@ Uso:
             super().__init__(tool_key="Console", parent=parent)
             self.load_prefs()
             self._build_ui()
-            self.logger.info("ConsoleTool carregada", code="TOOL_READY")
 
         def load_prefs(self):
             ...
@@ -25,8 +25,6 @@ Uso:
 
 from __future__ import annotations
 
-from typing import Any
-
 from PySide6.QtWidgets import QWidget
 
 
@@ -34,32 +32,35 @@ class BasePlugin(QWidget):
     """
     Classe base para todos os plugins (ferramentas) do sistema.
 
+    Ao ser instanciada, emite: SignalManager.tool_opened(tool_key, self)
+    Ao ser fechada,   emite: SignalManager.tool_closed(tool_key)
+
     Atributos:
-        self.logger   : LogUtils — instanciado no init
-        self.tool_key : str — nome da ferramenta
+        self.logger   : LogUtils — instanciado no __init__
+        self.tool_key : str — identificador único da ferramenta
     """
 
     def __init__(self, *, tool_key: str, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.tool_key = tool_key
-        self.logger = None
 
-        # Logger (import local para evitar circular)
         from core.config.LogUtils import LogUtils
         self.logger = LogUtils(tool=tool_key, class_name=self.__class__.__name__)
+
+        from core.manager.SignalManager import SignalManager
+        SignalManager.instance().tool_opened.emit(tool_key, self)
+
+    def closeEvent(self, event) -> None:  # type: ignore[override]
+        from core.manager.SignalManager import SignalManager
+        SignalManager.instance().tool_closed.emit(self.tool_key)
+        super().closeEvent(event)
 
     # ── Preferences (override nos filhos) ────────────────────────────
 
     def load_prefs(self) -> None:
-        """
-        Carrega as preferencias da ferramenta e aplica nos widgets.
-        Deve ser sobrescrito pelo plugin filho.
-        """
+        """Carrega preferências e aplica nos widgets. Override no filho."""
         pass
 
     def save_prefs(self) -> None:
-        """
-        Le os valores atuais dos widgets e persiste no arquivo.
-        Deve ser sobrescrito pelo plugin filho.
-        """
+        """Lê widgets e persiste preferências. Override no filho."""
         pass

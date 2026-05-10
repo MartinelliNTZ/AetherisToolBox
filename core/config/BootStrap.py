@@ -56,6 +56,7 @@ class BootStrap:
         self._setup_environment()
         self._init_logging()
         self._create_application()
+        self._init_signals()
         self._register_tools()
         self._create_main_window()
         self._initialized = True
@@ -101,6 +102,18 @@ class BootStrap:
         font = QFont("Segoe UI", 10)
         font.setStyleHint(QFont.StyleHint.SansSerif)
         self._app.setFont(font)
+
+    def _init_signals(self) -> None:
+        """Inicializa o SignalManager e conecta listeners globais."""
+        from core.manager.SignalManager import SignalManager
+        from core.config.LogUtils import LogUtils
+
+        mgr = SignalManager.instance()
+        mgr.tool_opened.connect(
+            lambda name: print(f"[SignalManager] Ferramenta iniciada: {name}")
+        )
+        log = LogUtils(tool="System", class_name="BootStrap")
+        log.info("SignalManager inicializado", code="SIG_MGR_OK")
 
     def _register_tools(self) -> None:
         """
