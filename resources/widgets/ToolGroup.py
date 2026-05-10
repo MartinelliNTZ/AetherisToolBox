@@ -9,10 +9,11 @@ com botões de ícone para cada ferramenta da categoria.
 from __future__ import annotations
 
 from PySide6.QtCore import Qt, Signal, QSize
-from PySide6.QtWidgets import QWidget, QHBoxLayout, QToolButton, QFrame
+from PySide6.QtWidgets import QWidget, QHBoxLayout, QToolButton
 
 from core.enum.ToolType import ToolType
 from core.model.Tool import Tool
+from resources.widgets.ToolSeparator import ToolSeparator
 
 
 class ToolGroup(QWidget):
@@ -63,12 +64,8 @@ class ToolGroup(QWidget):
             """)
             layout.addWidget(btn)
 
-        # ── Separador ──
-        sep = QFrame()
-        sep.setFrameShape(QFrame.Shape.VLine)
-        sep.setFixedWidth(1)
-        sep.setStyleSheet("background-color: #1A1A20;")
-        layout.addWidget(sep)
+        # ── Separador decorativo ──
+        layout.addWidget(ToolSeparator())
 
     @property
     def tool_type(self) -> ToolType:
