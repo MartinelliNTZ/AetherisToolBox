@@ -64,14 +64,14 @@ class ToolRegistry:
 
     _TOOL_DEFINITIONS: dict = {
         ToolKey.HOME: {
-            "module": "plugins.home.home_tool",
+            "module": "plugins.home.HomePlugin",
             "class_name": "HomeTool",
             "tooltip": "Pagina inicial do Aetheris ToolBox",
             "tool_type": ToolType.SYSTEM,
             "icon_alias": "SYSTEM",
         },
         ToolKey.CONSOLE: {
-            "module": "plugins.console.console_tool",
+            "module": "plugins.console.ConsolePlugin",
             "class_name": "ConsoleTool",
             "tooltip": "Console de execucao compartilhado",
             "tool_type": ToolType.SYSTEM,
