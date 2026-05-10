@@ -84,6 +84,7 @@ class VerticalTab(QWidget):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         painter.setRenderHint(QPainter.RenderHint.TextAntialiasing)
+        painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
 
         w, h = self.width(), self.height()
         P    = Palette
@@ -104,16 +105,25 @@ class VerticalTab(QWidget):
         # Desenhar background arredondado
         rect = QRect(0, 0, w, h)
         path = self._draw_rounded_rect(painter, rect, tl=2, tr=2, br=2, bl=8)
+        
+        # Clipar para garantir que nada vaze dos limites da borda arredondada
+        painter.setClipPath(path)
+        
+        # Preencher o background
         painter.fillPath(path, bg)
 
         # Indicador de seleção (barra na esquerda)
         if self._selected:
             painter.fillRect(0, 0, 3, h, QColor(P.GOLD_HOVER))
 
-        # Desenhar borda
+        # Desenhar borda (com clip já ativo, fica segura dentro dos limites)
         painter.setPen(QPen(border, 1))
         painter.drawPath(path)
 
+        # Remover clip para desenhar o texto normalmente
+        painter.setClipping(False)
+        
+        # Desenhar texto
         font = QFont("Segoe UI", 8)
         font.setWeight(QFont.Weight.Medium if self._selected else QFont.Weight.Normal)
         painter.setFont(font)

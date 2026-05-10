@@ -9,7 +9,7 @@ Baseado no script teclador_f.py original.
 
 Uso:
     1. Abra o plugin no Workspace
-    2. Configure VALUE, startup_delay, interval_delay e HOTKEY
+    2. Configure valor, atraso inicial, intervalo e tecla de atalho
     3. Clique em "EXECUTAR" para ativar
     4. Pressione a tecla configurada (padrão: F) para digitar
     5. Pressione ESC para parar
@@ -27,6 +27,8 @@ from PySide6.QtWidgets import (
 
 from core.model.BasePlugin import BasePlugin
 from core.manager.SignalManager import SignalManager
+from core.enum.ToolKey import ToolKey
+from utils.Preferences import Preferences
 from resources.widgets.SimplePrimaryButton import SimplePrimaryButton
 
 
@@ -63,11 +65,9 @@ class TecladorWorker(QThread):
             self._running = True
 
             SignalManager.instance().console_message.emit(
-                f"TecladorF pronto — tecla={self._hotkey.upper()}, "
-                f"VALUE={self._value[:30]}..."
+                f"TecladorF pronto — tecla {self._hotkey.upper()}, "
+                f"valor={self._value[:30]}..."
             )
-            # Log técnico vai para o arquivo JSON
-            # (print substituído por logger na classe principal)
 
             def type_value():
                 if not self._running:
@@ -82,7 +82,7 @@ class TecladorWorker(QThread):
                     count += 1
                 SignalManager.instance().console_message.emit(
                     f"TecladorF digitou {count} caracteres "
-                    f"(tecla={self._hotkey.upper()})"
+                    f"(tecla {self._hotkey.upper()})"
                 )
 
             keyboard.add_hotkey(
@@ -95,11 +95,11 @@ class TecladorWorker(QThread):
 
         except ImportError as e:
             SignalManager.instance().console_message.emit(
-                f"TecladorF ERRO: {e}. Instale: pip install pyautogui keyboard"
+                f"TecladorF erro: {e}. Instale: pip install pyautogui keyboard"
             )
         except Exception as e:
             SignalManager.instance().console_message.emit(
-                f"TecladorF ERRO inesperado: {e}"
+                f"TecladorF erro inesperado: {e}"
             )
         finally:
             self._running = False
@@ -125,10 +125,12 @@ class TecladorF(BasePlugin):
     DEFAULT_INTERVAL_DELAY = 0.01
 
     def __init__(self, parent=None):
-        super().__init__(tool_key="TecladorF", parent=parent)
+        super().__init__(tool_key=ToolKey.TECLADOR_F.value, parent=parent)
         self._worker: TecladorWorker | None = None
         self._running = False
+        self._prefs = Preferences(section=ToolKey.TECLADOR_F.value)
         self._build_ui()
+        self.load_prefs()
         self.logger.info("TecladorF carregado", code="TOOL_READY")
 
     def _build_ui(self):
@@ -152,32 +154,36 @@ class TecladorF(BasePlugin):
         config_group = QGroupBox("Configurações")
         form = QFormLayout(config_group)
 
-        # VALUE
+        # Valor
         self._edit_value = QLineEdit(self.DEFAULT_VALUE)
-        self._edit_value.setPlaceholderText("String a ser digitada...")
-        form.addRow("VALUE:", self._edit_value)
+        self._edit_value.setPlaceholderText("Texto a ser digitado...")
+        self._edit_value.textChanged.connect(self._mark_dirty)
+        form.addRow("Valor:", self._edit_value)
 
-        # HOTKEY
+        # Tecla de atalho
         self._edit_hotkey = QLineEdit(self.DEFAULT_HOTKEY)
         self._edit_hotkey.setMaxLength(1)
-        self._edit_hotkey.setPlaceholderText("Tecla de atalho (ex: f)")
-        form.addRow("HOTKEY:", self._edit_hotkey)
+        self._edit_hotkey.setPlaceholderText("Ex: f")
+        self._edit_hotkey.textChanged.connect(self._mark_dirty)
+        form.addRow("Tecla:", self._edit_hotkey)
 
-        # Startup Delay
+        # Atraso inicial
         self._spin_startup = QDoubleSpinBox()
         self._spin_startup.setRange(0.0, 5.0)
         self._spin_startup.setSingleStep(0.05)
         self._spin_startup.setValue(self.DEFAULT_STARTUP_DELAY)
         self._spin_startup.setDecimals(3)
-        form.addRow("Startup Delay (s):", self._spin_startup)
+        self._spin_startup.valueChanged.connect(self._mark_dirty)
+        form.addRow("Atraso inicial (s):", self._spin_startup)
 
-        # Interval Delay
+        # Intervalo entre caracteres
         self._spin_interval = QDoubleSpinBox()
         self._spin_interval.setRange(0.0, 1.0)
         self._spin_interval.setSingleStep(0.005)
         self._spin_interval.setValue(self.DEFAULT_INTERVAL_DELAY)
         self._spin_interval.setDecimals(4)
-        form.addRow("Interval Delay (s):", self._spin_interval)
+        self._spin_interval.valueChanged.connect(self._mark_dirty)
+        form.addRow("Intervalo (s):", self._spin_interval)
 
         layout.addWidget(config_group)
 
@@ -205,12 +211,12 @@ class TecladorF(BasePlugin):
         """Valida e inicia o worker em thread separada."""
         value = self._edit_value.text().strip()
         if not value:
-            QMessageBox.warning(self, "Aviso", "VALUE não pode estar vazio.")
+            QMessageBox.warning(self, "Aviso", "Valor não pode estar vazio.")
             return
 
         hotkey = self._edit_hotkey.text().strip().lower()
         if not hotkey:
-            QMessageBox.warning(self, "Aviso", "HOTKEY não pode estar vazia.")
+            QMessageBox.warning(self, "Aviso", "Tecla não pode estar vazia.")
             return
 
         startup_delay = self._spin_startup.value()
@@ -228,10 +234,11 @@ class TecladorF(BasePlugin):
 
         self._btn_executar.setText("PARAR")
         self._set_inputs_enabled(False)
+        self.save_prefs()
 
         SignalManager.instance().console_message.emit(
-            f"TecladorF iniciado — tecla={hotkey.upper()}, "
-            f"VALUE={value[:30]}..."
+            f"TecladorF iniciado — tecla {hotkey.upper()}, "
+            f"valor={value[:30]}..."
         )
         self.logger.info(
             "TecladorF iniciado",
@@ -272,3 +279,42 @@ class TecladorF(BasePlugin):
         self._edit_hotkey.setEnabled(enabled)
         self._spin_startup.setEnabled(enabled)
         self._spin_interval.setEnabled(enabled)
+
+    # ── Preferences ─────────────────────────────────────────────────
+
+    def load_prefs(self) -> None:
+        """Carrega preferências salvas e aplica nos widgets."""
+        prefs = self._prefs
+
+        value = prefs.get("value")
+        if value is not None:
+            self._edit_value.setText(value)
+
+        hotkey = prefs.get("hotkey")
+        if hotkey is not None:
+            self._edit_hotkey.setText(hotkey)
+
+        startup_delay = prefs.get("startup_delay")
+        if startup_delay is not None:
+            self._spin_startup.setValue(float(startup_delay))
+
+        interval_delay = prefs.get("interval_delay")
+        if interval_delay is not None:
+            self._spin_interval.setValue(float(interval_delay))
+
+    def save_prefs(self) -> None:
+        """Lê os widgets e persiste as preferências."""
+        prefs = self._prefs
+        prefs.set("value", self._edit_value.text())
+        prefs.set("hotkey", self._edit_hotkey.text())
+        prefs.set("startup_delay", self._spin_startup.value())
+        prefs.set("interval_delay", self._spin_interval.value())
+        prefs.save()
+
+    # ── Dirty tracking ──────────────────────────────────────────────
+
+    _dirty: bool = False
+
+    def _mark_dirty(self) -> None:
+        """Marca que as preferências precisam ser salvas."""
+        self._dirty = True
