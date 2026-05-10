@@ -46,7 +46,7 @@ class Tool:
         title: str | None = None,
         tooltip: str = "",
         tool_type: ToolType = ToolType.SYSTEM,
-        category: CategoryTool = CategoryTool.WORKSPACE,
+        category: CategoryTool = CategoryTool.CENTRAL,
         icon: Optional[QIcon] = None,
     ) -> None:
         """

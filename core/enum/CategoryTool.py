@@ -15,5 +15,5 @@ from enum import Enum
 class CategoryTool(str, Enum):
     """Categoria de exibição da ferramenta."""
 
-    WORKSPACE = "workspace"
+    CENTRAL = "workspace"
     SIDE = "side"

@@ -73,7 +73,7 @@ class ToolRegistry:
             ),
             tooltip="Pagina inicial do Aetheris ToolBox",
             tool_type=ToolType.SYSTEM,
-            category=CategoryTool.WORKSPACE,
+            category=CategoryTool.CENTRAL,
         ),
         ToolKey.CONSOLE.value: Tool(
             name=ToolKey.CONSOLE.value,
@@ -93,7 +93,7 @@ class ToolRegistry:
             ),
             tooltip="Visualizador de logs do sistema",
             tool_type=ToolType.SYSTEM,
-            category=CategoryTool.WORKSPACE,
+            category=CategoryTool.CENTRAL,
         ),
         ToolKey.CLASSIFIER.value: Tool(
             name=ToolKey.CLASSIFIER.value,
@@ -104,7 +104,7 @@ class ToolRegistry:
             ),
             tooltip="Classificacao Raster com Redes Neurais (inativo)",
             tool_type=ToolType.RASTER,
-            category=CategoryTool.WORKSPACE,
+            category=CategoryTool.CENTRAL,
         ),
         ToolKey.TECLADOR_F.value: Tool(
             name=ToolKey.TECLADOR_F.value,
@@ -114,7 +114,7 @@ class ToolRegistry:
             ),
             tooltip="Automacao de teclado: digita uma string ao pressionar F",
             tool_type=ToolType.FOLDER,
-            category=CategoryTool.WORKSPACE,
+            category=CategoryTool.CENTRAL,
         ),
     }
 
@@ -137,7 +137,7 @@ class ToolRegistry:
         title: str | None = None,
         tooltip: str = "",
         tool_type: ToolType = ToolType.SYSTEM,
-        category: CategoryTool = CategoryTool.WORKSPACE,
+        category: CategoryTool = CategoryTool.CENTRAL,
         icon: Optional[QIcon] = None,
     ) -> int:
         """
