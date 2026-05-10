@@ -18,17 +18,19 @@ from typing import Dict, List, Optional
 
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QProgressBar
+    QSplitter, QProgressBar
 )
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QIcon
 
 from core.model.Tool import Tool
 from core.enum.CategoryTool import CategoryTool
+from core.enum.ToolKey import ToolKey
 from resources.widgets.app_bar import AppBar
 from core.ui.CentralWorkspace import CentralWorkspace
 from core.ui.SideWorkspace import SideWorkspace
 from core.config.MenuManager import MenuManager
+from utils.Preferences import Preferences
 
 
 class MainWindow(QMainWindow):
@@ -36,11 +38,11 @@ class MainWindow(QMainWindow):
     Janela principal do Aetheris ToolBox.
 
     Layout:
-      [AppBar]            → título, toolbar com ToolGroups, controles de janela
-      [HBoxLayout]        → CentralWorkspace + SideWorkspace lado a lado
-        [CentralWorkspace]  → abas horizontais no topo (ferramentas CENTRAL) ← ocupa espaço restante
-        [SideWorkspace]     → painel lateral direito expansível (ferramentas SIDE) ← largura fixa
-      [Progress Bar]      → barra global de progresso (rodapé)
+      [AppBar]            -> titulo, toolbar com ToolGroups, controles de janela
+      [Splitter]          -> CentralWorkspace | SideWorkspace
+        [CentralWorkspace]  -> abas horizontais no topo (ferramentas CENTRAL)
+        [SideWorkspace]     -> painel lateral direito expansivel (ferramentas SIDE)
+      [Progress Bar]      -> barra global de progresso (rodape)
     """
 
     def __init__(self, tools: List[Tool]):
@@ -53,6 +55,9 @@ class MainWindow(QMainWindow):
         icon_path = Path(__file__).parent.parent.parent / "Aetheris.png"
         if icon_path.exists():
             self.setWindowIcon(QIcon(str(icon_path)))
+
+        # Preferencias do sistema (ToolKey.SYSTEM)
+        self._sys_prefs = Preferences(section=ToolKey.SYSTEM.value)
 
         self._tool_map: Dict[str, Tool] = {t.name: t for t in tools}
         self._build_ui(tools)
@@ -100,21 +105,35 @@ class MainWindow(QMainWindow):
             toolbar_layout.addStretch()
             root_layout.addWidget(toolbar_container)
 
-        # === WORKSPACE: Central + Side lado a lado ===
-        workspace_container = QWidget()
-        workspace_layout = QHBoxLayout(workspace_container)
-        workspace_layout.setContentsMargins(0, 0, 0, 0)
-        workspace_layout.setSpacing(0)
+        # === WORKSPACE: Central + Side com QSplitter ===
+        self._splitter = QSplitter(Qt.Orientation.Horizontal)
+        self._splitter.setHandleWidth(4)
+        self._splitter.setChildrenCollapsible(False)
+        self._splitter.setObjectName("workspace_splitter")
 
-        # CentralWorkspace (expande)
         self.central_workspace = CentralWorkspace()
-        workspace_layout.addWidget(self.central_workspace, 1)
+        self._splitter.addWidget(self.central_workspace)
 
-        # SideWorkspace (largura fixa, colado à direita)
         self.side_workspace = SideWorkspace()
-        workspace_layout.addWidget(self.side_workspace, 0)
+        self._splitter.addWidget(self.side_workspace)
 
-        root_layout.addWidget(workspace_container, 1)
+        # Restaura largura salva do conteudo side
+        saved = self._sys_prefs.get("side_content_width", SideWorkspace.W_DEFAULT)
+        self._side_content_width = saved
+
+        # Inicializa colapsado
+        self.side_workspace.collapse()
+        # Forca tamanho inicial no splitter (agendado pois width() ainda e 0)
+        QTimer.singleShot(0, self._init_splitter_sizes)
+        self._drag_lock = True  # nao salva enquanto colapsado
+
+        # Conecta sinal de redimensionamento do SideWorkspace
+        self.side_workspace.size_changed.connect(self._on_side_size_changed)
+
+        # Sincroniza o splitter quando o usuario arrasta a handle
+        self._splitter.splitterMoved.connect(self._on_splitter_moved)
+
+        root_layout.addWidget(self._splitter, 1)
 
         # === REGISTRAR FERRAMENTAS ===
         for tool in tools:
@@ -127,7 +146,7 @@ class MainWindow(QMainWindow):
         self.progress = QProgressBar()
         self.progress.setValue(0)
         self.progress.setTextVisible(True)
-        self.progress.setFormat(" %p% — aguardando... ")
+        self.progress.setFormat(" %p% - aguardando... ")
         self.progress.setFixedHeight(20)
         root_layout.addWidget(self.progress)
 
@@ -146,7 +165,58 @@ class MainWindow(QMainWindow):
             self.central_workspace.open_tool(tool)
 
     # ------------------------------------------------------------------
-    # Acesso às tools
+    # Redimensionamento dos workspaces
+    # ------------------------------------------------------------------
+
+    def _init_splitter_sizes(self):
+        """Forca o splitter para estado colapsado assim que a janela tiver tamanho."""
+        try:
+            self._splitter.setSizes([
+                max(100, self._splitter.width() - SideWorkspace.W_TABS),
+                SideWorkspace.W_TABS
+            ])
+        except Exception:
+            pass
+
+    def _on_side_size_changed(self, total_width: int):
+        """Ajusta os tamanhos do splitter conforme SideWorkspace."""
+        if total_width <= SideWorkspace.W_TABS:
+            # Colapsado
+            self._drag_lock = True
+            self._splitter.setSizes([
+                self._splitter.width() - SideWorkspace.W_TABS,
+                SideWorkspace.W_TABS
+            ])
+            # Salva estado colapsado
+            prefs = Preferences(section=ToolKey.SYSTEM.value)
+            prefs.set("side_collapsed", True)
+            prefs.set("side_content_width", self._side_content_width)
+            prefs.save()
+        else:
+            # Expandido
+            self._drag_lock = False
+            self._splitter.setSizes([
+                self._splitter.width() - total_width,
+                total_width
+            ])
+
+    def _on_splitter_moved(self, pos: int, idx: int):
+        """Salva a largura do conteudo side quando o usuario arrasta."""
+        if self._drag_lock:
+            return
+        sizes = self._splitter.sizes()
+        if len(sizes) >= 2:
+            side_total = sizes[1]
+            content_w = side_total - SideWorkspace.W_TABS
+            if content_w > 20:
+                self._side_content_width = content_w
+                prefs = Preferences(section=ToolKey.SYSTEM.value)
+                prefs.set("side_collapsed", False)
+                prefs.set("side_content_width", content_w)
+                prefs.save()
+
+    # ------------------------------------------------------------------
+    # Acesso as tools
     # ------------------------------------------------------------------
 
     def get_tool(self, name: str) -> Tool | None:
@@ -157,7 +227,7 @@ class MainWindow(QMainWindow):
             self.central_workspace.set_current_tool(name)
             return True
         if self.side_workspace.is_tool_open(name):
-            self.side_workspace.expand(name)
+            self.side_workspace.expand(name, self._side_content_width)
             return True
         return False
 

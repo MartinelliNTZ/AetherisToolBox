@@ -309,6 +309,17 @@ class AppStyles:
             border: none;
         }}
 
+        /* ===== SPLITTER ===== */
+        QSplitter::handle {{
+            background-color: {p.BORDER};
+        }}
+        QSplitter::handle:hover {{
+            background-color: {p.GOLD};
+        }}
+        QSplitter#workspace_splitter::handle {{
+            width: 4px;
+        }}
+
         /* ===== LINE EDIT ===== */
         QLineEdit {{
             background-color: {p.BG_ELEVATED};

@@ -3,10 +3,10 @@
 SideWorkspace — Painel lateral direito expansível
 ===================================================
 Gerencia ferramentas do tipo SIDE (ex: Console).
-Funciona com largura fixa controlada: 36px (colapsado, mostra só as abas)
-ou 400px (expandido, mostra conteúdo).
+Funciona com largura controlada: W_TABS (colapsado, mostra só as abas)
+ou largura definida pelo usuário (expandido, mostra conteúdo).
 
-O CentralWorkspace se ajusta automaticamente via layout.
+Usa QSplitter no MainWindow para redimensionamento.
 """
 
 from __future__ import annotations
@@ -27,17 +27,16 @@ class SideWorkspace(QWidget):
     Painel lateral com abas verticais à direita.
 
     O conteúdo SEMPRE existe dentro do widget.
-    Quando colapsado (24px), mostra só a aba vertical.
-    Quando expandido (400px), mostra a tool SIDE.
+    Quando colapsado, mostra só a aba vertical.
+    Quando expandido, mostra a tool SIDE.
     """
 
     tool_activated = Signal(str)
     tool_closed    = Signal(str)
+    size_changed   = Signal(int)     # largura total desejada (W_TABS se colapsado)
 
-    # largura colapsado = mostra só a aba vertical (24px)
-    # largura expandido = mostra conteúdo (400px)
-    _W_COLLAPSED = 24
-    _W_EXPANDED  = 400
+    W_TABS     = 24   # largura das abas verticais (fixa)
+    W_DEFAULT  = 400  # largura padrão do conteúdo quando expandido
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -48,7 +47,6 @@ class SideWorkspace(QWidget):
         self._log = LogUtils(tool="System", class_name="SideWorkspace")
 
         self.setObjectName("side_workspace")
-        self.setFixedWidth(self._W_COLLAPSED)
 
         # Layout principal: conteúdo + abas
         mlo = QHBoxLayout(self)
@@ -80,13 +78,16 @@ class SideWorkspace(QWidget):
         # ── Abas verticais ─────────────────────────────────────────
         self._tab_box = QWidget()
         self._tab_box.setObjectName("side_tabs_container")
-        self._tab_box.setFixedWidth(self._W_COLLAPSED)
+        self._tab_box.setFixedWidth(self.W_TABS)
         tbl = QVBoxLayout(self._tab_box)
         tbl.setContentsMargins(0, 0, 0, 0)
         tbl.setSpacing(2)
         tbl.setAlignment(Qt.AlignmentFlag.AlignTop)
         self._tabs_layout = tbl
         mlo.addWidget(self._tab_box)
+
+        # Inicializa colapsado
+        self._content.setVisible(False)
 
     # ── API ──────────────────────────────────────────────────────────
 
@@ -126,9 +127,9 @@ class SideWorkspace(QWidget):
         for tab in self._tabs.values():
             tab.selected = False
         self._content.setVisible(False)
-        self.setFixedWidth(self._W_COLLAPSED)
+        self.size_changed.emit(self.W_TABS)
 
-    def _set_expanded(self, name: str):
+    def _set_expanded(self, name: str, content_width: int | None = None):
         if name not in self._tools:
             return
         self._current_name = name
@@ -139,14 +140,15 @@ class SideWorkspace(QWidget):
 
         self._load_tool(name)
         self._content.setVisible(True)
-        self.setFixedWidth(self._W_EXPANDED)
+        w = (content_width or self.W_DEFAULT) + self.W_TABS
+        self.size_changed.emit(w)
         self.tool_activated.emit(name)
 
     def collapse(self):
         self._set_collapsed()
 
-    def expand(self, name: str):
-        self._set_expanded(name)
+    def expand(self, name: str, content_width: int | None = None):
+        self._set_expanded(name, content_width)
 
     # ── Helpers ────────────────────────────────────────────────────────
 
