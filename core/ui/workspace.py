@@ -99,7 +99,12 @@ class Workspace(QWidget):
         """Muda para a aba com o nome da ferramenta."""
         for tab_id in range(self.tab_bar.count()):
             if self.tab_bar.tabData(tab_id) == name:
-                self.tab_bar.setCurrentIndex(tab_id)
+                # Se já está nesta aba, currentChanged NÃO será emitido
+                # pelo Qt — forçamos o callback manualmente
+                if self.tab_bar.currentIndex() == tab_id:
+                    self._on_tab_changed(tab_id)
+                else:
+                    self.tab_bar.setCurrentIndex(tab_id)
                 return
 
     def current_tool_name(self) -> str | None:
