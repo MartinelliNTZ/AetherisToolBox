@@ -55,7 +55,7 @@ class MainWindow(QMainWindow):
         self._build_ui(tools)
 
         # Seleciona a primeira aba (Home) por padrao
-        self.workspace.set_current_tool(0)
+        self.workspace.set_current_tool("Home")
 
     def _build_ui(self, tools: List[Tool]) -> None:
         from core.config.LogUtils import LogUtils
@@ -138,10 +138,9 @@ class MainWindow(QMainWindow):
 
     def switch_to_tool(self, name: str) -> bool:
         """Muda para a aba de uma tool pelo nome."""
-        for i, tool in enumerate(self.workspace._tools):
-            if tool.name == name:
-                self.workspace.set_current_tool(i)
-                return True
+        if self.workspace.is_tool_open(name):
+            self.workspace.set_current_tool(name)
+            return True
         return False
 
     def switch_to_console(self) -> None:
