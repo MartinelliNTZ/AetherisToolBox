@@ -283,6 +283,18 @@ class AppStyles:
             border-bottom-right-radius: 0px;
             border-bottom-left-radius: 0px;
         }}
+
+        /* ===== VERTICAL TAB ===== */
+        /* 
+           VerticalTab usa paintEvent próprio com cores da Palette,
+           mas fundo/base e cursor ficam definidos via QSS.
+        */
+        QWidget#vertical_tab {{
+            background-color: transparent;
+            border-radius: 0px;
+            padding: 0px;
+        }}
+
         QLabel#workspace_tab_label {{
             color: {p.TEXT_GOLD};
             font-weight: bold;

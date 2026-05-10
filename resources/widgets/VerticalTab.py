@@ -4,6 +4,9 @@ VerticalTab — Aba vertical estilo Civil 3D
 ==========================================
 Texto renderizado rotacionado 90° via paintEvent.
 Sem QLabel — controle total sobre aparência.
+
+Cores vindas de Palette (styles.py) para consistência com o tema.
+Padding reduzido em relação ao WorkspaceTab por ser vertical.
 """
 
 from __future__ import annotations
@@ -12,25 +15,27 @@ from PySide6.QtCore    import Qt, Signal, QRect, QSize
 from PySide6.QtGui     import QPainter, QPen, QColor, QFont, QFontMetrics
 from PySide6.QtWidgets import QWidget
 
+from resources.styles.styles import Palette
+
 
 class VerticalTab(QWidget):
     """
     Aba vertical clicável com texto rotacionado 90° (bottom → top),
     estilo painel lateral do Civil 3D / AutoCAD.
 
-    Emite `clicked` com o nome da aba ao ser pressionada.
+    Emite `clicked` ao ser pressionada.
     """
 
     clicked = Signal()
 
-    _WIDTH  = 36
-    _HEIGHT = 120   # ajuste conforme o tamanho do texto esperado
+    _WIDTH  = 32               # largura compacta — padding lateral mínimo
+    _HEIGHT = 100              # altura inicial, ajusta via sizeHint
 
     def __init__(
         self,
         title:   str,
         tooltip: str = "",
-        icon=None,          # QIcon opcional (futuro)
+        icon=None,              # QIcon opcional (futuro)
         parent=None,
     ):
         super().__init__(parent)
@@ -45,7 +50,6 @@ class VerticalTab(QWidget):
 
         self.setFixedWidth(self._WIDTH)
         self.setMinimumHeight(self._HEIGHT)
-        self.setSizeHint = lambda: QSize(self._WIDTH, self._HEIGHT)  # type: ignore
         self.setCursor(Qt.CursorShape.PointingHandCursor)
 
         # Rastreia hover sem filtro de evento
@@ -59,26 +63,27 @@ class VerticalTab(QWidget):
         painter.setRenderHint(QPainter.RenderHint.TextAntialiasing)
 
         w, h = self.width(), self.height()
+        P    = Palette
 
         # ── Fundo ──────────────────────────────────────────────────
         if self._selected:
-            bg = QColor("#1e90ff")          # azul destaque
-            fg = QColor("#ffffff")
-            border = QColor("#005fcc")
+            bg     = QColor(P.GOLD)
+            fg     = QColor(P.TEXT_BRIGHT)
+            border = QColor(P.GOLD_DIM)
         elif self._hovered:
-            bg = QColor("#2a2d2e")          # cinza hover (tema escuro)
-            fg = QColor("#cccccc")
-            border = QColor("#3c3f41")
+            bg     = QColor(P.BG_PANEL)
+            fg     = QColor(P.TEXT_PRIMARY)
+            border = QColor(P.BORDER_HOVER)
         else:
-            bg = QColor("#1e1e1e")          # fundo padrão tema escuro
-            fg = QColor("#9d9d9d")
-            border = QColor("#2d2d2d")
+            bg     = QColor(P.BG_DEEPEST)
+            fg     = QColor(P.TEXT_SECONDARY)
+            border = QColor(P.BORDER)
 
         painter.fillRect(0, 0, w, h, bg)
 
-        # Borda esquerda como indicador de seleção
+        # Indicador de seleção — borda esquerda dourada
         if self._selected:
-            painter.fillRect(0, 0, 3, h, QColor("#005fcc"))
+            painter.fillRect(0, 0, 3, h, QColor(P.GOLD_HOVER))
 
         # Borda direita sutil
         painter.setPen(QPen(border, 1))
@@ -90,13 +95,14 @@ class VerticalTab(QWidget):
         painter.setFont(font)
         painter.setPen(QPen(fg))
 
-        # Salva, translada para o centro, rotaciona -90° e desenha
+        # Translada para o centro, rotaciona -90° e desenha
         painter.save()
         painter.translate(w / 2, h / 2)
         painter.rotate(-90)
 
         fm   = QFontMetrics(font)
-        text = fm.elidedText(self._title, Qt.TextElideMode.ElideRight, h - 16)
+        # Padding vertical reduzido (8px em vez de 16)
+        text = fm.elidedText(self._title, Qt.TextElideMode.ElideRight, h - 8)
         tw   = fm.horizontalAdvance(text)
         th   = fm.height()
 
@@ -148,11 +154,11 @@ class VerticalTab(QWidget):
     def selected(self, value: bool):
         if self._selected != value:
             self._selected = value
-            self.update()   # repaint sem style().unpolish()
+            self.update()
 
     # ── Tamanho ideal ────────────────────────────────────────────────
 
     def sizeHint(self) -> QSize:
         fm = QFontMetrics(QFont("Segoe UI", 8))
-        needed_h = fm.horizontalAdvance(self._title) #+ 24   # texto + padding
+        needed_h = fm.horizontalAdvance(self._title) + 8   # texto + padding reduzido
         return QSize(self._WIDTH, max(self._HEIGHT, needed_h))
