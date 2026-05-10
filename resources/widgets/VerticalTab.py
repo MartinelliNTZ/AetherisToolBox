@@ -12,7 +12,7 @@ Padding reduzido em relação ao WorkspaceTab por ser vertical.
 from __future__ import annotations
 
 from PySide6.QtCore    import Qt, Signal, QRect, QSize
-from PySide6.QtGui     import QPainter, QPen, QColor, QFont, QFontMetrics
+from PySide6.QtGui     import QPainter, QPen, QColor, QFont, QFontMetrics, QPainterPath
 from PySide6.QtWidgets import QWidget, QSizePolicy
 
 from resources.styles.styles import Palette
@@ -62,6 +62,24 @@ class VerticalTab(QWidget):
 
     # ── Pintura ──────────────────────────────────────────────────────
 
+    def _draw_rounded_rect(self, painter, rect, tl=2, tr=2, br=2, bl=8):
+        """
+        Desenha retângulo com corner-radius customizado para cada canto.
+        tl=top-left, tr=top-right, br=bottom-right, bl=bottom-left
+        """
+        path = QPainterPath()
+        path.moveTo(rect.left() + tl, rect.top())
+        path.lineTo(rect.right() - tr, rect.top())
+        path.arcTo(rect.right() - 2*tr, rect.top(), 2*tr, 2*tr, 90, -90)
+        path.lineTo(rect.right(), rect.bottom() - br)
+        path.arcTo(rect.right() - 2*br, rect.bottom() - 2*br, 2*br, 2*br, 0, -90)
+        path.lineTo(rect.left() + bl, rect.bottom())
+        path.arcTo(rect.left(), rect.bottom() - 2*bl, 2*bl, 2*bl, 270, -90)
+        path.lineTo(rect.left(), rect.top() + tl)
+        path.arcTo(rect.left(), rect.top(), 2*tl, 2*tl, 180, -90)
+        path.closeSubpath()
+        return path
+
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -83,13 +101,18 @@ class VerticalTab(QWidget):
             fg     = QColor(P.TEXT_SECONDARY)
             border = QColor(P.BORDER)
 
-        painter.fillRect(0, 0, w, h, bg)
+        # Desenhar background arredondado
+        rect = QRect(0, 0, w, h)
+        path = self._draw_rounded_rect(painter, rect, tl=2, tr=2, br=2, bl=8)
+        painter.fillPath(path, bg)
 
+        # Indicador de seleção (barra na esquerda)
         if self._selected:
             painter.fillRect(0, 0, 3, h, QColor(P.GOLD_HOVER))
 
+        # Desenhar borda
         painter.setPen(QPen(border, 1))
-        painter.drawLine(w - 1, 0, w - 1, h)
+        painter.drawPath(path)
 
         font = QFont("Segoe UI", 8)
         font.setWeight(QFont.Weight.Medium if self._selected else QFont.Weight.Normal)

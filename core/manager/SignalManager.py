@@ -13,12 +13,14 @@ class SignalManager(QObject):
     Singleton que centraliza os sinais do sistema.
 
     Sinais:
-        tool_opened(str, object)  — tool_key + instância da tool
-        tool_closed(str)          — tool_key da ferramenta fechada
+        tool_opened(str, object)    — tool_key + instância da tool
+        tool_closed(str)            — tool_key da ferramenta fechada
+        console_message(str)        — mensagem para exibir no console
     """
 
     tool_opened: Signal = Signal(str, object)
     tool_closed: Signal = Signal(str)
+    console_message: Signal = Signal(str)
 
     _instance: SignalManager | None = None
 

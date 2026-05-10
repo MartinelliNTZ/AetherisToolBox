@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt
 from resources.widgets.SimpleGhostButton import SimpleGhostButton
 from core.model.BasePlugin import BasePlugin
+from core.manager.SignalManager import SignalManager
 
 
 class ConsoleTool(BasePlugin):
@@ -27,6 +28,7 @@ class ConsoleTool(BasePlugin):
         super().__init__(tool_key="Console", parent=parent)
         self._build_ui()
         self.load_prefs()
+        self._connect_signals()
         self.logger.info("ConsoleTool carregada", code="TOOL_READY")
 
     def _build_ui(self):
@@ -67,6 +69,21 @@ class ConsoleTool(BasePlugin):
 
     def set_placeholder(self, text: str) -> None:
         self.txt_log.setPlaceholderText(text)
+
+    # ── Conexão com sinais do sistema ─────────────────────────────
+
+    def _connect_signals(self) -> None:
+        """Conecta sinais globais do SignalManager aos handlers do console."""
+        SignalManager.instance().console_message.connect(self._on_console_message)
+
+    def _on_console_message(self, message: str) -> None:
+        """Recebe uma mensagem do SignalManager e exibe no console."""
+        import html as html_mod
+        safe = html_mod.escape(message)
+        self.append_log(
+            f'<span style="color:#E5E7EB;font-family:Consolas,monospace;">'
+            f'{safe}</span>'
+        )
 
     @property
     def anchorClicked(self):

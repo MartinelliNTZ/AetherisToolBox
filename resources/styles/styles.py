@@ -277,30 +277,38 @@ class AppStyles:
 
         /* ===== WORKSPACE TAB CUSTOM WIDGET ===== */
         QWidget#workspace_tab {{
-            background-color: #000000;
-            border-top-right-radius: 8px;
-            border-top-left-radius: 0px;
-            border-bottom-right-radius: 0px;
-            border-bottom-left-radius: 0px;
+            background-color: {p.BG_DEEPEST};
+            border-top-left-radius: 2px;
+            border-top-right-radius: 2px;
+            border-bottom-right-radius: 8px;
+            border-bottom-left-radius: 2px;
+            border: 1px solid {p.BORDER};
+        }}
+
+        QWidget#workspace_tab:hover {{
+            background-color: {p.BG_PANEL};
+            border-color: {p.BORDER_HOVER};
         }}
 
         /* ===== VERTICAL TAB ===== */
         /* 
-           VerticalTab usa paintEvent próprio com cores da Palette,
-           mas fundo/base e cursor ficam definidos via QSS.
+           VerticalTab usa paintEvent próprio com cores da Palette e corner-radius 2 2 2 8.
+           Background aqui é transparent pois o painting é feito em paintEvent.
         */
         QWidget#vertical_tab {{
             background-color: transparent;
-            border-radius: 0px;
+            border: none;
             padding: 0px;
         }}
 
         QLabel#workspace_tab_label {{
-            color: {p.TEXT_GOLD};
-            font-weight: bold;
+            color: {p.TEXT_PRIMARY};
+            font-weight: 500;
             font-size: 12px;
             text-align: center;
             padding: 0px 4px;
+            background-color: transparent;
+            border: none;
         }}
 
         /* ===== WORKSPACE SEPARATOR ===== */

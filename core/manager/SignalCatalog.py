@@ -29,8 +29,9 @@ class SignalCatalog(QObject):
 
     # ── Sinais ───────────────────────────────────────────────────────
 
-    tool_opened:  Signal = Signal(str)   # emitido quando uma ferramenta é aberta
-    tool_closed:  Signal = Signal(str)   # emitido quando uma ferramenta é fechada
-    tool_focused: Signal = Signal(str)   # emitido quando uma ferramenta ganha foco
-    app_startup:  Signal = Signal()      # emitido quando a aplicação inicia
-    app_shutdown: Signal = Signal()      # emitido quando a aplicação encerra
+    tool_opened:      Signal = Signal(str)   # emitido quando uma ferramenta é aberta
+    tool_closed:      Signal = Signal(str)   # emitido quando uma ferramenta é fechada
+    tool_focused:     Signal = Signal(str)   # emitido quando uma ferramenta ganha foco
+    app_startup:      Signal = Signal()      # emitido quando a aplicação inicia
+    app_shutdown:     Signal = Signal()      # emitido quando a aplicação encerra
+    console_message:  Signal = Signal(str)   # emitido para exibir mensagem no console

@@ -26,6 +26,7 @@ from PySide6.QtWidgets import (
 )
 
 from core.model.BasePlugin import BasePlugin
+from core.manager.SignalManager import SignalManager
 from resources.widgets.SimplePrimaryButton import SimplePrimaryButton
 
 
@@ -61,13 +62,12 @@ class TecladorWorker(QThread):
             pyautogui.PAUSE = 0
             self._running = True
 
-            print(
-                f"[TecladorF] Pronto. "
-                f"Tecla={self._hotkey.upper()}, "
-                f"VALUE={self._value[:20]}..., "
-                f"startup_delay={self._startup_delay}s, "
-                f"interval_delay={self._interval_delay}s"
+            SignalManager.instance().console_message.emit(
+                f"TecladorF pronto — tecla={self._hotkey.upper()}, "
+                f"VALUE={self._value[:30]}..."
             )
+            # Log técnico vai para o arquivo JSON
+            # (print substituído por logger na classe principal)
 
             def type_value():
                 if not self._running:
@@ -80,11 +80,9 @@ class TecladorWorker(QThread):
                     pyautogui.typewrite(ch, interval=0)
                     time.sleep(self._interval_delay)
                     count += 1
-                print(
-                    f"[TecladorF] String digitada: "
-                    f"{count} caracteres, "
-                    f"tecla={self._hotkey.upper()}, "
-                    f"VALUE={self._value[:30]}..."
+                SignalManager.instance().console_message.emit(
+                    f"TecladorF digitou {count} caracteres "
+                    f"(tecla={self._hotkey.upper()})"
                 )
 
             keyboard.add_hotkey(
@@ -96,9 +94,13 @@ class TecladorWorker(QThread):
             keyboard.wait("esc")
 
         except ImportError as e:
-            print(f"[TecladorF] ERRO: {e}. Instale: pip install pyautogui keyboard")
+            SignalManager.instance().console_message.emit(
+                f"TecladorF ERRO: {e}. Instale: pip install pyautogui keyboard"
+            )
         except Exception as e:
-            print(f"[TecladorF] ERRO inesperado: {e}")
+            SignalManager.instance().console_message.emit(
+                f"TecladorF ERRO inesperado: {e}"
+            )
         finally:
             self._running = False
             try:
@@ -226,12 +228,9 @@ class TecladorF(BasePlugin):
         self._btn_executar.setText("PARAR")
         self._set_inputs_enabled(False)
 
-        print(
-            f"[TecladorF] Worker iniciado: "
-            f"VALUE={value[:30]}..., "
-            f"tecla={hotkey.upper()}, "
-            f"startup_delay={startup_delay}s, "
-            f"interval_delay={interval_delay}s"
+        SignalManager.instance().console_message.emit(
+            f"TecladorF iniciado — tecla={hotkey.upper()}, "
+            f"VALUE={value[:30]}..."
         )
         self.logger.info(
             "TecladorF iniciado",
@@ -258,7 +257,7 @@ class TecladorF(BasePlugin):
         self._btn_executar.setText("EXECUTAR")
         self._set_inputs_enabled(True)
 
-        print("[TecladorF] Worker parado.")
+        SignalManager.instance().console_message.emit("TecladorF parado")
         self.logger.info("TecladorF parado", code="WORKER_STOP")
 
     def _set_inputs_enabled(self, enabled: bool):
