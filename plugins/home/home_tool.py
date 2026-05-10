@@ -10,20 +10,21 @@ e boas-vindas ao usuário.
 from __future__ import annotations
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
-    QLabel, QVBoxLayout, QWidget, QFrame, QHBoxLayout, QSizePolicy
+    QLabel, QVBoxLayout, QFrame
 )
 
+from core.model.BasePlugin import BasePlugin
 
-class HomeTool(QWidget):
+
+class HomeTool(BasePlugin):
     """
     Página inicial do Aetheris ToolBox.
     Aberta por padrão ao iniciar o software.
     """
 
     def __init__(self, parent=None):
-        super().__init__(parent)
+        super().__init__(tool_key="Home", parent=parent)
         self._build_ui()
 
     def _build_ui(self):
