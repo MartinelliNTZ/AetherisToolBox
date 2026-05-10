@@ -104,7 +104,7 @@ class VerticalTab(QWidget):
 
         # Desenhar background arredondado
         rect = QRect(0, 0, w, h)
-        path = self._draw_rounded_rect(painter, rect, tl=2, tr=2, br=2, bl=8)
+        path = self._draw_rounded_rect(painter, rect, tl=2, tr=2, br=8, bl=2)
         
         # Clipar para garantir que nada vaze dos limites da borda arredondada
         painter.setClipPath(path)
