@@ -27,16 +27,16 @@ class SideWorkspace(QWidget):
     Painel lateral com abas verticais à direita.
 
     O conteúdo SEMPRE existe dentro do widget.
-    Quando colapsado (36px), o conteúdo fica simplesmente
-    recortado — não precisa de hide/show.
+    Quando colapsado (24px), mostra só a aba vertical.
+    Quando expandido (400px), mostra a tool SIDE.
     """
 
     tool_activated = Signal(str)
     tool_closed    = Signal(str)
 
-    # largura colapsado = mostra só a aba vertical (36px)
+    # largura colapsado = mostra só a aba vertical (24px)
     # largura expandido = mostra conteúdo (400px)
-    _W_COLLAPSED = 36
+    _W_COLLAPSED = 24
     _W_EXPANDED  = 400
 
     def __init__(self, parent=None):
@@ -125,6 +125,7 @@ class SideWorkspace(QWidget):
         self._current_name = None
         for tab in self._tabs.values():
             tab.selected = False
+        self._content.setVisible(False)
         self.setFixedWidth(self._W_COLLAPSED)
 
     def _set_expanded(self, name: str):
@@ -137,6 +138,7 @@ class SideWorkspace(QWidget):
             tab.selected = (n == name)
 
         self._load_tool(name)
+        self._content.setVisible(True)
         self.setFixedWidth(self._W_EXPANDED)
         self.tool_activated.emit(name)
 

@@ -28,14 +28,14 @@ class VerticalTab(QWidget):
 
     clicked = Signal()
 
-    _WIDTH  = 24               # espessura da aba (largura real na tela)
-    _HEIGHT = 80               # altura inicial (vira largura do texto após rotação -90°)
+    _WIDTH  = 24               # espessura da aba
+    _HEIGHT = 80               # altura (vira largura do texto após rotação -90°)
 
     def __init__(
         self,
         title:   str,
         tooltip: str = "",
-        icon=None,              # QIcon opcional (futuro)
+        icon=None,
         parent=None,
     ):
         super().__init__(parent)
@@ -48,12 +48,16 @@ class VerticalTab(QWidget):
         if tooltip:
             self.setToolTip(tooltip)
 
+        # Bloqueio absoluto de tamanho
         self.setFixedWidth(self._WIDTH)
         self.setFixedHeight(self._HEIGHT)
+        self.setMinimumWidth(self._WIDTH)
+        self.setMaximumWidth(self._WIDTH)
+        self.setMinimumHeight(self._HEIGHT)
+        self.setMaximumHeight(self._HEIGHT)
         self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-        self.setCursor(Qt.CursorShape.PointingHandCursor)
 
-        # Rastreia hover sem filtro de evento
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setMouseTracking(True)
 
     # ── Pintura ──────────────────────────────────────────────────────
@@ -66,7 +70,6 @@ class VerticalTab(QWidget):
         w, h = self.width(), self.height()
         P    = Palette
 
-        # ── Fundo ──────────────────────────────────────────────────
         if self._selected:
             bg     = QColor(P.GOLD)
             fg     = QColor(P.TEXT_BRIGHT)
@@ -82,32 +85,26 @@ class VerticalTab(QWidget):
 
         painter.fillRect(0, 0, w, h, bg)
 
-        # Indicador de seleção — borda esquerda dourada
         if self._selected:
             painter.fillRect(0, 0, 3, h, QColor(P.GOLD_HOVER))
 
-        # Borda direita sutil
         painter.setPen(QPen(border, 1))
         painter.drawLine(w - 1, 0, w - 1, h)
 
-        # ── Texto rotacionado ──────────────────────────────────────
         font = QFont("Segoe UI", 8)
         font.setWeight(QFont.Weight.Medium if self._selected else QFont.Weight.Normal)
         painter.setFont(font)
         painter.setPen(QPen(fg))
 
-        # Translada para o centro, rotaciona -90° e desenha
         painter.save()
         painter.translate(w / 2, h / 2)
         painter.rotate(-90)
 
         fm   = QFontMetrics(font)
-        # Padding vertical reduzido (8px em vez de 16)
         text = fm.elidedText(self._title, Qt.TextElideMode.ElideRight, h - 8)
         tw   = fm.horizontalAdvance(text)
         th   = fm.height()
 
-        # Rect centralizado no espaço já rotacionado
         painter.drawText(
             QRect(-tw // 2, -th // 2, tw, th),
             Qt.AlignmentFlag.AlignCenter,
@@ -160,6 +157,4 @@ class VerticalTab(QWidget):
     # ── Tamanho ideal ────────────────────────────────────────────────
 
     def sizeHint(self) -> QSize:
-        fm = QFontMetrics(QFont("Segoe UI", 8))
-        needed_h = fm.horizontalAdvance(self._title) + 8   # texto + padding reduzido
-        return QSize(self._WIDTH, max(self._HEIGHT, needed_h))
+        return QSize(self._WIDTH, self._HEIGHT)
