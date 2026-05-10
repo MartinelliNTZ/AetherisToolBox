@@ -23,51 +23,51 @@ class Palette:
     """
 
     # ── Fundos (profundidade: 0 = mais fundo, 5 = mais alto) ───────────
-    BG_DEEPEST     = "#08080A"      # Nível 0: fundo absoluto
-    BG_DARK        = "#0C0C0F"      # Nível 1: fundo padrão
-    BG_PANEL       = "#121216"      # Nível 2: painéis base
-    BG_CARD        = "#18181D"      # Nível 3: cards / groupbox
-    BG_ELEVATED    = "#1E1E24"      # Nível 4: elementos elevados
-    BG_SURFACE     = "#24242B"      # Nível 5: superfície (hover, focus)
-    TITLE_BAR_BG   = "#0A0A0D"      # Barra de título
+    BG_DEEPEST = "#08080A"      # Nível 0: fundo absoluto
+    BG_DARK = "#0C0C0F"      # Nível 1: fundo padrão
+    BG_PANEL = "#121216"      # Nível 2: painéis base
+    BG_CARD = "#18181D"      # Nível 3: cards / groupbox
+    BG_ELEVATED = "#1E1E24"      # Nível 4: elementos elevados
+    BG_SURFACE = "#24242B"      # Nível 5: superfície (hover, focus)
+    TITLE_BAR_BG = "#0A0A0D"      # Barra de título
 
     # ── Sombras (simulam box-shadow via gradientes) ────────────────────
-    SHADOW         = "#040405"      # Sombra escura sutil
-    SHADOW_DEEP    = "#000000"      # Sombra profunda
-    GLOW           = "#C9A84C15"    # Brilho dourado fraco (~8%)
-    GLOW_STRONG    = "#C9A84C25"    # Brilho dourado médio (~15%)
+    SHADOW = "#040405"      # Sombra escura sutil
+    SHADOW_DEEP = "#000000"      # Sombra profunda
+    GLOW = "#C9A84C15"    # Brilho dourado fraco (~8%)
+    GLOW_STRONG = "#C9A84C25"    # Brilho dourado médio (~15%)
 
     # ── Bordas (mínimas, quase invisíveis) ─────────────────────────────
-    BORDER          = "#2A2A30"     # Borda sutil (quase imperceptível)
-    BORDER_HOVER    = "#C9A84C"     # Borda hover dourada
-    DIVIDER         = "#1A1A20"     # Separador / gridline
+    BORDER = "#2A2A30"     # Borda sutil (quase imperceptível)
+    BORDER_HOVER = "#C9A84C"     # Borda hover dourada
+    DIVIDER = "#1A1A20"     # Separador / gridline
 
     # ── Texto ───────────────────────────────────────────────────────────
-    TEXT_BRIGHT     = "#F0F0F0"     # Títulos / destaque
-    TEXT_PRIMARY    = "#DCDCDC"     # Corpo
-    TEXT_SECONDARY  = "#888890"     # Subtítulo / secundário
-    TEXT_MUTED      = "#585860"     # Placeholder / desabilitado
-    TEXT_GOLD       = "#C9A84C"     # Dourado
+    TEXT_BRIGHT = "#F0F0F0"     # Títulos / destaque
+    TEXT_PRIMARY = "#DCDCDC"     # Corpo
+    TEXT_SECONDARY = "#888890"     # Subtítulo / secundário
+    TEXT_MUTED = "#585860"     # Placeholder / desabilitado
+    TEXT_GOLD = "#C9A84C"     # Dourado
     TEXT_GOLD_BRIGHT = "#E0C878"   # Dourado hover
 
     # ── Acento Ouro ─────────────────────────────────────────────────────
-    GOLD            = "#C9A84C"
-    GOLD_HOVER      = "#D4B85A"
-    GOLD_ACTIVE     = "#B8983E"
-    GOLD_DIM        = "#8A7A3A"
-    GOLD_LIGHT      = "#E8D08A"
-    GOLD_GRADIENT   = ("#C9A84C", "#B8963A")
+    GOLD = "#C9A84C"
+    GOLD_HOVER = "#D4B85A"
+    GOLD_ACTIVE = "#B8983E"
+    GOLD_DIM = "#8A7A3A"
+    GOLD_LIGHT = "#E8D08A"
+    GOLD_GRADIENT = ("#C9A84C", "#B8963A")
 
     # ── Status ──────────────────────────────────────────────────────────
-    SUCCESS         = "#43A047"
-    SUCCESS_HOVER   = "#66BB6A"
-    SUCCESS_DIM     = "#2E7D32"
-    WARNING         = "#EF9A00"
-    WARNING_HOVER   = "#FFB74D"
-    WARNING_DIM     = "#BF6E00"
-    DANGER          = "#D32F2F"
-    DANGER_HOVER    = "#E53935"
-    DANGER_DIM      = "#A02020"
+    SUCCESS = "#43A047"
+    SUCCESS_HOVER = "#66BB6A"
+    SUCCESS_DIM = "#2E7D32"
+    WARNING = "#EF9A00"
+    WARNING_HOVER = "#FFB74D"
+    WARNING_DIM = "#BF6E00"
+    DANGER = "#D32F2F"
+    DANGER_HOVER = "#E53935"
+    DANGER_DIM = "#A02020"
 
 
 class AppStyles:
@@ -232,7 +232,6 @@ class AppStyles:
             background-color: {p.BG_PANEL};
             border-bottom: 1px solid {p.DIVIDER};
         }}
-
         /* ===== WORKSPACE TABS ===== */
         QTabBar#workspace_tabs {{
             background-color: {p.TITLE_BAR_BG};
@@ -244,7 +243,7 @@ class AppStyles:
             background-color: transparent;
             color: {p.TEXT_SECONDARY};
             border: none;
-            padding: 6px 18px 6px 14px;
+            padding: 0;          /* zeramos — WorkspaceTab já tem seus próprios margins */
             margin: 0;
             font-weight: 600;
             font-size: 11px;
@@ -259,14 +258,17 @@ class AppStyles:
             border-bottom: 2px solid {p.GOLD};
         }}
 
-        /* Close button ghost: invisível por padrão, aparece no hover da tab */
+        /* Close button sempre reserva espaço fixo — sem reflow no hover */
         QTabBar::close-button {{
             image: none;
-            width: 0px;
-        }}
-        QTabBar::tab:hover::close-button {{
-            image: none;
             width: 16px;
+            height: 16px;
+            subcontrol-position: right;
+            opacity: 0;
+        }}
+        QTabBar::tab:hover > QTabBar::close-button,
+        QTabBar::tab:selected > QTabBar::close-button {{
+            opacity: 1;
         }}
         QTabBar::close-button:hover {{
             background-color: {p.DANGER};
@@ -644,19 +646,19 @@ class AppStyles:
 class DarkCharcoalStyle:
     """Classe de compatibilidade legada. Usar AppStyles ou Palette diretamente."""
 
-    DARK_BG        = Palette.BG_DARK
-    PANEL_BG       = Palette.BG_PANEL
-    CARD_BG        = Palette.BG_CARD
-    INPUT_BG       = Palette.BG_ELEVATED
-    BORDER         = Palette.BORDER
-    TEXT_PRIMARY   = Palette.TEXT_PRIMARY
+    DARK_BG = Palette.BG_DARK
+    PANEL_BG = Palette.BG_PANEL
+    CARD_BG = Palette.BG_CARD
+    INPUT_BG = Palette.BG_ELEVATED
+    BORDER = Palette.BORDER
+    TEXT_PRIMARY = Palette.TEXT_PRIMARY
     TEXT_SECONDARY = Palette.TEXT_SECONDARY
-    ACCENT_GOLD    = Palette.GOLD
-    ACCENT_HOVER   = Palette.GOLD_HOVER
-    SUCCESS        = Palette.SUCCESS
-    WARNING        = Palette.WARNING
-    DANGER         = Palette.DANGER
-    INFO           = "#5B9BD5"
+    ACCENT_GOLD = Palette.GOLD
+    ACCENT_HOVER = Palette.GOLD_HOVER
+    SUCCESS = Palette.SUCCESS
+    WARNING = Palette.WARNING
+    DANGER = Palette.DANGER
+    INFO = "#5B9BD5"
 
     @classmethod
     def stylesheet(cls) -> str:
