@@ -244,7 +244,7 @@ class AppStyles:
             background-color: transparent;
             color: {p.TEXT_SECONDARY};
             border: none;
-            padding: 6px 18px;
+            padding: 6px 18px 6px 14px;
             margin: 0;
             font-weight: 600;
             font-size: 11px;
@@ -257,6 +257,20 @@ class AppStyles:
             background-color: {p.BG_DARK};
             color: {p.TEXT_GOLD};
             border-bottom: 2px solid {p.GOLD};
+        }}
+
+        /* Close button ghost: invisível por padrão, aparece no hover da tab */
+        QTabBar::close-button {{
+            image: none;
+            width: 0px;
+        }}
+        QTabBar::tab:hover::close-button {{
+            image: none;
+            width: 16px;
+        }}
+        QTabBar::close-button:hover {{
+            background-color: {p.DANGER};
+            border-radius: 3px;
         }}
 
         /* ===== WORKSPACE SEPARATOR ===== */

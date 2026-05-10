@@ -102,9 +102,13 @@ class MainWindow(QMainWindow):
         self.workspace = Workspace()
         root_layout.addWidget(self.workspace, 1)
 
-        # === REGISTRAR FERRAMENTAS NO WORKSPACE (objetos Tool) ===
+        # === REGISTRAR FERRAMENTAS NO WORKSPACE ===
+        # Apenas Home é registrada por padrão (sem focar, pois o set_current_tool já foca).
+        # As demais são abertas sob demanda via toolbar (open_tool).
         for tool in tools:
-            self.workspace.register_tool(tool)
+            if tool.name == "Home":
+                self.workspace.register_tool(tool, focus=False)
+                break
 
         # === PROGRESS BAR GLOBAL ===
         self.progress = QProgressBar()
@@ -119,8 +123,10 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------------
 
     def _on_tool_activated(self, tool_name: str):
-        """Quando um botão do ToolGroup é clicado, muda para a tool."""
-        self.switch_to_tool(tool_name)
+        """Quando um botão do ToolGroup é clicado, abre ou foca a tool."""
+        tool = self._tool_map.get(tool_name)
+        if tool:
+            self.workspace.open_tool(tool)
 
     # ------------------------------------------------------------------
     # Acesso às tools registradas

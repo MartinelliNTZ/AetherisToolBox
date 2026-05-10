@@ -1,45 +1,73 @@
 # -*- coding: utf-8 -*-
 """
-ToolSeparator — Separador vertical decorativo entre ToolGroups.
-===============================================================
-Forma de losango vertical com gradiente dourado:
-- Pontas finas e transparentes (topo/base)
-- Centro mais largo com cor dourada
+ToolSeparator — Separador decorativo entre ToolGroups.
+======================================================
+Suporta orientação vertical e horizontal.
+Gradiente dourado suave com fade nas extremidades.
 """
 
 from __future__ import annotations
 
-import math
-
-from PySide6.QtWidgets import QWidget
-from PySide6.QtGui import QPainter, QColor
-from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QWidget, QSizePolicy
+from PySide6.QtGui import QPainter, QLinearGradient, QColor, QBrush
+from PySide6.QtCore import Qt, QPointF, QRectF
 
 
 class ToolSeparator(QWidget):
     """
-    Separador vertical em formato de losango com gradiente dourado.
+    Separador slim com fade dourado suave.
+
+    Args:
+        orientation: "vertical" (padrão) ou "horizontal"
     """
 
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setFixedWidth(3)
+    _GOLD = (201, 168, 76)
 
-    def paintEvent(self, event):
+    def __init__(self, parent=None, orientation: str = "vertical"):
+        super().__init__(parent)
+        self._orientation = orientation.lower()
+        self.setAttribute(Qt.WA_TranslucentBackground)
+        self._apply_size_policy()
+
+    # ------------------------------------------------------------------
+    # Setup
+    # ------------------------------------------------------------------
+
+    def _apply_size_policy(self) -> None:
+        if self._orientation == "horizontal":
+            self.setFixedHeight(1.5)
+            self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        else:
+            self.setFixedWidth(2)
+            self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Expanding)
+
+    # ------------------------------------------------------------------
+    # Paint
+    # ------------------------------------------------------------------
+
+    def paintEvent(self, event) -> None:
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
-        rect = self.rect()
-        w = rect.width()
-        h = rect.height()
+        w = float(self.width())
+        h = float(self.height())
+        r, g, b = self._GOLD
 
-        for y in range(h):
-            t = y / h
-            factor = math.sin(t * 3.14159)
-            current_w = max(1, int(w * factor))
-            alpha = int(180 * factor)
-            if current_w > 0:
-                x_offset = (w - current_w) // 2
-                color = QColor(201, 168, 76, alpha)
-                painter.setPen(color)
-                painter.drawLine(x_offset, y, x_offset + current_w - 1, y)
+        # Gradiente ao longo do eixo principal
+        if self._orientation == "horizontal":
+            start = QPointF(0.0, 0.0)
+            end   = QPointF(w,   0.0)
+        else:
+            start = QPointF(0.0, 0.0)
+            end   = QPointF(0.0, h)
+
+        grad = QLinearGradient(start, end)
+        grad.setColorAt(0.00, QColor(r, g, b,   0))
+        grad.setColorAt(0.12, QColor(r, g, b,  18))
+        grad.setColorAt(0.30, QColor(r, g, b,  90))
+        grad.setColorAt(0.50, QColor(r, g, b, 185))
+        grad.setColorAt(0.70, QColor(r, g, b,  90))
+        grad.setColorAt(0.88, QColor(r, g, b,  18))
+        grad.setColorAt(1.00, QColor(r, g, b,   0))
+
+        painter.fillRect(QRectF(0.0, 0.0, w, h), QBrush(grad))
