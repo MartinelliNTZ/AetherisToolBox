@@ -1,1 +1,4 @@
 - padrao de nome de arquivos SimpleButton e nao simple_button
+- nao use __init__ importe o arquivo.py diretamente
+- Nao configure widgets diretamente use widgets existente ou crie novos widgets wxclusivos 
+em resources/widgets
