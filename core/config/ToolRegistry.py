@@ -106,6 +106,16 @@ class ToolRegistry:
             tool_type=ToolType.RASTER,
             category=CategoryTool.WORKSPACE,
         ),
+        ToolKey.TECLADOR_F.value: Tool(
+            name=ToolKey.TECLADOR_F.value,
+            title="Teclador F",
+            widget_factory=_make_factory(
+                "plugins.teclador_f.TecladorF", "TecladorF"
+            ),
+            tooltip="Automacao de teclado: digita uma string ao pressionar F",
+            tool_type=ToolType.FOLDER,
+            category=CategoryTool.WORKSPACE,
+        ),
     }
 
     def register_default_tools(self) -> None:

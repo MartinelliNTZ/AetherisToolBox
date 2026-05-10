@@ -9,7 +9,7 @@ strings soltas no código e facilitar manutenção.
 
 from __future__ import annotations
 
-from enum import Enum, auto
+from enum import Enum
 
 
 class ToolKey(str, Enum):
@@ -19,6 +19,7 @@ class ToolKey(str, Enum):
     CONSOLE = "Console"
     CLASSIFIER = "Classifier"
     LOGVIEWER = "LogViewer"
+    TECLADOR_F = "TecladorF"
     SYSTEM = "System"
 
     # ── Método utilitário ──────────────────────────────────────────────
