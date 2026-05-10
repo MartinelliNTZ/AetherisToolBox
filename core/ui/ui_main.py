@@ -19,7 +19,7 @@ from PySide6.QtGui import QIcon
 
 from core.model.Tool import Tool
 from resources.widgets.app_bar import AppBar
-from core.ui.workspace import Workspace
+from core.ui.CentralWorkspace import CentralWorkspace
 from core.config.MenuManager import MenuManager
 
 
@@ -99,7 +99,7 @@ class MainWindow(QMainWindow):
             root_layout.addWidget(toolbar_container)
 
         # === WORKSPACE ===
-        self.workspace = Workspace()
+        self.workspace = CentralWorkspace()
         root_layout.addWidget(self.workspace, 1)
 
         # === REGISTRAR FERRAMENTAS NO WORKSPACE ===

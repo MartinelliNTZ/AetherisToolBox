@@ -23,7 +23,7 @@ from core.model.Tool import Tool
 from resources.widgets.WorkspaceTab import WorkspaceTab
 
 
-class Workspace(QWidget):
+class CentralWorkspace(QWidget):
 
     current_tool_changed = Signal(int, object)
     tool_closed          = Signal(str)
