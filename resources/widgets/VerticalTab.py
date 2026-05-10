@@ -28,7 +28,7 @@ class VerticalTab(QWidget):
 
     clicked = Signal()
 
-    _WIDTH  = 28               # espessura da aba (largura real na tela)
+    _WIDTH  = 24               # espessura da aba (largura real na tela)
     _HEIGHT = 80               # altura inicial (vira largura do texto após rotação -90°)
 
     def __init__(
