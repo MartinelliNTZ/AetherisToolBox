@@ -3,8 +3,7 @@
 ToolRegistry — Registro centralizado de ferramentas (lazy loading)
 ===================================================================
 Aqui ficam definidas TODAS as ferramentas do sistema.
-Para adicionar uma nova, basta incluir uma entrada no metodo
-``_register_defaults()``.
+Cada ferramenta é um objeto Tool com lazy loading via widget_factory.
 
 Uso:
     registry = ToolRegistry()
@@ -20,10 +19,24 @@ from typing import Callable, List, Optional
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QWidget
 
+from core.enum.CategoryTool import CategoryTool
 from core.enum.ToolKey import ToolKey
 from core.enum.ToolType import ToolType
 from core.model.Tool import Tool
-from resources.IconManager import IconManager
+
+
+def _make_factory(module_path: str, class_name: str) -> Callable[[], QWidget]:
+    """
+    Retorna uma factory que importa e instancia a classe sob demanda.
+    Função no nível do módulo para ser usada na definição do dict _TOOLS.
+    """
+
+    def factory() -> QWidget:
+        mod = __import__(module_path, fromlist=[class_name])
+        cls = getattr(mod, class_name)
+        return cls()
+
+    return factory
 
 
 class ToolRegistry:
@@ -42,118 +55,91 @@ class ToolRegistry:
             cls._instance._order: list[str] = []
         return cls._instance
 
-    # ==================================================================
-    # METODO PRINCIPAL — registra todas as ferramentas padrao
-    # ==================================================================
+    # ══════════════════════════════════════════════════════════════════
+    # Definição direta de todas as ferramentas como objetos Tool
+    # ══════════════════════════════════════════════════════════════════
     # Para adicionar uma NOVA ferramenta:
     #   1. Crie a classe widget em plugins/nome_da_tool/
-    #   2. Adicione uma linha no dicionario _TOOL_DEFINITIONS abaixo
-    #      com: nome, caminho do modulo, nome da classe, tooltip
-    # ==================================================================
+    #   2. Adicione uma entrada no dict _TOOLS abaixo
+    #      com Tool() contendo name, title, widget_factory, etc.
+    # ══════════════════════════════════════════════════════════════════
 
-    # ──────────────────────────────────────────────────────────────────
-    # Dicionario de definicoes de ferramentas
-    # ──────────────────────────────────────────────────────────────────
-    # Formato:
-    #   "NomeAba": {
-    #       "module": "plugins.pasta.arquivo",
-    #       "class_name": "NomeDaClasse",
-    #       "tooltip": "Descricao da ferramenta"
-    #   }
-    # ──────────────────────────────────────────────────────────────────
-
-    _TOOL_DEFINITIONS: dict = {
-        ToolKey.HOME: {
-            "module": "plugins.home.HomePlugin",
-            "class_name": "HomeTool",
-            "tooltip": "Pagina inicial do Aetheris ToolBox",
-            "tool_type": ToolType.SYSTEM,
-            "icon_alias": "SYSTEM",
-        },
-        ToolKey.CONSOLE: {
-            "module": "plugins.console.ConsolePlugin",
-            "class_name": "ConsoleTool",
-            "tooltip": "Console de execucao compartilhado",
-            "tool_type": ToolType.SYSTEM,
-            "icon_alias": "SYSTEM",
-        },
-        ToolKey.CLASSIFIER: {
-            "module": "plugins.tensorflow_classifier.classification_tool",
-            "class_name": "ClassificationTool",
-            "tooltip": "Classificacao Raster com Redes Neurais (inativo)",
-            "tool_type": ToolType.RASTER,
-            "icon_alias": "RASTER",
-        },
-        ToolKey.LOGVIEWER: {
-            "module": "plugins.log_viewer.log_viewer",
-            "class_name": "LogViewerTool",
-            "tooltip": "Visualizador de logs do sistema",
-            "tool_type": ToolType.SYSTEM,
-            "icon_alias": "SYSTEM",
-        },
-        # ── Exemplo de como adicionar uma nova ferramenta ─────────────
-        # ToolKey.MINHA_FERRAMENTA: {
-        #     "module": "plugins.minha_ferramenta.minha_ferramenta",
-        #     "class_name": "MinhaFerramentaWidget",
-        #     "tooltip": "Descricao da minha ferramenta",
-        #     "tool_type": ToolType.VECTOR,
-        #     "icon_alias": "VECTOR",
-        # },
+    _TOOLS: dict[str, Tool] = {
+        ToolKey.HOME.value: Tool(
+            name=ToolKey.HOME.value,
+            title="Home",
+            widget_factory=_make_factory(
+                "plugins.home.HomePlugin", "HomeTool"
+            ),
+            tooltip="Pagina inicial do Aetheris ToolBox",
+            tool_type=ToolType.SYSTEM,
+            category=CategoryTool.WORKSPACE,
+        ),
+        ToolKey.CONSOLE.value: Tool(
+            name=ToolKey.CONSOLE.value,
+            title="Console",
+            widget_factory=_make_factory(
+                "plugins.console.ConsolePlugin", "ConsoleTool"
+            ),
+            tooltip="Console de execucao compartilhado",
+            tool_type=ToolType.SYSTEM,
+            category=CategoryTool.SIDE,
+        ),
+        ToolKey.LOGVIEWER.value: Tool(
+            name=ToolKey.LOGVIEWER.value,
+            title="LogViewer",
+            widget_factory=_make_factory(
+                "plugins.log_viewer.log_viewer", "LogViewerTool"
+            ),
+            tooltip="Visualizador de logs do sistema",
+            tool_type=ToolType.SYSTEM,
+            category=CategoryTool.WORKSPACE,
+        ),
+        ToolKey.CLASSIFIER.value: Tool(
+            name=ToolKey.CLASSIFIER.value,
+            title="TensorFlow Classifier",
+            widget_factory=_make_factory(
+                "plugins.tensorflow_classifier.classification_tool",
+                "ClassificationTool",
+            ),
+            tooltip="Classificacao Raster com Redes Neurais (inativo)",
+            tool_type=ToolType.RASTER,
+            category=CategoryTool.WORKSPACE,
+        ),
     }
 
     def register_default_tools(self) -> None:
-        """
-        Registra todas as ferramentas definidas em _TOOL_DEFINITIONS.
-        Cada tool e registrada com lazy loading (factory).
-        """
-        for key, info in self._TOOL_DEFINITIONS.items():
-            name = key.value  # ToolKey.HOME → "Home"
+        """Registra todas as ferramentas definidas em _TOOLS."""
+        for name, tool in self._TOOLS.items():
             if name not in self._tools:  # evita duplicatas
-                tool_type = info.get("tool_type", ToolType.SYSTEM)
-                icon_alias = info.get("icon_alias", "SYSTEM")
-                self.register(
-                    name=name,
-                    widget_factory=self._make_factory(
-                        info["module"], info["class_name"]
-                    ),
-                    tooltip=info["tooltip"],
-                    tool_type=tool_type,
-                    icon=IconManager.from_alias(icon_alias),
-                )
-
-    @staticmethod
-    def _make_factory(module_path: str, class_name: str) -> Callable[[], QWidget]:
-        """
-        Retorna uma factory que importa e instancia a classe sob demanda.
-        """
-
-        def factory() -> QWidget:
-            mod = __import__(module_path, fromlist=[class_name])
-            cls = getattr(mod, class_name)
-            return cls()
-
-        return factory
+                self._tools[name] = tool
+                self._order.append(name)
 
     # ==================================================================
-    # Metodos de registro (usados internamente por register_default_tools)
+    # Metodos de registro direto
     # ==================================================================
 
     def register(
         self,
         name: str,
         widget_factory: Callable[[], QWidget],
+        *,
+        title: str | None = None,
         tooltip: str = "",
         tool_type: ToolType = ToolType.SYSTEM,
+        category: CategoryTool = CategoryTool.WORKSPACE,
         icon: Optional[QIcon] = None,
     ) -> int:
         """
         Registra uma ferramenta no sistema com lazy loading.
 
         Parametros:
-            name           : Nome unico da ferramenta (ex: "Home", "Console")
+            name           : Chave unica da ferramenta (ex: "Home", "Console")
             widget_factory : Callable sem argumentos que retorna um QWidget.
+            title          : Nome exibido nas abas/titulos. Se None, usa name.
             tooltip        : Texto de dica (opcional).
             tool_type      : Categoria visual (ToolType.SYSTEM, RASTER, etc.)
+            category       : Onde exibir (WORKSPACE ou SIDE).
             icon           : QIcon personalizado.
 
         Retorna:
@@ -161,8 +147,15 @@ class ToolRegistry:
         """
         if name in self._tools:
             raise ValueError(f"Tool '{name}' ja esta registrada.")
-        tool = Tool(name=name, widget_factory=widget_factory, tooltip=tooltip,
-                    tool_type=tool_type, icon=icon)
+        tool = Tool(
+            name=name,
+            title=title or name,
+            widget_factory=widget_factory,
+            tooltip=tooltip,
+            tool_type=tool_type,
+            category=category,
+            icon=icon,
+        )
         self._tools[name] = tool
         self._order.append(name)
         return len(self._order) - 1
@@ -195,10 +188,3 @@ class ToolRegistry:
     def names(self) -> List[str]:
         """Lista dos nomes de todas as ferramentas na ordem de registro."""
         return list(self._order)
-
-    def get_definitions(self) -> dict:
-        """
-        Retorna o dicionario de definicoes das ferramentas.
-        Util para listar quais ferramentas estao disponiveis.
-        """
-        return dict(self._TOOL_DEFINITIONS)

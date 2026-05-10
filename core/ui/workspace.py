@@ -76,8 +76,9 @@ class Workspace(QWidget):
             self.tab_bar.setTabToolTip(tab_index, tool.tooltip)
         self.tab_bar.setTabData(tab_index, name)
 
-        tab_widget = WorkspaceTab(title=name,
-                                  tooltip=tool.tooltip or name)
+        # Usa tool.title como nome exibido na aba
+        tab_widget = WorkspaceTab(title=tool.title,
+                                  tooltip=tool.tooltip or tool.title)
         self.tab_bar.setTabButton(tab_index, QTabBar.LeftSide, tab_widget)
 
         self._log.info(f"Tool registrada: {name}", code="TOOL_REG")

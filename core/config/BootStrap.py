@@ -118,7 +118,7 @@ class BootStrap:
     def _register_tools(self) -> None:
         """
         Registra todas as ferramentas padrao no ToolRegistry.
-        As definicoes das ferramentas estao em ToolRegistry._TOOL_DEFINITIONS.
+        As definicoes estao no metodo register_default_tools().
         """
         registry = ToolRegistry()
         registry.register_default_tools()

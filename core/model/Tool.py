@@ -9,11 +9,12 @@ instância de Tool, que só instancia o widget QWidget sob demanda
 
 from __future__ import annotations
 
-from typing import Any, Callable, Optional
+from typing import Callable, Optional
 
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QWidget
 
+from core.enum.CategoryTool import CategoryTool
 from core.enum.ToolType import ToolType
 from resources.IconManager import IconManager
 
@@ -32,6 +33,7 @@ class Tool:
             widget_factory=lambda: ConsoleTool(),
             tooltip="Console de execução",
             tool_type=ToolType.SYSTEM,
+            category=CategoryTool.WORKSPACE,
         )
         w = tool.widget  # ← cria o widget aqui, na primeira vez
     """
@@ -40,24 +42,30 @@ class Tool:
         self,
         name: str,
         widget_factory: Callable[[], QWidget],
+        *,
+        title: str | None = None,
         tooltip: str = "",
         tool_type: ToolType = ToolType.SYSTEM,
+        category: CategoryTool = CategoryTool.WORKSPACE,
         icon: Optional[QIcon] = None,
     ) -> None:
         """
         Parâmetros:
-            name           : Nome visível da ferramenta (ex: "Console", "Home")
+            name           : Chave única da ferramenta (ex: "Console", "Home")
             widget_factory : Callable sem argumentos que retorna um QWidget.
-                             Só será chamado quando ``self.widget`` for acessado.
+            title          : Nome exibido nas abas/títulos. Se None, usa name.
             tooltip        : Texto de dica ao passar o mouse (opcional).
             tool_type      : Categoria visual (ToolType.SYSTEM, RASTER, etc.)
+            category       : Onde exibir (WORKSPACE ou SIDE).
             icon           : QIcon personalizado. Se None, usa o default do IconManager.
         """
         self._name = name
+        self._title = title or name
         self._factory = widget_factory
         self._tooltip = tooltip
         self._tool_type = tool_type
-        self._icon = icon or IconManager.default_icon()
+        self._category = category
+        self._icon = icon  # None = será carregado lazy na property
         self._widget: Optional[QWidget] = None
 
     # ────────────────────────────────────────────────────────────────────────
@@ -66,8 +74,13 @@ class Tool:
 
     @property
     def name(self) -> str:
-        """Nome da ferramenta."""
+        """Chave única da ferramenta."""
         return self._name
+
+    @property
+    def title(self) -> str:
+        """Nome exibido nas abas e títulos."""
+        return self._title
 
     @property
     def widget(self) -> QWidget:
@@ -95,8 +108,15 @@ class Tool:
         return self._tool_type
 
     @property
+    def category(self) -> CategoryTool:
+        """Onde a ferramenta deve ser exibida (WORKSPACE ou SIDE)."""
+        return self._category
+
+    @property
     def icon(self) -> QIcon:
-        """Ícone da ferramenta."""
+        """Ícone da ferramenta. Carregado lazy se None."""
+        if self._icon is None:
+            self._icon = IconManager.default_icon()
         return self._icon
 
     # ────────────────────────────────────────────────────────────────────────
@@ -109,7 +129,9 @@ class Tool:
         """
         return {
             "name": self._name,
+            "title": self._title,
             "tooltip": self._tooltip,
+            "category": self._category.value,
             "loaded": self.is_loaded,
         }
 
@@ -125,6 +147,6 @@ class Tool:
 
     def __repr__(self) -> str:
         return (
-            f"Tool(name={self._name!r}, loaded={self.is_loaded}, "
-            f"tooltip={self._tooltip!r})"
+            f"Tool(name={self._name!r}, title={self._title!r}, "
+            f"category={self._category.value}, loaded={self.is_loaded})"
         )
