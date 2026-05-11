@@ -139,6 +139,9 @@ class MainWindow(QMainWindow):
         for tool in tools:
             if tool.category == CategoryTool.SIDE:
                 self.side_workspace.register_tool(tool)
+            elif tool.category == CategoryTool.BOTH:
+                self.side_workspace.register_tool(tool)
+                self.central_workspace.register_tool(tool, focus=False)
             elif tool.name == "Home":
                 self.central_workspace.register_tool(tool, focus=False)
 
@@ -161,6 +164,9 @@ class MainWindow(QMainWindow):
 
         if tool.category == CategoryTool.SIDE:
             self.side_workspace.open_tool(tool)
+        elif tool.category == CategoryTool.BOTH:
+            self.side_workspace.open_tool(tool)
+            self.central_workspace.open_tool(tool)
         else:
             self.central_workspace.open_tool(tool)
 

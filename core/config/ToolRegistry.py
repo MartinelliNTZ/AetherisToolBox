@@ -93,7 +93,7 @@ class ToolRegistry:
             ),
             tooltip="Visualizador de logs do sistema",
             tool_type=ToolType.SYSTEM,
-            category=CategoryTool.CENTRAL,
+            category=CategoryTool.BOTH,
         ),
         ToolKey.CLASSIFIER.value: Tool(
             name=ToolKey.CLASSIFIER.value,
