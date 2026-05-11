@@ -133,6 +133,10 @@ class MainWindow(QMainWindow):
         # Sincroniza o splitter quando o usuario arrasta a handle
         self._splitter.splitterMoved.connect(self._on_splitter_moved)
 
+        # Conecta sinais de movimentação entre workspaces (tools BOTH)
+        self.central_workspace.tool_request_move_to_side.connect(self._move_tool_to_side)
+        self.side_workspace.tool_request_move_to_central.connect(self._move_tool_to_central)
+
         root_layout.addWidget(self._splitter, 1)
 
         # === REGISTRAR FERRAMENTAS ===
@@ -140,8 +144,8 @@ class MainWindow(QMainWindow):
             if tool.category == CategoryTool.SIDE:
                 self.side_workspace.register_tool(tool)
             elif tool.category == CategoryTool.BOTH:
-                self.side_workspace.register_tool(tool)
                 self.central_workspace.register_tool(tool, focus=False)
+                self.side_workspace.register_tool(tool)
             elif tool.name == "Home":
                 self.central_workspace.register_tool(tool, focus=False)
 
@@ -164,10 +168,9 @@ class MainWindow(QMainWindow):
 
         if tool.category == CategoryTool.SIDE:
             self.side_workspace.open_tool(tool)
-        elif tool.category == CategoryTool.BOTH:
-            self.side_workspace.open_tool(tool)
-            self.central_workspace.open_tool(tool)
         else:
+            # BOTH e CENTRAL abrem no workspace central por padrao
+            # (BOTH pode ser arrastado para o side pelo usuario)
             self.central_workspace.open_tool(tool)
 
     # ------------------------------------------------------------------
@@ -236,6 +239,31 @@ class MainWindow(QMainWindow):
             self.side_workspace.expand(name, self._side_content_width)
             return True
         return False
+
+    # ------------------------------------------------------------------
+    # Movimentação de ferramentas BOTH entre workspaces
+    # ------------------------------------------------------------------
+
+    def _move_tool_to_side(self, tool_name: str):
+        """Move uma ferramenta BOTH do CentralWorkspace para o SideWorkspace."""
+        tool = self._tool_map.get(tool_name)
+        if not tool:
+            return
+        # Remove do Central preservando o widget
+        self.central_workspace.remove_tool_by_name(tool_name, keep_widget=True)
+        # Se ja estiver no Side, só expande; caso contrario registra
+        if not self.side_workspace.is_tool_open(tool_name):
+            self.side_workspace.register_tool(tool)
+        self.side_workspace.expand(tool_name, self._side_content_width)
+
+    def _move_tool_to_central(self, tool_name: str):
+        """Move uma ferramenta BOTH do SideWorkspace para o CentralWorkspace."""
+        tool = self._tool_map.get(tool_name)
+        if not tool:
+            return
+        self.side_workspace.remove_tool(tool_name)
+        if not self.central_workspace.is_tool_open(tool_name):
+            self.central_workspace.open_tool(tool)
 
     def switch_to_console(self) -> None:
         self.switch_to_tool("Console")

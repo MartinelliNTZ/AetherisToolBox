@@ -12,13 +12,14 @@ apenas foca a aba. Caso contrário, abre uma nova aba.
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt, Signal, Slot
+from PySide6.QtCore import Qt, Signal, Slot, QPoint
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QStackedWidget,
-    QTabBar, QScrollArea, QFrame
+    QTabBar, QScrollArea, QFrame, QMenu
 )
 
 from core.config.LogUtils import LogUtils
+from core.enum.CategoryTool import CategoryTool
 from core.model.Tool import Tool
 from resources.widgets.WorkspaceTab import WorkspaceTab
 
@@ -27,6 +28,7 @@ class CentralWorkspace(QWidget):
 
     current_tool_changed = Signal(int, object)
     tool_closed          = Signal(str)
+    tool_request_move_to_side = Signal(str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -46,6 +48,8 @@ class CentralWorkspace(QWidget):
         self.tab_bar.tabCloseRequested.connect(self._on_tab_close_requested)
         self.tab_bar.currentChanged.connect(self._on_tab_changed)
         self.tab_bar.tabMoved.connect(self._on_tab_moved)
+        self.tab_bar.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.tab_bar.customContextMenuRequested.connect(self._on_tab_context_menu)
         layout.addWidget(self.tab_bar)
 
         sep = QFrame()
@@ -122,6 +126,55 @@ class CentralWorkspace(QWidget):
     def is_tool_open(self, name: str) -> bool:
         return name in self._tools
 
+    def remove_tool_by_name(self, name: str, keep_widget: bool = True) -> bool:
+        """Remove uma ferramenta pelo nome. Retorna True se removeu.
+
+        Se keep_widget=True, NAO deleta o widget (util quando for mover).
+        Extrai o widget real de dentro da QScrollArea.
+        """
+        tool = self._tools.get(name)
+        if tool is None:
+            return False
+
+        # Encontra a tab pelo name
+        tab_index = -1
+        for tid in range(self.tab_bar.count()):
+            if self.tab_bar.tabData(tid) == name:
+                tab_index = tid
+                break
+        if tab_index < 0:
+            return False
+
+        # Remove widget do stack
+        w = self.stack.widget(tab_index)
+        if w:
+            self.stack.removeWidget(w)
+
+            if keep_widget:
+                # Se for SCROLL AREA, extrai o widget real de dentro
+                if isinstance(w, QScrollArea):
+                    inner = w.widget()
+                    if inner:
+                        w.takeWidget()  # remove o widget de dentro da scroll area
+                        inner.setParent(None)  # liberta o widget sem deletar
+                # Deleta apenas o invólucro (scroll area ou placeholder)
+                w.deleteLater()
+            else:
+                w.deleteLater()
+
+        # Remove aba do bar
+        self.tab_bar.removeTab(tab_index)
+
+        # Remove dos dicts
+        del self._tools[name]
+
+        if not keep_widget:
+            tool.unload()
+            self.tool_closed.emit(name)
+
+        self._log.info(f"Aba removida (move): {name}", code="TAB_MOVED_OUT")
+        return True
+
     # ------------------------------------------------------------------
     # Slots privados
     # ------------------------------------------------------------------
@@ -171,6 +224,26 @@ class CentralWorkspace(QWidget):
         self.current_tool_changed.emit(
             -1,
             tool.widget if tool.is_loaded else None)
+
+    @Slot(QPoint)
+    def _on_tab_context_menu(self, pos):
+        """Exibe menu de contexto para abas BOTH (mover para side)."""
+        tab_index = self.tab_bar.tabAt(pos)
+        if tab_index < 0:
+            return
+        name = self.tab_bar.tabData(tab_index)
+        if not name or name not in self._tools:
+            return
+
+        tool = self._tools[name]
+        if tool.category != CategoryTool.BOTH:
+            return
+
+        menu = QMenu(self)
+        move_action = menu.addAction("Mover para Side")
+        action = menu.exec(self.tab_bar.mapToGlobal(pos))
+        if action == move_action:
+            self.tool_request_move_to_side.emit(name)
 
     @Slot(int)
     def _on_tab_close_requested(self, tab_index: int) -> None:

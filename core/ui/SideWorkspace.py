@@ -34,6 +34,7 @@ class SideWorkspace(QWidget):
     tool_activated = Signal(str)
     tool_closed    = Signal(str)
     size_changed   = Signal(int)     # largura total desejada (W_TABS se colapsado)
+    tool_request_move_to_central = Signal(str)
 
     W_TABS     = 24   # largura das abas verticais (fixa)
     W_DEFAULT  = 400  # largura padrão do conteúdo quando expandido
@@ -101,6 +102,7 @@ class SideWorkspace(QWidget):
         tab = VerticalTab(title=tool.title,
                           tooltip=tool.tooltip or tool.title)
         tab.clicked.connect(lambda n=name: self._on_tab_clicked(n))
+        tab.double_clicked.connect(lambda n=name: self._on_tab_double_clicked(n))
         self._tabs[name] = tab
         self._tabs_layout.addWidget(tab)
 
@@ -161,15 +163,20 @@ class SideWorkspace(QWidget):
             return
         idx = keys.index(name)
 
-        if not tool.is_loaded:
-            self._log.info(f"Carregando tool SIDE (lazy): {name}",
-                           code="SIDE_LAZY")
-            w = tool.widget
-            old = self.stack.widget(idx)
-            if old:
-                self.stack.removeWidget(old)
-                old.deleteLater()
-            self.stack.insertWidget(idx, w)
+        # Obtem o widget (lazy ou ja carregado de outro workspace)
+        widget = tool.widget  # property: cria ou retorna o existente
+
+        # Substitui o placeholder pelo widget real
+        old = self.stack.widget(idx)
+        if old is None or old is widget:
+            # Se ja estiver no lugar certo, apenas muda o indice
+            pass
+        else:
+            self._log.info(f"Carregando tool SIDE: {name}", code="SIDE_LOAD")
+            self.stack.removeWidget(old)
+            old.deleteLater()
+            self.stack.insertWidget(idx, widget)
+
         self.stack.setCurrentIndex(idx)
 
     # ── Slots ──────────────────────────────────────────────────────────
@@ -180,10 +187,23 @@ class SideWorkspace(QWidget):
         else:
             self._set_expanded(name)
 
+    def _on_tab_double_clicked(self, name: str):
+        """Duplo clique em BOTH move para o central."""
+        if name not in self._tools:
+            return
+        tool = self._tools[name]
+        from core.enum.CategoryTool import CategoryTool
+        if tool.category == CategoryTool.BOTH:
+            self.tool_request_move_to_central.emit(name)
+
     def remove_tool(self, name: str):
         if name not in self._tools:
             return
         tool = self._tools[name]
+
+        # Se estava expandido e ativo, recolhe
+        if self._expanded and self._current_name == name:
+            self._set_collapsed()
 
         tab = self._tabs.pop(name, None)
         if tab:

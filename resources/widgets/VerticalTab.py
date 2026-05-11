@@ -27,6 +27,7 @@ class VerticalTab(QWidget):
     """
 
     clicked = Signal()
+    double_clicked = Signal()
 
     _WIDTH  = 24               # espessura da aba
     _HEIGHT = 80               # altura (vira largura do texto após rotação -90°)
@@ -155,6 +156,14 @@ class VerticalTab(QWidget):
             event.accept()
         else:
             super().mousePressEvent(event)
+
+    def mouseDoubleClickEvent(self, event):
+        """Duplo clique emite double_clicked."""
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.double_clicked.emit()
+            event.accept()
+        else:
+            super().mouseDoubleClickEvent(event)
 
     def enterEvent(self, event):
         self._hovered = True
