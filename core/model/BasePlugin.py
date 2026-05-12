@@ -4,6 +4,7 @@ BasePlugin — Classe base para todos os plugins do Aetheris ToolBox
 ====================================================================
 Centraliza:
 - Logger automático (via LogUtils) — self.logger
+- Gerenciamento de preferências (via Preferences) — self.preferences
 - Métodos load_prefs() / save_prefs() — override nos filhos
 - Emissão de tool_opened e tool_closed via SignalManager
 
@@ -37,6 +38,7 @@ class BasePlugin(QWidget):
 
     Atributos:
         self.logger   : LogUtils — instanciado no __init__
+        self.preferences : Preferences — gerenciador de prefs da tool
         self.tool_key : str — identificador único da ferramenta
     """
 
@@ -46,6 +48,9 @@ class BasePlugin(QWidget):
 
         from core.config.LogUtils import LogUtils
         self.logger = LogUtils(tool=tool_key, class_name=self.__class__.__name__)
+
+        from utils.Preferences import Preferences
+        self.preferences = Preferences(section=tool_key)
 
         from core.manager.SignalManager import SignalManager
         SignalManager.instance().tool_opened.emit(tool_key, self)

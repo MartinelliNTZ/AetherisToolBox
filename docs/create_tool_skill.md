@@ -77,4 +77,5 @@ ToolKey.MINHA_FERRAMENTA.value: Tool(
 - [ ] O caminho do módulo no `_make_factory` usa pontos (ex: `plugins.pasta.arquivo`).
 - [ ] A categoria `CategoryTool` está correta (ferramentas de análise costumam ser `CENTRAL`).
 - [ ] Se a ferramenta for `BOTH`, ela será registrada no `SideWorkspace` mas poderá ser movida.
+- [ ] **Preferências**: A ferramenta implementa `load_prefs()` e `save_prefs()` para persistir dados do usuário? (Obrigatório)
 - [ ] 🛑 **Logs Obrigatórios**: A ferramenta deve registrar logs em pontos críticos (inicialização, início/fim de processos, capturas de erro). Ferramentas sem log não serão aceitas no core.

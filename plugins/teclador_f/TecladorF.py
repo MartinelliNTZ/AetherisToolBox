@@ -28,7 +28,6 @@ from PySide6.QtWidgets import (
 from core.model.BasePlugin import BasePlugin
 from core.manager.SignalManager import SignalManager
 from core.enum.ToolKey import ToolKey
-from utils.Preferences import Preferences
 from resources.widgets.SimplePrimaryButton import SimplePrimaryButton
 
 
@@ -128,7 +127,6 @@ class TecladorF(BasePlugin):
         super().__init__(tool_key=ToolKey.TECLADOR_F.value, parent=parent)
         self._worker: TecladorWorker | None = None
         self._running = False
-        self._prefs = Preferences(section=ToolKey.TECLADOR_F.value)
         self._build_ui()
         self.load_prefs()
         self.logger.info("TecladorF carregado", code="TOOL_READY")
@@ -284,7 +282,7 @@ class TecladorF(BasePlugin):
 
     def load_prefs(self) -> None:
         """Carrega preferências salvas e aplica nos widgets."""
-        prefs = self._prefs
+        prefs = self.preferences
 
         value = prefs.get("value")
         if value is not None:
@@ -304,7 +302,7 @@ class TecladorF(BasePlugin):
 
     def save_prefs(self) -> None:
         """Lê os widgets e persiste as preferências."""
-        prefs = self._prefs
+        prefs = self.preferences
         prefs.set("value", self._edit_value.text())
         prefs.set("hotkey", self._edit_hotkey.text())
         prefs.set("startup_delay", self._spin_startup.value())
