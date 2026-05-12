@@ -144,7 +144,7 @@ class MainWindow(QMainWindow):
             if tool.category == CategoryTool.SIDE:
                 self.side_workspace.register_tool(tool)
             elif tool.category == CategoryTool.BOTH:
-                self.central_workspace.register_tool(tool, focus=False)
+                # BOTH comeca recolhido no SideWorkspace
                 self.side_workspace.register_tool(tool)
             elif tool.name == "Home":
                 self.central_workspace.register_tool(tool, focus=False)
@@ -168,9 +168,13 @@ class MainWindow(QMainWindow):
 
         if tool.category == CategoryTool.SIDE:
             self.side_workspace.open_tool(tool)
+        elif tool.category == CategoryTool.BOTH:
+            # Se estiver no Side, expande/recolhe; caso contrario abre no Central
+            if self.side_workspace.is_tool_open(tool_name):
+                self.side_workspace.open_tool(tool)
+            else:
+                self.central_workspace.open_tool(tool)
         else:
-            # BOTH e CENTRAL abrem no workspace central por padrao
-            # (BOTH pode ser arrastado para o side pelo usuario)
             self.central_workspace.open_tool(tool)
 
     # ------------------------------------------------------------------

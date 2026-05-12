@@ -29,7 +29,7 @@ class IconManager:
     # ── Ícones disponíveis ────────────────────────────────────────────
     # Atualmente apenas um ícone genérico. Conforme novos ícones forem
     # adicionados a pasta resources/icons/, basta declarar aqui.
-    DEFAULT = "Aetheris.ico"
+    DEFAULT = "Aetheris2.ico"
 
     # Aliases para cada ferramenta (todas apontam pro mesmo ícone)
     SYSTEM = "Aetheris.ico"
