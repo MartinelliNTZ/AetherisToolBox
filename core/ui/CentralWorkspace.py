@@ -45,9 +45,9 @@ class _WorkspaceTabBar(QTabBar):
         self.setTabsClosable(True)
 
     def _tab_rect(self, index: int) -> QRect:
-        """Retorna o retângulo da aba com padding interno."""
+        """Retorna o retângulo da aba sem margem inferior."""
         r = self.tabRect(index)
-        return QRect(r.x() + 1, r.y() + 1, r.width() - 2, r.height() - 3)
+        return QRect(r.x() + 1, r.y(), r.width() - 2, r.height())
 
     def tabSizeHint(self, index: int) -> QSize:
         """Retorna um tamanho minimo para a aba baseado no texto."""
@@ -99,7 +99,7 @@ class _WorkspaceTabBar(QTabBar):
                 border = QColor(P.BORDER_HOVER)
             else:
                 bg     = QColor(P.BG_DEEPEST)
-                fg     = QColor(P.TEXT_SECONDARY)
+                fg     = QColor(P.TEXT_BRIGHT)
                 border = QColor(P.BORDER)
 
             path = self._draw_rounded_rect(painter, rect, tl=2, tr=8, br=2, bl=2)
