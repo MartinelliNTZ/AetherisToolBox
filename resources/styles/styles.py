@@ -602,6 +602,57 @@ class AppStyles:
         )
 
     # ────────────────────────────────────────────────────────────────────
+    # MENU BAR
+    # ────────────────────────────────────────────────────────────────────
+
+    @classmethod
+    def menu_bar_style(cls) -> str:
+        """Estilo da barra de menus (Arquivo > Sair | Ajuda > Sobre).
+        Bordas: 1 1 8 1 (top-left, top-right, bottom-right, bottom-left).
+        Hover: fundo dourado (`GOLD`) + texto escuro (`BG_DEEPEST`).
+        """
+        p = cls.P
+        return (
+            f"QMenuBar#app_menu_bar {{"
+            f"  background-color: {p.TITLE_BAR_BG};"
+            f"  border: none;"
+            f"  border-bottom: 1px solid {p.BORDER};"
+            f"  padding: 0;"
+            f"  font-size: 11px;"
+            f"  color: {p.TEXT_SECONDARY};"
+            f"}}"
+            f"QMenuBar::item {{"
+            f"  background-color: transparent;"
+            f"  color: {p.TEXT_SECONDARY};"
+            f"  padding: 2px 10px;"
+            f"  margin: 0;"
+            f"}}"
+            f"QMenuBar::item:selected {{"
+            f"  background-color: {p.GOLD};"
+            f"  color: {p.BG_DEEPEST};"
+            f"  border-radius: 1px 1px 8px 1px;"
+            f"}}"
+            f"QMenu {{"
+            f"  background-color: {p.BG_DEEPEST};"
+            f"  border: 1px solid {p.BORDER};"
+            f"  border-radius: 4px;"
+            f"  padding: 2px;"
+            f"}}"
+            f"QMenu::item {{"
+            f"  background-color: transparent;"
+            f"  color: {p.TEXT_PRIMARY};"
+            f"  padding: 3px 16px;"
+            f"  border-radius: 3px;"
+            f"  font-size: 11px;"
+            f"}}"
+            f"QMenu::item:selected {{"
+            f"  background-color: {p.GOLD};"
+            f"  color: {p.BG_DEEPEST};"
+            f"  font-weight: 600;"
+            f"}}"
+        )
+
+    # ────────────────────────────────────────────────────────────────────
     # BADGES
     # ────────────────────────────────────────────────────────────────────
 

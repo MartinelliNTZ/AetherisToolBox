@@ -12,8 +12,6 @@ from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QMenuBar, QMenu
 from PySide6.QtGui import QAction
 
-from resources.styles.styles import Palette
-
 
 class MenuBar(QMenuBar):
     """
@@ -34,54 +32,8 @@ class MenuBar(QMenuBar):
         self._build_menus()
 
     def _apply_style(self):
-        p = Palette
-        self.setStyleSheet(f"""
-            QMenuBar#app_menu_bar {{
-                background-color: {p.TITLE_BAR_BG};
-                border-bottom: 1px solid {p.BORDER};
-                padding: 0;
-                font-size: 13px;
-                color: {p.TEXT_SECONDARY};
-            }}
-            QMenuBar::item {{
-                background-color: transparent;
-                color: {p.TEXT_SECONDARY};
-                padding: 4px 12px;
-                border-radius: 4px;
-                margin: 2px 0;
-            }}
-            QMenuBar::item:selected {{
-                background-color: {p.BG_CARD};
-                color: {p.TEXT_GOLD};
-            }}
-            QMenuBar::item:pressed {{
-                background-color: {p.BG_ELEVATED};
-                color: {p.TEXT_GOLD_BRIGHT};
-            }}
-            QMenu {{
-                background-color: {p.BG_CARD};
-                border: 1px solid {p.BORDER};
-                border-radius: 6px;
-                padding: 4px;
-            }}
-            QMenu::item {{
-                background-color: transparent;
-                color: {p.TEXT_PRIMARY};
-                padding: 6px 24px;
-                border-radius: 4px;
-                font-size: 12px;
-            }}
-            QMenu::item:selected {{
-                background-color: {p.GOLD};
-                color: {p.BG_DEEPEST};
-                font-weight: 700;
-            }}
-            QMenu::separator {{
-                height: 1px;
-                background-color: {p.DIVIDER};
-                margin: 4px 8px;
-            }}
-        """)
+        from resources.styles.styles import AppStyles
+        self.setStyleSheet(AppStyles.menu_bar_style())
 
     def _build_menus(self):
         # Menu Arquivo
