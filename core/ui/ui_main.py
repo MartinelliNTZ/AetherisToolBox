@@ -27,9 +27,11 @@ from core.model.Tool import Tool
 from core.enum.CategoryTool import CategoryTool
 from core.enum.ToolKey import ToolKey
 from resources.widgets.app_bar import AppBar
+from resources.widgets.MenuBar import MenuBar
 from core.ui.CentralWorkspace import CentralWorkspace
 from core.ui.SideWorkspace import SideWorkspace
 from core.config.MenuManager import MenuManager
+from core.dialogs.AboutDialog import AboutDialog
 from utils.Preferences import Preferences
 
 
@@ -82,6 +84,12 @@ class MainWindow(QMainWindow):
         self.appbar.maximize_restore_clicked.connect(self._toggle_maximize_restore)
         self.appbar.close_clicked.connect(self.close)
         root_layout.addWidget(self.appbar)
+
+        # === MENU BAR (Arquivo > Sair | Ajuda > Sobre) ===
+        self.menu_bar = MenuBar()
+        self.menu_bar.sair_clicked.connect(self.close)
+        self.menu_bar.sobre_clicked.connect(self._show_about)
+        root_layout.addWidget(self.menu_bar)
 
         # === TOOLBAR ===
         self._menu_manager = MenuManager()
@@ -156,6 +164,15 @@ class MainWindow(QMainWindow):
         self.progress.setFormat(" %p% - aguardando... ")
         self.progress.setFixedHeight(20)
         root_layout.addWidget(self.progress)
+
+    # ------------------------------------------------------------------
+    # About Dialog
+    # ------------------------------------------------------------------
+
+    def _show_about(self):
+        """Exibe o dialog Sobre."""
+        dialog = AboutDialog(self)
+        dialog.exec()
 
     # ------------------------------------------------------------------
     # MenuManager callback
