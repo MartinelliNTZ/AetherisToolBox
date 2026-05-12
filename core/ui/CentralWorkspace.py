@@ -12,7 +12,7 @@ apenas foca a aba. Caso contrário, abre uma nova aba.
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt, Signal, Slot, QPoint, QRect
+from PySide6.QtCore import Qt, Signal, Slot, QPoint, QRect, QSize
 from PySide6.QtGui import QPainter, QPen, QColor, QFont, QFontMetrics, QPainterPath
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QStackedWidget,
@@ -48,6 +48,14 @@ class _WorkspaceTabBar(QTabBar):
         """Retorna o retângulo da aba com padding interno."""
         r = self.tabRect(index)
         return QRect(r.x() + 1, r.y() + 1, r.width() - 2, r.height() - 3)
+
+    def tabSizeHint(self, index: int) -> QSize:
+        """Retorna um tamanho minimo para a aba baseado no texto."""
+        name = str(self.tabData(index)) if self.tabData(index) else f"Tab {index}"
+        font = QFont("Segoe UI", 10)
+        fm = QFontMetrics(font)
+        text_w = fm.horizontalAdvance(name) + 40  # padding
+        return QSize(max(text_w, 80), 28)
 
     def _draw_rounded_rect(self, painter, rect, tl=2, tr=8, br=2, bl=2):
         path = QPainterPath()
