@@ -21,6 +21,7 @@ class ToolKey(str, Enum):
     LOGVIEWER = "LogViewer"
     TECLADOR_F = "TecladorF"
     SYSTEM = "System"
+    UNTRACEABLE = "Untraceable"
 
     # ── Método utilitário ──────────────────────────────────────────────
 
