@@ -7,7 +7,8 @@ from PySide6.QtWidgets import QWidget, QHBoxLayout, QLabel, QSizePolicy
 class WorkspaceTab(QWidget):
     """
     Aba customizada do Workspace.
-    A formatação visual (fundo, bordas, fonte) é feita via QSS em styles.py.
+    A formatação visual (fundo, bordas, fonte) é feita via QSS em styles.py,
+    aplicada diretamente no QTabBar::tab.
     """
 
     def __init__(self, title: str, tooltip: str = "", parent=None):
