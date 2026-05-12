@@ -57,7 +57,7 @@ class Tool:
             tooltip        : Texto de dica ao passar o mouse (opcional).
             tool_type      : Categoria visual (ToolType.SYSTEM, RASTER, etc.)
             category       : Onde exibir (WORKSPACE ou SIDE).
-            icon           : QIcon personalizado. Se None, usa o default do IconManager.
+            icon           : QIcon personalizado. Se None, usa IconManager.default_icon().
         """
         self._name = name
         self._title = title or name
@@ -65,7 +65,7 @@ class Tool:
         self._tooltip = tooltip
         self._tool_type = tool_type
         self._category = category
-        self._icon = icon  # None = será carregado lazy na property
+        self._icon = icon
         self._widget: Optional[QWidget] = None
 
     # ────────────────────────────────────────────────────────────────────────
@@ -116,7 +116,10 @@ class Tool:
     def icon(self) -> QIcon:
         """Ícone da ferramenta. Carregado lazy se None."""
         if self._icon is None:
-            self._icon = IconManager.default_icon()
+            # O nome do arquivo de ícone é o próprio nome da tool (ToolKey)
+            # Ex: "LogViewer" → resources/icons/LogViewer.ico
+            # Se não existir, usa o ícone default
+            self._icon = IconManager.get_tool_icon(self._name)
         return self._icon
 
     # ────────────────────────────────────────────────────────────────────────
