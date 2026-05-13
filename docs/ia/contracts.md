@@ -98,3 +98,11 @@ CENTRAL → abas no topo. SIDE → painel lateral. BOTH → pode ir para ambos.
 ```
 
 Definido em `CategoryTool` e no registro do `ToolRegistry`. Siga o padrão das ferramentas existentes.
+
+## Contrato 11 - 
+Não se deve importar from PySide6.QtWidgets import diretametne
+deve se verificar em resources/widgets se ja existe um widget pronto para essa funcao se nao deve criar o widget la 
+pode se modificar widgets existentes desde que mantenha compatibilidade é inclusive recomendado 
+Abstraia se o widget que vc precisa nao é composto 
+por exemplo um label uma caixa de texto e um botao provavelemnte
+isso e um widget composto e nao 3 widgets 
