@@ -171,7 +171,8 @@ class PreferencesManagerTool(QWidget):
 
         # Carrega a primeira toolkey
         if self._toolkey_order:
-            self._combo_toolkey.setCurrentIndex(0)
+            self._current_section = self._toolkey_order[0]
+            self._rebuild_grid()
 
     def _on_toolkey_changed(self, idx: int):
         """Troca a seção de preferências exibida."""
