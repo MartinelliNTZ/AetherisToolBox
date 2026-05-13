@@ -221,3 +221,6 @@ Ferramentas SEM menu_category não vão para o menu.
 - `MenuCategory.FILE` → menu "Arquivo" (futuro)
 - `MenuCategory.HELP` → menu "Ajuda" (futuro)
 - Ferramentas com `show_in_toolbar=False` + `menu_category=MenuCategory.SYSTEM` só aparecem no menu, nunca na toolbar.
+
+contrato 16 
+nome de arquivo é no padrao PascalCAse igual o nome da classe
