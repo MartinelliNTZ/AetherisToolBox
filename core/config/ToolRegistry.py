@@ -20,6 +20,7 @@ from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QWidget
 
 from core.enum.CategoryTool import CategoryTool
+from core.enum.MenuCategory import MenuCategory
 from core.enum.ToolKey import ToolKey
 from core.enum.ToolType import ToolType
 from core.model.Tool import Tool
@@ -118,6 +119,19 @@ class ToolRegistry:
             tool_type=ToolType.FOLDER,
             category=CategoryTool.CENTRAL,
         ),
+        ToolKey.PREFERENCES.value: Tool(
+            name=ToolKey.PREFERENCES.value,
+            title="Gerenciador de Preferências",
+            widget_factory=_make_factory(
+                "plugins.preferences_manager.preferences_tool",
+                "PreferencesManagerTool",
+            ),
+            tooltip="Gerenciar preferências das ferramentas do sistema",
+            tool_type=ToolType.SYSTEM,
+            category=CategoryTool.CENTRAL,
+            show_in_toolbar=False,
+            menu_category=MenuCategory.SYSTEM,
+        ),
     }
 
     def register_default_tools(self) -> None:
@@ -142,6 +156,7 @@ class ToolRegistry:
         category: CategoryTool = CategoryTool.CENTRAL,
         icon: Optional[QIcon] = None,
         show_in_toolbar: bool = True,
+        menu_category: Optional[MenuCategory] = None,
     ) -> int:
         """
         Registra uma ferramenta no sistema com lazy loading.
@@ -154,6 +169,8 @@ class ToolRegistry:
             tool_type      : Categoria visual (ToolType.SYSTEM, RASTER, etc.)
             category       : Onde exibir (WORKSPACE ou SIDE).
             icon           : QIcon personalizado.
+            show_in_toolbar: Se True (padrão), exibe na toolbar. Se False, oculta.
+            menu_category  : Se definido, exibe no menu suspenso correspondente.
 
         Retorna:
             Indice da ferramenta na ordem de registro.
@@ -169,6 +186,7 @@ class ToolRegistry:
             category=category,
             icon=icon,
             show_in_toolbar=show_in_toolbar,
+            menu_category=menu_category,
         )
         self._tools[name] = tool
         self._order.append(name)

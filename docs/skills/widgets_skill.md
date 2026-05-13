@@ -175,6 +175,38 @@ tab = WorkspaceTab(title="Console", tooltip="Console do sistema")
 
 ---
 
+### `PreferenceItemGrid` — `PreferenceItemGrid.py`
+Grade rolável de itens de preferência editáveis. Cada linha contém: título | valor (checkbox para bool, spin para float/int, line edit para texto) | botão lixeira.
+
+Configurado por dicionário com suporte a tipos `bool`, `float`, `int`, `text`.
+
+```python
+from resources.widgets.PreferenceItemGrid import PreferenceItemGrid
+
+config = {
+    "search_text": {
+        "type": "text",
+        "default": "",
+        "label": "Texto de Busca",
+    },
+    "max_results": {
+        "type": "int",
+        "default": 50,
+        "label": "Máx. Resultados",
+        "min": 1,
+        "max": 1000,
+    },
+}
+
+grid = PreferenceItemGrid(config, section="MinhaFerramenta")
+grid.load_values()     # carregar do disco
+grid.save_values()     # salvar no disco
+grid.reset_values()    # restaurar defaults
+grid.clear_all()       # limpar tudo
+```
+
+---
+
 ## 🆕 Como criar um Novo Widget
 
 1. Crie o arquivo em `resources/widgets/MeuWidget.py`
@@ -199,3 +231,12 @@ tab = WorkspaceTab(title="Console", tooltip="Console do sistema")
 - [ ] O componente que preciso já existe como widget composto?
 - [ ] Se não existe, criei em `resources/widgets/` e atualizei esta skill?
 - [ ] Se modifiquei um existente, mantive compatibilidade retroativa?
+
+### `MenuBar` Update
+O `MenuBar` agora suporta o sinal `tool_clicked` e o método `add_menu_items` para inserir dinamicamente ações de ferramentas no menu "Sistema".
+
+```python
+menu_bar = MenuBar()
+menu_bar.tool_clicked.connect(self._on_tool_activated)
+menu_bar.add_menu_items([("Preferences", "Gerenciador de Preferências")])
+```

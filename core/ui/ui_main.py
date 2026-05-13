@@ -85,16 +85,21 @@ class MainWindow(QMainWindow):
         self.appbar.close_clicked.connect(self.close)
         root_layout.addWidget(self.appbar)
 
-        # === MENU BAR (Arquivo > Sair | Ajuda > Sobre) ===
+        # === MENU BAR (Arquivo > Sair | Sistema > tools | Ajuda > Sobre) ===
         self.menu_bar = MenuBar()
         self.menu_bar.sair_clicked.connect(self.close)
         self.menu_bar.sobre_clicked.connect(self._show_about)
+        self.menu_bar.tool_clicked.connect(self._on_tool_activated)
         root_layout.addWidget(self.menu_bar)
 
         # === TOOLBAR ===
         self._menu_manager = MenuManager()
         self._menu_manager.tool_activated.connect(self._on_tool_activated)
         groups = self._menu_manager.build()
+
+        # Popula o menu Sistema com as ferramentas que têm menu_category
+        system_items = self._menu_manager.get_system_menu_items()
+        self.menu_bar.add_menu_items(system_items)
 
         if groups:
             toolbar_container = QWidget()

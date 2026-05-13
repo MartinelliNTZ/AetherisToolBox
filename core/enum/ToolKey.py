@@ -20,6 +20,7 @@ class ToolKey(str, Enum):
     CLASSIFIER = "Classifier"
     LOGVIEWER = "LogViewer"
     TECLADOR_F = "TecladorF"
+    PREFERENCES = "Preferences"
     SYSTEM = "System"
     UNTRACEABLE = "Untraceable"
 

@@ -15,6 +15,7 @@ from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QWidget
 
 from core.enum.CategoryTool import CategoryTool
+from core.enum.MenuCategory import MenuCategory
 from core.enum.ToolType import ToolType
 from resources.IconManager import IconManager
 
@@ -49,6 +50,7 @@ class Tool:
         category: CategoryTool = CategoryTool.CENTRAL,
         icon: Optional[QIcon] = None,
         show_in_toolbar: bool = True,
+        menu_category: Optional[MenuCategory] = None,
     ) -> None:
         """
         Parâmetros:
@@ -60,6 +62,8 @@ class Tool:
             category         : Onde exibir (WORKSPACE ou SIDE).
             icon             : QIcon personalizado. Se None, usa IconManager.default_icon().
             show_in_toolbar  : Se True (padrão), exibe na toolbar. Se False, oculta.
+            menu_category    : Se definido, exibe no menu suspenso correspondente.
+                               Se None, não vai para o menu.
         """
         self._name = name
         self._title = title or name
@@ -70,6 +74,7 @@ class Tool:
         self._icon = icon
         self._widget: Optional[QWidget] = None
         self._show_in_toolbar = show_in_toolbar
+        self._menu_category = menu_category
 
     # ────────────────────────────────────────────────────────────────────────
     # Propriedades públicas
@@ -119,6 +124,11 @@ class Tool:
     def show_in_toolbar(self) -> bool:
         """Se True, exibe na toolbar. Se False, oculta."""
         return self._show_in_toolbar
+
+    @property
+    def menu_category(self) -> Optional[MenuCategory]:
+        """Categoria de menu onde a ferramenta aparece. None = não vai para menu."""
+        return self._menu_category
 
     @property
     def icon(self) -> QIcon:
