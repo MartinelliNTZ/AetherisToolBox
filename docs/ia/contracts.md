@@ -150,3 +150,74 @@ DEVE atualizar a documentação correspondente.
 - Ao criar um novo contrato, adicione-o neste arquivo e referencie no `docs/ia/agent.md`.
 - Ao modificar comportamento existente, verifique se as skills e contratos ainda refletem a realidade.
 - Documentação desatualizada é considerada bug.
+
+## 🔴 Contrato 13 — ToolRegistry é a Única Fonte de Configuração de Tools
+
+```
+ToolRegistry centraliza TODAS as ferramentas.
+Nenhum outro módulo cria, configura ou modifica objetos Tool.
+```
+
+**Regras:**
+- `ToolRegistry._TOOLS` contém a definição completa de cada ferramenta: nome, título, factory, tool_type, category, show_in_toolbar, menu_category, etc.
+- A `MainWindow` recebe a tool list PRONTA de `ToolRegistry.get_all()` — não altera nem filtra.
+- O `MenuManager` recebe a tool list de `ToolRegistry.get_all()` e filtra internamente quem vai para toolbar e quem vai para menu.
+- Nenhum outro módulo pode instanciar `Tool()` diretamente ou modificar propriedades de uma tool registrada.
+
+```python
+# ✅ Correto — ToolRegistry define tudo
+_TOOLS = {
+    "Preferences": Tool(
+        name="Preferences",
+        widget_factory=_make_factory(...),
+        show_in_toolbar=False,
+        menu_category=MenuCategory.SYSTEM,
+    ),
+}
+
+# ❌ Proibido — configurar tool fora do ToolRegistry
+tool.show_in_toolbar = False  # em qualquer outro lugar
+```
+
+## 🔴 Contrato 14 — MenuManager Encapsula MenuBar + Toolbar
+
+```
+MenuManager é o ÚNICO responsável por instanciar e configurar
+a MenuBar e a toolbar. A MainWindow apenas POSICIONA os widgets.
+```
+
+**Regras:**
+- `MenuManager.build()` constrói tanto a `MenuBar` quanto a `toolbar_widget`.
+- A `MainWindow` acessa `manager.menu_bar` e `manager.toolbar_widget` como propriedades prontas.
+- Sinais de clique (toolbar e menu) convergem para um único sinal: `MenuManager.tool_activated`.
+- Sinais de `sair_clicked` e `sobre_clicked` são propagados pelo `MenuManager`.
+- A `MainWindow` NÃO importa `MenuBar` diretamente — só se comunica via `MenuManager`.
+
+```python
+# ✅ Correto — MainWindow usa MenuManager como caixa preta
+manager = MenuManager()
+manager.build()
+manager.tool_activated.connect(self._on_tool_activated)
+manager.sair_clicked.connect(self.close)
+root_layout.addWidget(manager.menu_bar)
+root_layout.addWidget(manager.toolbar_widget)
+
+# ❌ Proibido — MainWindow manipular MenuBar ou toolbar diretamente
+from resources.widgets.MenuBar import MenuBar  # não deve existir no ui_main
+menu_bar = MenuBar()
+menu_bar.add_menu_items(...)  # isso é responsabilidade do MenuManager
+```
+
+## 🔴 Contrato 15 — MenuCategory para Ferramentas de Menu
+
+```
+Ferramentas com menu_category definido aparecem no menu suspenso.
+Ferramentas SEM menu_category não vão para o menu.
+```
+
+**Regras:**
+- `menu_category` é definido no `ToolRegistry._TOOLS`, não em runtime.
+- `MenuCategory.SYSTEM` → menu "Sistema"
+- `MenuCategory.FILE` → menu "Arquivo" (futuro)
+- `MenuCategory.HELP` → menu "Ajuda" (futuro)
+- Ferramentas com `show_in_toolbar=False` + `menu_category=MenuCategory.SYSTEM` só aparecem no menu, nunca na toolbar.

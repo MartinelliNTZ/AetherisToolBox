@@ -27,7 +27,6 @@ from core.model.Tool import Tool
 from core.enum.CategoryTool import CategoryTool
 from core.enum.ToolKey import ToolKey
 from resources.widgets.app_bar import AppBar
-from resources.widgets.MenuBar import MenuBar
 from core.ui.CentralWorkspace import CentralWorkspace
 from core.ui.SideWorkspace import SideWorkspace
 from core.config.MenuManager import MenuManager
@@ -85,38 +84,14 @@ class MainWindow(QMainWindow):
         self.appbar.close_clicked.connect(self.close)
         root_layout.addWidget(self.appbar)
 
-        # === MENU BAR (Arquivo > Sair | Sistema > tools | Ajuda > Sobre) ===
-        self.menu_bar = MenuBar()
-        self.menu_bar.sair_clicked.connect(self.close)
-        self.menu_bar.sobre_clicked.connect(self._show_about)
-        self.menu_bar.tool_clicked.connect(self._on_tool_activated)
-        root_layout.addWidget(self.menu_bar)
-
-        # === TOOLBAR ===
+        # === MENU BAR + TOOLBAR (encapsulado no MenuManager) ===
         self._menu_manager = MenuManager()
+        self._menu_manager.build()
         self._menu_manager.tool_activated.connect(self._on_tool_activated)
-        groups = self._menu_manager.build()
-
-        # Popula o menu Sistema com as ferramentas que têm menu_category
-        system_items = self._menu_manager.get_system_menu_items()
-        self.menu_bar.add_menu_items(system_items)
-
-        if groups:
-            toolbar_container = QWidget()
-            toolbar_container.setObjectName("toolbar_panel")
-            toolbar_container.setStyleSheet("""
-                QWidget#toolbar_panel {
-                    background-color: #0A0A0D;
-                    border-bottom: 1px solid #1A1A20;
-                }
-            """)
-            toolbar_layout = QHBoxLayout(toolbar_container)
-            toolbar_layout.setContentsMargins(4, 2, 4, 2)
-            toolbar_layout.setSpacing(0)
-            for group in groups:
-                toolbar_layout.addWidget(group)
-            toolbar_layout.addStretch()
-            root_layout.addWidget(toolbar_container)
+        self._menu_manager.sair_clicked.connect(self.close)
+        self._menu_manager.sobre_clicked.connect(self._show_about)
+        root_layout.addWidget(self._menu_manager.menu_bar)
+        root_layout.addWidget(self._menu_manager.toolbar_widget)
 
         # === WORKSPACE: Central + Side com QSplitter ===
         self._splitter = QSplitter(Qt.Orientation.Horizontal)
