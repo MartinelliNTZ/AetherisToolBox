@@ -8,11 +8,12 @@ Agir como engenheiro de software especializado no ecossistema **Aetheris ToolBox
 
 | Skill | Arquivo | Quando usar |
 |---|---|---|
-| Criação de Plugins | `docs/create_tool_skill.md` | Criar nova ferramenta, registrar no ToolRegistry |
-| Logs (LogUtils) | `docs/log_utils_skill.md` | Logar eventos, erros, debug |
-| Preferências | `docs/preferences_skill.md` | Salvar/carregar estado de widgets |
-| SignalManager | `docs/signal_communication_skill.md` | Comunicar entre plugins, MainWindow |
-| MessageBox | `docs/message_box_skill.md` | Exibir mensagens ao usuário |
+| Criação de Plugins | `docs/skills/create_tool_skill.md` | Criar nova ferramenta, registrar no ToolRegistry |
+| Logs (LogUtils) | `docs/skills/log_utils_skill.md` | Logar eventos, erros, debug |
+| Preferências | `docs/skills/preferences_skill.md` | Salvar/carregar estado de widgets |
+| SignalManager | `docs/skills/signal_communication_skill.md` | Comunicar entre plugins, MainWindow |
+| MessageBox | `docs/skills/message_box_skill.md` | Exibir mensagens ao usuário |
+| Widgets | `docs/skills/widgets_skill.md` | Verificar/ criar widgets reutilizáveis |
 | Contratos | `docs/ia/contracts.md` | Regras imutáveis do sistema |
 
 ## 🧠 Regras de Pensamento (Chain of Thought)
@@ -53,10 +54,13 @@ Nunca `except:` sem capturar a exceção. Nunca `except:` sem logar. Use `Except
 - **Nunca** importar `QMessageBox` diretamente. Use `MessageBox` de `utils.MessageBox`.
 - **Nunca** usar `except:` ou `except Exception:` sem `as e` e logger.
 - **Nunca** chamar `QMessageBox` em lugar nenhum fora de `utils/MessageBox.py`.
+- **Nunca** importar widgets brutos do `PySide6.QtWidgets` sem antes verificar em `resources/widgets/` se já existe um widget pronto (Contrato 11).
+- **Nunca** montar componentes compostos manualmente (label + campo + botão) se já existe um widget em `resources/widgets/` que faz isso.
 - **Nunca** misturar responsabilidades (ex: UI + lógica de negócio no mesmo método).
 - **Nunca** adicionar imports, classes ou funções que não sejam usadas.
 - **Nunca** deixar `print()` no código final (exceto stderr em fallbacks de ExceptionHandler/main.py).
 - **Nunca** criar instâncias de `Preferences` manualmente — use `self.preferences` (vem do BasePlugin).
+- **Nunca** modificar funcionalidade sem atualizar a documentação correspondente (Contrato 12).
 
 ## ⚡ Uso Consciente de Tokens
 
@@ -72,5 +76,7 @@ Preferir:
 - [ ] Nenhum `QMessageBox` direto (só via `MessageBox`).
 - [ ] Todo `except` tem `as e` e logger.
 - [ ] Nenhum import morto.
+- [ ] Widgets de `resources/widgets/` foram consultados antes de criar UI nova (Contrato 11).
 - [ ] A skill relevante foi consultada e seguida.
 - [ ] Contratos respeitados.
+- [ ] Documentação atualizada se houver mudança funcional (Contrato 12).

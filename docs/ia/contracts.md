@@ -99,10 +99,54 @@ CENTRAL → abas no topo. SIDE → painel lateral. BOTH → pode ir para ambos.
 
 Definido em `CategoryTool` e no registro do `ToolRegistry`. Siga o padrão das ferramentas existentes.
 
-## Contrato 11 - 
-Não se deve importar from PySide6.QtWidgets import diretametne
-deve se verificar em resources/widgets se ja existe um widget pronto para essa funcao se nao deve criar o widget la 
-pode se modificar widgets existentes desde que mantenha compatibilidade é inclusive recomendado 
-Abstraia se o widget que vc precisa nao é composto 
-por exemplo um label uma caixa de texto e um botao provavelemnte
-isso e um widget composto e nao 3 widgets 
+## 🔴 Contrato 11 — Widgets Reutilizáveis (Composição Obrigatória)
+
+```
+NUNCA importe de PySide6.QtWidgets diretamente.
+Sempre verifique em resources/widgets/ se já existe um widget pronto.
+Se não existir, CRIE o widget em resources/widgets/.
+```
+
+**Regras:**
+- **Abstraia componentes compostos** — se você precisa de um label + caixa de texto + botão, provavelmente isso é UM widget composto, não 3 widgets isolados. Crie uma classe em `resources/widgets/` que empacote os 3.
+- **Modifique widgets existentes** para adicionar funcionalidades, desde que mantenha compatibilidade retroativa. É preferível estender um widget existente a criar um novo similar.
+- **Nunca** use `QHBoxLayout` / `QVBoxLayout` solto com widgets brutos do Qt para criar o mesmo padrão que já existe em `resources/widgets/`.
+
+```python
+# ✅ Correto — usa widget existente
+from resources.widgets.SimpleSelector import SimpleSelector
+selector = SimpleSelector("Imagem:", file_filter="*.tif")
+
+# ✅ Correto — cria widget composto novo em resources/widgets/
+# resources/widgets/MeuWidgetComposto.py
+class MeuWidgetComposto(QWidget):
+    def __init__(self, ...):
+        # label + lineedit + botão encapsulados aqui
+        ...
+
+# ❌ Proibido — widget bruto do Qt sem verificar se já existe
+from PySide6.QtWidgets import QLabel, QLineEdit, QPushButton
+# montando manualmente toda vez que precisar
+
+# ❌ Proibido — criar widget dentro do plugin sem abstrair
+class MeuPlugin(BasePlugin):
+    def _build_ui(self):
+        layout = QVBoxLayout(self)
+        row = QHBoxLayout()  # Isso deveria ser um SimpleSelector!
+        row.addWidget(QLabel("Caminho:"))
+        row.addWidget(QLineEdit())
+        row.addWidget(QPushButton("..."))
+```
+
+## 🔴 Contrato 12 — Documentação Reflexiva
+
+```
+Toda modificação que altere funcionalidade ou exija novo contrato
+DEVE atualizar a documentação correspondente.
+```
+
+**Regras:**
+- Ao criar um novo widget em `resources/widgets/`, adicione-o à skill `docs/skills/widgets_skill.md`.
+- Ao criar um novo contrato, adicione-o neste arquivo e referencie no `docs/ia/agent.md`.
+- Ao modificar comportamento existente, verifique se as skills e contratos ainda refletem a realidade.
+- Documentação desatualizada é considerada bug.
