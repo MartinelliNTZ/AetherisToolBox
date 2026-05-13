@@ -22,7 +22,7 @@ import time
 from PySide6.QtCore import Qt, QThread, Signal
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
-    QDoubleSpinBox, QGroupBox, QFormLayout, QMessageBox,
+    QDoubleSpinBox, QGroupBox, QFormLayout,
 )
 
 from core.model.BasePlugin import BasePlugin
@@ -30,12 +30,12 @@ from core.manager.SignalManager import SignalManager
 from core.enum.ToolKey import ToolKey
 from resources.widgets.SimplePrimaryButton import SimplePrimaryButton
 
-
 class TecladorWorker(QThread):
     """
     Thread separada para escutar teclas e digitar.
     Não bloqueia a UI do Qt.
     """
+    
 
     def __init__(
         self,
@@ -51,6 +51,7 @@ class TecladorWorker(QThread):
         self._startup_delay = startup_delay
         self._interval_delay = interval_delay
         self._running = False
+        
 
     def run(self):
         """
@@ -207,14 +208,16 @@ class TecladorF(BasePlugin):
 
     def _start_worker(self):
         """Valida e inicia o worker em thread separada."""
+        from utils.MessageBox import MessageBox
+
         value = self._edit_value.text().strip()
         if not value:
-            QMessageBox.warning(self, "Aviso", "Valor não pode estar vazio.")
+            MessageBox.show_warning("Valor não pode estar vazio.", title="Aviso")
             return
 
         hotkey = self._edit_hotkey.text().strip().lower()
         if not hotkey:
-            QMessageBox.warning(self, "Aviso", "Tecla não pode estar vazia.")
+            MessageBox.show_warning("Tecla não pode estar vazia.", title="Aviso")
             return
 
         startup_delay = self._spin_startup.value()

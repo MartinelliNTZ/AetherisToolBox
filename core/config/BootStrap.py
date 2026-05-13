@@ -82,6 +82,12 @@ class BootStrap:
         warnings.filterwarnings("ignore", category=FutureWarning)
         warnings.filterwarnings("ignore", category=UserWarning, module="keras")
 
+        # Instala hooks globais de captura de exceção
+        # Deve ser o mais cedo possível para proteger todo o startup
+        from core.config.ExceptionHandler import ExceptionHandler
+        ExceptionHandler.install()
+        ExceptionHandler.show_dialog = True
+
     def _init_logging(self) -> None:
         """
         Inicializa o sistema de logs: limpa arquivos antigos

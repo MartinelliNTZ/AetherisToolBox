@@ -21,7 +21,8 @@ from time import perf_counter
 import threading
 from PySide6.QtCore import Qt, QThread, Signal, QTimer
 from PySide6.QtGui import QDesktopServices
-from PySide6.QtWidgets import QTableWidgetItem, QLineEdit, QSpinBox, QPushButton, QFileDialog, QInputDialog, QMessageBox
+from PySide6.QtWidgets import QTableWidgetItem, QLineEdit, QSpinBox, QPushButton, QFileDialog, QInputDialog
+from utils.MessageBox import MessageBox
 
 from utils.Preferences import Preferences
 from resources.styles.styles import AppStyles, Palette
@@ -211,12 +212,18 @@ class MainController:
     def _on_listar_modelos(self):
         model_root = Path("models")
         if not model_root.exists():
-            QMessageBox.information(self.view, "Modelos", "Pasta 'models' nao encontrada.")
+            MessageBox.show_info(
+                "Pasta 'models' nao encontrada.",
+                title="Modelos",
+            )
             return
 
         model_files = [p for p in model_root.rglob("*.keras") if p.is_file()]
         if not model_files:
-            QMessageBox.information(self.view, "Modelos", "Nenhum modelo .keras encontrado em 'models'.")
+            MessageBox.show_info(
+                "Nenhum modelo .keras encontrado em 'models'.",
+                title="Modelos",
+            )
             return
 
         model_files.sort(key=lambda p: p.stat().st_mtime, reverse=True)
@@ -342,14 +349,13 @@ class MainController:
             self._append_log("> Nao e possivel restaurar padrao durante execucao")
             return
 
-        confirm = QMessageBox.question(
-            self.view,
-            "Restaurar Padrao",
+        confirm = MessageBox.show_question(
             "Isso vai zerar o preferences.json e restaurar os valores padrao. Deseja continuar?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No,
+            title="Restaurar Padrao",
+            buttons=MessageBox.YES_NO,
+            default_button=MessageBox.NO,
         )
-        if confirm != QMessageBox.StandardButton.Yes:
+        if confirm != MessageBox.YES:
             return
 
         self._loading_preferences = True
