@@ -42,9 +42,11 @@ class MenuManager(QObject):
         registry = ToolRegistry()
         tools = registry.get_all()
 
-        # Agrupa tools por tool_type
+        # Agrupa tools por tool_type (somente as que devem aparecer na toolbar)
         grouped: Dict[ToolType, list[Tool]] = {}
         for tool in tools:
+            if not tool.show_in_toolbar:
+                continue
             tt = tool.tool_type
             if tt not in grouped:
                 grouped[tt] = []

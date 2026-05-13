@@ -48,16 +48,18 @@ class Tool:
         tool_type: ToolType = ToolType.SYSTEM,
         category: CategoryTool = CategoryTool.CENTRAL,
         icon: Optional[QIcon] = None,
+        show_in_toolbar: bool = True,
     ) -> None:
         """
         Parâmetros:
-            name           : Chave única da ferramenta (ex: "Console", "Home")
-            widget_factory : Callable sem argumentos que retorna um QWidget.
-            title          : Nome exibido nas abas/títulos. Se None, usa name.
-            tooltip        : Texto de dica ao passar o mouse (opcional).
-            tool_type      : Categoria visual (ToolType.SYSTEM, RASTER, etc.)
-            category       : Onde exibir (WORKSPACE ou SIDE).
-            icon           : QIcon personalizado. Se None, usa IconManager.default_icon().
+            name             : Chave única da ferramenta (ex: "Console", "Home")
+            widget_factory   : Callable sem argumentos que retorna um QWidget.
+            title            : Nome exibido nas abas/títulos. Se None, usa name.
+            tooltip          : Texto de dica ao passar o mouse (opcional).
+            tool_type        : Categoria visual (ToolType.SYSTEM, RASTER, etc.)
+            category         : Onde exibir (WORKSPACE ou SIDE).
+            icon             : QIcon personalizado. Se None, usa IconManager.default_icon().
+            show_in_toolbar  : Se True (padrão), exibe na toolbar. Se False, oculta.
         """
         self._name = name
         self._title = title or name
@@ -67,6 +69,7 @@ class Tool:
         self._category = category
         self._icon = icon
         self._widget: Optional[QWidget] = None
+        self._show_in_toolbar = show_in_toolbar
 
     # ────────────────────────────────────────────────────────────────────────
     # Propriedades públicas
@@ -111,6 +114,11 @@ class Tool:
     def category(self) -> CategoryTool:
         """Onde a ferramenta deve ser exibida (WORKSPACE ou SIDE)."""
         return self._category
+
+    @property
+    def show_in_toolbar(self) -> bool:
+        """Se True, exibe na toolbar. Se False, oculta."""
+        return self._show_in_toolbar
 
     @property
     def icon(self) -> QIcon:

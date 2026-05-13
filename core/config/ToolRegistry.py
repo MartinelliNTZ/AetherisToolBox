@@ -84,6 +84,7 @@ class ToolRegistry:
             tooltip="Console de execucao compartilhado",
             tool_type=ToolType.SYSTEM,
             category=CategoryTool.SIDE,
+            show_in_toolbar=False,
         ),
         ToolKey.LOGVIEWER.value: Tool(
             name=ToolKey.LOGVIEWER.value,
@@ -105,6 +106,7 @@ class ToolRegistry:
             tooltip="Classificacao Raster com Redes Neurais (inativo)",
             tool_type=ToolType.RASTER,
             category=CategoryTool.CENTRAL,
+            show_in_toolbar=True,
         ),
         ToolKey.TECLADOR_F.value: Tool(
             name=ToolKey.TECLADOR_F.value,
@@ -139,6 +141,7 @@ class ToolRegistry:
         tool_type: ToolType = ToolType.SYSTEM,
         category: CategoryTool = CategoryTool.CENTRAL,
         icon: Optional[QIcon] = None,
+        show_in_toolbar: bool = True,
     ) -> int:
         """
         Registra uma ferramenta no sistema com lazy loading.
@@ -165,6 +168,7 @@ class ToolRegistry:
             tool_type=tool_type,
             category=category,
             icon=icon,
+            show_in_toolbar=show_in_toolbar,
         )
         self._tools[name] = tool
         self._order.append(name)
