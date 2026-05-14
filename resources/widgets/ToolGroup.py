@@ -42,7 +42,7 @@ class ToolGroup(QWidget):
         for tool in tools:
             btn = QToolButton()
             btn.setIcon(tool.icon)
-            btn.setToolTip(tool.tooltip or tool.name)
+            btn.setToolTip(tool.tooltip or tool.title)
             btn.setObjectName("toolgroup_btn")
             btn.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
             btn.setCursor(Qt.CursorShape.PointingHandCursor)

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-RenamerTool — Renomeador em lote de arquivos
-==============================================
+RenamerPlugin — Renomeador em lote de arquivos
+===============================================
 Ferramenta do tipo FOLDER que permite renomear arquivos em lote
 com 4 modos e filtro de extensões.
 
@@ -237,7 +237,7 @@ class RenamerPlugin(QWidget):
             self._prefs.set(k, None)
         self._prefs.save()
         self._load_prefs()
-        MessageBox.show_info("Preferências restauradas para o padrão.", "Restaurado")
+        MessageBox.show_info("Preferências restauradas para o padrão.", title="Restaurado")
 
     # ── Preview ──────────────────────────────────────────────────────
 
@@ -334,9 +334,9 @@ class RenamerPlugin(QWidget):
         if not preview:
             origem = self._sel_origem.path()
             if not origem:
-                MessageBox.show_warning("Selecione uma pasta de origem primeiro.", "Aviso")
+                MessageBox.show_warning("Selecione uma pasta de origem primeiro.", title="Aviso")
             else:
-                MessageBox.show_info("Nenhum arquivo será modificado com as configurações atuais.", "Preview")
+                MessageBox.show_info("Nenhum arquivo será modificado com as configurações atuais.", title="Preview")
             return
 
         lines = [f"{orig} → {novo}" for orig, novo in preview[:50]]
@@ -363,7 +363,7 @@ class RenamerPlugin(QWidget):
         """Executa o renomeio."""
         preview = self._generate_preview()
         if not preview:
-            MessageBox.show_warning("Nada a renomear. Verifique a pasta e o filtro.", "Aviso")
+            MessageBox.show_warning("Nada a renomear. Verifique a pasta e o filtro.", title="Aviso")
             return
 
         ok = MessageBox.show_question(
@@ -404,7 +404,7 @@ class RenamerPlugin(QWidget):
         msg = f"{renamed} arquivo(s) renomeado(s) com sucesso."
         if errors:
             msg += f" {errors} erro(s)."
-        MessageBox.show_info(msg, "Concluído")
+        MessageBox.show_info(msg, title="Concluído")
 
 
 def _case_insensitive_replace(text: str, old: str, new: str) -> str:
