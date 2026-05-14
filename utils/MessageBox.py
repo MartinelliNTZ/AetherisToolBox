@@ -43,6 +43,8 @@ from typing import Any, Optional
 from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QApplication, QMessageBox
 
+from core.config.LogUtils import LogUtils
+
 
 class MessageBox:
     """
@@ -312,6 +314,11 @@ def _show(
     return QMessageBox.StandardButton(pressed)
 
 
+def _get_logger():
+    """Retorna um LogUtils para uso interno do MessageBox."""
+    return LogUtils(tool="System", class_name="MessageBox")
+
+
 def _find_active_window() -> Any:
     """
     Tenta encontrar a janela principal ativa para usar como parent.
@@ -327,7 +334,7 @@ def _find_active_window() -> Any:
         for widget in app.topLevelWidgets():
             if widget.isVisible() and widget.windowTitle():
                 return widget
-    except Exception:
-        pass
+    except Exception as e:
+        _get_logger().error("Falha ao buscar janela ativa", code="FIND_WIN_ERR", error=str(e))
 
     return None

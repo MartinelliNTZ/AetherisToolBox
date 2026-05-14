@@ -23,6 +23,7 @@ from PySide6.QtWidgets import QWidget, QSplitter, QVBoxLayout
 from core.enum.CategoryTool import CategoryTool
 from core.enum.ToolKey import ToolKey
 from core.model.Tool import Tool
+from core.config.LogUtils import LogUtils
 from core.ui.CentralWorkspace import CentralWorkspace
 from core.ui.SideWorkspace import SideWorkspace
 from utils.Preferences import Preferences
@@ -49,6 +50,7 @@ class WorkspaceManager(QWidget):
         self._tools: List[Tool] = tools
         self._tool_map: Dict[str, Tool] = {t.name: t for t in tools}
         self._sys_prefs = Preferences(section=ToolKey.SYSTEM.value)
+        self.logger = LogUtils(tool="System", class_name="WorkspaceManager")
 
         # Widgets internos
         self._central_workspace: Optional[CentralWorkspace] = None
@@ -67,7 +69,6 @@ class WorkspaceManager(QWidget):
 
     def _build(self) -> None:
         """Constrói o splitter com os workspaces e registra as ferramentas."""
-        from core.config.LogUtils import LogUtils
         log = LogUtils(tool="System", class_name="WorkspaceManager")
         log.info("Construindo workspaces", code="WS_BUILD", num_tools=len(self._tools))
 
@@ -187,8 +188,8 @@ class WorkspaceManager(QWidget):
                 max(100, self._splitter.width() - SideWorkspace.W_TABS),
                 SideWorkspace.W_TABS,
             ])
-        except Exception:
-            pass
+        except Exception as e:
+            self.logger.error("Falha ao inicializar tamanhos do splitter", code="SPLIT_INIT_ERR", error=str(e))
 
     def _on_side_size_changed(self, total_width: int):
         """Ajusta os tamanhos do splitter conforme SideWorkspace."""

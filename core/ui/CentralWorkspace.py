@@ -37,6 +37,7 @@ class _WorkspaceTabBar(QTabBar):
         super().__init__(parent)
         self.setObjectName("workspace_tabs")
         self._hovered_tab = -1
+        self.logger = LogUtils(tool="System", class_name="WorkspaceTabBar")
 
         self.setMouseTracking(True)
         self.setDrawBase(True)
@@ -141,8 +142,8 @@ class _WorkspaceTabBar(QTabBar):
                 )
 
             painter.end()
-        except SystemError:
-            pass
+        except SystemError as e:
+            self.logger.error("SystemError no paintEvent do tab bar", code="PAINT_SYS_ERR", error=str(e))
 
     def mouseMoveEvent(self, event):
         tab = self.tabAt(event.pos())

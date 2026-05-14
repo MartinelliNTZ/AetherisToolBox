@@ -25,6 +25,7 @@ from PySide6.QtWidgets import (
     QDoubleSpinBox, QGroupBox, QFormLayout, QFrame,
 )
 
+from core.config.LogUtils import LogUtils
 from core.model.BasePlugin import BasePlugin
 from core.manager.SignalManager import SignalManager
 from core.enum.ToolKey import ToolKey
@@ -51,6 +52,7 @@ class HotkeyPlugin(QThread):
         self._startup_delay = startup_delay
         self._interval_delay = interval_delay
         self._running = False
+        self.logger = LogUtils(tool=ToolKey.TECLADOR_F.value, class_name="HotkeyPlugin")
         
 
     def run(self):
@@ -94,10 +96,12 @@ class HotkeyPlugin(QThread):
             keyboard.wait("esc")
 
         except ImportError as e:
+            self.logger.error("Bibliotecas nao encontradas", code="IMPORT_ERR", error=str(e))
             SignalManager.instance().console_message.emit(
                 f"TecladorF erro: {e}. Instale: pip install pyautogui keyboard"
             )
         except Exception as e:
+            self.logger.error("Erro inesperado no worker", code="WORKER_ERR", error=str(e))
             SignalManager.instance().console_message.emit(
                 f"TecladorF erro inesperado: {e}"
             )
@@ -105,8 +109,10 @@ class HotkeyPlugin(QThread):
             self._running = False
             try:
                 keyboard.unhook_all()
-            except Exception:
-                pass
+            except Exception as e:
+                self.logger.error("Falha ao desregistrar hotkey", code="UNHOOK_ERR", error=str(e))
+                SignalManager.instance().console_message.emit(
+                    f"TecladorF erro ao desregistrar hotkey: {e}")
 
     def stop(self):
         """Para o worker."""
@@ -257,7 +263,9 @@ class TecladorF(BasePlugin):
                 import keyboard
                 keyboard.press_and_release("esc")
             except ImportError:
-                pass
+                self.logger.warning("keyboard nao instalado, nao foi possivel enviar ESC", code="IMPORT_WARN")
+                SignalManager.instance().console_message.emit(
+                    "TecladorF: keyboard não instalado, não foi possível enviar ESC")
             if not self._worker.wait(3000):
                 self._worker.terminate()
         self._on_worker_finished()
