@@ -76,68 +76,73 @@ class _WorkspaceTabBar(QTabBar):
         return path
 
     def paintEvent(self, event):
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        painter.setRenderHint(QPainter.RenderHint.TextAntialiasing)
+        try:
+            painter = QPainter()
+            if not painter.begin(self):
+                return
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+            painter.setRenderHint(QPainter.RenderHint.TextAntialiasing)
 
-        P = Palette
+            P = Palette
 
-        # Fundo do tab bar (a area vazia a direita)
-        painter.fillRect(event.rect(), QColor(P.TITLE_BAR_BG))
+            # Fundo do tab bar (a area vazia a direita)
+            painter.fillRect(event.rect(), QColor(P.TITLE_BAR_BG))
 
-        for i in range(self.count()):
-            rect = self._tab_rect(i)
-            if not rect.isValid() or rect.width() < 4:
-                continue
+            for i in range(self.count()):
+                rect = self._tab_rect(i)
+                if not rect.isValid() or rect.width() < 4:
+                    continue
 
-            selected = (i == self.currentIndex())
-            hovered = (i == self._hovered_tab)
+                selected = (i == self.currentIndex())
+                hovered = (i == self._hovered_tab)
 
-            if selected:
-                bg     = QColor(P.GOLD)
-                fg     = QColor(P.BG_DEEPEST)
-                border = QColor(P.GOLD_DIM)
-            elif hovered:
-                bg     = QColor(P.GOLD)
-                fg     = QColor(P.BG_DEEPEST)
-                border = QColor(P.BORDER_HOVER)
-            else:
-                bg     = QColor(P.BG_DEEPEST)
-                fg     = QColor(P.TEXT_BRIGHT)
-                border = QColor(P.BORDER)
+                if selected:
+                    bg     = QColor(P.GOLD)
+                    fg     = QColor(P.BG_DEEPEST)
+                    border = QColor(P.GOLD_DIM)
+                elif hovered:
+                    bg     = QColor(P.GOLD)
+                    fg     = QColor(P.BG_DEEPEST)
+                    border = QColor(P.BORDER_HOVER)
+                else:
+                    bg     = QColor(P.BG_DEEPEST)
+                    fg     = QColor(P.TEXT_BRIGHT)
+                    border = QColor(P.BORDER)
 
-            path = self._draw_rounded_rect(painter, rect, tl=2, tr=8, br=2, bl=2)
-            painter.setClipPath(path)
-            painter.fillPath(path, bg)
+                path = self._draw_rounded_rect(painter, rect, tl=2, tr=8, br=2, bl=2)
+                painter.setClipPath(path)
+                painter.fillPath(path, bg)
 
-            # Indicador de selecao (barra no topo)
-            if selected:
-                painter.fillRect(rect.x(), rect.y(), rect.width(), 3, QColor(P.GOLD_HOVER))
+                # Indicador de selecao (barra no topo)
+                if selected:
+                    painter.fillRect(rect.x(), rect.y(), rect.width(), 3, QColor(P.GOLD_HOVER))
 
-            painter.setPen(QPen(border, 1))
-            painter.drawPath(path)
-            painter.setClipping(False)
+                painter.setPen(QPen(border, 1))
+                painter.drawPath(path)
+                painter.setClipping(False)
 
-            # Texto da aba — usa o title (segundo elemento do tuple)
-            data = self.tabData(i)
-            if data and isinstance(data, tuple):
-                display = str(data[1])
-            else:
-                display = str(data) if data else f"Tab {i}"
-            font = QFont("Segoe UI", 10)
-            font.setWeight(QFont.Weight.Medium if selected else QFont.Weight.Normal)
-            painter.setFont(font)
-            painter.setPen(QPen(fg))
+                # Texto da aba — usa o title (segundo elemento do tuple)
+                data = self.tabData(i)
+                if data and isinstance(data, tuple):
+                    display = str(data[1])
+                else:
+                    display = str(data) if data else f"Tab {i}"
+                font = QFont("Segoe UI", 10)
+                font.setWeight(QFont.Weight.Medium if selected else QFont.Weight.Normal)
+                painter.setFont(font)
+                painter.setPen(QPen(fg))
 
-            fm = QFontMetrics(font)
-            text = fm.elidedText(display, Qt.TextElideMode.ElideRight, rect.width() - 16)
-            painter.drawText(
-                rect.adjusted(8, 0, -8, 0),
-                Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
-                text,
-            )
+                fm = QFontMetrics(font)
+                text = fm.elidedText(display, Qt.TextElideMode.ElideRight, rect.width() - 16)
+                painter.drawText(
+                    rect.adjusted(8, 0, -8, 0),
+                    Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
+                    text,
+                )
 
-        painter.end()
+            painter.end()
+        except SystemError:
+            pass
 
     def mouseMoveEvent(self, event):
         tab = self.tabAt(event.pos())

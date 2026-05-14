@@ -178,7 +178,7 @@ class RenamerPlugin(BasePlugin):
         ext_layout = grp_ext.group_layout
         ext_layout.setSpacing(4)
 
-        self._grid_ext = GridCheckBox(self._ext_config, num_columns=5)
+        self._grid_ext = GridCheckBox(self._ext_config, num_columns=7)
         ext_layout.addWidget(self._grid_ext)
 
         grid.addWidget(grp_ext, 1, 0, 1, 2)
