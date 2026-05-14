@@ -17,7 +17,7 @@ from PySide6.QtWidgets import (
 from core.model.BasePlugin import BasePlugin
 
 
-class HomeTool(BasePlugin):
+class HomePlugin(BasePlugin):
     """
     Página inicial do Aetheris ToolBox.
     Aberta por padrão ao iniciar o software.

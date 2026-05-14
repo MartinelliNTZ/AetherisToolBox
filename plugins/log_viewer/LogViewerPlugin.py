@@ -32,7 +32,7 @@ from PySide6.QtGui import QColor, QBrush
 from core.model.BasePlugin import BasePlugin
 
 
-class LogViewerTool(BasePlugin):
+class LogViewerPlugin(BasePlugin):
     """
     Visualizador de logs com tabela, pesquisa e filtro.
 

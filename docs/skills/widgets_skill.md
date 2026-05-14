@@ -175,6 +175,27 @@ tab = WorkspaceTab(title="Console", tooltip="Console do sistema")
 
 ---
 
+### `GridCheckBox` — `GridCheckBox.py`
+Grade rolável de checkboxes organizados em colunas configuráveis. Cada checkbox tem label e tooltip definidos por dicionário.
+
+```python
+from resources.widgets.GridCheckBox import GridCheckBox
+
+config = {
+    ".txt": {"label": ".txt", "description": "Texto puro", "default": True},
+    ".py":  {"label": ".py",  "description": "Python", "default": False},
+}
+
+grid = GridCheckBox(config, num_columns=4)
+checked = grid.checked      # { ".txt": True }
+unchecked = grid.unchecked  # { ".py": False }
+all_states = grid.all       # { ".txt": True, ".py": False }
+grid.set_all(all_states)    # restaura estados
+grid.changed.connect(self._on_ext_changed)
+```
+
+---
+
 ### `PreferenceItemGrid` — `PreferenceItemGrid.py`
 Grade rolável de itens de preferência editáveis. Cada linha contém: título | valor (checkbox para bool, spin para float/int, line edit para texto) | botão lixeira.
 

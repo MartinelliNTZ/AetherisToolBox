@@ -21,6 +21,7 @@ class ToolKey(str, Enum):
     LOGVIEWER = "LogViewer"
     TECLADOR_F = "TecladorF"
     PREFERENCES = "Preferences"
+    RENAMER = "Renamer"
     SYSTEM = "System"
     UNTRACEABLE = "Untraceable"
 

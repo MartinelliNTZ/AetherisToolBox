@@ -54,7 +54,7 @@ class Separator(QFrame):
 # FERRAMENTA DE CLASSIFICAÇÃO
 # =============================================================================
 
-class ClassificationTool(QWidget):
+class TensorflowClassificationPlugin(QWidget):
     """
     Widget completo da ferramenta de classificação raster.
     Pode ser hospedado no Workspace.

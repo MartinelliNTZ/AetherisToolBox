@@ -93,7 +93,7 @@ SYSTEM_PREF_CONFIG: Dict[str, Dict[str, Any]] = {
 }
 
 
-class PreferencesManagerTool(QWidget):
+class PreferencesPlugin(QWidget):
     """
     Gerenciador de preferências do sistema.
     Seleciona uma ToolKey e edita os valores salvos.

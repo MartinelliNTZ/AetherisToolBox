@@ -30,6 +30,9 @@ def _make_factory(module_path: str, class_name: str) -> Callable[[], QWidget]:
     """
     Retorna uma factory que importa e instancia a classe sob demanda.
     Função no nível do módulo para ser usada na definição do dict _TOOLS.
+
+    module_path: caminho do módulo sem .py (ex: "plugins.home.HomePlugin")
+    class_name:  nome exato da classe (ex: "HomePlugin")
     """
 
     def factory() -> QWidget:
@@ -60,9 +63,12 @@ class ToolRegistry:
     # Definição direta de todas as ferramentas como objetos Tool
     # ══════════════════════════════════════════════════════════════════
     # Para adicionar uma NOVA ferramenta:
-    #   1. Crie a classe widget em plugins/nome_da_tool/
+    #   1. Crie a classe widget em plugins/NomeDaFerramenta/NomeDaFerramentaPlugin.py
     #   2. Adicione uma entrada no dict _TOOLS abaixo
     #      com Tool() contendo name, title, widget_factory, etc.
+    #
+    # REGRA: module_path = "plugins.pasta_plugin.NomeDoArquivoPlugin"
+    #        class_name   = mesmo nome da classe (PascalCase + Plugin)
     # ══════════════════════════════════════════════════════════════════
 
     _TOOLS: dict[str, Tool] = {
@@ -70,7 +76,7 @@ class ToolRegistry:
             name=ToolKey.HOME.value,
             title="Home",
             widget_factory=_make_factory(
-                "plugins.home.HomePlugin", "HomeTool"
+                "plugins.home.HomePlugin", "HomePlugin"
             ),
             tooltip="Pagina inicial do Aetheris ToolBox",
             tool_type=ToolType.SYSTEM,
@@ -80,7 +86,7 @@ class ToolRegistry:
             name=ToolKey.CONSOLE.value,
             title="Console",
             widget_factory=_make_factory(
-                "plugins.console.ConsolePlugin", "ConsoleTool"
+                "plugins.console.ConsolePlugin", "ConsolePlugin"
             ),
             tooltip="Console de execucao compartilhado",
             tool_type=ToolType.SYSTEM,
@@ -91,7 +97,7 @@ class ToolRegistry:
             name=ToolKey.LOGVIEWER.value,
             title="LogViewer",
             widget_factory=_make_factory(
-                "plugins.log_viewer.log_viewer", "LogViewerTool"
+                "plugins.log_viewer.LogViewerPlugin", "LogViewerPlugin"
             ),
             tooltip="Visualizador de logs do sistema",
             tool_type=ToolType.SYSTEM,
@@ -101,8 +107,8 @@ class ToolRegistry:
             name=ToolKey.CLASSIFIER.value,
             title="TensorFlow Classifier",
             widget_factory=_make_factory(
-                "plugins.tensorflow_classifier.classification_tool",
-                "ClassificationTool",
+                "plugins.tensorflow_classifier.TensorflowClassificationPlugin",
+                "TensorflowClassificationPlugin",
             ),
             tooltip="Classificacao Raster com Redes Neurais (inativo)",
             tool_type=ToolType.RASTER,
@@ -113,7 +119,7 @@ class ToolRegistry:
             name=ToolKey.TECLADOR_F.value,
             title="Teclador F",
             widget_factory=_make_factory(
-                "plugins.teclador_f.TecladorF", "TecladorF"
+                "plugins.hotkey.HotkeyPlugin", "TecladorF"
             ),
             tooltip="Automacao de teclado: digita uma string ao pressionar F",
             tool_type=ToolType.FOLDER,
@@ -123,14 +129,26 @@ class ToolRegistry:
             name=ToolKey.PREFERENCES.value,
             title="Gerenciador de Preferências",
             widget_factory=_make_factory(
-                "plugins.preferences_manager.preferences_tool",
-                "PreferencesManagerTool",
+                "plugins.preferences_manager.PreferencesPlugin",
+                "PreferencesPlugin",
             ),
             tooltip="Gerenciar preferências das ferramentas do sistema",
             tool_type=ToolType.SYSTEM,
             category=CategoryTool.CENTRAL,
             show_in_toolbar=False,
             menu_category=MenuCategory.SYSTEM,
+        ),
+        ToolKey.RENAMER.value: Tool(
+            name=ToolKey.RENAMER.value,
+            title="Renomeador em Lote",
+            widget_factory=_make_factory(
+                "plugins.renamer.RenamerPlugin",
+                "RenamerPlugin",
+            ),
+            tooltip="Renomear arquivos em lote (prefixo, sufixo, substituir, etc.)",
+            tool_type=ToolType.FOLDER,
+            category=CategoryTool.CENTRAL,
+            show_in_toolbar=True,
         ),
     }
 

@@ -17,7 +17,7 @@ from core.model.BasePlugin import BasePlugin
 from core.manager.SignalManager import SignalManager
 
 
-class ConsoleTool(BasePlugin):
+class ConsolePlugin(BasePlugin):
     """
     Console de execução compartilhado.
     Exibe logs formatados com HTML, suporte a links.
