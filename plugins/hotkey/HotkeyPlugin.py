@@ -22,7 +22,7 @@ import time
 from PySide6.QtCore import Qt, QThread, Signal
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
-    QDoubleSpinBox, QGroupBox, QFormLayout,
+    QDoubleSpinBox, QGroupBox, QFormLayout, QFrame,
 )
 
 from core.model.BasePlugin import BasePlugin
@@ -134,20 +134,29 @@ class TecladorF(BasePlugin):
 
     def _build_ui(self):
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(20, 20, 20, 20)
-        layout.setSpacing(12)
+        layout.setContentsMargins(18, 10, 18, 10)
+        layout.setSpacing(8)
 
         # ── Título ────────────────────────────────────────────────────
         title = QLabel("Teclador F — Automação de Teclado")
         title.setObjectName("header_title")
         layout.addWidget(title)
 
-        subtitle = QLabel(
-            "Digita automaticamente uma string ao pressionar uma tecla.\n"
-            "Use com cuidado — é uma automação de teclado."
-        )
-        subtitle.setObjectName("header_subtitle")
-        layout.addWidget(subtitle)
+        # ── Separator ──
+        sep = QFrame()
+        sep.setObjectName("separator")
+        sep.setFrameShape(QFrame.Shape.HLine)
+        sep.setFixedHeight(1)
+        layout.addWidget(sep)
+
+        # ── Botões de Ação ────────────────────────────────────────────
+        btn_layout = QHBoxLayout()
+        btn_layout.setSpacing(6)
+        btn_layout.addStretch()
+        self._btn_executar = SimplePrimaryButton("EXECUTAR")
+        self._btn_executar.clicked.connect(self._on_executar)
+        btn_layout.addWidget(self._btn_executar)
+        layout.addLayout(btn_layout)
 
         # ── Configurações ─────────────────────────────────────────────
         config_group = QGroupBox("Configurações")
@@ -184,18 +193,7 @@ class TecladorF(BasePlugin):
         self._spin_interval.valueChanged.connect(self._mark_dirty)
         form.addRow("Intervalo (s):", self._spin_interval)
 
-        layout.addWidget(config_group)
-
-        # ── Botão Executar ────────────────────────────────────────────
-        btn_layout = QHBoxLayout()
-        btn_layout.addStretch()
-        self._btn_executar = SimplePrimaryButton("EXECUTAR")
-        self._btn_executar.clicked.connect(self._on_executar)
-        btn_layout.addWidget(self._btn_executar)
-        btn_layout.addStretch()
-        layout.addLayout(btn_layout)
-
-        layout.addStretch()
+        layout.addWidget(config_group, 1)
 
     # ── Ações ─────────────────────────────────────────────────────────
 

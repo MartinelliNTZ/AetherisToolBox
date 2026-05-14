@@ -82,9 +82,6 @@ class RenamerPlugin(BasePlugin):
         # ── Ações ──
         actions = QHBoxLayout()
         actions.setSpacing(6)
-        self.btn_executar = SimplePrimaryButton("EXECUTAR RENOMEIO")
-        self.btn_executar.clicked.connect(self._on_executar)
-        actions.addWidget(self.btn_executar)
         self.btn_preview = SimpleSecondaryButton("PRÉ-VISUALIZAR")
         self.btn_preview.clicked.connect(self._on_preview)
         actions.addWidget(self.btn_preview)
@@ -92,6 +89,9 @@ class RenamerPlugin(BasePlugin):
         self.btn_reset.clicked.connect(self._reset_prefs)
         actions.addWidget(self.btn_reset)
         actions.addStretch()
+        self.btn_executar = SimplePrimaryButton("EXECUTAR RENOMEIO")
+        self.btn_executar.clicked.connect(self._on_executar)
+        actions.addWidget(self.btn_executar)
         main_layout.addLayout(actions)
 
         # ── Seletores de Pasta ──
