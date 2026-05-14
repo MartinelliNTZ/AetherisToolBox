@@ -18,3 +18,4 @@ class CategoryTool(str, Enum):
     CENTRAL = "central"
     SIDE = "side"
     BOTH = "both"
+    INSTANT = "instant"
