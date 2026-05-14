@@ -74,7 +74,7 @@ class ToolRegistry:
     _TOOLS: dict[str, Tool] = {
         ToolKey.HOME.value: Tool(
             name=ToolKey.HOME.value,
-            title="Home",
+            title="Inicial",
             widget_factory=_make_factory(
                 "plugins.home.HomePlugin", "HomePlugin"
             ),
@@ -105,7 +105,7 @@ class ToolRegistry:
         ),
         ToolKey.CLASSIFIER.value: Tool(
             name=ToolKey.CLASSIFIER.value,
-            title="TensorFlow Classifier",
+            title="TensorFlow",
             widget_factory=_make_factory(
                 "plugins.tensorflow_classifier.TensorflowClassificationPlugin",
                 "TensorflowClassificationPlugin",
@@ -117,9 +117,9 @@ class ToolRegistry:
         ),
         ToolKey.TECLADOR_F.value: Tool(
             name=ToolKey.TECLADOR_F.value,
-            title="Teclador F",
+            title="Teclador",
             widget_factory=_make_factory(
-                "plugins.hotkey.HotkeyPlugin", "TecladorF"
+                "plugins.hotkey.HotkeyPlugin", "HotkeyPlugin"
             ),
             tooltip="Automacao de teclado: digita uma string ao pressionar F",
             tool_type=ToolType.FOLDER,
@@ -127,7 +127,7 @@ class ToolRegistry:
         ),
         ToolKey.PREFERENCES.value: Tool(
             name=ToolKey.PREFERENCES.value,
-            title="Gerenciador de Preferências",
+            title="Preferências",
             widget_factory=_make_factory(
                 "plugins.preferences_manager.PreferencesPlugin",
                 "PreferencesPlugin",
@@ -140,7 +140,7 @@ class ToolRegistry:
         ),
         ToolKey.RENAMER.value: Tool(
             name=ToolKey.RENAMER.value,
-            title="Renomeador em Lote",
+            title="Renomeador",
             widget_factory=_make_factory(
                 "plugins.renamer.RenamerPlugin",
                 "RenamerPlugin",
