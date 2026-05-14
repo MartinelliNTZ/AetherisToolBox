@@ -24,7 +24,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
+    QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel, QLineEdit,
     QSpinBox, QCheckBox, QComboBox, QFrame, QGroupBox,
 )
 from PySide6.QtCore import Qt
@@ -115,7 +115,16 @@ class RenamerPlugin(QWidget):
         )
         pl.addWidget(self._sel_destino)
 
-        main_layout.addWidget(grp_pastas)
+        # Checkbox vasculhar subpastas
+        self._chk_subpastas = QCheckBox("Vasculhar subpastas")
+        self._chk_subpastas.setObjectName("pref_check")
+        pl.addWidget(self._chk_subpastas)
+
+        # ── Grid: Pastas (0,0) | Modo (0,1) | Filtro (1,0-1) ──
+        grid = QGridLayout()
+        grid.setSpacing(10)
+
+        grid.addWidget(grp_pastas, 0, 0)
 
         # ── Modo de Renomeio ──
         grp_modo = GroupDiv("Modo de Renomeio")
@@ -162,9 +171,9 @@ class RenamerPlugin(QWidget):
         self._chk_trecho_exato.setChecked(True)
         ml.addWidget(self._chk_trecho_exato)
 
-        main_layout.addWidget(grp_modo)
+        grid.addWidget(grp_modo, 0, 1)
 
-        # ── Filtro de Extensões ──
+        # ── Filtro de Extensões (ocupa as 2 colunas) ──
         grp_ext = GroupDiv("Filtro de Extensões (deschecadas = ignoradas)")
         ext_layout = grp_ext.group_layout
         ext_layout.setSpacing(4)
@@ -172,7 +181,16 @@ class RenamerPlugin(QWidget):
         self._grid_ext = GridCheckBox(self._ext_config, num_columns=5)
         ext_layout.addWidget(self._grid_ext)
 
-        main_layout.addWidget(grp_ext, 1)
+        grid.addWidget(grp_ext, 1, 0, 1, 2)
+
+        # Stretch igual nas 2 colunas para expandirem juntas
+        grid.setColumnStretch(0, 1)
+        grid.setColumnStretch(1, 1)
+        # Filtro ganha mais espaço vertical
+        grid.setRowStretch(0, 1)
+        grid.setRowStretch(1, 2)
+
+        main_layout.addLayout(grid)
 
         # Atualiza visibilidade inicial
         self._on_mode_changed(self._combo_modo.currentText())
@@ -211,6 +229,8 @@ class RenamerPlugin(QWidget):
         self._chk_case_sensitive.setChecked(self._prefs.get("case_sensitive", False))
         self._chk_trecho_exato.setChecked(self._prefs.get("trecho_exato", True))
 
+        self._chk_subpastas.setChecked(self._prefs.get("subpastas", False))
+
         ext_states = self._prefs.get("extensoes", {})
         if ext_states:
             self._grid_ext.set_all(ext_states)
@@ -225,6 +245,7 @@ class RenamerPlugin(QWidget):
         self._prefs.set("qtd", self._spin_qtd.value())
         self._prefs.set("case_sensitive", self._chk_case_sensitive.isChecked())
         self._prefs.set("trecho_exato", self._chk_trecho_exato.isChecked())
+        self._prefs.set("subpastas", self._chk_subpastas.isChecked())
         self._prefs.set("extensoes", self._grid_ext.all)
         self._prefs.save()
 
