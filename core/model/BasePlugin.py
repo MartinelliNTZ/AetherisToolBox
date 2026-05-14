@@ -56,6 +56,7 @@ class BasePlugin(QWidget):
         SignalManager.instance().tool_opened.emit(tool_key, self)
 
     def closeEvent(self, event) -> None:  # type: ignore[override]
+        self.save_prefs()
         from core.manager.SignalManager import SignalManager
         SignalManager.instance().tool_closed.emit(self.tool_key)
         super().closeEvent(event)

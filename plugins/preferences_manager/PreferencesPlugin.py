@@ -5,6 +5,10 @@ PreferencesManagerTool — Gerenciador de Preferências do Sistema
 Ferramenta que exibe todas as preferências salvas no sistema,
 permitindo editar, resetar ou remover itens por ToolKey.
 
+Carregamento dinâmico — lê diretamente do preferences.json e
+infere tipos automaticamente via Preferences.infer_type().
+Não precisa de configuração manual SYSTEM_PREF_CONFIG.
+
 Acessível pelo menu Sistema > Gerenciador de Preferências.
 Não aparece na toolbar.
 """
@@ -15,88 +19,52 @@ from typing import Any, Dict
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QComboBox,
-    QScrollArea, QFrame,
+    QFrame,
 )
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QIcon
 
-from core.enum.ToolKey import ToolKey
 from resources.widgets.SimplePrimaryButton import SimplePrimaryButton
 from resources.widgets.SimpleSecondaryButton import SimpleSecondaryButton
 from resources.widgets.SimpleDangerButton import SimpleDangerButton
 from resources.widgets.PreferenceItemGrid import PreferenceItemGrid
-from resources.styles.styles import AppStyles, Palette
 from utils.Preferences import Preferences
 
-# ── Configuração das preferências padrão do sistema ──────────────
-# Estrutura: { "tool_key": { "pref_key": { "type", "label", "default", ... } } }
-# type pode ser: "bool", "float", "int", "text"
 
-SYSTEM_PREF_CONFIG: Dict[str, Dict[str, Any]] = {
-    "LogViewer": {
-        "search_text": {
-            "type": "text",
-            "default": "",
-            "label": "Texto de Busca",
-            "placeholder": "Digite para filtrar...",
-        },
-        "level_filter": {
-            "type": "text",
-            "default": "ALL",
-            "label": "Filtro de Nível",
-        },
-    },
-    "TecladorF": {
-        "value": {
-            "type": "text",
-            "default": "",
-            "label": "Valor",
-        },
-        "hotkey": {
-            "type": "text",
-            "default": "f",
-            "label": "Tecla de Atalho",
-        },
-        "startup_delay": {
-            "type": "float",
-            "default": 0.15,
-            "label": "Delay Inicial (s)",
-            "min": 0.0,
-            "max": 10.0,
-            "step": 0.01,
-            "decimals": 2,
-        },
-        "interval_delay": {
-            "type": "float",
-            "default": 0.01,
-            "label": "Intervalo (s)",
-            "min": 0.001,
-            "max": 5.0,
-            "step": 0.001,
-            "decimals": 3,
-        },
-    },
-    "System": {
-        "side_content_width": {
-            "type": "int",
-            "default": 400,
-            "label": "Largura do Side Panel",
-            "min": 100,
-            "max": 2000,
-        },
-        "side_collapsed": {
-            "type": "bool",
-            "default": True,
-            "label": "Side Panel Recolhido",
-        },
-    },
-}
+def _build_dynamic_config(section: str) -> Dict[str, Any]:
+    """
+    Constrói um config dinâmico para uma seção a partir do JSON real.
+    Usa Preferences.infer_type() para determinar o tipo de cada campo.
+    """
+    raw = Preferences.all_data().get(section, {})
+    config: Dict[str, Any] = {}
+    for key, value in raw.items():
+        # Pula dicts aninhados complexos (ex: extensoes)
+        if isinstance(value, dict):
+            continue
+        pref_type = Preferences.infer_type(value)
+        # Default seguro: se o valor real existe no JSON usa ele, senao 0 ou ""
+        safe_default = value if value is not None else (0 if pref_type in ("int", "float") else "")
+        entry: Dict[str, Any] = {
+            "type": pref_type,
+            "default": safe_default,
+            "label": key.replace("_", " ").title(),
+        }
+        if pref_type in ("int", "float"):
+            entry["min"] = 0
+            entry["max"] = 999999
+            if pref_type == "float":
+                entry["step"] = 0.1
+                entry["decimals"] = 2
+            else:
+                entry["step"] = 1
+        config[key] = entry
+    return config
 
 
 class PreferencesPlugin(QWidget):
     """
     Gerenciador de preferências do sistema.
-    Seleciona uma ToolKey e edita os valores salvos.
+    Carrega dinamicamente todas as seções do preferences.json.
     """
 
     def __init__(self, parent=None):
@@ -133,11 +101,6 @@ class PreferencesPlugin(QWidget):
         self._combo_toolkey = QComboBox()
         self._combo_toolkey.setMinimumWidth(200)
         self._combo_toolkey.setObjectName("pref_combo")
-        # Preenche com as ToolKeys que têm config
-        self._toolkey_order: list[str] = []
-        for key in SYSTEM_PREF_CONFIG:
-            self._combo_toolkey.addItem(key, key)
-            self._toolkey_order.append(key)
         self._combo_toolkey.currentIndexChanged.connect(self._on_toolkey_changed)
         selector_row.addWidget(self._combo_toolkey, 1)
 
@@ -169,9 +132,32 @@ class PreferencesPlugin(QWidget):
         self._grid_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.addWidget(self._grid_container, 1)
 
-        # Carrega a primeira toolkey
+        # Popula combo e carrega primeira
+        self._populate_combo()
+
+    def _populate_combo(self):
+        """Lê do preferences.json e preenche o combo com todas as seções."""
+        self._combo_toolkey.blockSignals(True)
+        self._combo_toolkey.clear()
+
+        all_data = Preferences.all_data()
+        self._toolkey_order: list[str] = []
+        for key in sorted(all_data.keys()):
+            # Só mostra seção que tem ao menos um campo não-dict
+            section_data = all_data[key]
+            if not isinstance(section_data, dict):
+                continue
+            has_scalar = any(not isinstance(v, dict) for v in section_data.values())
+            if not has_scalar:
+                continue
+            self._combo_toolkey.addItem(key, key)
+            self._toolkey_order.append(key)
+
+        self._combo_toolkey.blockSignals(False)
+
         if self._toolkey_order:
             self._current_section = self._toolkey_order[0]
+            self._combo_toolkey.setCurrentIndex(0)
             self._rebuild_grid()
 
     def _on_toolkey_changed(self, idx: int):
@@ -183,7 +169,7 @@ class PreferencesPlugin(QWidget):
         self._rebuild_grid()
 
     def _rebuild_grid(self):
-        """Recria o PreferenceItemGrid para a seção atual."""
+        """Recria o PreferenceItemGrid para a seção atual com config dinâmico."""
         # Remove grid anterior
         while self._grid_layout.count():
             item = self._grid_layout.takeAt(0)
@@ -192,14 +178,14 @@ class PreferencesPlugin(QWidget):
                 self._grid_layout.removeWidget(w)
                 w.deleteLater()
 
-        config = SYSTEM_PREF_CONFIG.get(self._current_section, {})
+        config = _build_dynamic_config(self._current_section)
         self._grid = PreferenceItemGrid(config, section=self._current_section)
         self._grid_layout.addWidget(self._grid)
 
     def _on_save(self):
         """Salva todas as preferências da seção atual."""
         if self._grid:
-            saved = self._grid.save_values()
+            self._grid.save_values()
             from utils.MessageBox import MessageBox
             MessageBox.show_info(
                 text=f"Preferências salvas para '{self._current_section}'.",
@@ -207,12 +193,13 @@ class PreferencesPlugin(QWidget):
             )
 
     def _on_reset(self):
-        """Restaura os valores padrão da seção atual."""
+        """Recarrega do JSON descartando alterações não salvas."""
         if self._grid:
-            self._grid.reset_values()
+            Preferences.all_data()  # força refresh do cache
+            self._rebuild_grid()
 
     def _on_clear_all(self):
-        """Remove todas as preferências da seção atual."""
+        """Remove todas as preferências da seção do JSON inteiro."""
         if self._grid:
             from utils.MessageBox import MessageBox
             ok = MessageBox.show_question(
@@ -220,4 +207,8 @@ class PreferencesPlugin(QWidget):
                 title="Confirmar",
             )
             if ok:
-                self._grid.clear_all()
+                # Remove a seção inteira do JSON e recria grid vazio
+                all_data = Preferences.all_data()
+                all_data.pop(self._current_section, None)
+                Preferences.save_all(all_data)
+                self._populate_combo()

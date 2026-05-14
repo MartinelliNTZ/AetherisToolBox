@@ -30,6 +30,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt
 
 from core.enum.ToolKey import ToolKey
+from core.model.BasePlugin import BasePlugin
 from resources.widgets.SimplePrimaryButton import SimplePrimaryButton
 from resources.widgets.SimpleSecondaryButton import SimpleSecondaryButton
 from resources.widgets.SimpleDangerButton import SimpleDangerButton
@@ -37,11 +38,10 @@ from resources.widgets.SimpleSelector import SimpleSelector
 from resources.widgets.GroupDiv import GroupDiv
 from resources.widgets.GridCheckBox import GridCheckBox
 from utils.DictManager import DictManager
-from utils.Preferences import Preferences
 from utils.MessageBox import MessageBox
 
 
-class RenamerPlugin(QWidget):
+class RenamerPlugin(BasePlugin):
     """
     Renomeador em lote de arquivos com múltiplos modos e filtro de extensões.
     """
@@ -57,11 +57,11 @@ class RenamerPlugin(QWidget):
     ]
 
     def __init__(self, parent=None):
-        super().__init__(parent)
-        self._prefs = Preferences(section=ToolKey.RENAMER.value)
+        super().__init__(tool_key=ToolKey.RENAMER.value, parent=parent)
         self._ext_config = DictManager.file_extensions()
         self._build_ui()
-        self._load_prefs()
+        self.load_prefs()
+        self.logger.info("RenamerPlugin inicializado", code="RENAMER_READY")
 
     def _build_ui(self):
         main_layout = QVBoxLayout(self)
@@ -197,6 +197,7 @@ class RenamerPlugin(QWidget):
 
     def _on_mode_changed(self, mode: str):
         """Mostra/esconde parâmetros conforme o modo selecionado."""
+        self.logger.info(f"Modo alterado: {mode}", code="RENAMER_MODE")
         is_prefix_suffix = mode in ("Adicionar Prefixo", "Adicionar Sufixo")
         is_remove = mode in ("Remover X do Começo", "Remover X do Final (ignora extensão)")
         is_replace = mode == "Substituir Texto"
@@ -213,51 +214,53 @@ class RenamerPlugin(QWidget):
 
     # ── Preferências ──────────────────────────────────────────────────
 
-    def _load_prefs(self):
+    def load_prefs(self):
         """Carrega estado salvo."""
-        self._sel_origem.set_path(self._prefs.get("origem", ""))
-        self._sel_destino.set_path(self._prefs.get("destino", ""))
+        self._sel_origem.set_path(self.preferences.get("origem", ""))
+        self._sel_destino.set_path(self.preferences.get("destino", ""))
 
-        mode = self._prefs.get("modo", self.MODES[0])
+        mode = self.preferences.get("modo", self.MODES[0])
         idx = self._combo_modo.findText(mode)
         if idx >= 0:
             self._combo_modo.setCurrentIndex(idx)
 
-        self._edit_texto.setText(self._prefs.get("texto", ""))
-        self._edit_subst.setText(self._prefs.get("subst", ""))
-        self._spin_qtd.setValue(self._prefs.get("qtd", 1))
-        self._chk_case_sensitive.setChecked(self._prefs.get("case_sensitive", False))
-        self._chk_trecho_exato.setChecked(self._prefs.get("trecho_exato", True))
+        self._edit_texto.setText(self.preferences.get("texto", ""))
+        self._edit_subst.setText(self.preferences.get("subst", ""))
+        self._spin_qtd.setValue(self.preferences.get("qtd", 1))
+        self._chk_case_sensitive.setChecked(self.preferences.get("case_sensitive", False))
+        self._chk_trecho_exato.setChecked(self.preferences.get("trecho_exato", True))
 
-        self._chk_subpastas.setChecked(self._prefs.get("subpastas", False))
+        self._chk_subpastas.setChecked(self.preferences.get("subpastas", False))
 
-        ext_states = self._prefs.get("extensoes", {})
+        ext_states = self.preferences.get("extensoes", {})
         if ext_states:
             self._grid_ext.set_all(ext_states)
 
-    def _save_prefs(self):
+    def save_prefs(self):
         """Salva estado atual."""
-        self._prefs.set("origem", self._sel_origem.path())
-        self._prefs.set("destino", self._sel_destino.path())
-        self._prefs.set("modo", self._combo_modo.currentText())
-        self._prefs.set("texto", self._edit_texto.text())
-        self._prefs.set("subst", self._edit_subst.text())
-        self._prefs.set("qtd", self._spin_qtd.value())
-        self._prefs.set("case_sensitive", self._chk_case_sensitive.isChecked())
-        self._prefs.set("trecho_exato", self._chk_trecho_exato.isChecked())
-        self._prefs.set("subpastas", self._chk_subpastas.isChecked())
-        self._prefs.set("extensoes", self._grid_ext.all)
-        self._prefs.save()
+        self.preferences.set("origem", self._sel_origem.path())
+        self.preferences.set("destino", self._sel_destino.path())
+        self.preferences.set("modo", self._combo_modo.currentText())
+        self.preferences.set("texto", self._edit_texto.text())
+        self.preferences.set("subst", self._edit_subst.text())
+        self.preferences.set("qtd", self._spin_qtd.value())
+        self.preferences.set("case_sensitive", self._chk_case_sensitive.isChecked())
+        self.preferences.set("trecho_exato", self._chk_trecho_exato.isChecked())
+        self.preferences.set("subpastas", self._chk_subpastas.isChecked())
+        self.preferences.set("extensoes", self._grid_ext.all)
+        self.preferences.save()
 
     def _reset_prefs(self):
         """Restaura valores padrão."""
-        self._prefs = Preferences(section=ToolKey.RENAMER.value)
+        from utils.Preferences import Preferences
+        self.preferences = Preferences(section=ToolKey.RENAMER.value)
         # Limpa todas as keys da seção
-        data = self._prefs.to_dict()
+        data = self.preferences.to_dict()
         for k in list(data.keys()):
-            self._prefs.set(k, None)
-        self._prefs.save()
-        self._load_prefs()
+            self.preferences.set(k, None)
+        self.preferences.save()
+        self.load_prefs()
+        self.logger.info("Preferências restauradas para o padrão", code="RENAMER_RESET")
         MessageBox.show_info("Preferências restauradas para o padrão.", title="Restaurado")
 
     # ── Preview ──────────────────────────────────────────────────────
@@ -355,10 +358,14 @@ class RenamerPlugin(QWidget):
         if not preview:
             origem = self._sel_origem.path()
             if not origem:
+                self.logger.warning("Preview solicitado sem pasta de origem", code="RENAMER_NO_ORIGEM")
                 MessageBox.show_warning("Selecione uma pasta de origem primeiro.", title="Aviso")
             else:
+                self.logger.info("Preview vazio — nenhum arquivo será modificado", code="RENAMER_PREVIEW_EMPTY")
                 MessageBox.show_info("Nenhum arquivo será modificado com as configurações atuais.", title="Preview")
             return
+
+        self.logger.info(f"Preview gerado — {len(preview)} arquivo(s)", code="RENAMER_PREVIEW")
 
         lines = [f"{orig} → {novo}" for orig, novo in preview[:50]]
         if len(preview) > 50:
@@ -384,6 +391,7 @@ class RenamerPlugin(QWidget):
         """Executa o renomeio."""
         preview = self._generate_preview()
         if not preview:
+            self.logger.warning("Execução abortada — preview vazio", code="RENAMER_EXEC_EMPTY")
             MessageBox.show_warning("Nada a renomear. Verifique a pasta e o filtro.", title="Aviso")
             return
 
@@ -392,8 +400,10 @@ class RenamerPlugin(QWidget):
             title="Confirmar",
         )
         if not ok:
+            self.logger.info("Execução cancelada pelo usuário", code="RENAMER_CANCEL")
             return
 
+        self.logger.info(f"Iniciando renomeio de {len(preview)} arquivo(s)", code="RENAMER_START")
         origem_base = Path(self._sel_origem.path())
         destino_base = Path(self._sel_destino.path()) if self._sel_destino.path() else None
 
@@ -419,8 +429,11 @@ class RenamerPlugin(QWidget):
                 renamed += 1
             except Exception as e:
                 errors += 1
+                self.logger.error(f"Erro ao renomear {orig_name}: {e}", code="RENAMER_RENAME_ERR", error=str(e))
 
-        self._save_prefs()
+        self.save_prefs()
+
+        self.logger.info(f"Renomeio concluído — {renamed} renomeado(s), {errors} erro(s)", code="RENAMER_DONE")
 
         msg = f"{renamed} arquivo(s) renomeado(s) com sucesso."
         if errors:

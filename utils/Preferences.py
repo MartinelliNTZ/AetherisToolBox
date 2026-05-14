@@ -22,7 +22,10 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict
+
+from core.config.LogUtils import LogUtils
+from core.enum.ToolKey import ToolKey
 
 
 class Preferences:
@@ -49,6 +52,18 @@ class Preferences:
     # Cache de classe para evitar ler o arquivo varias vezes
     _cached_data: Dict[str, Any] = {}
     _cache_loaded: bool = False
+
+    # Logger estatico compartilhado
+    _logger_instance = None
+
+    @classmethod
+    def _get_logger(cls):
+        """Retorna logger estatico para Preferences."""
+        if cls._logger_instance is None:
+            cls._logger_instance = LogUtils(
+                tool=ToolKey.SYSTEM.value, class_name="Preferences"
+            )
+        return cls._logger_instance
 
     def __init__(self, section: str | None = None):
         """
@@ -85,6 +100,11 @@ class Preferences:
         path.parent.mkdir(parents=True, exist_ok=True)
         with path.open("w", encoding="utf-8") as f:
             json.dump(self._cached_data, f, indent=2, ensure_ascii=False)
+        self._get_logger().info(
+            "Preferencias salvas",
+            code="PREFS_SAVE",
+            section=self._section,
+        )
 
     def load_and_get(self, key: str, default: Any = None) -> Any:
         """
@@ -102,20 +122,68 @@ class Preferences:
             return dict(data.get(self._section, {}))
         return dict(data)
 
+    # ── Metodos estaticos (acesso global) ────────────────────────────
+
+    @classmethod
+    def all_data(cls) -> Dict[str, Any]:
+        """Retorna o JSON completo de todas as secoes (sempre do disco)."""
+        data = cls._load_from_disk()
+        cls._get_logger().info(
+            "Preferencias carregadas",
+            code="PREFS_LOAD",
+            sections=list(data.keys()),
+        )
+        return data
+
+    @classmethod
+    def save_all(cls, data: Dict[str, Any]) -> None:
+        """Sobrescreve o JSON inteiro com o dict fornecido."""
+        cls._cached_data = data
+        cls._cache_loaded = True
+        path = cls._DEFAULT_PATH
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+        cls._get_logger().info(
+            "Todas as preferencias salvas",
+            code="PREFS_SAVE_ALL",
+            sections=list(data.keys()),
+        )
+
+    @classmethod
+    def infer_type(cls, value: Any) -> str:
+        """Infere o tipo de preferencia a partir do valor."""
+        if isinstance(value, bool):
+            return "bool"
+        if isinstance(value, int):
+            return "int"
+        if isinstance(value, float):
+            return "float"
+        return "text"
+
     # ── Metodos internos ──────────────────────────────────────────────
+
+    @classmethod
+    def _load_from_disk(cls) -> Dict[str, Any]:
+        """Le o arquivo JSON diretamente do disco SEM usar cache."""
+        path = cls._DEFAULT_PATH
+        if path.is_file():
+            try:
+                with path.open("r", encoding="utf-8") as f:
+                    loaded = json.load(f)
+                return loaded if isinstance(loaded, dict) else {}
+            except Exception as e:
+                cls._get_logger().error(
+                    "Erro ao carregar preferencias do disco",
+                    code="PREFS_LOAD_ERR",
+                    error=str(e),
+                )
+                return {}
+        return {}
 
     def _load(self) -> Dict[str, Any]:
         """Carrega o arquivo JSON uma unica vez (cache)."""
-        if not self._cache_loaded:
-            path = self._DEFAULT_PATH
-            if path.is_file():
-                try:
-                    with path.open("r", encoding="utf-8") as f:
-                        loaded = json.load(f)
-                    self._cached_data = loaded if isinstance(loaded, dict) else {}
-                except Exception:
-                    self._cached_data = {}
-            else:
-                self._cached_data = {}
-            self._cache_loaded = True
+        if not type(self)._cache_loaded:
+            self._cached_data = self._load_from_disk()
+            type(self)._cache_loaded = True
         return self._cached_data
