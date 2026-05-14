@@ -134,10 +134,15 @@ class ExplorerUtils:
             current_path: Caminho atual (arquivo ou pasta).
 
         Returns:
-            Diretório pai se current_path existir, ou string vazia.
+            - Se for um diretório existente → o próprio diretório.
+            - Se for um arquivo existente → o diretório pai.
+            - Se não existir ou vazio → string vazia (abre em recentes).
         """
-        if current_path:
-            base = os.path.dirname(current_path)
-            if base and os.path.exists(base):
-                return base
+        if not current_path:
+            return ""
+        if os.path.isdir(current_path):
+            return current_path
+        parent = os.path.dirname(current_path)
+        if parent and os.path.exists(parent):
+            return parent
         return ""

@@ -81,6 +81,10 @@ class SimpleSelector(QWidget):
 
     def _browse(self):
         current = self.edit.text().strip()
+        # resolve_initial_dir trata:
+        #   - diretório existente → retorna ele mesmo
+        #   - arquivo existente   → retorna diretório pai
+        #   - inválido/vazio      → retorna "" (abre em recentes)
         initial_dir = ExplorerUtils.resolve_initial_dir(current)
 
         if self._browse_mode == "save_file":
