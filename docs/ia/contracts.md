@@ -222,5 +222,49 @@ Ferramentas SEM menu_category não vão para o menu.
 - `MenuCategory.HELP` → menu "Ajuda" (futuro)
 - Ferramentas com `show_in_toolbar=False` + `menu_category=MenuCategory.SYSTEM` só aparecem no menu, nunca na toolbar.
 
-contrato 16 
-nome de arquivo é no padrao PascalCAse igual o nome da classe
+## 🔴 Contrato 16 — WorkspaceManager Encapsula Central + Side
+
+```
+WorkspaceManager é o ÚNICO responsável por gerenciar os workspaces.
+A MainWindow não conhece CentralWorkspace nem SideWorkspace diretamente.
+```
+
+**Regras:**
+- `WorkspaceManager` instancia o `QSplitter`, o `CentralWorkspace` e o `SideWorkspace`.
+- `WorkspaceManager` registra cada tool no workspace correto (CENTRAL, SIDE, BOTH).
+- `WorkspaceManager` gerencia todo o redimensionamento e persistência do SideWorkspace.
+- `WorkspaceManager` gerencia a movimentação de tools BOTH entre workspaces.
+- A `MainWindow` apenas adiciona o `WorkspaceManager` ao layout e expõe properties delegadas.
+
+```python
+# ✅ Correto
+self._workspace_manager = WorkspaceManager(tools)
+root_layout.addWidget(self._workspace_manager, 1)
+
+# ❌ Proibido — MainWindow importar ou manipular workspaces
+from core.ui.CentralWorkspace import CentralWorkspace
+self.central_workspace = CentralWorkspace()
+self.central_workspace.register_tool(tool)
+```
+
+## 🔴 Contrato 17 — ExplorerUtils para Seleção de Arquivos/Pastas
+
+```
+ExplorerUtils é a ÚNICA classe que pode chamar QFileDialog.
+Nenhum outro módulo pode importar ou usar QFileDialog.
+```
+
+**Regras:**
+- Todas as operações de "abrir arquivo", "salvar arquivo", "selecionar pasta" DEVEM passar por `ExplorerUtils`.
+- `ExplorerUtils` exporta: `open_file()`, `open_files()`, `save_file()`, `select_directory()`, `select_directories()`, `resolve_initial_dir()`.
+- A exceção é o próprio `utils/ExplorerUtils.py` (implementação da classe).
+
+```python
+# ✅ Correto
+from utils.ExplorerUtils import ExplorerUtils
+path = ExplorerUtils.open_file("Abrir", filter="*.json", parent=self)
+
+# ❌ Proibido — em qualquer lugar fora de ExplorerUtils
+from PySide6.QtWidgets import QFileDialog
+path, _ = QFileDialog.getOpenFileName(self, "Abrir", "", "*.json")
+```

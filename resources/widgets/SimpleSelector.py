@@ -2,14 +2,17 @@
 """
 SimpleSelector — Linha com label, QLineEdit e botão "..." para selecionar arquivo/pasta.
 Uso: campo de caminho único com seletor embutido.
+
+QFileDialog é PROIBIDO fora de utils/ExplorerUtils.
+SimpleSelector usa ExplorerUtils para todas as operações de seleção.
 """
 
 from __future__ import annotations
 
-import os
-
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QWidget, QHBoxLayout, QLabel, QLineEdit, QPushButton, QFileDialog
+from PySide6.QtWidgets import QWidget, QHBoxLayout, QLabel, QLineEdit, QPushButton
+
+from utils.ExplorerUtils import ExplorerUtils
 
 
 class SimpleSelector(QWidget):
@@ -78,37 +81,37 @@ class SimpleSelector(QWidget):
 
     def _browse(self):
         current = self.edit.text().strip()
-        initial_dir = os.path.dirname(current) if current and os.path.exists(current) else ""
+        initial_dir = ExplorerUtils.resolve_initial_dir(current)
 
         if self._browse_mode == "save_file":
-            path, _ = QFileDialog.getSaveFileName(
-                self, "Salvar arquivo", initial_dir, self._file_filter
+            path = ExplorerUtils.save_file(
+                "Salvar arquivo", initial_dir, self._file_filter, self,
             )
             if path:
                 self.edit.setText(path)
 
         elif self._browse_mode == "open_files":
-            paths, _ = QFileDialog.getOpenFileNames(
-                self, "Selecionar arquivos", initial_dir, self._file_filter
+            paths = ExplorerUtils.open_files(
+                "Selecionar arquivos", initial_dir, self._file_filter, self,
             )
             if paths:
                 self.edit.setText("; ".join(paths))
 
         elif self._browse_mode == "directories":
-            path = QFileDialog.getExistingDirectory(
-                self, "Selecionar pasta", initial_dir
+            path = ExplorerUtils.select_directory(
+                "Selecionar pasta", initial_dir, self,
             )
             if path:
                 self.edit.setText(path)
 
         else:  # "directory" ou "open_file"
             if self._browse_mode == "directory":
-                path = QFileDialog.getExistingDirectory(
-                    self, "Selecionar pasta", initial_dir
+                path = ExplorerUtils.select_directory(
+                    "Selecionar pasta", initial_dir, self,
                 )
             else:
-                path, _ = QFileDialog.getOpenFileName(
-                    self, "Selecionar arquivo", initial_dir, self._file_filter
+                path = ExplorerUtils.open_file(
+                    "Selecionar arquivo", initial_dir, self._file_filter, self,
                 )
             if path:
                 self.edit.setText(path)

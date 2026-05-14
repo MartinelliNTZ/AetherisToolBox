@@ -1,0 +1,143 @@
+# -*- coding: utf-8 -*-
+"""
+ExplorerUtils — Única classe responsável por buscar arquivos/pastas no SO
+==========================================================================
+Centraliza todas as chamadas a QFileDialog. Nenhum outro módulo deve
+chamar QFileDialog diretamente.
+
+Uso:
+    from utils.ExplorerUtils import ExplorerUtils
+
+    path = ExplorerUtils.open_file("Selecionar imagem", filter="GeoTIFF (*.tif)")
+    paths = ExplorerUtils.open_files("Selecionar arquivos", filter="CSV (*.csv)")
+    save = ExplorerUtils.save_file("Salvar como", filter="JSON (*.json)")
+    folder = ExplorerUtils.select_directory("Selecionar pasta")
+    folders = ExplorerUtils.select_directories("Selecionar pastas")
+"""
+
+from __future__ import annotations
+
+import os
+from typing import List, Optional, Tuple
+
+from PySide6.QtWidgets import QFileDialog, QWidget
+
+
+class ExplorerUtils:
+    """
+    Métodos estáticos para todas as operações de seleção de arquivo/pasta.
+    """
+
+    # ── Modos únicos ────────────────────────────────────────────────
+
+    @staticmethod
+    def open_file(
+        title: str = "Selecionar arquivo",
+        initial_dir: str = "",
+        file_filter: str = "Todos (*.*)",
+        parent: Optional[QWidget] = None,
+    ) -> str:
+        """
+        Abre diálogo para selecionar UM arquivo para leitura.
+
+        Returns:
+            Caminho do arquivo selecionado, ou string vazia se cancelado.
+        """
+        path, _ = QFileDialog.getOpenFileName(
+            parent, title, initial_dir, file_filter,
+        )
+        return path or ""
+
+    @staticmethod
+    def save_file(
+        title: str = "Salvar arquivo",
+        initial_dir: str = "",
+        file_filter: str = "Todos (*.*)",
+        parent: Optional[QWidget] = None,
+    ) -> str:
+        """
+        Abre diálogo para selecionar UM arquivo para salvar.
+
+        Returns:
+            Caminho do arquivo, ou string vazia se cancelado.
+        """
+        path, _ = QFileDialog.getSaveFileName(
+            parent, title, initial_dir, file_filter,
+        )
+        return path or ""
+
+    @staticmethod
+    def select_directory(
+        title: str = "Selecionar pasta",
+        initial_dir: str = "",
+        parent: Optional[QWidget] = None,
+    ) -> str:
+        """
+        Abre diálogo para selecionar UMA pasta.
+
+        Returns:
+            Caminho da pasta, ou string vazia se cancelado.
+        """
+        path = QFileDialog.getExistingDirectory(
+            parent, title, initial_dir,
+        )
+        return path or ""
+
+    # ── Modos múltiplos ─────────────────────────────────────────────
+
+    @staticmethod
+    def open_files(
+        title: str = "Selecionar arquivos",
+        initial_dir: str = "",
+        file_filter: str = "Todos (*.*)",
+        parent: Optional[QWidget] = None,
+    ) -> List[str]:
+        """
+        Abre diálogo para selecionar MÚLTIPLOS arquivos para leitura.
+
+        Returns:
+            Lista de caminhos, ou lista vazia se cancelado.
+        """
+        paths, _ = QFileDialog.getOpenFileNames(
+            parent, title, initial_dir, file_filter,
+        )
+        return list(paths)
+
+    @staticmethod
+    def select_directories(
+        title: str = "Selecionar pastas",
+        initial_dir: str = "",
+        parent: Optional[QWidget] = None,
+    ) -> List[str]:
+        """
+        Abre diálogo para selecionar MÚLTIPLAS pastas.
+        Nota: QFileDialog nativo não suporta multi-pasta diretamente.
+        Esta implementação retorna uma pasta por vez (usuário escolhe uma).
+
+        Returns:
+            Lista com um caminho de pasta, ou vazia.
+        """
+        path = QFileDialog.getExistingDirectory(
+            parent, title, initial_dir,
+        )
+        return [path] if path else []
+
+    # ── Utilitário ──────────────────────────────────────────────────
+
+    @staticmethod
+    def resolve_initial_dir(current_path: str) -> str:
+        """
+        Retorna o diretório base de um caminho, se ele existir.
+        Útil para definir o initial_dir dos diálogos.
+
+        Args:
+            current_path: Caminho atual (arquivo ou pasta).
+
+        Returns:
+            Diretório pai se current_path existir, ou string vazia.
+        """
+        if current_path:
+            base = os.path.dirname(current_path)
+            if base and os.path.exists(base):
+                return base
+        return ""

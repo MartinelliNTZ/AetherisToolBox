@@ -33,7 +33,7 @@ Antes de escrever qualquer código, você DEVE:
 - `snake_case` para métodos, funções, variáveis.
 - `PascalCase` para classes.
 - `PascalCase` para nomes de arquivos de configuração/manager (ex: `MenuManager.py`, `WorkspaceManager.py`, `ToolRegistry.py`).
-- `PascalCase` para arquivos de widget em 
+- `PascalCase` para arquivos de widget em `resources/widgets/` (ex: `SimpleSelector.py`, `PreferenceItemGrid.py`).
 
 ### Estrutura
 - **Métodos pequenos** (máx ~20 linhas). Um método = uma responsabilidade.
@@ -64,6 +64,7 @@ Nunca `except:` sem capturar a exceção. Nunca `except:` sem logar. Use `Except
 - **Nunca** modificar funcionalidade sem atualizar a documentação correspondente (Contrato 12).
 - **Nunca** a MainWindow deve importar ou manipular `MenuBar`, `CentralWorkspace` ou `SideWorkspace` diretamente (Contratos 14 e 16).
 - **Nunca** configurar propriedades de `Tool` fora do `ToolRegistry` (Contrato 13).
+- **Nunca** importar ou chamar `QFileDialog` fora de `utils/ExplorerUtils.py` (Contrato 17).
 
 ## ⚡ Uso Consciente de Tokens
 
