@@ -2,13 +2,10 @@
 """
 UI Principal — Aetheris ToolBox
 ================================
-MainWindow modular com AppBar, CentralWorkspace + SideWorkspace.
+MainWindow modular com AppBar, MenuManager e WorkspaceManager.
 
-Tools de categoria CENTRAL vão para o CentralWorkspace (abas horizontais no topo).
-Tools de categoria SIDE vão para o SideWorkspace (painel lateral direito expansível).
-
-O SideWorkspace fica colado à direita do CentralWorkspace.
-Quando expande/recolhe, o CentralWorkspace se ajusta automaticamente.
+A MainWindow POSICIONA os widgets prontos — a lógica de negócio
+fica encapsulada nos managers (MenuManager, WorkspaceManager).
 """
 
 from __future__ import annotations
@@ -17,21 +14,16 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from PySide6.QtWidgets import (
-    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QSplitter, QProgressBar
+    QMainWindow, QWidget, QVBoxLayout, QProgressBar,
 )
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QIcon
 
 from core.model.Tool import Tool
-from core.enum.CategoryTool import CategoryTool
-from core.enum.ToolKey import ToolKey
 from resources.widgets.app_bar import AppBar
-from core.ui.CentralWorkspace import CentralWorkspace
-from core.ui.SideWorkspace import SideWorkspace
 from core.config.MenuManager import MenuManager
+from core.config.WorkspaceManager import WorkspaceManager
 from core.dialogs.AboutDialog import AboutDialog
-from utils.Preferences import Preferences
 
 
 class MainWindow(QMainWindow):
@@ -39,11 +31,13 @@ class MainWindow(QMainWindow):
     Janela principal do Aetheris ToolBox.
 
     Layout:
-      [AppBar]            -> titulo, toolbar com ToolGroups, controles de janela
-      [Splitter]          -> CentralWorkspace | SideWorkspace
-        [CentralWorkspace]  -> abas horizontais no topo (ferramentas CENTRAL)
-        [SideWorkspace]     -> painel lateral direito expansivel (ferramentas SIDE)
-      [Progress Bar]      -> barra global de progresso (rodape)
+      [AppBar]
+      [MenuManager.menu_bar]
+      [MenuManager.toolbar_widget]
+      [WorkspaceManager]  ← splitter: CentralWorkspace | SideWorkspace
+      [ProgressBar]
+
+    Nenhuma lógica de workspace ou menu vive aqui.
     """
 
     def __init__(self, tools: List[Tool]):
@@ -57,13 +51,7 @@ class MainWindow(QMainWindow):
         if icon_path.exists():
             self.setWindowIcon(QIcon(str(icon_path)))
 
-        # Preferencias do sistema (ToolKey.SYSTEM)
-        self._sys_prefs = Preferences(section=ToolKey.SYSTEM.value)
-
-        self._tool_map: Dict[str, Tool] = {t.name: t for t in tools}
         self._build_ui(tools)
-
-        self.central_workspace.set_current_tool("Home")
 
     def _build_ui(self, tools: List[Tool]) -> None:
         from core.config.LogUtils import LogUtils
@@ -77,14 +65,14 @@ class MainWindow(QMainWindow):
         root_layout.setSpacing(0)
         self.setCentralWidget(root)
 
-        # === APPBAR ===
+        # ── 1. APPBAR ──
         self.appbar = AppBar()
         self.appbar.minimize_clicked.connect(self.showMinimized)
         self.appbar.maximize_restore_clicked.connect(self._toggle_maximize_restore)
         self.appbar.close_clicked.connect(self.close)
         root_layout.addWidget(self.appbar)
 
-        # === MENU BAR + TOOLBAR (encapsulado no MenuManager) ===
+        # ── 2. MENU + TOOLBAR (encapsulado no MenuManager) ──
         self._menu_manager = MenuManager()
         self._menu_manager.build()
         self._menu_manager.tool_activated.connect(self._on_tool_activated)
@@ -93,51 +81,11 @@ class MainWindow(QMainWindow):
         root_layout.addWidget(self._menu_manager.menu_bar)
         root_layout.addWidget(self._menu_manager.toolbar_widget)
 
-        # === WORKSPACE: Central + Side com QSplitter ===
-        self._splitter = QSplitter(Qt.Orientation.Horizontal)
-        self._splitter.setHandleWidth(4)
-        self._splitter.setChildrenCollapsible(False)
-        self._splitter.setObjectName("workspace_splitter")
+        # ── 3. WORKSPACE (encapsulado no WorkspaceManager) ──
+        self._workspace_manager = WorkspaceManager(tools)
+        root_layout.addWidget(self._workspace_manager, 1)
 
-        self.central_workspace = CentralWorkspace()
-        self._splitter.addWidget(self.central_workspace)
-
-        self.side_workspace = SideWorkspace()
-        self._splitter.addWidget(self.side_workspace)
-
-        # Restaura largura salva do conteudo side
-        saved = self._sys_prefs.get("side_content_width", SideWorkspace.W_DEFAULT)
-        self._side_content_width = saved
-
-        # Inicializa colapsado
-        self.side_workspace.collapse()
-        # Forca tamanho inicial no splitter (agendado pois width() ainda e 0)
-        QTimer.singleShot(0, self._init_splitter_sizes)
-        self._drag_lock = True  # nao salva enquanto colapsado
-
-        # Conecta sinal de redimensionamento do SideWorkspace
-        self.side_workspace.size_changed.connect(self._on_side_size_changed)
-
-        # Sincroniza o splitter quando o usuario arrasta a handle
-        self._splitter.splitterMoved.connect(self._on_splitter_moved)
-
-        # Conecta sinais de movimentação entre workspaces (tools BOTH)
-        self.central_workspace.tool_request_move_to_side.connect(self._move_tool_to_side)
-        self.side_workspace.tool_request_move_to_central.connect(self._move_tool_to_central)
-
-        root_layout.addWidget(self._splitter, 1)
-
-        # === REGISTRAR FERRAMENTAS ===
-        for tool in tools:
-            if tool.category == CategoryTool.SIDE:
-                self.side_workspace.register_tool(tool)
-            elif tool.category == CategoryTool.BOTH:
-                # BOTH comeca recolhido no SideWorkspace
-                self.side_workspace.register_tool(tool)
-            elif tool.name == "Home":
-                self.central_workspace.register_tool(tool, focus=False)
-
-        # === PROGRESS BAR ===
+        # ── 4. PROGRESS BAR ──
         self.progress = QProgressBar()
         self.progress.setValue(0)
         self.progress.setTextVisible(True)
@@ -145,133 +93,46 @@ class MainWindow(QMainWindow):
         self.progress.setFixedHeight(20)
         root_layout.addWidget(self.progress)
 
-    # ------------------------------------------------------------------
+    # ────────────────────────────────────────────────────────────────
     # About Dialog
-    # ------------------------------------------------------------------
+    # ────────────────────────────────────────────────────────────────
 
     def _show_about(self):
-        """Exibe o dialog Sobre."""
         dialog = AboutDialog(self)
         dialog.exec()
 
-    # ------------------------------------------------------------------
-    # MenuManager callback
-    # ------------------------------------------------------------------
+    # ────────────────────────────────────────────────────────────────
+    # Ativação de ferramenta (via toolbar ou menu)
+    # ────────────────────────────────────────────────────────────────
 
     def _on_tool_activated(self, tool_name: str):
-        tool = self._tool_map.get(tool_name)
-        if not tool:
-            return
+        """Delega abertura de ferramenta ao WorkspaceManager."""
+        self._workspace_manager.open_tool(tool_name)
 
-        if tool.category == CategoryTool.SIDE:
-            self.side_workspace.open_tool(tool)
-        elif tool.category == CategoryTool.BOTH:
-            # Se estiver no Side, expande/recolhe; caso contrario abre no Central
-            if self.side_workspace.is_tool_open(tool_name):
-                self.side_workspace.open_tool(tool)
-            else:
-                self.central_workspace.open_tool(tool)
-        else:
-            self.central_workspace.open_tool(tool)
+    # ────────────────────────────────────────────────────────────────
+    # Acesso público (compatibilidade com código existente)
+    # ────────────────────────────────────────────────────────────────
 
-    # ------------------------------------------------------------------
-    # Redimensionamento dos workspaces
-    # ------------------------------------------------------------------
+    @property
+    def central_workspace(self):
+        return self._workspace_manager.central_workspace
 
-    def _init_splitter_sizes(self):
-        """Forca o splitter para estado colapsado assim que a janela tiver tamanho."""
-        try:
-            self._splitter.setSizes([
-                max(100, self._splitter.width() - SideWorkspace.W_TABS),
-                SideWorkspace.W_TABS
-            ])
-        except Exception:
-            pass
+    @property
+    def side_workspace(self):
+        return self._workspace_manager.side_workspace
 
-    def _on_side_size_changed(self, total_width: int):
-        """Ajusta os tamanhos do splitter conforme SideWorkspace."""
-        if total_width <= SideWorkspace.W_TABS:
-            # Colapsado
-            self._drag_lock = True
-            self._splitter.setSizes([
-                self._splitter.width() - SideWorkspace.W_TABS,
-                SideWorkspace.W_TABS
-            ])
-            # Salva estado colapsado
-            prefs = Preferences(section=ToolKey.SYSTEM.value)
-            prefs.set("side_collapsed", True)
-            prefs.set("side_content_width", self._side_content_width)
-            prefs.save()
-        else:
-            # Expandido
-            self._drag_lock = False
-            self._splitter.setSizes([
-                self._splitter.width() - total_width,
-                total_width
-            ])
-
-    def _on_splitter_moved(self, pos: int, idx: int):
-        """Salva a largura do conteudo side quando o usuario arrasta."""
-        if self._drag_lock:
-            return
-        sizes = self._splitter.sizes()
-        if len(sizes) >= 2:
-            side_total = sizes[1]
-            content_w = side_total - SideWorkspace.W_TABS
-            if content_w > 20:
-                self._side_content_width = content_w
-                prefs = Preferences(section=ToolKey.SYSTEM.value)
-                prefs.set("side_collapsed", False)
-                prefs.set("side_content_width", content_w)
-                prefs.save()
-
-    # ------------------------------------------------------------------
-    # Acesso as tools
-    # ------------------------------------------------------------------
-
-    def get_tool(self, name: str) -> Tool | None:
-        return self._tool_map.get(name)
+    def get_tool(self, name: str) -> Optional[Tool]:
+        return self._workspace_manager.get_tool(name)
 
     def switch_to_tool(self, name: str) -> bool:
-        if self.central_workspace.is_tool_open(name):
-            self.central_workspace.set_current_tool(name)
-            return True
-        if self.side_workspace.is_tool_open(name):
-            self.side_workspace.expand(name, self._side_content_width)
-            return True
-        return False
-
-    # ------------------------------------------------------------------
-    # Movimentação de ferramentas BOTH entre workspaces
-    # ------------------------------------------------------------------
-
-    def _move_tool_to_side(self, tool_name: str):
-        """Move uma ferramenta BOTH do CentralWorkspace para o SideWorkspace."""
-        tool = self._tool_map.get(tool_name)
-        if not tool:
-            return
-        # Remove do Central preservando o widget
-        self.central_workspace.remove_tool_by_name(tool_name, keep_widget=True)
-        # Se ja estiver no Side, só expande; caso contrario registra
-        if not self.side_workspace.is_tool_open(tool_name):
-            self.side_workspace.register_tool(tool)
-        self.side_workspace.expand(tool_name, self._side_content_width)
-
-    def _move_tool_to_central(self, tool_name: str):
-        """Move uma ferramenta BOTH do SideWorkspace para o CentralWorkspace."""
-        tool = self._tool_map.get(tool_name)
-        if not tool:
-            return
-        self.side_workspace.remove_tool(tool_name)
-        if not self.central_workspace.is_tool_open(tool_name):
-            self.central_workspace.open_tool(tool)
+        return self._workspace_manager.switch_to_tool(name)
 
     def switch_to_console(self) -> None:
-        self.switch_to_tool("Console")
+        self._workspace_manager.switch_to_console()
 
-    # ------------------------------------------------------------------
-    # CONTROLE DE JANELA
-    # ------------------------------------------------------------------
+    # ────────────────────────────────────────────────────────────────
+    # Controle de janela
+    # ────────────────────────────────────────────────────────────────
 
     def _toggle_maximize_restore(self) -> None:
         if self.isMaximized():

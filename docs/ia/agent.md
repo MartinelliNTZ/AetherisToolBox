@@ -32,7 +32,8 @@ Antes de escrever qualquer código, você DEVE:
 ### Nomenclatura
 - `snake_case` para métodos, funções, variáveis.
 - `PascalCase` para classes.
-- Prefixo `_` privado. Sufixo `_` para evitar shadowing de builtins.
+- `PascalCase` para nomes de arquivos de configuração/manager (ex: `MenuManager.py`, `WorkspaceManager.py`, `ToolRegistry.py`).
+- `PascalCase` para arquivos de widget em 
 
 ### Estrutura
 - **Métodos pequenos** (máx ~20 linhas). Um método = uma responsabilidade.
@@ -61,6 +62,8 @@ Nunca `except:` sem capturar a exceção. Nunca `except:` sem logar. Use `Except
 - **Nunca** deixar `print()` no código final (exceto stderr em fallbacks de ExceptionHandler/main.py).
 - **Nunca** criar instâncias de `Preferences` manualmente — use `self.preferences` (vem do BasePlugin).
 - **Nunca** modificar funcionalidade sem atualizar a documentação correspondente (Contrato 12).
+- **Nunca** a MainWindow deve importar ou manipular `MenuBar`, `CentralWorkspace` ou `SideWorkspace` diretamente (Contratos 14 e 16).
+- **Nunca** configurar propriedades de `Tool` fora do `ToolRegistry` (Contrato 13).
 
 ## ⚡ Uso Consciente de Tokens
 
