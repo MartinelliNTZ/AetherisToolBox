@@ -51,10 +51,14 @@ class _WorkspaceTabBar(QTabBar):
 
     def tabSizeHint(self, index: int) -> QSize:
         """Retorna um tamanho minimo para a aba baseado no texto."""
-        name = str(self.tabData(index)) if self.tabData(index) else f"Tab {index}"
+        data = self.tabData(index)
+        if data and isinstance(data, tuple):
+            display = str(data[1])
+        else:
+            display = str(data) if data else f"Tab {index}"
         font = QFont("Segoe UI", 10)
         fm = QFontMetrics(font)
-        text_w = fm.horizontalAdvance(name) + 40  # padding
+        text_w = fm.horizontalAdvance(display) + 40  # padding
         return QSize(max(text_w, 80), 28)
 
     def _draw_rounded_rect(self, painter, rect, tl=2, tr=8, br=2, bl=2):
@@ -114,9 +118,12 @@ class _WorkspaceTabBar(QTabBar):
             painter.drawPath(path)
             painter.setClipping(False)
 
-            # Texto da aba
-            name = self.tabData(i)
-            display = str(name) if name else f"Tab {i}"
+            # Texto da aba — usa o title (segundo elemento do tuple)
+            data = self.tabData(i)
+            if data and isinstance(data, tuple):
+                display = str(data[1])
+            else:
+                display = str(data) if data else f"Tab {i}"
             font = QFont("Segoe UI", 10)
             font.setWeight(QFont.Weight.Medium if selected else QFont.Weight.Normal)
             painter.setFont(font)
@@ -191,11 +198,11 @@ class CentralWorkspace(QWidget):
         placeholder = QWidget()
         self.stack.addWidget(placeholder)
 
-        # Aba no tab bar — tabData guarda o NOME (viaja junto no drag)
+        # Aba no tab bar — tabData guarda (name, title) (title viaja junto no drag)
         tab_index = self.tab_bar.addTab("")
         if tool.tooltip:
             self.tab_bar.setTabToolTip(tab_index, tool.tooltip)
-        self.tab_bar.setTabData(tab_index, name)
+        self.tab_bar.setTabData(tab_index, (name, tool.title))
 
         self._log.info(f"Tool registrada: {name}", code="TOOL_REG")
 
@@ -215,7 +222,8 @@ class CentralWorkspace(QWidget):
     def set_current_tool(self, name: str) -> None:
         """Muda para a aba com o nome da ferramenta."""
         for tab_id in range(self.tab_bar.count()):
-            if self.tab_bar.tabData(tab_id) == name:
+            data = self.tab_bar.tabData(tab_id)
+            if data and isinstance(data, tuple) and data[0] == name:
                 if self.tab_bar.currentIndex() == tab_id:
                     self._on_tab_changed(tab_id)
                 else:
@@ -224,7 +232,12 @@ class CentralWorkspace(QWidget):
 
     def current_tool_name(self) -> str | None:
         tid = self.tab_bar.currentIndex()
-        return self.tab_bar.tabData(tid) if tid >= 0 else None
+        if tid < 0:
+            return None
+        data = self.tab_bar.tabData(tid)
+        if data and isinstance(data, tuple):
+            return str(data[0])
+        return str(data) if data else None
 
     def current_tool_widget(self) -> QWidget | None:
         name = self.current_tool_name()
@@ -242,7 +255,8 @@ class CentralWorkspace(QWidget):
 
         tab_index = -1
         for tid in range(self.tab_bar.count()):
-            if self.tab_bar.tabData(tid) == name:
+            data = self.tab_bar.tabData(tid)
+            if data and isinstance(data, tuple) and data[0] == name:
                 tab_index = tid
                 break
         if tab_index < 0:
@@ -285,8 +299,11 @@ class CentralWorkspace(QWidget):
 
     @Slot(int)
     def _on_tab_changed(self, tab_index: int) -> None:
-        name = self.tab_bar.tabData(tab_index)
-        if not name or name not in self._tools:
+        data = self.tab_bar.tabData(tab_index)
+        if not data:
+            return
+        name = data[0] if isinstance(data, tuple) else str(data)
+        if name not in self._tools:
             return
 
         tool = self._tools[name]
@@ -315,8 +332,11 @@ class CentralWorkspace(QWidget):
         tab_index = self.tab_bar.tabAt(pos)
         if tab_index < 0:
             return
-        name = self.tab_bar.tabData(tab_index)
-        if not name or name not in self._tools:
+        data = self.tab_bar.tabData(tab_index)
+        if not data:
+            return
+        name = data[0] if isinstance(data, tuple) else str(data)
+        if name not in self._tools:
             return
 
         tool = self._tools[name]
@@ -331,8 +351,14 @@ class CentralWorkspace(QWidget):
 
     @Slot(int)
     def _on_tab_close_requested(self, tab_index: int) -> None:
-        name = self.tab_bar.tabData(tab_index)
-        if not name or name not in self._tools:
+        data = self.tab_bar.tabData(tab_index)
+        if not data:
+            self._log.error(
+                f"Tentativa de fechar aba inexistente: tab={tab_index}",
+                code="TAB_CLOSE_ERR")
+            return
+        name = data[0] if isinstance(data, tuple) else str(data)
+        if name not in self._tools:
             self._log.error(
                 f"Tentativa de fechar aba inexistente: tab={tab_index}",
                 code="TAB_CLOSE_ERR")

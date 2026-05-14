@@ -119,7 +119,7 @@ class ToolRegistry:
             name=ToolKey.TECLADOR_F.value,
             title="Teclador",
             widget_factory=_make_factory(
-                "plugins.hotkey.HotkeyPlugin", "HotkeyPlugin"
+                "plugins.hotkey.HotkeyPlugin", "TecladorF"
             ),
             tooltip="Automacao de teclado: digita uma string ao pressionar F",
             tool_type=ToolType.FOLDER,

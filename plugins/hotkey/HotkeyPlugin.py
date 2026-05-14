@@ -30,7 +30,7 @@ from core.manager.SignalManager import SignalManager
 from core.enum.ToolKey import ToolKey
 from resources.widgets.SimplePrimaryButton import SimplePrimaryButton
 
-class TecladorWorker(QThread):
+class HotkeyPlugin(QThread):
     """
     Thread separada para escutar teclas e digitar.
     Não bloqueia a UI do Qt.
@@ -126,7 +126,7 @@ class TecladorF(BasePlugin):
 
     def __init__(self, parent=None):
         super().__init__(tool_key=ToolKey.TECLADOR_F.value, parent=parent)
-        self._worker: TecladorWorker | None = None
+        self._worker: HotkeyPlugin | None = None
         self._running = False
         self._build_ui()
         self.load_prefs()
@@ -223,7 +223,7 @@ class TecladorF(BasePlugin):
         startup_delay = self._spin_startup.value()
         interval_delay = self._spin_interval.value()
 
-        self._worker = TecladorWorker(
+        self._worker = HotkeyPlugin(
             value=value,
             hotkey=hotkey,
             startup_delay=startup_delay,
