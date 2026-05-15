@@ -49,7 +49,7 @@ class WorkspaceManager(QWidget):
         super().__init__(parent)
         self._tools: List[Tool] = tools
         self._tool_map: Dict[str, Tool] = {t.name: t for t in tools}
-        self._sys_prefs = Preferences(section=ToolKey.SYSTEM.value)
+        self._sys_prefs: Dict[str, Any] = Preferences.load_tool_prefs(ToolKey.SYSTEM)
         self.logger = LogUtils(tool="System", class_name="WorkspaceManager")
 
         # Widgets internos
@@ -215,10 +215,9 @@ class WorkspaceManager(QWidget):
                 self._splitter.width() - SideWorkspace.W_TABS,
                 SideWorkspace.W_TABS,
             ])
-            prefs = Preferences(section=ToolKey.SYSTEM.value)
-            prefs.set("side_collapsed", True)
-            prefs.set("side_content_width", self._side_content_width)
-            prefs.save()
+            self._sys_prefs["side_collapsed"] = True
+            self._sys_prefs["side_content_width"] = self._side_content_width
+            Preferences.save_tool_prefs(ToolKey.SYSTEM, self._sys_prefs)
         else:
             self._drag_lock = False
             self._splitter.setSizes([
@@ -236,10 +235,9 @@ class WorkspaceManager(QWidget):
             content_w = side_total - SideWorkspace.W_TABS
             if content_w > 20:
                 self._side_content_width = content_w
-                prefs = Preferences(section=ToolKey.SYSTEM.value)
-                prefs.set("side_collapsed", False)
-                prefs.set("side_content_width", content_w)
-                prefs.save()
+                self._sys_prefs["side_collapsed"] = False
+                self._sys_prefs["side_content_width"] = content_w
+                Preferences.save_tool_prefs(ToolKey.SYSTEM, self._sys_prefs)
 
     # ────────────────────────────────────────────────────────────────
     # Movimentação BOTH entre workspaces

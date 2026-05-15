@@ -310,11 +310,10 @@ class TecladorF(BasePlugin):
 
     def save_prefs(self) -> None:
         """Lê os widgets e persiste as preferências."""
-        self.preferences.set("value", self._edit_value.text())
-        self.preferences.set("hotkey", self._edit_hotkey.text())
-        self.preferences.set("startup_delay", self._spin_startup.value())
-        self.preferences.set("interval_delay", self._spin_interval.value())
-        self.preferences.save()
+        self.preferences["value"] = self._edit_value.text()
+        self.preferences["hotkey"] = self._edit_hotkey.text()
+        self.preferences["startup_delay"] = self._spin_startup.value()
+        self.preferences["interval_delay"] = self._spin_interval.value()
 
     # ── Dirty tracking ──────────────────────────────────────────────
 

@@ -32,17 +32,17 @@ Uso:
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QCheckBox,
-    QLineEdit, QDoubleSpinBox, QScrollArea, QGridLayout, QPushButton,
+    QLineEdit, QDoubleSpinBox, QScrollArea, QPushButton,
 )
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QIcon
 
 from resources.widgets.SimpleDangerButton import SimpleDangerButton
 from utils.Preferences import Preferences
+from core.enum.ToolKey import ToolKey
 
 
 class PreferenceRow(QWidget):
@@ -146,7 +146,12 @@ class PreferenceItemGrid(QScrollArea):
         super().__init__(parent)
         self._config = config
         self._section = section
-        self._prefs = Preferences(section=section)
+        # Carrega dict do disco
+        try:
+            tk = ToolKey.from_name(section)
+        except ValueError:
+            tk = section
+        self._data: Dict[str, Any] = Preferences.load_tool_prefs(tk)
         self._rows: Dict[str, PreferenceRow] = {}
 
         self.setWidgetResizable(True)
@@ -164,7 +169,6 @@ class PreferenceItemGrid(QScrollArea):
 
     def _rebuild(self):
         """Remove todas as linhas e recria a partir do config."""
-        # Limpa layout
         while self._layout.count():
             item = self._layout.takeAt(0)
             w = item.widget()
@@ -180,7 +184,7 @@ class PreferenceItemGrid(QScrollArea):
             return
 
         for key, cfg in self._config.items():
-            current = self._prefs.get(key, cfg.get("default"))
+            current = self._data.get(key, cfg.get("default"))
             row = PreferenceRow(key, cfg, current)
             row.removed.connect(self._on_row_removed)
             self._rows[key] = row
@@ -190,14 +194,18 @@ class PreferenceItemGrid(QScrollArea):
         """Remove o item da memória e da UI."""
         row = self._rows.pop(key, None)
         if row:
-            self._prefs.set(key, None)
+            self._data[key] = None
             self._layout.removeWidget(row)
             row.deleteLater()
             self.changed.emit()
 
     def load_values(self):
         """Recarrega valores das preferências do disco."""
-        self._prefs.load_and_get("", None)  # força reload
+        try:
+            tk = ToolKey.from_name(self._section)
+        except ValueError:
+            tk = self._section
+        self._data = Preferences.load_tool_prefs(tk)
         self._rebuild()
 
     def save_values(self) -> Dict[str, Any]:
@@ -208,24 +216,39 @@ class PreferenceItemGrid(QScrollArea):
         saved = {}
         for key, row in self._rows.items():
             val = row.get_value()
-            self._prefs.set(key, val)
+            self._data[key] = val
             saved[key] = val
-        self._prefs.save()
+
+        try:
+            tk = ToolKey.from_name(self._section)
+        except ValueError:
+            tk = self._section
+        Preferences.save_tool_prefs(tk, self._data)
         return saved
 
     def reset_values(self):
         """Restaura todos os valores para os defaults do config."""
         for key, cfg in self._config.items():
             default = cfg.get("default")
-            self._prefs.set(key, default)
-        self._prefs.save()
+            self._data[key] = default
+
+        try:
+            tk = ToolKey.from_name(self._section)
+        except ValueError:
+            tk = self._section
+        Preferences.save_tool_prefs(tk, self._data)
         self._rebuild()
         self.changed.emit()
 
     def clear_all(self):
         """Remove todos os itens das preferências desta seção."""
         for key in list(self._rows.keys()):
-            self._prefs.set(key, None)
-        self._prefs.save()
+            self._data[key] = None
+
+        try:
+            tk = ToolKey.from_name(self._section)
+        except ValueError:
+            tk = self._section
+        Preferences.save_tool_prefs(tk, self._data)
         self._rebuild()
         self.changed.emit()

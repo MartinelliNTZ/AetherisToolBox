@@ -238,27 +238,23 @@ class RenamerPlugin(BasePlugin):
 
     def save_prefs(self):
         """Salva estado atual."""
-        self.preferences.set("origem", self._sel_origem.path())
-        self.preferences.set("destino", self._sel_destino.path())
-        self.preferences.set("modo", self._combo_modo.currentText())
-        self.preferences.set("texto", self._edit_texto.text())
-        self.preferences.set("subst", self._edit_subst.text())
-        self.preferences.set("qtd", self._spin_qtd.value())
-        self.preferences.set("case_sensitive", self._chk_case_sensitive.isChecked())
-        self.preferences.set("trecho_exato", self._chk_trecho_exato.isChecked())
-        self.preferences.set("subpastas", self._chk_subpastas.isChecked())
-        self.preferences.set("extensoes", self._grid_ext.all)
-        self.preferences.save()
+        self.preferences["origem"] = self._sel_origem.path()
+        self.preferences["destino"] = self._sel_destino.path()
+        self.preferences["modo"] = self._combo_modo.currentText()
+        self.preferences["texto"] = self._edit_texto.text()
+        self.preferences["subst"] = self._edit_subst.text()
+        self.preferences["qtd"] = self._spin_qtd.value()
+        self.preferences["case_sensitive"] = self._chk_case_sensitive.isChecked()
+        self.preferences["trecho_exato"] = self._chk_trecho_exato.isChecked()
+        self.preferences["subpastas"] = self._chk_subpastas.isChecked()
+        self.preferences["extensoes"] = self._grid_ext.all
 
     def _reset_prefs(self):
         """Restaura valores padrão."""
+        self.preferences.clear()
+        from core.enum.ToolKey import ToolKey
         from utils.Preferences import Preferences
-        self.preferences = Preferences(section=ToolKey.RENAMER.value)
-        # Limpa todas as keys da seção
-        data = self.preferences.to_dict()
-        for k in list(data.keys()):
-            self.preferences.set(k, None)
-        self.preferences.save()
+        Preferences.save_tool_prefs(ToolKey.RENAMER, self.preferences)
         self.load_prefs()
         self.logger.info("Preferências restauradas para o padrão", code="RENAMER_RESET")
         MessageBox.show_info("Preferências restauradas para o padrão.", title="Restaurado")

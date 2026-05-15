@@ -25,6 +25,7 @@ from PySide6.QtWidgets import QTableWidgetItem, QLineEdit, QSpinBox, QPushButton
 from utils.MessageBox import MessageBox
 
 from utils.Preferences import Preferences
+from core.enum.ToolKey import ToolKey
 from resources.styles.styles import AppStyles, Palette
 from plugins.tensorflow_classifier.classifier_pipeline import ClassifierPipeline
 from plugins.tensorflow_classifier.pipeline_config import PipelineConfig, PipelineConfigError
@@ -71,9 +72,9 @@ class PipelineWorker(QThread):
 class MainController:
     def __init__(self, view):
         self.view = view
-        self.preferences = Preferences(Path("config") / "preferences.json")
+        self._data: Dict[str, Any] = Preferences.load_tool_prefs(ToolKey.CLASSIFIER)
         self.worker = None
-        self._loading_preferences = False
+        self._loading_preferences = True
         self._run_started_at = None
         self._run_metrics = {}
         self._eta_target = None
@@ -359,8 +360,8 @@ class MainController:
             return
 
         self._loading_preferences = True
-        self.preferences.savepreferences({})
-        self.preferences.loadpreferences()
+        self._data = {}
+        Preferences.save_tool_prefs(ToolKey.CLASSIFIER, self._data)
 
         self.view.row_img_treino.edit.setText("dados/imagemTreino.tif")
         self.view.row_img_classif.edit.setText("dados/imagemCompleta.tif")
@@ -561,31 +562,31 @@ class MainController:
 
     def loadpreferences(self) -> None:
         self._loading_preferences = True
-        self.preferences.loadpreferences()
+        self._data = Preferences.load_tool_prefs(ToolKey.CLASSIFIER)
 
-        self.view.row_img_treino.edit.setText(str(self.preferences.get("training_image", self.view.row_img_treino.path())))
-        self.view.row_img_classif.edit.setText(str(self.preferences.get("classification_image", self.view.row_img_classif.path())))
-        self.view.row_img_saida.edit.setText(str(self.preferences.get("output", self.view.row_img_saida.path())))
-        self.view.edit_camadas.setText(str(self.preferences.get("hidden_layers", self.view.edit_camadas.text())))
-        self.view.combo_ativacao.setCurrentText(str(self.preferences.get("activation", self.view.combo_ativacao.currentText())))
-        self.view.spin_dropout.setValue(float(self.preferences.get("dropout_rate", self.view.spin_dropout.value())))
-        self.view.spin_epochs.setValue(int(self.preferences.get("epochs", self.view.spin_epochs.value())))
-        self.view.spin_batch_train.setValue(int(self.preferences.get("batch_size_train", self.view.spin_batch_train.value())))
-        self.view.spin_batch_pred.setValue(int(self.preferences.get("batch_size_pred", self.view.spin_batch_pred.value())))
-        self.view.spin_test_size.setValue(float(self.preferences.get("test_size", self.view.spin_test_size.value())))
-        self.view.spin_random.setValue(int(self.preferences.get("random_state", self.view.spin_random.value())))
-        self.view.spin_ram.setValue(int(self.preferences.get("ram_limit_pct", self.view.spin_ram.value())))
-        self.view.chk_mascara.setChecked(bool(self.preferences.get("use_mask", self.view.chk_mascara.isChecked())))
-        self.view.chk_zero_nodata.setChecked(bool(self.preferences.get("zero_as_nodata", self.view.chk_zero_nodata.isChecked())))
+        self.view.row_img_treino.edit.setText(str(self._data.get("training_image", self.view.row_img_treino.path())))
+        self.view.row_img_classif.edit.setText(str(self._data.get("classification_image", self.view.row_img_classif.path())))
+        self.view.row_img_saida.edit.setText(str(self._data.get("output", self.view.row_img_saida.path())))
+        self.view.edit_camadas.setText(str(self._data.get("hidden_layers", self.view.edit_camadas.text())))
+        self.view.combo_ativacao.setCurrentText(str(self._data.get("activation", self.view.combo_ativacao.currentText())))
+        self.view.spin_dropout.setValue(float(self._data.get("dropout_rate", self.view.spin_dropout.value())))
+        self.view.spin_epochs.setValue(int(self._data.get("epochs", self.view.spin_epochs.value())))
+        self.view.spin_batch_train.setValue(int(self._data.get("batch_size_train", self.view.spin_batch_train.value())))
+        self.view.spin_batch_pred.setValue(int(self._data.get("batch_size_pred", self.view.spin_batch_pred.value())))
+        self.view.spin_test_size.setValue(float(self._data.get("test_size", self.view.spin_test_size.value())))
+        self.view.spin_random.setValue(int(self._data.get("random_state", self.view.spin_random.value())))
+        self.view.spin_ram.setValue(int(self._data.get("ram_limit_pct", self.view.spin_ram.value())))
+        self.view.chk_mascara.setChecked(bool(self._data.get("use_mask", self.view.chk_mascara.isChecked())))
+        self.view.chk_zero_nodata.setChecked(bool(self._data.get("zero_as_nodata", self.view.chk_zero_nodata.isChecked())))
         self.view.spin_alpha.setValue(
-            int(self.preferences.get("nodata_threshold", self.preferences.get("alpha_threshold", self.view.spin_alpha.value())))
+            int(self._data.get("nodata_threshold", self._data.get("alpha_threshold", self.view.spin_alpha.value())))
         )
-        self.view.chk_salvar_modelo.setChecked(bool(self.preferences.get("save_model", self.view.chk_salvar_modelo.isChecked())))
-        self.view.row_modelo_path.edit.setText(str(self.preferences.get("model_path", self.view.row_modelo_path.path())))
-        self.view.combo_model_action.setCurrentText(str(self.preferences.get("model_action", self.view.combo_model_action.currentText())))
-        self.view.row_modelo_existente.edit.setText(str(self.preferences.get("existing_model_path", self.view.row_modelo_existente.path())))
+        self.view.chk_salvar_modelo.setChecked(bool(self._data.get("save_model", self.view.chk_salvar_modelo.isChecked())))
+        self.view.row_modelo_path.edit.setText(str(self._data.get("model_path", self.view.row_modelo_path.path())))
+        self.view.combo_model_action.setCurrentText(str(self._data.get("model_action", self.view.combo_model_action.currentText())))
+        self.view.row_modelo_existente.edit.setText(str(self._data.get("existing_model_path", self.view.row_modelo_existente.path())))
 
-        shapefiles = self.preferences.get("shapefiles", [])
+        shapefiles = self._data.get("shapefiles", [])
         if isinstance(shapefiles, list) and shapefiles:
             self.view.table_shp.setRowCount(0)
             for item in shapefiles:
@@ -600,9 +601,8 @@ class MainController:
     def savepreferences(self) -> None:
         if self._loading_preferences:
             return
-        data = self.preferences.to_dict()
-        data.update(self.get_pipeline_config())
-        self.preferences.savepreferences(data)
+        self._data.update(self.get_pipeline_config())
+        Preferences.save_tool_prefs(ToolKey.CLASSIFIER, self._data)
 
     def _get_raster_pixels_and_gb(self, path: Path) -> tuple[float, float]:
         pixels = 0.0
@@ -652,8 +652,8 @@ class MainController:
 
     def _avg_px_per_sec(self, prefix: str, num_classes: int = 2) -> float:
         suffix = f"_{num_classes}class"
-        total_pixels = float(self.preferences.get(f"{prefix}_total_pixels{suffix}", 1000.0))
-        total_seconds = float(self.preferences.get(f"{prefix}_total_seconds{suffix}", 1.0))
+        total_pixels = float(self._data.get(f"{prefix}_total_pixels{suffix}", 1000.0))
+        total_seconds = float(self._data.get(f"{prefix}_total_seconds{suffix}", 1.0))
         if total_seconds <= 0:
             total_seconds = 1.0
         if total_pixels <= 0:
@@ -700,13 +700,13 @@ class MainController:
         train_seconds = elapsed * (train_pixels / (train_pixels + class_pixels)) if (train_pixels + class_pixels) > 0 else 0.0
         class_seconds = max(elapsed - train_seconds, 0.0)
 
-        self.preferences.set(f"train_total_pixels{suffix}", float(self.preferences.get(f"train_total_pixels{suffix}", 1000.0)) + train_pixels)
-        self.preferences.set(f"train_total_gb{suffix}", float(self.preferences.get(f"train_total_gb{suffix}", 0.0)) + train_gb)
-        self.preferences.set(f"train_total_seconds{suffix}", float(self.preferences.get(f"train_total_seconds{suffix}", 1.0)) + train_seconds)
+        self._data[f"train_total_pixels{suffix}"] = float(self._data.get(f"train_total_pixels{suffix}", 1000.0)) + train_pixels
+        self._data[f"train_total_gb{suffix}"] = float(self._data.get(f"train_total_gb{suffix}", 0.0)) + train_gb
+        self._data[f"train_total_seconds{suffix}"] = float(self._data.get(f"train_total_seconds{suffix}", 1.0)) + train_seconds
 
-        self.preferences.set(f"class_total_pixels{suffix}", float(self.preferences.get(f"class_total_pixels{suffix}", 1000.0)) + class_pixels)
-        self.preferences.set(f"class_total_gb{suffix}", float(self.preferences.get(f"class_total_gb{suffix}", 0.0)) + class_gb)
-        self.preferences.set(f"class_total_seconds{suffix}", float(self.preferences.get(f"class_total_seconds{suffix}", 1.0)) + class_seconds)
+        self._data[f"class_total_pixels{suffix}"] = float(self._data.get(f"class_total_pixels{suffix}", 1000.0)) + class_pixels
+        self._data[f"class_total_gb{suffix}"] = float(self._data.get(f"class_total_gb{suffix}", 0.0)) + class_gb
+        self._data[f"class_total_seconds{suffix}"] = float(self._data.get(f"class_total_seconds{suffix}", 1.0)) + class_seconds
 
         self.savepreferences()
         self._append_log(

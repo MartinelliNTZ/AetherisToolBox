@@ -60,25 +60,20 @@ class LogViewerPlugin(BasePlugin):
 
     def load_prefs(self) -> None:
         """Carrega search_text e level_filter do disco e aplica nos widgets."""
-        from utils.Preferences import Preferences
-        prefs = Preferences(section="LogViewer")
-
-        search_text = prefs.get("search_text", "")
+        search_text = self.preferences.get("search_text", "")
         if search_text:
             self.search_input.setText(search_text)
 
-        level_filter = prefs.get("level_filter", "ALL")
+        level_filter = self.preferences.get("level_filter", "ALL")
         index = self.level_combo.findText(level_filter)
         if index >= 0:
             self.level_combo.setCurrentIndex(index)
 
     def save_prefs(self) -> None:
         """Le os valores atuais dos widgets e salva no disco."""
-        from utils.Preferences import Preferences
-        prefs = Preferences(section="LogViewer")
-        prefs.set("search_text", self.search_input.text())
-        prefs.set("level_filter", self.level_combo.currentText())
-        prefs.save()
+        self.preferences["search_text"] = self.search_input.text()
+        self.preferences["level_filter"] = self.level_combo.currentText()
+        # O closeEvent do BasePlugin persiste com save_tool_prefs automaticamente
 
     # ═════════════════════════════════════════════════════════════════════
     # Construcao da UI

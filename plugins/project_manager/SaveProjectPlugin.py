@@ -63,7 +63,6 @@ class SaveProjectPlugin(BasePlugin):
             "Prefs carregadas no init",
             code="PROJ_LOAD_INIT",
             current_project_raw=self._current_project,
-            sys_prefs_section=self.sys_preferences._section,
         )
 
     # ── Fluxo principal ────────────────────────────────────────────
@@ -71,10 +70,10 @@ class SaveProjectPlugin(BasePlugin):
     def _run_project_flow(self) -> None:
         """Executa o fluxo de criação/atualização de projeto."""
         try:
-            # Força recarregar do disco para pegar alterações externas
-            self._current_project = self.sys_preferences.load_and_get(
-                "current_project", None
-            )
+            # Recarrega do disco para pegar alterações externas
+            from utils.Preferences import Preferences
+            self.sys_preferences = Preferences.load_tool_prefs(ToolKey.SYSTEM)
+            self._current_project = self.sys_preferences.get("current_project", None)
 
             self.logger.info(
                 "Verificando current_project",
@@ -198,8 +197,9 @@ class SaveProjectPlugin(BasePlugin):
             return
 
         # 4. Salva current_project nas preferências do sistema
-        self.sys_preferences.set("current_project", result["file_path"])
-        self.sys_preferences.save()
+        from utils.Preferences import Preferences
+        self.sys_preferences["current_project"] = result["file_path"]
+        Preferences.save_tool_prefs(ToolKey.SYSTEM, self.sys_preferences)
         self._current_project = result["file_path"]
 
         self.logger.info(
