@@ -328,7 +328,16 @@ class CentralWorkspace(QWidget):
 
         tool = self._tools[name]
 
-        if not tool.is_loaded:
+        # Verifica se o widget no stack já é o scroll area correto
+        current_stack_widget = self.stack.widget(tab_index)
+        needs_load = True
+
+        if isinstance(current_stack_widget, QScrollArea):
+            inner = current_stack_widget.widget()
+            if inner is not None and hasattr(inner, 'tool_key') and inner.tool_key == name:
+                needs_load = False
+
+        if needs_load:
             self._log.info(f"Carregando tool (lazy): {name}", code="LAZY_LOAD")
             widget = tool.widget
             scroll = QScrollArea()
@@ -338,10 +347,9 @@ class CentralWorkspace(QWidget):
             scroll.setWidget(widget)
             scroll.setObjectName(f"workspace_scroll_{name}")
 
-            old = self.stack.widget(tab_index)
-            if old:
-                self.stack.removeWidget(old)
-                old.deleteLater()
+            if current_stack_widget:
+                self.stack.removeWidget(current_stack_widget)
+                current_stack_widget.deleteLater()
             self.stack.insertWidget(tab_index, scroll)
 
         self.stack.setCurrentIndex(tab_index)

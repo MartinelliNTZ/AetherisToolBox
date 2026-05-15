@@ -37,20 +37,32 @@ class BasePlugin(QWidget):
     Ao ser fechada,   emite: SignalManager.tool_closed(tool_key)
 
     Atributos:
-        self.logger   : LogUtils — instanciado no __init__
-        self.preferences : Preferences — gerenciador de prefs da tool
-        self.tool_key : str — identificador único da ferramenta
+        self.logger         : LogUtils — instanciado no __init__
+        self.preferences    : Preferences — gerenciador de prefs da tool
+        self.sys_preferences: Preferences | None — gerenciador de prefs do sistema
+                              (só disponível se sys_prefs=True no __init__)
+        self.tool_key       : str — identificador único da ferramenta
     """
 
-    def __init__(self, *, tool_key: str, parent: QWidget | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        tool_key: str,
+        parent: QWidget | None = None,
+        sys_prefs: bool = False,
+    ) -> None:
         super().__init__(parent)
         self.tool_key = tool_key
 
         from core.config.LogUtils import LogUtils
         self.logger = LogUtils(tool=tool_key, class_name=self.__class__.__name__)
 
+        from core.enum.ToolKey import ToolKey
         from utils.Preferences import Preferences
         self.preferences = Preferences(section=tool_key)
+        self.sys_preferences: "Preferences | None" = None
+        if sys_prefs:
+            self.sys_preferences = Preferences(section=ToolKey.SYSTEM.value)
 
         from core.manager.SignalManager import SignalManager
         SignalManager.instance().tool_opened.emit(tool_key, self)
@@ -64,6 +76,8 @@ class BasePlugin(QWidget):
         self.save_prefs()
         # Persiste as preferências em disco (o child pode ter feito set())
         self.preferences.save()
+        if self.sys_preferences is not None:
+            self.sys_preferences.save()
         self.logger.info(
             "Preferências persistidas ao fechar",
             code="TOOL_CLOSE_DONE",

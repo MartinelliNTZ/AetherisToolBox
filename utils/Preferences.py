@@ -139,7 +139,8 @@ class Preferences:
 
         Util para quando outro processo/modificou o arquivo.
         """
-        self._cache_loaded = False
+        # Reseta o cache da CLASSE (type()) — atributo de classe
+        type(self)._cache_loaded = False
         return self.get(key, default)
 
     def to_dict(self) -> Dict[str, Any]:

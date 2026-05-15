@@ -24,7 +24,6 @@ from core.enum.ToolKey import ToolKey
 from core.model.BasePlugin import BasePlugin
 from utils.ExplorerUtils import ExplorerUtils
 from utils.MessageBox import MessageBox
-from utils.Preferences import Preferences
 from utils.ProjectUtil import ProjectUtil
 
 
@@ -37,7 +36,12 @@ class SaveProjectPlugin(BasePlugin):
     _MTL_FILTER = "Projeto Aetheris (*.mtl)"
 
     def __init__(self, parent=None):
-        super().__init__(tool_key=ToolKey.SAVE_PROJECT.value, parent=parent)
+        # sys_prefs=True carrega self.sys_preferences (seção System)
+        super().__init__(
+            tool_key=ToolKey.SAVE_PROJECT.value,
+            parent=parent,
+            sys_prefs=True,
+        )
 
         # Widget vazio (placeholder) — nunca será exibido como aba
         layout = QVBoxLayout(self)
@@ -46,21 +50,60 @@ class SaveProjectPlugin(BasePlugin):
         placeholder.setVisible(False)
         layout.addWidget(placeholder)
 
+        # Carrega current_project do cache (já disponível via sys_preferences)
+        self._load_prefs()
+
         # Executa o fluxo principal no próximo ciclo do event loop
         QTimer.singleShot(0, self._run_project_flow)
+
+    def _load_prefs(self) -> None:
+        """Carreva current_project das preferências do sistema."""
+        self._current_project = self.sys_preferences.get("current_project", None)
+        self.logger.info(
+            "Prefs carregadas no init",
+            code="PROJ_LOAD_INIT",
+            current_project_raw=self._current_project,
+            sys_prefs_section=self.sys_preferences._section,
+        )
 
     # ── Fluxo principal ────────────────────────────────────────────
 
     def _run_project_flow(self) -> None:
         """Executa o fluxo de criação/atualização de projeto."""
         try:
-            sys_prefs = Preferences(section=ToolKey.SYSTEM.value)
-            current_project = sys_prefs.get("current_project", None)
+            # Força recarregar do disco para pegar alterações externas
+            self._current_project = self.sys_preferences.load_and_get(
+                "current_project", None
+            )
 
-            if current_project and os.path.isfile(current_project):
-                self._handle_save_existing(current_project, sys_prefs)
+            self.logger.info(
+                "Verificando current_project",
+                code="PROJ_CHECK",
+                current_project_value=self._current_project,
+                current_project_type=type(self._current_project).__name__,
+                file_exists=(
+                    os.path.isfile(self._current_project)
+                    if self._current_project
+                    else False
+                ),
+                cwd=os.getcwd(),
+            )
+
+            if self._current_project and os.path.isfile(self._current_project):
+                self._handle_save_existing()
             else:
-                self._handle_create_new(sys_prefs)
+                if not self._current_project:
+                    self.logger.info(
+                        "current_project é None ou vazio — modo criar",
+                        code="PROJ_MODE_CREATE_NONE",
+                    )
+                else:
+                    self.logger.info(
+                        "current_project não encontrado no disco — modo criar",
+                        code="PROJ_MODE_CREATE_MISSING",
+                        stored_path=self._current_project,
+                    )
+                self._handle_create_new()
 
         except Exception as e:
             self.logger.error(
@@ -78,16 +121,19 @@ class SaveProjectPlugin(BasePlugin):
 
     # ── Modo "Salvar existente" ────────────────────────────────────
 
-    def _handle_save_existing(
-        self, current_project: str, sys_prefs: Preferences
-    ) -> None:
+    def _handle_save_existing(self) -> None:
         """Atualiza o last_modified do projeto atual."""
-        result = ProjectUtil.update_last_modified(current_project)
+        self.logger.info(
+            "Modo salvar: atualizando last_modified",
+            code="PROJ_SAVING",
+            file_path=self._current_project,
+        )
+        result = ProjectUtil.update_last_modified(self._current_project)
         if result is not None:
             self.logger.info(
                 "Projeto atualizado",
                 code="PROJ_SAVE",
-                file_path=current_project,
+                file_path=self._current_project,
                 project_name=result.get("project_name", ""),
             )
             MessageBox.show_info(
@@ -98,17 +144,22 @@ class SaveProjectPlugin(BasePlugin):
             self.logger.warning(
                 "Falha ao atualizar projeto existente",
                 code="PROJ_SAVE_ERR",
-                file_path=current_project,
+                file_path=self._current_project,
             )
-            self._handle_create_new(sys_prefs)
+            self._handle_create_new()
 
     # ── Modo "Criar novo" ─────────────────────────────────────────
 
-    def _handle_create_new(self, sys_prefs: Preferences) -> None:
+    def _handle_create_new(self) -> None:
         """
         Abre o diálogo nativo "Salvar como" com filtro .mtl.
         Tudo em UMA etapa: local + nome + extensão já inclusa.
         """
+        self.logger.info(
+            "Modo criar: abrindo diálogo salvar como",
+            code="PROJ_CREATING",
+        )
+
         # 1. Diálogo nativo do Windows — escolhe local e nome
         file_path = ExplorerUtils.save_file(
             title="Salvar projeto como",
@@ -122,6 +173,14 @@ class SaveProjectPlugin(BasePlugin):
         # 2. Extrai pasta e nome do caminho completo
         folder = os.path.dirname(file_path)
         project_name = os.path.splitext(os.path.basename(file_path))[0]
+
+        self.logger.info(
+            "Usuário escolheu",
+            code="PROJ_CHOOSED",
+            folder=folder,
+            project_name=project_name,
+            full_path=file_path,
+        )
 
         # 3. ProjectUtil cuida da validação — se já existe, pergunta
         result = ProjectUtil.create_project_safe(folder, project_name, self)
@@ -139,14 +198,16 @@ class SaveProjectPlugin(BasePlugin):
             return
 
         # 4. Salva current_project nas preferências do sistema
-        sys_prefs.set("current_project", result["file_path"])
-        sys_prefs.save()
+        self.sys_preferences.set("current_project", result["file_path"])
+        self.sys_preferences.save()
+        self._current_project = result["file_path"]
 
         self.logger.info(
             "Projeto criado com sucesso",
             code="PROJ_CREATED",
             file_path=result["file_path"],
             project_name=project_name,
+            saved_in_prefs=True,
         )
         MessageBox.show_info(
             f"Projeto '{project_name}' criado com sucesso!\n\n"
@@ -162,9 +223,9 @@ class SaveProjectPlugin(BasePlugin):
         self.deleteLater()
 
     def load_prefs(self) -> None:
-        """Noop — não há preferências para carregar."""
+        """Carreva preferências."""
         pass
 
     def save_prefs(self) -> None:
-        """Noop — não há preferências para persistir."""
+        """Não há preferências específicas da tool para persistir."""
         pass
