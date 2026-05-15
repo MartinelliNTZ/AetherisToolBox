@@ -58,13 +58,15 @@ class BasePlugin(QWidget):
         from utils.Preferences import Preferences
         from core.enum.ToolKey import ToolKey
 
-        self.preferences: Dict[str, Any] = Preferences.load_tool_prefs(tool_key)
+        self.preferences: Dict[str,
+                               Any] = Preferences.load_tool_prefs(tool_key)
         self.sys_preferences: Dict[str, Any] | None = None
         if sys_prefs:
             self.sys_preferences = Preferences.load_tool_prefs(ToolKey.SYSTEM)
 
         from core.config.LogUtils import LogUtils
-        self.logger = LogUtils(tool=tool_key, class_name=self.__class__.__name__)
+        self.logger = LogUtils(
+            tool=tool_key, class_name=self.__class__.__name__)
 
         from core.manager.SignalManager import SignalManager
         SignalManager.instance().tool_opened.emit(tool_key, self)
@@ -76,12 +78,7 @@ class BasePlugin(QWidget):
             tool_key=self.tool_key,
         )
         self.save_prefs()
-
-        from utils.Preferences import Preferences
-        from core.enum.ToolKey import ToolKey
-
-        Preferences.save_tool_prefs(self.tool_key, self.preferences)
-
+        self.force_save_prefs()
         self.logger.info(
             "Preferências persistidas ao fechar",
             code="TOOL_CLOSE_DONE",
@@ -90,6 +87,24 @@ class BasePlugin(QWidget):
         from core.manager.SignalManager import SignalManager
         SignalManager.instance().tool_closed.emit(self.tool_key)
         super().closeEvent(event)
+
+    def force_save_prefs(self, toolkey = None) -> None:
+        """Força a persistência imediata das preferências atuais."""
+        if toolkey is None:
+            toolkey = self.tool_key
+        self.logger.info(
+            "Forçando salvamento de preferências",
+            code="TOOL_FORCE_SAVE",
+            tool_key=self.tool_key,
+        )
+        from utils.Preferences import Preferences        
+
+        Preferences.save_tool_prefs(self.tool_key, self.preferences)
+        self.logger.info(
+            "Preferências forçadas a salvar",
+            code="TOOL_FORCE_SAVE_DONE",
+            tool_key=toolkey,
+        )
 
     # ── Preferences (override nos filhos) ────────────────────────────
 
