@@ -1,21 +1,20 @@
 # -*- coding: utf-8 -*-
 """
-Preferences — Gerenciador de preferencias por ferramenta
-==========================================================
-Cada ferramenta (tool) pode ter suas proprias preferencias salvas
-em uma secao separada dentro do arquivo JSON.
+Preferences — Gerenciador de preferências por ferramenta
+=========================================================
+Métodos estáticos para salvar/carregar preferências de cada
+ferramenta no arquivo config/preferences.json.
 
 Uso:
     from utils.Preferences import Preferences
+    from core.enum.ToolKey import ToolKey
 
-    # Criar sessao para uma tool especifica
-    prefs = Preferences(section="LogViewer")
-    prefs.set("search_text", "erro")
-    prefs.set("level_filter", "ERROR")
-    prefs.save()
+    # Salvar preferências de uma tool (merge, não sobrescreve)
+    Preferences.save_tool_prefs(ToolKey.CONSOLE, {"font_size": 12, "theme": "dark"})
 
-    text = prefs.get("search_text", "")
-    level = prefs.get("level_filter", "ALL")
+    # Carregar preferências de uma tool
+    data = Preferences.load_tool_prefs(ToolKey.CONSOLE)
+    font_size = data.get("font_size", 10)
 """
 
 from __future__ import annotations
@@ -30,157 +29,99 @@ from core.enum.ToolKey import ToolKey
 
 class Preferences:
     """
-    Gerenciador de preferencias com suporte a secoes por ferramenta.
+    Gerenciador de preferências estático.
 
     O arquivo preferences.json tem a estrutura:
     {
-        "LogViewer": {
-            "search_text": "erro",
-            "level_filter": "ERROR"
-        },
         "Console": {
-            "font_size": 12
+            "font_size": 12,
+            "theme": "dark"
+        },
+        "LogViewer": {
+            "search_text": "erro"
         }
     }
 
-    Cada instancia de Preferences opera dentro de uma secao (section).
-    Se section for None, opera no nivel raiz (compatibilidade retroativa).
+    Uso exclusivamente via métodos estáticos.
+    Não instancie esta classe.
     """
 
     _DEFAULT_PATH: Path = Path("config") / "preferences.json"
-
-    # Cache de classe para evitar ler o arquivo varias vezes
-    _cached_data: Dict[str, Any] = {}
-    _cache_loaded: bool = False
-
-    # Logger estatico compartilhado
     _logger_instance = None
 
-    @classmethod
-    def _get_logger(cls):
-        """Retorna logger estatico para Preferences."""
-        if cls._logger_instance is None:
-            cls._logger_instance = LogUtils(
-                tool=ToolKey.SYSTEM.value, class_name="Preferences"
-            )
-        return cls._logger_instance
+    # ── API Pública ──────────────────────────────────────────────────
 
-    def __init__(self, section: str | None = None):
+    @staticmethod
+    def save_tool_prefs(tool_key: ToolKey, data: Dict[str, Any]) -> None:
         """
+        Salva (merge) as preferências de uma ferramenta no arquivo JSON.
+
+        - Lê o arquivo atual do disco
+        - Mescla APENAS a seção da tool_key com os dados fornecidos
+        - Persiste o resultado completo
+
         Args:
-            section: Nome da secao (geralmente ToolKey.value).
-                     Se None, opera no nivel raiz.
+            tool_key: Chave da ferramenta (ToolKey enum)
+            data: Dicionário com as preferências a salvar
         """
-        self._section = section
+        tool_name = tool_key.value if isinstance(tool_key, ToolKey) else str(tool_key)
+        all_data = Preferences._load_from_disk()
 
-    # ── Leitura e escrita ─────────────────────────────────────────────
-
-    def get(self, key: str, default: Any = None) -> Any:
-        """Retorna o valor de uma chave dentro da secao."""
-        data = self._load()
-        if self._section:
-            section_data = data.get(self._section, {})
-            return section_data.get(key, default)
-        return data.get(key, default)
-
-    def set(self, key: str, value: Any) -> None:
-        """Define um valor dentro da secao (em memoria apenas)."""
-        data = self._load()
-        if self._section:
-            if self._section not in data:
-                data[self._section] = {}
-            data[self._section][key] = value
-        else:
-            data[key] = value
-        self._cached_data = data
-
-    def save(self) -> None:
-        """
-        Persiste APENAS a secao atual em disco (merge seguro).
-
-        Le o arquivo atual do disco para preservar secoes de outras
-        ferramentas que nao estao no cache local, faz merge apenas
-        da secao desta instancia, e escreve o resultado completo.
-        """
-        # Le o estado atual do disco
-        disk_data = self._load_from_disk()
-
-        # Le o cache (pode ter dados mais recentes que o disco)
-        cache_data = self._load()
-
-        # Mescla: para nossa secao, usa o cache (que tem mudancas locais)
-        # Para outras secoes, usa o disco (preserva o que outros salvaram)
-        if self._section:
-            merged = dict(disk_data)
-            merged[self._section] = cache_data.get(self._section, {})
-        else:
-            # Modo raiz: mescla tudo do cache sobre o disco
-            merged = dict(disk_data)
-            merged.update(cache_data)
-
-        # Atualiza o cache com o merge
-        self._cached_data = merged
-        type(self)._cache_loaded = True
+        # Merge na seção da tool
+        section = all_data.get(tool_name, {})
+        section.update(data)
+        all_data[tool_name] = section
 
         # Persiste
-        path = self._DEFAULT_PATH
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("w", encoding="utf-8") as f:
-            json.dump(merged, f, indent=2, ensure_ascii=False)
-        self._get_logger().info(
-            "Preferencias salvas",
+        Preferences._write_to_disk(all_data)
+        Preferences._get_logger().info(
+            "Preferências salvas",
             code="PREFS_SAVE",
-            section=self._section,
+            tool=tool_name,
+            keys=list(data.keys()),
         )
 
-    def load_and_get(self, key: str, default: Any = None) -> Any:
+    @staticmethod
+    def load_tool_prefs(tool_key: ToolKey) -> Dict[str, Any]:
         """
-        Carrega do disco (forca reload) e retorna o valor.
+        Carrega as preferências de uma ferramenta do arquivo JSON.
 
-        Util para quando outro processo/modificou o arquivo.
+        Args:
+            tool_key: Chave da ferramenta (ToolKey enum)
+
+        Returns:
+            Dicionário com as preferências da tool (vazio se não existir)
         """
-        # Reseta o cache da CLASSE (type()) — atributo de classe
-        type(self)._cache_loaded = False
-        return self.get(key, default)
-
-    def to_dict(self) -> Dict[str, Any]:
-        """Retorna toda a secao como dict."""
-        data = self._load()
-        if self._section:
-            return dict(data.get(self._section, {}))
-        return dict(data)
-
-    # ── Metodos estaticos (acesso global) ────────────────────────────
-
-    @classmethod
-    def all_data(cls) -> Dict[str, Any]:
-        """Retorna o JSON completo de todas as secoes (sempre do disco)."""
-        data = cls._load_from_disk()
-        cls._get_logger().info(
-            "Preferencias carregadas",
+        tool_name = tool_key.value if isinstance(tool_key, ToolKey) else str(tool_key)
+        all_data = Preferences._load_from_disk()
+        section = all_data.get(tool_name, {})
+        Preferences._get_logger().info(
+            "Preferências carregadas",
             code="PREFS_LOAD",
-            sections=list(data.keys()),
+            tool=tool_name,
         )
-        return data
+        return dict(section)
 
-    @classmethod
-    def save_all(cls, data: Dict[str, Any]) -> None:
+    # ── Utilitários ──────────────────────────────────────────────────
+
+    @staticmethod
+    def all_data() -> Dict[str, Any]:
+        """Retorna o JSON completo de todas as seções (sempre do disco)."""
+        return Preferences._load_from_disk()
+
+    @staticmethod
+    def save_all(data: Dict[str, Any]) -> None:
         """Sobrescreve o JSON inteiro com o dict fornecido."""
-        cls._cached_data = data
-        cls._cache_loaded = True
-        path = cls._DEFAULT_PATH
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
-        cls._get_logger().info(
-            "Todas as preferencias salvas",
+        Preferences._write_to_disk(data)
+        Preferences._get_logger().info(
+            "Todas as preferências salvas",
             code="PREFS_SAVE_ALL",
             sections=list(data.keys()),
         )
 
-    @classmethod
-    def infer_type(cls, value: Any) -> str:
-        """Infere o tipo de preferencia a partir do valor."""
+    @staticmethod
+    def infer_type(value: Any) -> str:
+        """Infere o tipo de preferência a partir do valor."""
         if isinstance(value, bool):
             return "bool"
         if isinstance(value, int):
@@ -189,11 +130,11 @@ class Preferences:
             return "float"
         return "text"
 
-    # ── Metodos internos ──────────────────────────────────────────────
+    # ── Métodos Internos ─────────────────────────────────────────────
 
     @classmethod
     def _load_from_disk(cls) -> Dict[str, Any]:
-        """Le o arquivo JSON diretamente do disco SEM usar cache."""
+        """Lê o arquivo JSON diretamente do disco."""
         path = cls._DEFAULT_PATH
         if path.is_file():
             try:
@@ -202,16 +143,26 @@ class Preferences:
                 return loaded if isinstance(loaded, dict) else {}
             except Exception as e:
                 cls._get_logger().error(
-                    "Erro ao carregar preferencias do disco",
+                    "Erro ao carregar preferências do disco",
                     code="PREFS_LOAD_ERR",
                     error=str(e),
                 )
                 return {}
         return {}
 
-    def _load(self) -> Dict[str, Any]:
-        """Carrega o arquivo JSON uma unica vez (cache)."""
-        if not type(self)._cache_loaded:
-            self._cached_data = self._load_from_disk()
-            type(self)._cache_loaded = True
-        return self._cached_data
+    @classmethod
+    def _write_to_disk(cls, data: Dict[str, Any]) -> None:
+        """Persiste o dicionário completo no arquivo JSON."""
+        path = cls._DEFAULT_PATH
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+
+    @classmethod
+    def _get_logger(cls) -> LogUtils:
+        """Retorna logger estático para Preferences."""
+        if cls._logger_instance is None:
+            cls._logger_instance = LogUtils(
+                tool=ToolKey.SYSTEM.value, class_name="Preferences"
+            )
+        return cls._logger_instance
