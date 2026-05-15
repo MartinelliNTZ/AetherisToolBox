@@ -134,6 +134,47 @@ class ProjectUtil:
         except (OSError, PermissionError) as e:
             return None
 
+    # ── Criar projeto com validação de substituição ─────────────────
+
+    @staticmethod
+    def create_project_safe(
+        folder_path: str,
+        project_name: str,
+        parent_widget: Optional["QWidget"] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Cria um arquivo .mtl, perguntando ao usuário se deseja substituir
+        caso já exista um arquivo com o mesmo nome.
+
+        A importação de MessageBox é feita internamente para evitar
+        dependência circular.
+
+        Args:
+            folder_path: Caminho da pasta onde o .mtl será salvo.
+            project_name: Nome do projeto (sem extensão).
+            parent_widget: Widget pai para o diálogo (opcional).
+
+        Returns:
+            Dict com os dados salvos, ou None se o usuário cancelar ou falhar.
+        """
+        from pathlib import Path
+        mtl_path = Path(folder_path) / f"{project_name}{ProjectUtil.EXTENSION}"
+
+        if mtl_path.is_file():
+            # Pergunta se deseja substituir
+            from utils.MessageBox import MessageBox
+            confirm = MessageBox.show_question(
+                f"Já existe um projeto '{project_name}' nesta pasta.\n\n"
+                f"Deseja sobrescrever?",
+                title="Projeto Existente",
+                buttons=MessageBox.YES_NO,
+                default_button=MessageBox.NO,
+            )
+            if confirm != MessageBox.YES:
+                return None
+
+        return ProjectUtil.create_project(folder_path, project_name)
+
     # ── Atualizar campo específico ──────────────────────────────────
 
     @staticmethod

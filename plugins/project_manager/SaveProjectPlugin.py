@@ -1,24 +1,24 @@
 # -*- coding: utf-8 -*-
 """
-ProjectManagerPlugin — Ferramenta Instantânea de Gerenciamento de Projetos
-===========================================================================
+SaveProjectPlugin — Ferramenta Instantânea para Salvar Projetos (.mtl)
+========================================================================
 Tipo: INSTANT — não abre aba, executa ação imediata.
 
 Ao ser clicada:
-1. Abre o explorador para selecionar uma pasta (via ExplorerUtils)
-2. Solicita o nome do projeto via QInputDialog
-3. Cria/atualiza um arquivo .mtl na pasta escolhida
-4. Salva o caminho do .mtl em preferences (ToolKey.SYSTEM / current_project)
-5. Se current_project já existir, apenas atualiza last_modified
+1. Se current_project existe — atualiza last_modified (modo salvar)
+2. Se não existe — abre diálogo nativo "Salvar como" com filtro .mtl
+     (local + nome + extensão em UMA etapa)
+     ProjectUtil.create_project_safe() cuida da validação de substituição
+     Cria o .mtl com metadados
+3. Salva o caminho do .mtl em preferences (ToolKey.SYSTEM / current_project)
 """
 
 from __future__ import annotations
 
 import os
-from pathlib import Path
 
 from PySide6.QtCore import QTimer
-from PySide6.QtWidgets import QInputDialog, QVBoxLayout, QLabel
+from PySide6.QtWidgets import QVBoxLayout, QLabel
 
 from core.enum.ToolKey import ToolKey
 from core.model.BasePlugin import BasePlugin
@@ -30,9 +30,11 @@ from utils.ProjectUtil import ProjectUtil
 
 class SaveProjectPlugin(BasePlugin):
     """
-    Ferramenta INSTANT: gerencia projetos .mtl.
-    Não persiste como aba no workspace — executa e encerra.
+    Ferramenta INSTANT: cria ou salva projetos .mtl.
+    Usa o diálogo nativo "Salvar como" do Windows em uma única etapa.
     """
+
+    _MTL_FILTER = "Projeto Aetheris (*.mtl)"
 
     def __init__(self, parent=None):
         super().__init__(tool_key=ToolKey.SAVE_PROJECT.value, parent=parent)
@@ -47,24 +49,17 @@ class SaveProjectPlugin(BasePlugin):
         # Executa o fluxo principal no próximo ciclo do event loop
         QTimer.singleShot(0, self._run_project_flow)
 
-    # ──────────────────────────────────────────────────────────────────
-    # Fluxo principal
-    # ──────────────────────────────────────────────────────────────────
+    # ── Fluxo principal ────────────────────────────────────────────
 
     def _run_project_flow(self) -> None:
-        """
-        Executa o fluxo de criação/atualização de projeto.
-        """
+        """Executa o fluxo de criação/atualização de projeto."""
         try:
-            # 1. Verifica se já existe um current_project nas preferências
             sys_prefs = Preferences(section=ToolKey.SYSTEM.value)
             current_project = sys_prefs.get("current_project", None)
 
             if current_project and os.path.isfile(current_project):
-                # Modo "salvar" — apenas atualiza last_modified
                 self._handle_save_existing(current_project, sys_prefs)
             else:
-                # Modo "criar" — abre explorador e pede nome
                 self._handle_create_new(sys_prefs)
 
         except Exception as e:
@@ -79,17 +74,14 @@ class SaveProjectPlugin(BasePlugin):
                 detail=str(e),
             )
         finally:
-            # Auto-destrói o widget
             self._self_destruct()
 
-    # ── Modo "Salvar existente" ─────────────────────────────────────
+    # ── Modo "Salvar existente" ────────────────────────────────────
 
     def _handle_save_existing(
         self, current_project: str, sys_prefs: Preferences
     ) -> None:
-        """
-        Atualiza o last_modified do projeto atual.
-        """
+        """Atualiza o last_modified do projeto atual."""
         result = ProjectUtil.update_last_modified(current_project)
         if result is not None:
             self.logger.info(
@@ -108,51 +100,31 @@ class SaveProjectPlugin(BasePlugin):
                 code="PROJ_SAVE_ERR",
                 file_path=current_project,
             )
-            # Se falhou, tenta criar novo
             self._handle_create_new(sys_prefs)
 
-    # ── Modo "Criar novo" ──────────────────────────────────────────
+    # ── Modo "Criar novo" ─────────────────────────────────────────
 
     def _handle_create_new(self, sys_prefs: Preferences) -> None:
         """
-        Abre explorador para selecionar pasta e pede nome do projeto.
+        Abre o diálogo nativo "Salvar como" com filtro .mtl.
+        Tudo em UMA etapa: local + nome + extensão já inclusa.
         """
-        # 1. Selecionar pasta
-        folder = ExplorerUtils.select_directory(
-            title="Selecionar pasta para o projeto",
+        # 1. Diálogo nativo do Windows — escolhe local e nome
+        file_path = ExplorerUtils.save_file(
+            title="Salvar projeto como",
+            file_filter=self._MTL_FILTER,
             parent=self,
         )
-        if not folder:
-            self.logger.info("Usuário cancelou a seleção de pasta", code="PROJ_CANCEL")
+        if not file_path:
+            self.logger.info("Usuário cancelou a criação do projeto", code="PROJ_CANCEL")
             return
 
-        # 2. Pedir nome do projeto
-        name, ok = QInputDialog.getText(
-            self,
-            "Nome do Projeto",
-            "Digite o nome do projeto:",
-            text=os.path.basename(folder),
-        )
-        if not ok or not name.strip():
-            self.logger.info("Usuário cancelou o nome do projeto", code="PROJ_CANCEL")
-            return
+        # 2. Extrai pasta e nome do caminho completo
+        folder = os.path.dirname(file_path)
+        project_name = os.path.splitext(os.path.basename(file_path))[0]
 
-        project_name = name.strip()
-
-        # 3. Criar o arquivo .mtl
-        # Valida se já existe um .mtl com esse nome na pasta
-        mtl_path = Path(folder) / f"{project_name}{ProjectUtil.EXTENSION}"
-        if mtl_path.is_file():
-            confirm = MessageBox.show_question(
-                f"Já existe um projeto '{project_name}' nesta pasta.\nDeseja sobrescrever?",
-                title="Projeto Existente",
-                buttons=MessageBox.YES_NO,
-                default_button=MessageBox.NO,
-            )
-            if confirm != MessageBox.YES:
-                return
-
-        result = ProjectUtil.create_project(folder, project_name)
+        # 3. ProjectUtil cuida da validação — se já existe, pergunta
+        result = ProjectUtil.create_project_safe(folder, project_name, self)
         if result is None:
             self.logger.error(
                 "Falha ao criar arquivo de projeto",
@@ -166,7 +138,7 @@ class SaveProjectPlugin(BasePlugin):
             )
             return
 
-        # 4. Salvar current_project nas preferências do sistema
+        # 4. Salva current_project nas preferências do sistema
         sys_prefs.set("current_project", result["file_path"])
         sys_prefs.save()
 
@@ -182,13 +154,11 @@ class SaveProjectPlugin(BasePlugin):
             title="Projeto Criado",
         )
 
-    # ── Auto-destruição ──────────────────────────────────────────────
+    # ── Auto-destruição ─────────────────────────────────────────────
 
     def _self_destruct(self) -> None:
-        """
-        Remove o widget do workspace e chama deleteLater.
-        """
-        self.logger.info("Finalizando ProjectManagerPlugin", code="PROJ_DONE")
+        """Remove o widget do workspace e chama deleteLater."""
+        self.logger.info("Finalizando SaveProjectPlugin", code="PROJ_DONE")
         self.deleteLater()
 
     def load_prefs(self) -> None:
