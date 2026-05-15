@@ -23,6 +23,7 @@ class ToolKey(str, Enum):
     PREFERENCES = "Preferences"
     RENAMER = "Renamer"
     SYSTEM = "System"
+    SAVE_PROJECT = "SaveProject"
     UNTRACEABLE = "Untraceable"
 
     # ── Método utilitário ──────────────────────────────────────────────

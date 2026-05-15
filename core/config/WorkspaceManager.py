@@ -110,7 +110,11 @@ class WorkspaceManager(QWidget):
 
         # Registra ferramentas nos workspaces
         for tool in self._tools:
-            if tool.category == CategoryTool.SIDE:
+            if tool.category == CategoryTool.INSTANT:
+                # Ferramentas INSTANT não são registradas em workspaces
+                # Elas são auto-destrutivas (criam widget, executam, se destroem)
+                pass
+            elif tool.category == CategoryTool.SIDE:
                 self._side_workspace.register_tool(tool)
             elif tool.category == CategoryTool.BOTH:
                 self._side_workspace.register_tool(tool)
@@ -147,6 +151,15 @@ class WorkspaceManager(QWidget):
         """
         tool = self._tool_map.get(tool_name)
         if not tool:
+            return
+
+        if tool.category == CategoryTool.INSTANT:
+            # Ferramentas INSTANT são auto-executáveis:
+            # o widget cria, executa a ação e se auto-destrói.
+            # Acessamos tool.widget para disparar o lazy loading,
+            # mas não registramos em nenhum workspace.
+            _ = tool.widget
+            self.tool_activated.emit(tool_name)
             return
 
         if tool.category == CategoryTool.SIDE:

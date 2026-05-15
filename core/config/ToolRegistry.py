@@ -150,6 +150,18 @@ class ToolRegistry:
             category=CategoryTool.CENTRAL,
             show_in_toolbar=True,
         ),
+        ToolKey.SAVE_PROJECT.value: Tool(
+            name=ToolKey.SAVE_PROJECT.value,
+            title="Gerenciar Projeto",
+            widget_factory=_make_factory(
+                "plugins.project_manager.SaveProjectPlugin",
+                "SaveProjectPlugin",
+            ),
+            tooltip="Criar ou salvar projeto atual (.mtl)",
+            tool_type=ToolType.SYSTEM,
+            category=CategoryTool.INSTANT,
+            show_in_toolbar=True,
+        ),
     }
 
     def register_default_tools(self) -> None:

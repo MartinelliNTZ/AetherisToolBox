@@ -95,9 +95,19 @@ class Tool:
         """
         Retorna o widget da ferramenta, criando-o sob demanda (lazy).
         A factory é chamada apenas na primeira vez.
+
+        Para ferramentas INSTANT (que se auto-destroem via deleteLater()),
+        detecta se o objeto C++ foi deletado e recria o widget.
         """
-        if self._widget is None:
-            self._widget = self._factory()
+        if self._widget is not None:
+            try:
+                # Verifica se o objeto C++ ainda existe
+                self._widget.isWidgetType()
+                return self._widget
+            except RuntimeError:
+                # Objeto C++ foi deletado (INSTANT tool se auto-destruiu)
+                self._widget = None
+        self._widget = self._factory()
         return self._widget
 
     @property

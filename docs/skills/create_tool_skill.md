@@ -103,3 +103,79 @@ ToolKey.MINHA_FERRAMENTA.value: Tool(
 - [ ] **Preferências**: A ferramenta implementa `load_prefs()` e `save_prefs()` para persistir dados do usuário? (Obrigatório)
 - [ ] 🛑 **Logs Obrigatórios**: A ferramenta deve registrar logs em pontos críticos (inicialização, início/fim de processos, capturas de erro). Ferramentas sem log não serão aceitas no core.
 - [ ] **Documentação**: se criei um widget novo, atualizei `docs/skills/widgets_skill.md`? (Contrato 12)
+
+---
+
+## ⚡ Ferramentas INSTANT (Ação Imediata)
+
+Ferramentas do tipo `INSTANT` não abrem abas no workspace. Elas executam uma ação imediata (abrir diálogo, processar algo, etc.) e se auto-destroem.
+
+### Quando usar
+
+- Operações que não precisam de UI persistente (ex: criar projeto, exportar, salvar snapshot).
+- Ações que abrem diálogos modais e depois encerram.
+
+### Como criar
+
+1. **CategoryTool**: já existe `CategoryTool.INSTANT = "instant"`.
+2. **Widget**: herde de `BasePlugin`, use `QTimer.singleShot(0, self._run)` para executar a ação após o `__init__`.
+3. **Auto-destruição**: chame `self.deleteLater()` ao final.
+
+```python
+from PySide6.QtCore import QTimer
+from PySide6.QtWidgets import QVBoxLayout, QLabel
+
+class MinhaInstantTool(BasePlugin):
+    def __init__(self, parent=None):
+        super().__init__(tool_key="MinhaInstant", parent=parent)
+        # Placeholder invisível
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        placeholder = QLabel("")
+        placeholder.setVisible(False)
+        layout.addWidget(placeholder)
+        # Executa no próximo ciclo do event loop
+        QTimer.singleShot(0, self._run)
+
+    def _run(self) -> None:
+        try:
+            # ... ação principal ...
+            pass
+        except Exception as e:
+            self.logger.error("Erro", code="INSTANT_ERR", error=str(e))
+        finally:
+            self.deleteLater()
+
+    def load_prefs(self): pass
+    def save_prefs(self): pass
+```
+
+### Registro no ToolRegistry
+
+```python
+ToolKey.MINHA_INSTANT.value: Tool(
+    name=ToolKey.MINHA_INSTANT.value,
+    title="Minha Ação Instantânea",
+    widget_factory=_make_factory(
+        "plugins.minha_instant.MinhaInstantPlugin",
+        "MinhaInstantPlugin",
+    ),
+    tooltip="Descrição curta",
+    tool_type=ToolType.FOLDER,
+    category=CategoryTool.INSTANT,
+    show_in_toolbar=True,
+),
+```
+
+### Comportamento no WorkspaceManager
+
+- Ferramentas `INSTANT` **não** são registradas em `CentralWorkspace` nem `SideWorkspace`.
+- Quando o usuário clica no botão da toolbar, o `WorkspaceManager.open_tool()` acessa `tool.widget` (lazy loading), o que instancia o plugin, executa a ação e o widget se auto-destrói.
+- Nenhuma aba é criada. Nenhum estado é mantido.
+
+### Requisitos
+
+- [ ] **QTimer.singleShot**: use para adiar a execução para depois do `__init__`.
+- [ ] **self.deleteLater()**: chame no `finally` para garantir limpeza.
+- [ ] **Logger**: registre início, fim e erros.
+- [ ] **MessageBox**: use para feedback ao usuário.
