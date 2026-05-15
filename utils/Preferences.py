@@ -95,11 +95,38 @@ class Preferences:
         self._cached_data = data
 
     def save(self) -> None:
-        """Persiste o cache em disco."""
+        """
+        Persiste APENAS a secao atual em disco (merge seguro).
+
+        Le o arquivo atual do disco para preservar secoes de outras
+        ferramentas que nao estao no cache local, faz merge apenas
+        da secao desta instancia, e escreve o resultado completo.
+        """
+        # Le o estado atual do disco
+        disk_data = self._load_from_disk()
+
+        # Le o cache (pode ter dados mais recentes que o disco)
+        cache_data = self._load()
+
+        # Mescla: para nossa secao, usa o cache (que tem mudancas locais)
+        # Para outras secoes, usa o disco (preserva o que outros salvaram)
+        if self._section:
+            merged = dict(disk_data)
+            merged[self._section] = cache_data.get(self._section, {})
+        else:
+            # Modo raiz: mescla tudo do cache sobre o disco
+            merged = dict(disk_data)
+            merged.update(cache_data)
+
+        # Atualiza o cache com o merge
+        self._cached_data = merged
+        type(self)._cache_loaded = True
+
+        # Persiste
         path = self._DEFAULT_PATH
         path.parent.mkdir(parents=True, exist_ok=True)
         with path.open("w", encoding="utf-8") as f:
-            json.dump(self._cached_data, f, indent=2, ensure_ascii=False)
+            json.dump(merged, f, indent=2, ensure_ascii=False)
         self._get_logger().info(
             "Preferencias salvas",
             code="PREFS_SAVE",

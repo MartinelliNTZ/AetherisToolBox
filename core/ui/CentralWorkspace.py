@@ -33,6 +33,8 @@ class _WorkspaceTabBar(QTabBar):
     Selected: fundo GOLD + texto BG_DEEPEST com barra indicadora no topo.
     """
 
+    _paint_error_logged: bool = False
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setObjectName("workspace_tabs")
@@ -78,6 +80,9 @@ class _WorkspaceTabBar(QTabBar):
 
     def paintEvent(self, event):
         try:
+            # Verifica se o widget ainda é válido (evita paint após destruição)
+            if not self.isVisible() or not self.isEnabled():
+                return
             painter = QPainter()
             if not painter.begin(self):
                 return
@@ -143,7 +148,16 @@ class _WorkspaceTabBar(QTabBar):
 
             painter.end()
         except SystemError as e:
-            self.logger.error("SystemError no paintEvent do tab bar", code="PAINT_SYS_ERR", error=str(e))
+            # PySide6 dispara SystemError no QPainter quando o tab bar tem
+            # abas removidas durante o ciclo de repaint. Loga apenas a
+            # primeira ocorrência para evitar poluição do log.
+            if not _WorkspaceTabBar._paint_error_logged:
+                _WorkspaceTabBar._paint_error_logged = True
+                self.logger.warning(
+                    "PaintEvent suprimido (tab bar em transição)",
+                    code="PAINT_SYS_ERR",
+                    error=str(e),
+                )
 
     def mouseMoveEvent(self, event):
         tab = self.tabAt(event.pos())
@@ -372,8 +386,12 @@ class CentralWorkspace(QWidget):
 
         tool = self._tools[name]
 
+        # Dispara closeEvent no widget interno (save_prefs + preferences.save())
         w = self.stack.widget(tab_index)
         if w:
+            inner = w.widget() if hasattr(w, 'widget') else None
+            if inner is not None:
+                inner.close()  # <-- dispara closeEvent → save_prefs → preferences.save()
             self.stack.removeWidget(w)
             w.deleteLater()
 

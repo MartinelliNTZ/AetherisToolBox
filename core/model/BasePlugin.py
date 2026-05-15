@@ -56,7 +56,19 @@ class BasePlugin(QWidget):
         SignalManager.instance().tool_opened.emit(tool_key, self)
 
     def closeEvent(self, event) -> None:  # type: ignore[override]
+        self.logger.info(
+            "Ferramenta sendo fechada — persistindo preferências",
+            code="TOOL_CLOSE_SAVE",
+            tool_key=self.tool_key,
+        )
         self.save_prefs()
+        # Persiste as preferências em disco (o child pode ter feito set())
+        self.preferences.save()
+        self.logger.info(
+            "Preferências persistidas ao fechar",
+            code="TOOL_CLOSE_DONE",
+            tool_key=self.tool_key,
+        )
         from core.manager.SignalManager import SignalManager
         SignalManager.instance().tool_closed.emit(self.tool_key)
         super().closeEvent(event)

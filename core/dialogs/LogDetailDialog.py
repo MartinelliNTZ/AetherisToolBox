@@ -79,7 +79,7 @@ class LogDetailDialog(QDialog):
         btn_layout = QHBoxLayout()
         btn_layout.addStretch()
 
-        from resources.widgets.buttons import SimpleGhostButton
+        from resources.widgets.SimpleGhostButton import SimpleGhostButton
 
         copy_btn = SimpleGhostButton("Copiar Tudo")
         copy_btn.clicked.connect(self._copy_all)
