@@ -291,32 +291,30 @@ class TecladorF(BasePlugin):
 
     def load_prefs(self) -> None:
         """Carrega preferências salvas e aplica nos widgets."""
-        prefs = self.preferences
-
-        value = prefs.get("value")
+        # self.preferences já é Preferences(section=tool_key) vindo do BasePlugin
+        value = self.preferences.get("value")
         if value is not None:
             self._edit_value.setText(value)
 
-        hotkey = prefs.get("hotkey")
+        hotkey = self.preferences.get("hotkey")
         if hotkey is not None:
             self._edit_hotkey.setText(hotkey)
 
-        startup_delay = prefs.get("startup_delay")
+        startup_delay = self.preferences.get("startup_delay")
         if startup_delay is not None:
             self._spin_startup.setValue(float(startup_delay))
 
-        interval_delay = prefs.get("interval_delay")
+        interval_delay = self.preferences.get("interval_delay")
         if interval_delay is not None:
             self._spin_interval.setValue(float(interval_delay))
 
     def save_prefs(self) -> None:
         """Lê os widgets e persiste as preferências."""
-        prefs = self.preferences
-        prefs.set("value", self._edit_value.text())
-        prefs.set("hotkey", self._edit_hotkey.text())
-        prefs.set("startup_delay", self._spin_startup.value())
-        prefs.set("interval_delay", self._spin_interval.value())
-        prefs.save()
+        self.preferences.set("value", self._edit_value.text())
+        self.preferences.set("hotkey", self._edit_hotkey.text())
+        self.preferences.set("startup_delay", self._spin_startup.value())
+        self.preferences.set("interval_delay", self._spin_interval.value())
+        self.preferences.save()
 
     # ── Dirty tracking ──────────────────────────────────────────────
 
