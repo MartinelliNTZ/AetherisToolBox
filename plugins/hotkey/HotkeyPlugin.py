@@ -2,24 +2,22 @@
 """
 TecladorF — Plugin de automação de teclado
 =============================================
-Ao pressionar a tecla F, digita automaticamente uma string
+Ao pressionar a tecla configurada, digita automaticamente uma string
 caractere por caractere, com delay configurável.
-
-Baseado no script teclador_f.py original.
 
 Uso:
     1. Abra o plugin no Workspace
     2. Configure valor, atraso inicial, intervalo e tecla de atalho
     3. Clique em "EXECUTAR" para ativar
     4. Pressione a tecla configurada (padrão: F) para digitar
-    5. Pressione ESC para parar
+    5. Clique em "PARAR" ou pressione ESC globalmente para parar
 """
 
 from __future__ import annotations
 
 import time
 
-from PySide6.QtCore import Qt, QThread, Signal
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
     QDoubleSpinBox, QGroupBox, QFormLayout, QFrame,
@@ -34,97 +32,11 @@ from resources.widgets.HotkeyCaptureLine import HotkeyCaptureLine
 from resources.widgets.GridCheckBox import GridCheckBox
 
 
-class HotkeyPlugin(QThread):
-    """
-    Thread separada para escutar teclas e digitar.
-    Não bloqueia a UI do Qt.
-    """
-
-    def __init__(
-        self,
-        value: str,
-        hotkey: str,
-        startup_delay: float,
-        interval_delay: float,
-        suppress: bool = False,
-        parent=None,
-    ):
-        super().__init__(parent)
-        self._value = value
-        self._hotkey = hotkey.lower()
-        self._startup_delay = startup_delay
-        self._interval_delay = interval_delay
-        self._suppress = suppress
-        self._running = False
-        self.logger = LogUtils(tool=ToolKey.TECLADOR_F.value, class_name="HotkeyPlugin")
-
-    def run(self):
-        """
-        Escuta a tecla configurada e digita a string quando pressionada.
-        """
-        try:
-            import keyboard
-            import pyautogui
-
-            pyautogui.PAUSE = 0
-            self._running = True
-
-            SignalManager.instance().console_message.emit(
-                f"TecladorF pronto — tecla {self._hotkey.upper()}, "
-                f"valor={self._value[:30]}..."
-            )
-
-            def type_value():
-                if not self._running:
-                    return
-                time.sleep(self._startup_delay)
-                count = 0
-                for ch in self._value:
-                    if not self._running:
-                        break
-                    pyautogui.typewrite(ch, interval=0)
-                    time.sleep(self._interval_delay)
-                    count += 1
-                SignalManager.instance().console_message.emit(
-                    f"TecladorF digitou {count} caracteres "
-                    f"(tecla {self._hotkey.upper()})"
-                )
-
-            keyboard.add_hotkey(
-                self._hotkey,
-                type_value,
-                suppress=self._suppress,
-                trigger_on_release=False,
-            )
-            keyboard.wait("esc")
-
-        except ImportError as e:
-            self.logger.error("Bibliotecas nao encontradas", code="IMPORT_ERR", error=str(e))
-            SignalManager.instance().console_message.emit(
-                f"TecladorF erro: {e}. Instale: pip install pyautogui keyboard"
-            )
-        except Exception as e:
-            self.logger.error("Erro inesperado no worker", code="WORKER_ERR", error=str(e))
-            SignalManager.instance().console_message.emit(
-                f"TecladorF erro inesperado: {e}"
-            )
-        finally:
-            self._running = False
-            try:
-                keyboard.unhook_all()
-            except Exception as e:
-                self.logger.error("Falha ao desregistrar hotkey", code="UNHOOK_ERR", error=str(e))
-                SignalManager.instance().console_message.emit(
-                    f"TecladorF erro ao desregistrar hotkey: {e}")
-
-    def stop(self):
-        """Para o worker."""
-        self._running = False
-
-
 class TecladorF(BasePlugin):
     """
     Plugin de automação: digita uma string ao pressionar uma tecla.
+    Usa keyboard library diretamente (sem QThread) — a biblioteca
+    já gerencia suas próprias threads para hooks globais.
     """
 
     # ── Valores padrão ────────────────────────────────────────────────
@@ -135,8 +47,8 @@ class TecladorF(BasePlugin):
 
     def __init__(self, parent=None):
         super().__init__(tool_key=ToolKey.TECLADOR_F.value, parent=parent)
-        self._worker: HotkeyPlugin | None = None
         self._running = False
+        self._hotkey_handler = None
         self._build_ui()
         self.load_prefs()
         self.logger.info("TecladorF carregado", code="TOOL_READY")
@@ -231,7 +143,7 @@ class TecladorF(BasePlugin):
             self._start_worker()
 
     def _start_worker(self):
-        """Valida e inicia o worker em thread separada."""
+        """Valida e registra o hook de teclado global."""
         from utils.MessageBox import MessageBox
 
         value = self._edit_value.text().strip()
@@ -248,17 +160,50 @@ class TecladorF(BasePlugin):
         interval_delay = self._spin_interval.value()
         suppress = bool(self._grid_suppress.all.get("suppress", True))
 
-        self._worker = HotkeyPlugin(
-            value=value,
-            hotkey=hotkey,
-            startup_delay=startup_delay,
-            interval_delay=interval_delay,
-            suppress=suppress,
-        )
-        self._worker.finished.connect(self._on_worker_finished)
-        self._worker.start()
-        self._running = True
+        # Fecha hooks anteriores se houver
+        self._clean_hooks()
 
+        def type_value():
+            """Callback chamado pela keyboard library na thread de hook."""
+            if not self._running:
+                return
+            time.sleep(startup_delay)
+            count = 0
+            for ch in value:
+                if not self._running:
+                    break
+                try:
+                    import pyautogui
+                    pyautogui.typewrite(ch, interval=0)
+                except Exception:
+                    break
+                time.sleep(interval_delay)
+                count += 1
+            # Emite na thread do hook — usar QTimer para thread-safety
+            QTimer.singleShot(0, lambda: self._on_typed(count, hotkey))
+
+        try:
+            import keyboard
+            self._hotkey_handler = keyboard.add_hotkey(
+                hotkey,
+                type_value,
+                suppress=suppress,
+                trigger_on_release=False,
+            )
+        except ImportError as e:
+            self.logger.error("Bibliotecas nao encontradas", code="IMPORT_ERR", error=str(e))
+            SignalManager.instance().console_message.emit(
+                f"TecladorF erro: {e}. Instale: pip install pyautogui keyboard"
+            )
+            return
+        except Exception as e:
+            self.logger.error("Falha ao registrar hotkey", code="HOTKEY_ERR", error=str(e))
+            SignalManager.instance().console_message.emit(
+                f"TecladorF erro ao registrar hotkey: {e}"
+            )
+            return
+
+        self._running = True
         self._btn_executar.setText("PARAR")
         self._set_inputs_enabled(False)
         self.save_prefs()
@@ -278,23 +223,35 @@ class TecladorF(BasePlugin):
             suppress=suppress,
         )
 
-    def _stop_worker(self):
-        """Para o worker sem simular tecla ESC (evita KeyboardInterrupt)."""
-        if self._worker:
-            self._worker.stop()
-            try:
-                import keyboard
-                keyboard.unhook_all()
-            except ImportError:
-                self.logger.warning("keyboard nao instalado", code="IMPORT_WARN")
-            if not self._worker.wait(3000):
-                self._worker.terminate()
-        self._on_worker_finished()
+    def _on_typed(self, count: int, hotkey: str) -> None:
+        """Recebe notificação na thread da UI após digitação."""
+        if count > 0:
+            SignalManager.instance().console_message.emit(
+                f"TecladorF digitou {count} caracteres (tecla {hotkey.upper()})"
+            )
 
-    def _on_worker_finished(self):
-        """Callback quando o worker termina."""
+    def _stop_worker(self):
+        """Remove o hook de teclado."""
         self._running = False
-        self._worker = None
+        self._clean_hooks()
+        self._on_executar_finished()
+
+    def _clean_hooks(self):
+        """Remove hooks registrados."""
+        try:
+            import keyboard
+            if self._hotkey_handler is not None:
+                try:
+                    keyboard.remove_hotkey(self._hotkey_handler)
+                except Exception:
+                    pass
+                self._hotkey_handler = None
+            keyboard.unhook_all()
+        except ImportError:
+            pass
+
+    def _on_executar_finished(self):
+        """Callback quando a execução termina."""
         self._btn_executar.setText("EXECUTAR")
         self._set_inputs_enabled(True)
 
@@ -313,7 +270,6 @@ class TecladorF(BasePlugin):
 
     def load_prefs(self) -> None:
         """Carrega preferências salvas e aplica nos widgets."""
-        # self.preferences já é Preferences(section=tool_key) vindo do BasePlugin
         value = self.preferences.get("value")
         if value is not None:
             self._edit_value.setText(value)
