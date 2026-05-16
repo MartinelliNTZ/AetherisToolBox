@@ -32,7 +32,7 @@ from resources.widgets.HotkeyCaptureLine import HotkeyCaptureLine
 from resources.widgets.GridCheckBox import GridCheckBox
 
 
-class TecladorF(BasePlugin):
+class HotkeyPlugin(BasePlugin):
     """
     Plugin de automação: digita uma string ao pressionar uma tecla.
     Usa keyboard library diretamente (sem QThread) — a biblioteca
