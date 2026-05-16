@@ -175,6 +175,26 @@ tab = WorkspaceTab(title="Console", tooltip="Console do sistema")
 
 ---
 
+### `HotkeyCaptureLine` — `HotkeyCaptureLine.py`
+Campo de captura de teclas. Ao clicar, entra em modo de escuta e a próxima tecla pressionada é capturada (F1, ESC, DEL, ENTER, etc.). Ideal para configuração de atalhos de teclado.
+
+```python
+from resources.widgets.HotkeyCaptureLine import HotkeyCaptureLine
+
+capture = HotkeyCaptureLine(default_key="f")
+capture.keyChanged.connect(self._on_key_changed)
+captured = capture.captured_key()  # "f", "f1", "esc", "del", etc.
+capture.set_captured_key("f1")     # define programaticamente
+```
+
+**Comportamento:**
+- Exibe nome amigável (F1, ESC, DEL, ↑, etc.)
+- Valor interno é compatível com a biblioteca `keyboard`
+- Perde o foco → sai do modo escuta
+- Tab → sai do modo escuta sem capturar
+
+---
+
 ### `GridCheckBox` — `GridCheckBox.py`
 Grade rolável de checkboxes organizados em colunas configuráveis. Cada checkbox tem label e tooltip definidos por dicionário.
 

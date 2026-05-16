@@ -5,4 +5,3 @@ em resources/widgets
 - Prefira sempre usar dict inves de list
 - Todas as tools herdam de Baseplugin
 - Sempre que criar uma classe atualize o @docs/CatalogoDeClasses.md
-- desbugar as preferencias sem instanciar

@@ -30,13 +30,14 @@ from core.model.BasePlugin import BasePlugin
 from core.manager.SignalManager import SignalManager
 from core.enum.ToolKey import ToolKey
 from resources.widgets.SimplePrimaryButton import SimplePrimaryButton
+from resources.widgets.HotkeyCaptureLine import HotkeyCaptureLine
+
 
 class HotkeyPlugin(QThread):
     """
     Thread separada para escutar teclas e digitar.
     Não bloqueia a UI do Qt.
     """
-    
 
     def __init__(
         self,
@@ -53,7 +54,6 @@ class HotkeyPlugin(QThread):
         self._interval_delay = interval_delay
         self._running = False
         self.logger = LogUtils(tool=ToolKey.TECLADOR_F.value, class_name="HotkeyPlugin")
-        
 
     def run(self):
         """
@@ -174,11 +174,9 @@ class TecladorF(BasePlugin):
         self._edit_value.textChanged.connect(self._mark_dirty)
         form.addRow("Valor:", self._edit_value)
 
-        # Tecla de atalho
-        self._edit_hotkey = QLineEdit(self.DEFAULT_HOTKEY)
-        self._edit_hotkey.setMaxLength(1)
-        self._edit_hotkey.setPlaceholderText("Ex: f")
-        self._edit_hotkey.textChanged.connect(self._mark_dirty)
+        # Tecla de atalho — campo de captura
+        self._edit_hotkey = HotkeyCaptureLine(default_key=self.DEFAULT_HOTKEY)
+        self._edit_hotkey.keyChanged.connect(self._mark_dirty)
         form.addRow("Tecla:", self._edit_hotkey)
 
         # Atraso inicial
@@ -219,7 +217,7 @@ class TecladorF(BasePlugin):
             MessageBox.show_warning("Valor não pode estar vazio.", title="Aviso")
             return
 
-        hotkey = self._edit_hotkey.text().strip().lower()
+        hotkey = self._edit_hotkey.captured_key()
         if not hotkey:
             MessageBox.show_warning("Tecla não pode estar vazia.", title="Aviso")
             return
@@ -298,7 +296,7 @@ class TecladorF(BasePlugin):
 
         hotkey = self.preferences.get("hotkey")
         if hotkey is not None:
-            self._edit_hotkey.setText(hotkey)
+            self._edit_hotkey.set_captured_key(hotkey)
 
         startup_delay = self.preferences.get("startup_delay")
         if startup_delay is not None:
@@ -311,7 +309,7 @@ class TecladorF(BasePlugin):
     def save_prefs(self) -> None:
         """Lê os widgets e persiste as preferências."""
         self.preferences["value"] = self._edit_value.text()
-        self.preferences["hotkey"] = self._edit_hotkey.text()
+        self.preferences["hotkey"] = self._edit_hotkey.captured_key()
         self.preferences["startup_delay"] = self._spin_startup.value()
         self.preferences["interval_delay"] = self._spin_interval.value()
 
