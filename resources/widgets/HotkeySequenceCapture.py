@@ -18,15 +18,13 @@ Uso:
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt, Signal, QTimer
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLineEdit,
-    QPushButton, QLabel, QFrame, QSizePolicy, QScrollArea,
+    QWidget, QVBoxLayout, QHBoxLayout,
+    QPushButton, QLabel, QFrame,
 )
-from typing import List
 
 from resources.widgets.HotkeyCaptureLine import HotkeyCaptureLine
-from resources.widgets.SimpleRemoveButton import SimpleRemoveButton
 from resources.widgets.SimpleGhostButton import SimpleGhostButton
 from resources.widgets.SimpleLabel import SimpleLabel
 
@@ -40,7 +38,7 @@ class HotkeySequenceCapture(QWidget):
     - Cada tecla capturada é adicionada como item na lista abaixo
     - Cada item tem botão "×" para remover
     - Botão "Limpar" para resetar toda a sequência
-    - Ao clicar no campo, fica em modo de escuta para a próxima tecla
+    - Clique no campo ou no botão "+" para adicionar a próxima tecla
 
     Sinais:
         sequenceChanged(list) — emitido quando a sequência muda
@@ -77,7 +75,8 @@ class HotkeySequenceCapture(QWidget):
         self._capture_field.setObjectName("hsc_capture_field")
         row.addWidget(self._capture_field, 1)
 
-        self._btn_add = SimpleGhostButton("+ Adicionar")
+        self._btn_add = SimpleGhostButton("+")
+        self._btn_add.setToolTip("Adicionar próxima tecla")
         self._btn_add.setObjectName("hsc_btn_add")
         self._btn_add.clicked.connect(self._on_add_clicked)
         row.addWidget(self._btn_add)
@@ -96,7 +95,7 @@ class HotkeySequenceCapture(QWidget):
         self._list_layout.setContentsMargins(0, 2, 0, 2)
         self._list_layout.setSpacing(2)
 
-        # Placeholder quando vazio — SEMPRE presente no layout
+        # Placeholder quando vazio — SEMPRE presente no layout (índice 0)
         self._empty_label = SimpleLabel("Nenhuma tecla capturada")
         self._empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._empty_label.setObjectName("hsc_empty")
@@ -120,7 +119,6 @@ class HotkeySequenceCapture(QWidget):
         self._keys.append(key_name)
         self._refresh()
         self.sequenceChanged.emit(self._keys)
-        QTimer.singleShot(100, self._on_add_clicked)
 
     def _on_clear(self):
         """Limpa toda a sequência."""
@@ -139,7 +137,6 @@ class HotkeySequenceCapture(QWidget):
 
     def _refresh(self):
         """Atualiza a lista visual de teclas capturadas."""
-        # Remove apenas os itens dinâmicos (índices > 0 = depois do empty_label)
         self._clear_dynamic_items()
 
         if not self._keys:
@@ -148,34 +145,28 @@ class HotkeySequenceCapture(QWidget):
 
         self._empty_label.setVisible(False)
 
-        # Insere itens no topo (índice 0 de layout) para ficarem acima do empty_label
+        # Insere itens antes do empty_label (que é sempre índice 0 no layout)
         for i, key in enumerate(self._keys):
             item_widget = self._create_key_item(key, i)
-            # Insere no final da seção dinâmica (antes do empty_label que está no final)
             insert_pos = self._list_layout.count() - 1  # antes do empty_label
             self._list_layout.insertWidget(insert_pos, item_widget)
 
     def _clear_dynamic_items(self):
         """
-        Remove apenas os widgets dinâmicos (key items e stretches),
-        preservando o empty_label que está sempre no layout.
+        Remove apenas os widgets dinâmicos (key items),
+        preservando o empty_label que está sempre no layout (índice 0).
         """
-        # Remove do final para o início, parando antes do empty_label
-        # O empty_label é sempre o primeiro widget adicionado (índice 0)
-        # e fica permanentemente. Itens dinâmicos são inseridos depois dele.
         idx = self._list_layout.count() - 1
         while idx >= 1:
             item = self._list_layout.takeAt(idx)
             widget = item.widget()
-            if widget is not None:
-                # Segurança extra: nunca deleta o empty_label
-                if widget is not self._empty_label:
-                    widget.deleteLater()
+            if widget is not None and widget is not self._empty_label:
+                widget.deleteLater()
             idx -= 1
 
     def _create_key_item(self, key: str, index: int) -> QWidget:
         """Cria um widget de item para uma tecla na lista."""
-        from PySide6.QtWidgets import QFrame
+        from PySide6.QtWidgets import QFrame, QHBoxLayout
 
         from resources.widgets.SimpleRemoveButton import SimpleRemoveButton
         from resources.widgets.HotkeyCaptureLine import _to_display

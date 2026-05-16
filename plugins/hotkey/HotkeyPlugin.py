@@ -130,7 +130,7 @@ class HotkeyPlugin(BasePlugin):
         hotkey_layout.addWidget(seq_label)
 
         self._edit_sequence = HotkeySequenceCapture()
-        self._edit_sequence.sequenceChanged.connect(self._mark_dirty)
+        self._edit_sequence.sequenceChanged.connect(self._on_sequence_changed)
         self._edit_sequence.setObjectName("sequence_capture")
         hotkey_layout.addWidget(self._edit_sequence)
 
@@ -205,6 +205,21 @@ class HotkeyPlugin(BasePlugin):
         layout.addWidget(config_group, 1)
 
     # ── Modo ──────────────────────────────────────────────────────────
+
+    def _on_sequence_changed(self, keys: list[str]):
+        """Quando a sequência de teclas muda, exibe no console."""
+        from resources.widgets.HotkeyCaptureLine import _to_display
+
+        if not keys:
+            SignalManager.instance().console_message.emit(
+                "HotkeyPlugin sequência limpa"
+            )
+        else:
+            display = ", ".join(_to_display(k) for k in keys)
+            SignalManager.instance().console_message.emit(
+                f"HotkeyPlugin sequência ({len(keys)}): {display}"
+            )
+        self._mark_dirty()
 
     def _on_mode_changed(self, mode: str):
         """Atualiza visibilidade dos stacks conforme o modo."""
@@ -293,7 +308,7 @@ class HotkeyPlugin(BasePlugin):
             else:
                 # Modo atalho: executa sequência N vezes
                 import pyautogui
-                from keyboard import send as kb_send
+                from resources.widgets.HotkeyCaptureLine import _to_display
 
                 for rep in range(repeat_count):
                     if not self._running:
@@ -302,18 +317,27 @@ class HotkeyPlugin(BasePlugin):
                         if not self._running:
                             break
                         try:
-                            # Tenta como combinação (ex: ctrl+c) ou tecla única
+                            display_name = _to_display(key_name)
+                            SignalManager.instance().console_message.emit(
+                                f"HotkeyPlugin pressionando: {display_name} "
+                                f"(loop {rep + 1}/{repeat_count})"
+                            )
+                            # pyautogui.press() suporta F1-F12, enter, del, etc.
+                            # pyautogui.hotkey() para combinações ctrl+c, alt+tab
                             if "+" in key_name.strip("+"):
-                                # Combinação como ctrl+c, alt+tab
-                                pyautogui.hotkey(*key_name.replace(" ", "").split("+"))
+                                parts = key_name.replace(" ", "").split("+")
+                                pyautogui.hotkey(*parts)
                             else:
-                                kb_send(key_name)
+                                pyautogui.press(key_name)
                         except Exception as e:
                             self.logger.error(
                                 "Erro ao pressionar tecla",
                                 code="KEY_SEND_ERR",
                                 key=key_name,
                                 error=str(e),
+                            )
+                            SignalManager.instance().console_message.emit(
+                                f"HotkeyPlugin erro ao pressionar {key_name}: {e}"
                             )
                             break
                         time.sleep(interval_delay)
