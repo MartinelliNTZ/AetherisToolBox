@@ -41,7 +41,8 @@ def _build_dynamic_config(section: str) -> Dict[str, Any]:
             continue
         pref_type = Preferences.infer_type(value)
         # Default seguro: se o valor real existe no JSON usa ele, senao 0 ou ""
-        safe_default = value if value is not None else (0 if pref_type in ("int", "float") else "")
+        safe_default = value if value is not None else (
+            0 if pref_type in ("int", "float") else "")
         entry: Dict[str, Any] = {
             "type": pref_type,
             "default": safe_default,
@@ -88,23 +89,6 @@ class PreferencesPlugin(QWidget):
         sep.setFixedHeight(1)
         main_layout.addWidget(sep)
 
-        # ── Seletor de ToolKey ──
-        selector_row = QHBoxLayout()
-        selector_row.setSpacing(8)
-
-        lbl_sel = QLabel("Ferramenta:")
-        lbl_sel.setObjectName("pref_selector_label")
-        selector_row.addWidget(lbl_sel)
-
-        self._combo_toolkey = QComboBox()
-        self._combo_toolkey.setMinimumWidth(200)
-        self._combo_toolkey.setObjectName("pref_combo")
-        self._combo_toolkey.currentIndexChanged.connect(self._on_toolkey_changed)
-        selector_row.addWidget(self._combo_toolkey, 1)
-
-        selector_row.addStretch()
-        main_layout.addLayout(selector_row)
-
         # ── Action Buttons ──
         self._btns = ExecutionButtons(self)
         self._btns.setup({
@@ -129,6 +113,24 @@ class PreferencesPlugin(QWidget):
         })
         main_layout.addWidget(self._btns)
 
+        # ── Seletor de ToolKey ──
+        selector_row = QHBoxLayout()
+        selector_row.setSpacing(8)
+
+        lbl_sel = QLabel("Ferramenta:")
+        lbl_sel.setObjectName("pref_selector_label")
+        selector_row.addWidget(lbl_sel)
+
+        self._combo_toolkey = QComboBox()
+        self._combo_toolkey.setMinimumWidth(200)
+        self._combo_toolkey.setObjectName("pref_combo")
+        self._combo_toolkey.currentIndexChanged.connect(
+            self._on_toolkey_changed)
+        selector_row.addWidget(self._combo_toolkey, 1)
+
+        selector_row.addStretch()
+        main_layout.addLayout(selector_row)
+
         # ── Grid de Preferências ──
         self._grid_container = QWidget()
         self._grid_layout = QVBoxLayout(self._grid_container)
@@ -150,7 +152,8 @@ class PreferencesPlugin(QWidget):
             section_data = all_data[key]
             if not isinstance(section_data, dict):
                 continue
-            has_scalar = any(not isinstance(v, dict) for v in section_data.values())
+            has_scalar = any(not isinstance(v, dict)
+                             for v in section_data.values())
             if not has_scalar:
                 continue
             self._combo_toolkey.addItem(key, key)
