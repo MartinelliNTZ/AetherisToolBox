@@ -145,24 +145,24 @@ class HotkeySequenceCapture(QWidget):
 
         self._empty_label.setVisible(False)
 
-        # Insere itens antes do empty_label (que é sempre índice 0 no layout)
+        # Adiciona os itens APÓS o empty_label (índice 0).
+        # Como o empty_label está oculto quando há itens,
+        # ele não aparece, mas continua no layout.
         for i, key in enumerate(self._keys):
             item_widget = self._create_key_item(key, i)
-            insert_pos = self._list_layout.count() - 1  # antes do empty_label
-            self._list_layout.insertWidget(insert_pos, item_widget)
+            self._list_layout.addWidget(item_widget)
+
 
     def _clear_dynamic_items(self):
         """
-        Remove apenas os widgets dinâmicos (key items),
-        preservando o empty_label que está sempre no layout (índice 0).
+        Remove todos os widgets dinâmicos, preservando apenas
+        o _empty_label, que é o primeiro widget do layout.
         """
-        idx = self._list_layout.count() - 1
-        while idx >= 1:
-            item = self._list_layout.takeAt(idx)
+        while self._list_layout.count() > 1:
+            item = self._list_layout.takeAt(1)  # preserva índice 0
             widget = item.widget()
-            if widget is not None and widget is not self._empty_label:
+            if widget is not None:
                 widget.deleteLater()
-            idx -= 1
 
     def _create_key_item(self, key: str, index: int) -> QWidget:
         """Cria um widget de item para uma tecla na lista."""
