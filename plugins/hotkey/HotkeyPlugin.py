@@ -299,6 +299,9 @@ class HotkeyPlugin(BasePlugin):
         # Fecha hooks anteriores se houver
         self._clean_hooks()
 
+        # Reseta a barra de progresso
+        SignalManager.instance().progress_update.emit(0.0)
+
         # Monta callback conforme o modo
         if mode == self.MODE_TEXT:
             value = self._edit_value.text().strip()
@@ -319,6 +322,7 @@ class HotkeyPlugin(BasePlugin):
             if mode == self.MODE_TEXT:
                 # Modo texto: digita caractere por caractere
                 count = 0
+                total_chars = len(value)
                 for ch in value:
                     if not self._running:
                         break
@@ -327,13 +331,18 @@ class HotkeyPlugin(BasePlugin):
                         pyautogui.typewrite(ch, interval=0)
                     except Exception:
                         break
-                    time.sleep(interval_delay)
                     count += 1
+                    progress = (count / total_chars) * 100.0
+                    SignalManager.instance().progress_update.emit(progress)
+                    time.sleep(interval_delay)
                 QTimer.singleShot(0, lambda: self._on_typed(count, hotkey))
             else:
                 # Modo atalho: executa sequência N vezes
                 import pyautogui
                 from resources.widgets.HotkeyCaptureLine import _to_display
+
+                total_steps = repeat_count * len(sequence)
+                step_index = 0
 
                 for rep in range(repeat_count):
                     if not self._running:
@@ -365,6 +374,9 @@ class HotkeyPlugin(BasePlugin):
                                 f"HotkeyPlugin erro ao pressionar {key_name}: {e}"
                             )
                             break
+                        step_index += 1
+                        progress = (step_index / total_steps) * 100.0
+                        SignalManager.instance().progress_update.emit(progress)
                         actual_delay = interval_delay + random.uniform(0.0, aleatoriedade)
                         time.sleep(actual_delay)
                     if not self._running:
@@ -388,12 +400,14 @@ class HotkeyPlugin(BasePlugin):
             SignalManager.instance().console_message.emit(
                 f"HotkeyPlugin erro: {e}. Instale: pip install pyautogui keyboard"
             )
+            SignalManager.instance().progress_update.emit(0.0)
             return
         except Exception as e:
             self.logger.error("Falha ao registrar hotkey", code="HOTKEY_ERR", error=str(e))
             SignalManager.instance().console_message.emit(
                 f"HotkeyPlugin erro ao registrar hotkey: {e}"
             )
+            SignalManager.instance().progress_update.emit(0.0)
             return
 
         self._running = True
@@ -453,6 +467,8 @@ class HotkeyPlugin(BasePlugin):
         """Callback quando a execução termina."""
         self._btn_executar.setText("EXECUTAR")
         self._set_inputs_enabled(True)
+        SignalManager.instance().progress_update.emit(100.0)
+        QTimer.singleShot(500, lambda: SignalManager.instance().progress_update.emit(0.0))
 
         SignalManager.instance().console_message.emit("HotkeyPlugin parado")
         self.logger.info("HotkeyPlugin parado", code="WORKER_STOP")

@@ -86,12 +86,19 @@ class MainWindow(QMainWindow):
         root_layout.addWidget(self._workspace_manager, 1)
 
         # ── 4. PROGRESS BAR ──
+        # Range 0-10000 = 2 casas decimais de precisão
         self.progress = QProgressBar()
+        self.progress.setMinimum(0)
+        self.progress.setMaximum(10000)
         self.progress.setValue(0)
         self.progress.setTextVisible(True)
         self.progress.setFormat(" %p% - aguardando... ")
         self.progress.setFixedHeight(20)
         root_layout.addWidget(self.progress)
+
+        # Conecta sinal de progresso
+        from core.manager.SignalManager import SignalManager
+        SignalManager.instance().progress_update.connect(self._on_progress_update)
 
     # ────────────────────────────────────────────────────────────────
     # About Dialog
@@ -133,6 +140,18 @@ class MainWindow(QMainWindow):
     # ────────────────────────────────────────────────────────────────
     # Controle de janela
     # ────────────────────────────────────────────────────────────────
+
+    def _on_progress_update(self, value: float):
+        """Atualiza a barra de progresso com 2 casas decimais."""
+        # value vem em 0-100, range é 0-10000 para 2 casas decimais
+        scaled = int(round(value * 100.0))
+        self.progress.setValue(scaled)
+        if value <= 0:
+            self.progress.setFormat(" %p% - aguardando... ")
+        elif value >= 100:
+            self.progress.setFormat(" 100% - concluído! ")
+        else:
+            self.progress.setFormat(f" {value:.2f}% - executando... ")
 
     def _toggle_maximize_restore(self) -> None:
         if self.isMaximized():

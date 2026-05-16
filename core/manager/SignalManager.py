@@ -21,6 +21,7 @@ class SignalManager(QObject):
     tool_opened: Signal = Signal(str, object)
     tool_closed: Signal = Signal(str)
     console_message: Signal = Signal(str)
+    progress_update: Signal = Signal(float)
 
     _instance: SignalManager | None = None
 
