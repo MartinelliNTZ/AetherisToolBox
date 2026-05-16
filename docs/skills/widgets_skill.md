@@ -377,6 +377,53 @@ grid.clear_all()       # limpar tudo
 
 ---
 
+### `PluginPage` — `PluginPage.py`
+Container base padrão para todos os plugins. Fornece:
+- QVBoxLayout com margins (18, 10, 18, 10) e spacing 8
+- Header opcional (QLabel + QFrame separator) se `title` for informado
+
+Usado automaticamente pelo `BasePlugin._build_ui()`.
+
+```python
+from resources.widgets.PluginPage import PluginPage
+
+# Uso direto (raro)
+page = PluginPage(title="Meu Plugin")
+page.main_layout.addWidget(QLabel("conteúdo"))
+
+# Uso via BasePlugin (padrão)
+class MeuPlugin(BasePlugin):
+    def _build_ui(self):
+        super()._build_ui()
+        self.main_layout.addWidget(QLabel("meu widget"))
+```
+
+---
+
+### `SimpleComboBox` — `SimpleComboBox.py`
+QComboBox genérico com label opcional. Aceita `Dict[str, str]` (recomendado) ou `List[str]`. Prefira **sempre** Dict — a chave é o valor interno estável, o texto é o display. Isso evita perda de índice e permite maior semântica.
+
+```python
+from resources.widgets.SimpleComboBox import SimpleComboBox
+
+# Dict (recomendado) — valor_interno → texto_exibido
+combo = SimpleComboBox(
+    items={"console": "Console", "renamer": "Renomeador"},
+    on_item_changed=self._on_item_changed,
+    label="Ferramenta:",
+)
+combo.current_value   # "console"
+combo.current_text    # "Console"
+combo.current_value = "renamer"  # setter por valor
+combo.select_first()
+combo.set_items({"novo": "Novo"})
+
+# List (menos recomendado) — texto = valor
+combo = SimpleComboBox(items=["Opção A", "Opção B"])
+```
+
+---
+
 ## 🆕 Como criar um Novo Widget
 
 1. Crie o arquivo em `resources/widgets/MeuWidget.py`

@@ -17,14 +17,13 @@ from __future__ import annotations
 
 from typing import Any, Dict
 
-from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QComboBox,
-    QFrame,
-)
-from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QWidget, QVBoxLayout
 
+from core.enum.ToolKey import ToolKey
+from core.model.BasePlugin import BasePlugin
 from resources.widgets.ExecutionButtons import ExecutionButtons
 from resources.widgets.PreferenceItemGrid import PreferenceItemGrid
+from resources.widgets.SimpleComboBox import SimpleComboBox
 from utils.Preferences import Preferences
 
 
@@ -36,11 +35,9 @@ def _build_dynamic_config(section: str) -> Dict[str, Any]:
     raw = Preferences.all_data().get(section, {})
     config: Dict[str, Any] = {}
     for key, value in raw.items():
-        # Pula dicts aninhados complexos (ex: extensoes)
         if isinstance(value, dict):
             continue
         pref_type = Preferences.infer_type(value)
-        # Default seguro: se o valor real existe no JSON usa ele, senao 0 ou ""
         safe_default = value if value is not None else (
             0 if pref_type in ("int", "float") else "")
         entry: Dict[str, Any] = {
@@ -60,34 +57,25 @@ def _build_dynamic_config(section: str) -> Dict[str, Any]:
     return config
 
 
-class PreferencesPlugin(QWidget):
+class PreferencesPlugin(BasePlugin):
     """
     Gerenciador de preferências do sistema.
     Carrega dinamicamente todas as seções do preferences.json.
     """
 
     def __init__(self, parent=None):
-        super().__init__(parent)
-        self._current_section: str = ""
-        self._grid: PreferenceItemGrid | None = None
-        self._build_ui()
+        super().__init__(
+            tool_key=ToolKey.PREFERENCES,
+            parent=parent,
+            title="Gerenciador de Preferências",
+        )
 
     def _build_ui(self):
-        main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(18, 10, 18, 10)
-        main_layout.setSpacing(8)
+        """Sobrescreve _build_ui do BasePlugin."""
+        super()._build_ui()
 
-        # ── Header ──
-        header = QLabel("Gerenciador de Preferências")
-        header.setObjectName("header_title")
-        main_layout.addWidget(header)
-
-        # ── Separator ──
-        sep = QFrame()
-        sep.setObjectName("separator")
-        sep.setFrameShape(QFrame.Shape.HLine)
-        sep.setFixedHeight(1)
-        main_layout.addWidget(sep)
+        self._current_section: str = ""
+        self._grid: PreferenceItemGrid | None = None
 
         # ── Action Buttons ──
         self._btns = ExecutionButtons(self)
@@ -111,44 +99,36 @@ class PreferencesPlugin(QWidget):
                 "description": "Salva as preferências da seção atual",
             },
         })
-        main_layout.addWidget(self._btns)
+        self.main_layout.addWidget(self._btns)
 
-        # ── Seletor de ToolKey ──
-        selector_row = QHBoxLayout()
-        selector_row.setSpacing(8)
-
-        lbl_sel = QLabel("Ferramenta:")
-        lbl_sel.setObjectName("pref_selector_label")
-        selector_row.addWidget(lbl_sel)
-
-        self._combo_toolkey = QComboBox()
-        self._combo_toolkey.setMinimumWidth(200)
-        self._combo_toolkey.setObjectName("pref_combo")
-        self._combo_toolkey.currentIndexChanged.connect(
-            self._on_toolkey_changed)
-        selector_row.addWidget(self._combo_toolkey, 1)
-
-        selector_row.addStretch()
-        main_layout.addLayout(selector_row)
+        # ── Seletor de seção (SimpleComboBox com Dict) ──
+        self._toolkey_dict = self._get_toolkey_dict()
+        self._combo = SimpleComboBox(
+            items=self._toolkey_dict,
+            on_item_changed=self._on_section_changed,
+            label="Ferramenta:",
+            parent=self,
+        )
+        self.main_layout.addWidget(self._combo)
 
         # ── Grid de Preferências ──
         self._grid_container = QWidget()
         self._grid_layout = QVBoxLayout(self._grid_container)
         self._grid_layout.setContentsMargins(0, 0, 0, 0)
-        main_layout.addWidget(self._grid_container, 1)
+        self.main_layout.addWidget(self._grid_container, 1)
 
-        # Popula combo e carrega primeira
-        self._populate_combo()
+        # Seleciona o primeiro item
+        if self._toolkey_dict:
+            self._combo.select_first()
 
-    def _populate_combo(self):
-        """Lê do preferences.json e preenche o combo com todas as seções."""
-        self._combo_toolkey.blockSignals(True)
-        self._combo_toolkey.clear()
-
+    def _get_toolkey_dict(self) -> Dict[str, str]:
+        """
+        Lê do preferences.json e retorna Dict {key: key}
+        com seções que possuem campos escalares editáveis.
+        """
         all_data = Preferences.all_data()
-        self._toolkey_order: list[str] = []
+        result: Dict[str, str] = {}
         for key in sorted(all_data.keys()):
-            # Só mostra seção que tem ao menos um campo não-dict
             section_data = all_data[key]
             if not isinstance(section_data, dict):
                 continue
@@ -156,27 +136,16 @@ class PreferencesPlugin(QWidget):
                              for v in section_data.values())
             if not has_scalar:
                 continue
-            self._combo_toolkey.addItem(key, key)
-            self._toolkey_order.append(key)
+            result[key] = key
+        return result
 
-        self._combo_toolkey.blockSignals(False)
-
-        if self._toolkey_order:
-            self._current_section = self._toolkey_order[0]
-            self._combo_toolkey.setCurrentIndex(0)
-            self._rebuild_grid()
-
-    def _on_toolkey_changed(self, idx: int):
+    def _on_section_changed(self, key: str):
         """Troca a seção de preferências exibida."""
-        key = self._combo_toolkey.itemData(idx)
-        if not key:
-            return
         self._current_section = key
         self._rebuild_grid()
 
     def _rebuild_grid(self):
         """Recria o PreferenceItemGrid para a seção atual com config dinâmico."""
-        # Remove grid anterior
         while self._grid_layout.count():
             item = self._grid_layout.takeAt(0)
             w = item.widget()
@@ -213,8 +182,11 @@ class PreferencesPlugin(QWidget):
                 title="Confirmar",
             )
             if ok:
-                # Remove a seção inteira do JSON e recria grid vazio
                 all_data = Preferences.all_data()
                 all_data.pop(self._current_section, None)
                 Preferences.save_all(all_data)
-                self._populate_combo()
+                # Atualiza dicionário e reseleciona
+                self._toolkey_dict = self._get_toolkey_dict()
+                self._combo.set_items(self._toolkey_dict)
+                if self._toolkey_dict:
+                    self._combo.select_first()

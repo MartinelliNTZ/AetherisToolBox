@@ -111,6 +111,14 @@ Se não existir, CRIE o widget em resources/widgets/.
 - **Abstraia componentes compostos** — se você precisa de um label + caixa de texto + botão, provavelmente isso é UM widget composto, não 3 widgets isolados. Crie uma classe em `resources/widgets/` que empacote os 3.
 - **Modifique widgets existentes** para adicionar funcionalidades, desde que mantenha compatibilidade retroativa. É preferível estender um widget existente a criar um novo similar.
 - **Nunca** use `QHBoxLayout` / `QVBoxLayout` solto com widgets brutos do Qt para criar o mesmo padrão que já existe em `resources/widgets/`.
+- **Prefira Dict a List** para dados de widgets (combos, grids, configs). Dict tem chave fixa e estável, permite semântica clara (chave = valor interno, texto = exibição) e é mais manutenível que List que perde significado do índice.
+  ```python
+  # ✅ Correto — Dict
+  combo = SimpleComboBox(items={"console": "Console", "renamer": "Renomeador"})
+
+  # ⚠️ Aceitável — List (perde semântica do valor interno)
+  combo = SimpleComboBox(items=["Opção A", "Opção B"])
+  ```
 
 ```python
 # ✅ Correto — usa widget existente
