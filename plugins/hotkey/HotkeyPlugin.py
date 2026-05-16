@@ -279,16 +279,14 @@ class TecladorF(BasePlugin):
         )
 
     def _stop_worker(self):
-        """Para o worker."""
+        """Para o worker sem simular tecla ESC (evita KeyboardInterrupt)."""
         if self._worker:
             self._worker.stop()
             try:
                 import keyboard
-                keyboard.press_and_release("esc")
+                keyboard.unhook_all()
             except ImportError:
-                self.logger.warning("keyboard nao instalado, nao foi possivel enviar ESC", code="IMPORT_WARN")
-                SignalManager.instance().console_message.emit(
-                    "TecladorF: keyboard não instalado, não foi possível enviar ESC")
+                self.logger.warning("keyboard nao instalado", code="IMPORT_WARN")
             if not self._worker.wait(3000):
                 self._worker.terminate()
         self._on_worker_finished()
