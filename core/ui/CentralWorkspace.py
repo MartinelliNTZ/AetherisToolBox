@@ -219,15 +219,28 @@ class CentralWorkspace(QWidget):
         self.stack.addWidget(placeholder)
 
         # Aba no tab bar — tabData guarda (name, title) (title viaja junto no drag)
+        # BLOQUEIA sinais para evitar que QTabBar dispare currentChanged
+        # automaticamente ao adicionar a primeira aba (tab_bar vazio).
+        # O tabData precisa estar setado antes de qualquer currentChanged ser processado
+        # para que _on_tab_changed consiga identificar a tool corretamente.
+        self.tab_bar.blockSignals(True)
         tab_index = self.tab_bar.addTab("")
         if tool.tooltip:
             self.tab_bar.setTabToolTip(tab_index, tool.tooltip)
         self.tab_bar.setTabData(tab_index, (name, tool.title))
+        self.tab_bar.blockSignals(False)
 
         self._log.info(f"Tool registrada: {name}", code="TOOL_REG")
 
         if focus:
-            self.tab_bar.setCurrentIndex(tab_index)
+            # Se currentIndex já é o da nova aba (caso da primeira aba
+            # adicionada a um QTabBar vazio), setCurrentIndex é um no‑op
+            # e não emite currentChanged. Precisamos chamar _on_tab_changed
+            # diretamente para garantir que o conteúdo seja carregado.
+            if self.tab_bar.currentIndex() == tab_index:
+                self._on_tab_changed(tab_index)
+            else:
+                self.tab_bar.setCurrentIndex(tab_index)
 
         return name
 
