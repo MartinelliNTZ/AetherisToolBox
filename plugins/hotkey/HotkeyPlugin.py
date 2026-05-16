@@ -31,6 +31,7 @@ from core.manager.SignalManager import SignalManager
 from core.enum.ToolKey import ToolKey
 from resources.widgets.SimplePrimaryButton import SimplePrimaryButton
 from resources.widgets.HotkeyCaptureLine import HotkeyCaptureLine
+from resources.widgets.GridCheckBox import GridCheckBox
 
 
 class HotkeyPlugin(QThread):
@@ -45,6 +46,7 @@ class HotkeyPlugin(QThread):
         hotkey: str,
         startup_delay: float,
         interval_delay: float,
+        suppress: bool = False,
         parent=None,
     ):
         super().__init__(parent)
@@ -52,6 +54,7 @@ class HotkeyPlugin(QThread):
         self._hotkey = hotkey.lower()
         self._startup_delay = startup_delay
         self._interval_delay = interval_delay
+        self._suppress = suppress
         self._running = False
         self.logger = LogUtils(tool=ToolKey.TECLADOR_F.value, class_name="HotkeyPlugin")
 
@@ -90,7 +93,7 @@ class HotkeyPlugin(QThread):
             keyboard.add_hotkey(
                 self._hotkey,
                 type_value,
-                suppress=False,
+                suppress=self._suppress,
                 trigger_on_release=False,
             )
             keyboard.wait("esc")
@@ -197,6 +200,25 @@ class TecladorF(BasePlugin):
         self._spin_interval.valueChanged.connect(self._mark_dirty)
         form.addRow("Intervalo (s):", self._spin_interval)
 
+        # ── Grid: Bloquear propagação (dentro do group) ──────────────
+        self._grid_suppress = GridCheckBox(
+            config={
+                "suppress": {
+                    "label": "Bloquear propagação (suppress)",
+                    "description": (
+                        "Impede que a tecla de atalho seja transmitida "
+                        "para outros programas. Ative se a tecla estiver "
+                        "acionando comandos indesejados no app em foco."
+                    ),
+                    "default": True,
+                },
+            },
+            num_columns=1,
+        )
+        self._grid_suppress.setObjectName("group_suppress")
+        self._grid_suppress.changed.connect(self._mark_dirty)
+        config_group.layout().addWidget(self._grid_suppress)
+
         layout.addWidget(config_group, 1)
 
     # ── Ações ─────────────────────────────────────────────────────────
@@ -224,12 +246,14 @@ class TecladorF(BasePlugin):
 
         startup_delay = self._spin_startup.value()
         interval_delay = self._spin_interval.value()
+        suppress = bool(self._grid_suppress.all.get("suppress", True))
 
         self._worker = HotkeyPlugin(
             value=value,
             hotkey=hotkey,
             startup_delay=startup_delay,
             interval_delay=interval_delay,
+            suppress=suppress,
         )
         self._worker.finished.connect(self._on_worker_finished)
         self._worker.start()
@@ -251,6 +275,7 @@ class TecladorF(BasePlugin):
             hotkey=hotkey.upper(),
             startup_delay=startup_delay,
             interval_delay=interval_delay,
+            suppress=suppress,
         )
 
     def _stop_worker(self):
@@ -284,6 +309,7 @@ class TecladorF(BasePlugin):
         self._edit_hotkey.setEnabled(enabled)
         self._spin_startup.setEnabled(enabled)
         self._spin_interval.setEnabled(enabled)
+        self._grid_suppress.setEnabled(enabled)
 
     # ── Preferences ─────────────────────────────────────────────────
 
@@ -306,12 +332,19 @@ class TecladorF(BasePlugin):
         if interval_delay is not None:
             self._spin_interval.setValue(float(interval_delay))
 
+        suppress = self.preferences.get("suppress")
+        if suppress is not None:
+            self._grid_suppress.set_all({"suppress": bool(suppress)})
+
     def save_prefs(self) -> None:
         """Lê os widgets e persiste as preferências."""
         self.preferences["value"] = self._edit_value.text()
         self.preferences["hotkey"] = self._edit_hotkey.captured_key()
         self.preferences["startup_delay"] = self._spin_startup.value()
         self.preferences["interval_delay"] = self._spin_interval.value()
+        self.preferences["suppress"] = bool(
+            self._grid_suppress.all.get("suppress", True)
+        )
 
     # ── Dirty tracking ──────────────────────────────────────────────
 
