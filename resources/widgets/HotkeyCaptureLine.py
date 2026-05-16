@@ -159,11 +159,13 @@ class HotkeyCaptureLine(QLineEdit):
         self,
         default_key: str = "f",
         placeholder: str = "Clique e pressione uma tecla...",
+        ignore_keys: list[str] | None = None,
         parent=None,
     ):
         super().__init__(parent)
         self._captured_raw = default_key
         self._listening = False
+        self._ignore_keys = set(key.lower() for key in (ignore_keys or []))
 
         self.setReadOnly(True)
         self.setPlaceholderText(placeholder)
@@ -218,6 +220,14 @@ class HotkeyCaptureLine(QLineEdit):
         key_name = _qt_key_to_name(event)
         if key_name is None:
             return  # ignora teclas não mapeáveis
+
+        # Se a tecla está na lista de ignoradas, sai do modo escuta sem capturar
+        if key_name in self._ignore_keys:
+            self._listening = False
+            self.setStyleSheet("")
+            self._set_display(self._captured_raw)
+            self.clearFocus()
+            return
 
         self._captured_raw = key_name
         self._listening = False

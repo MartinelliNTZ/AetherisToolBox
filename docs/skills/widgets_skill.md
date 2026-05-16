@@ -102,6 +102,17 @@ btn = SimpleSecondaryButton("Salvar Config")
 
 ---
 
+### `SimpleLabel` — `SimpleLabel.py`
+Label padrão com fonte monospace e cor clara (#A1A1AA). Ideal para mensagens auxiliares, dicas e hints na interface.
+
+```python
+from resources.widgets.SimpleLabel import SimpleLabel
+
+label = SimpleLabel("Pressione ESC para cancelar")
+```
+
+---
+
 ### `SimpleDangerButton` — `SimpleDangerButton.py`
 Botão de perigo (fundo vermelho). Ações destrutivas (cancelar, excluir).
 

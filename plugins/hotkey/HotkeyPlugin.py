@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-TecladorF — Plugin de automação de teclado
-=============================================
+HotkeyPlugin — Plugin de automação de teclado
+===============================================
 Ao pressionar a tecla configurada, digita automaticamente uma string
 caractere por caractere, com delay configurável.
 
@@ -10,7 +10,7 @@ Uso:
     2. Configure valor, atraso inicial, intervalo e tecla de atalho
     3. Clique em "EXECUTAR" para ativar
     4. Pressione a tecla configurada (padrão: F) para digitar
-    5. Clique em "PARAR" ou pressione ESC globalmente para parar
+    5. Clique em "PARAR" para interromper
 """
 
 from __future__ import annotations
@@ -51,7 +51,7 @@ class HotkeyPlugin(BasePlugin):
         self._hotkey_handler = None
         self._build_ui()
         self.load_prefs()
-        self.logger.info("TecladorF carregado", code="TOOL_READY")
+        self.logger.info("HotkeyPlugin carregado", code="TOOL_READY")
 
     def _build_ui(self):
         layout = QVBoxLayout(self)
@@ -193,13 +193,13 @@ class HotkeyPlugin(BasePlugin):
         except ImportError as e:
             self.logger.error("Bibliotecas nao encontradas", code="IMPORT_ERR", error=str(e))
             SignalManager.instance().console_message.emit(
-                f"TecladorF erro: {e}. Instale: pip install pyautogui keyboard"
+                f"HotkeyPlugin erro: {e}. Instale: pip install pyautogui keyboard"
             )
             return
         except Exception as e:
             self.logger.error("Falha ao registrar hotkey", code="HOTKEY_ERR", error=str(e))
             SignalManager.instance().console_message.emit(
-                f"TecladorF erro ao registrar hotkey: {e}"
+                f"HotkeyPlugin erro ao registrar hotkey: {e}"
             )
             return
 
@@ -209,11 +209,11 @@ class HotkeyPlugin(BasePlugin):
         self.save_prefs()
 
         SignalManager.instance().console_message.emit(
-            f"TecladorF iniciado — tecla {hotkey.upper()}, "
+            f"HotkeyPlugin iniciado — tecla {hotkey.upper()}, "
             f"valor={value[:30]}..."
         )
         self.logger.info(
-            "TecladorF iniciado",
+            "HotkeyPlugin iniciado",
             code="WORKER_START",
             value_length=len(value),
             value_preview=value[:30],
@@ -227,7 +227,7 @@ class HotkeyPlugin(BasePlugin):
         """Recebe notificação na thread da UI após digitação."""
         if count > 0:
             SignalManager.instance().console_message.emit(
-                f"TecladorF digitou {count} caracteres (tecla {hotkey.upper()})"
+                f"HotkeyPlugin digitou {count} caracteres (tecla {hotkey.upper()})"
             )
 
     def _stop_worker(self):
@@ -255,8 +255,8 @@ class HotkeyPlugin(BasePlugin):
         self._btn_executar.setText("EXECUTAR")
         self._set_inputs_enabled(True)
 
-        SignalManager.instance().console_message.emit("TecladorF parado")
-        self.logger.info("TecladorF parado", code="WORKER_STOP")
+        SignalManager.instance().console_message.emit("HotkeyPlugin parado")
+        self.logger.info("HotkeyPlugin parado", code="WORKER_STOP")
 
     def _set_inputs_enabled(self, enabled: bool):
         """Habilita/desabilita inputs durante execução."""
