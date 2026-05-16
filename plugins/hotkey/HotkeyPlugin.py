@@ -17,6 +17,7 @@ Uso:
 from __future__ import annotations
 
 import json
+import random
 import time
 from datetime import datetime
 from pathlib import Path
@@ -145,7 +146,7 @@ class HotkeyPlugin(BasePlugin):
         self._edit_sequence.setObjectName("sequence_capture")
         hotkey_layout.addWidget(self._edit_sequence)
 
-        # GridDoubleSpinBox: atraso, intervalo, repetições
+        # GridDoubleSpinBox: atraso, intervalo, aleatoriedade, repetições
         self._grid_numbers = GridDoubleSpinBox(
             config={
                 "atraso": {
@@ -160,11 +161,23 @@ class HotkeyPlugin(BasePlugin):
                 },
                 "intervalo": {
                     "label": "Intervalo entre teclas",
-                    "description": "Tempo entre pressionar cada tecla da sequência (s)",
-                    "decimal": 1,
+                    "description": "Tempo base entre pressionar cada tecla da sequência (s). "
+                                   "O valor final será intervalo + aleatório(0, aleatoriedade).",
+                    "decimal": 2,
                     "default": self.DEFAULT_SEQUENCE_INTERVAL,
                     "min": 0.0,
                     "max": 60.0,
+                    "step": 0.1,
+                    "suffix": "s",
+                },
+                "aleatoriedade": {
+                    "label": "Aleatoriedade",
+                    "description": "Fator aleatório adicionado ao intervalo (0 = desligado). "
+                                   "Ex: intervalo=1, aleatoriedade=1 → delay entre 1.00 e 2.00s.",
+                    "decimal": 2,
+                    "default": 0.0,
+                    "min": 0.0,
+                    "max": 30.0,
                     "step": 0.1,
                     "suffix": "s",
                 },
@@ -294,6 +307,7 @@ class HotkeyPlugin(BasePlugin):
         else:
             startup_delay = self._grid_numbers.get("atraso")
             interval_delay = self._grid_numbers.get("intervalo")
+            aleatoriedade = self._grid_numbers.get("aleatoriedade")
             repeat_count = int(self._grid_numbers.get("repeticoes"))
 
         def type_value():
@@ -351,7 +365,8 @@ class HotkeyPlugin(BasePlugin):
                                 f"HotkeyPlugin erro ao pressionar {key_name}: {e}"
                             )
                             break
-                        time.sleep(interval_delay)
+                        actual_delay = interval_delay + random.uniform(0.0, aleatoriedade)
+                        time.sleep(actual_delay)
                     if not self._running:
                         break
 
@@ -490,6 +505,10 @@ class HotkeyPlugin(BasePlugin):
         if seq_interval is not None:
             self._grid_numbers.set("intervalo", float(seq_interval), block_signals=True)
 
+        aleatoriedade = self.preferences.get("aleatoriedade")
+        if aleatoriedade is not None:
+            self._grid_numbers.set("aleatoriedade", float(aleatoriedade), block_signals=True)
+
         seq_repeat = self.preferences.get("seq_repeat")
         if seq_repeat is not None:
             self._grid_numbers.set("repeticoes", float(seq_repeat), block_signals=True)
@@ -515,6 +534,7 @@ class HotkeyPlugin(BasePlugin):
         vals = self._grid_numbers.values
         self.preferences["atraso"] = vals.get("atraso", self.DEFAULT_STARTUP_DELAY)
         self.preferences["seq_interval"] = vals.get("intervalo", self.DEFAULT_SEQUENCE_INTERVAL)
+        self.preferences["aleatoriedade"] = vals.get("aleatoriedade", 0.0)
         self.preferences["seq_repeat"] = vals.get("repeticoes", self.DEFAULT_SEQUENCE_REPEAT)
 
         self.preferences["sequence"] = self._edit_sequence.captured_sequence()
@@ -538,6 +558,7 @@ class HotkeyPlugin(BasePlugin):
             "suppress": bool(self._grid_suppress.all.get("suppress", True)),
             "atraso": vals.get("atraso", self.DEFAULT_STARTUP_DELAY),
             "intervalo": vals.get("intervalo", self.DEFAULT_SEQUENCE_INTERVAL),
+            "aleatoriedade": vals.get("aleatoriedade", 0.0),
             "repeticoes": int(vals.get("repeticoes", self.DEFAULT_SEQUENCE_REPEAT)),
             "sequence": self._edit_sequence.captured_sequence(),
         }
@@ -568,6 +589,10 @@ class HotkeyPlugin(BasePlugin):
         intervalo = data.get("intervalo")
         if intervalo is not None:
             self._grid_numbers.set("intervalo", float(intervalo), block_signals=True)
+
+        aleatoriedade_val = data.get("aleatoriedade")
+        if aleatoriedade_val is not None:
+            self._grid_numbers.set("aleatoriedade", float(aleatoriedade_val), block_signals=True)
 
         repeticoes = data.get("repeticoes")
         if repeticoes is not None:
