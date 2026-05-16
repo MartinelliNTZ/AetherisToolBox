@@ -16,12 +16,16 @@ Uso:
 
 from __future__ import annotations
 
+import json
 import time
+from datetime import datetime
+from pathlib import Path
 
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
     QGroupBox, QFormLayout, QFrame, QComboBox,
+    QDialog, QListWidget, QPushButton,
 )
 
 from core.config.LogUtils import LogUtils
@@ -29,6 +33,7 @@ from core.model.BasePlugin import BasePlugin
 from core.manager.SignalManager import SignalManager
 from core.enum.ToolKey import ToolKey
 from resources.widgets.SimplePrimaryButton import SimplePrimaryButton
+from resources.widgets.SimpleSecondaryButton import SimpleSecondaryButton
 from resources.widgets.HotkeyCaptureLine import HotkeyCaptureLine
 from resources.widgets.HotkeySequenceCapture import HotkeySequenceCapture
 from resources.widgets.GridCheckBox import GridCheckBox
@@ -82,6 +87,12 @@ class HotkeyPlugin(BasePlugin):
         # ── Botões de Ação ────────────────────────────────────────────
         btn_layout = QHBoxLayout()
         btn_layout.setSpacing(6)
+        self._btn_salvar_config = SimpleSecondaryButton("SALVAR CONFIG")
+        self._btn_salvar_config.clicked.connect(self._on_salvar_config)
+        btn_layout.addWidget(self._btn_salvar_config)
+        self._btn_ler_config = SimpleSecondaryButton("LER CONFIG")
+        self._btn_ler_config.clicked.connect(self._on_ler_config)
+        btn_layout.addWidget(self._btn_ler_config)
         btn_layout.addStretch()
         self._btn_executar = SimplePrimaryButton("EXECUTAR")
         self._btn_executar.clicked.connect(self._on_executar)
@@ -507,6 +518,207 @@ class HotkeyPlugin(BasePlugin):
         self.preferences["seq_repeat"] = vals.get("repeticoes", self.DEFAULT_SEQUENCE_REPEAT)
 
         self.preferences["sequence"] = self._edit_sequence.captured_sequence()
+
+    # ── Config Dir ─────────────────────────────────────────────────
+
+    @staticmethod
+    def _get_config_dir() -> Path:
+        """Retorna o diretório config/data/hotkey/."""
+        config_dir = Path("config/data/hotkey")
+        config_dir.mkdir(parents=True, exist_ok=True)
+        return config_dir
+
+    def _collect_config_data(self) -> dict:
+        """Coleta todos os parâmetros atuais do plugin em um dicionário."""
+        vals = self._grid_numbers.values
+        return {
+            "mode": self._combo_mode.currentText(),
+            "value": self._edit_value.text(),
+            "hotkey": self._edit_hotkey.captured_key(),
+            "suppress": bool(self._grid_suppress.all.get("suppress", True)),
+            "atraso": vals.get("atraso", self.DEFAULT_STARTUP_DELAY),
+            "intervalo": vals.get("intervalo", self.DEFAULT_SEQUENCE_INTERVAL),
+            "repeticoes": int(vals.get("repeticoes", self.DEFAULT_SEQUENCE_REPEAT)),
+            "sequence": self._edit_sequence.captured_sequence(),
+        }
+
+    def _apply_config_data(self, data: dict):
+        """Aplica os parâmetros de um dicionário nos widgets do plugin."""
+        mode = data.get("mode", self.MODE_TEXT)
+        idx = self._combo_mode.findText(mode)
+        if idx >= 0:
+            self._combo_mode.setCurrentIndex(idx)
+
+        value = data.get("value")
+        if value is not None:
+            self._edit_value.setText(value)
+
+        hotkey = data.get("hotkey")
+        if hotkey is not None:
+            self._edit_hotkey.set_captured_key(hotkey)
+
+        suppress = data.get("suppress")
+        if suppress is not None:
+            self._grid_suppress.set_all({"suppress": bool(suppress)})
+
+        atraso = data.get("atraso")
+        if atraso is not None:
+            self._grid_numbers.set("atraso", float(atraso), block_signals=True)
+
+        intervalo = data.get("intervalo")
+        if intervalo is not None:
+            self._grid_numbers.set("intervalo", float(intervalo), block_signals=True)
+
+        repeticoes = data.get("repeticoes")
+        if repeticoes is not None:
+            self._grid_numbers.set("repeticoes", float(repeticoes), block_signals=True)
+
+        sequence = data.get("sequence")
+        if sequence is not None and isinstance(sequence, list):
+            self._edit_sequence.set_captured_sequence(sequence)
+
+    # ── Salvar / Ler Config ────────────────────────────────────────
+
+    def _on_salvar_config(self):
+        """
+        Abre um diálogo para inserir um nome e salva a config atual
+        em config/data/hotkey/<nome>.json.
+        Se o arquivo já existir, pergunta se deseja substituir.
+        """
+        from utils.MessageBox import MessageBox
+
+        dlg = QDialog(self)
+        dlg.setWindowTitle("Salvar Configuração")
+        dlg.setFixedSize(400, 140)
+
+        v_layout = QVBoxLayout(dlg)
+        v_layout.setSpacing(12)
+
+        label = QLabel("Nome da configuração:")
+        v_layout.addWidget(label)
+
+        edit_nome = QLineEdit()
+        edit_nome.setPlaceholderText("Ex: config_meu_jogo")
+        v_layout.addWidget(edit_nome)
+
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+        btn_cancelar = QPushButton("Cancelar")
+        btn_cancelar.clicked.connect(dlg.reject)
+        btn_layout.addWidget(btn_cancelar)
+        btn_salvar = QPushButton("Salvar")
+        btn_salvar.clicked.connect(dlg.accept)
+        btn_layout.addWidget(btn_salvar)
+        v_layout.addLayout(btn_layout)
+
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+
+        nome = edit_nome.text().strip()
+        if not nome:
+            MessageBox.show_warning("O nome não pode estar vazio.", title="Aviso")
+            return
+
+        config_dir = self._get_config_dir()
+        filepath = config_dir / f"{nome}.json"
+
+        if filepath.exists():
+            substituir = MessageBox.show_question(
+                f"O arquivo '{nome}.json' já existe.\nDeseja substituir?",
+                title="Substituir?",
+            )
+            if not substituir:
+                return
+
+        data = self._collect_config_data()
+        data["_saved_at"] = datetime.now().isoformat()
+
+        try:
+            with open(filepath, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+            self.logger.info("Config salva", code="CONFIG_SAVED", name=nome)
+            SignalManager.instance().console_message.emit(
+                f"HotkeyPlugin config salva: {nome}.json"
+            )
+            MessageBox.show_info(f"Configuração '{nome}' salva com sucesso!", title="Salvo")
+        except Exception as e:
+            self.logger.error("Erro ao salvar config", code="CONFIG_SAVE_ERR", error=str(e))
+            MessageBox.show_error(f"Erro ao salvar configuração:\n{e}", title="Erro")
+
+    def _on_ler_config(self):
+        """
+        Abre uma janela listando todos os arquivos .json dentro de
+        config/data/hotkey/ com nome e data. Ao selecionar um, carrega
+        a configuração nos widgets.
+        """
+        from utils.MessageBox import MessageBox
+
+        config_dir = self._get_config_dir()
+        json_files = sorted(config_dir.glob("*.json"))
+
+        if not json_files:
+            MessageBox.show_info(
+                "Nenhuma configuração salva encontrada.\n"
+                "Use 'SALVAR CONFIG' para criar uma.",
+                title="Nenhuma Config",
+            )
+            return
+
+        dlg = QDialog(self)
+        dlg.setWindowTitle("Carregar Configuração")
+        dlg.resize(500, 400)
+
+        v_layout = QVBoxLayout(dlg)
+        v_layout.setSpacing(8)
+
+        label = QLabel("Selecione uma configuração para carregar:")
+        v_layout.addWidget(label)
+
+        list_widget = QListWidget()
+        for fp in json_files:
+            nome = fp.stem
+            mtime = datetime.fromtimestamp(fp.stat().st_mtime)
+            data_str = mtime.strftime("%d/%m/%Y %H:%M:%S")
+            list_widget.addItem(f"{nome}  [{data_str}]")
+        v_layout.addWidget(list_widget)
+
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+        btn_cancelar = QPushButton("Cancelar")
+        btn_cancelar.clicked.connect(dlg.reject)
+        btn_layout.addWidget(btn_cancelar)
+        btn_carregar = QPushButton("Carregar")
+        btn_carregar.clicked.connect(dlg.accept)
+        btn_layout.addWidget(btn_carregar)
+        v_layout.addLayout(btn_layout)
+
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+
+        current_row = list_widget.currentRow()
+        if current_row < 0:
+            return
+
+        selected_file = json_files[current_row]
+
+        try:
+            with open(selected_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+
+            self._apply_config_data(data)
+            self.save_prefs()
+
+            self.logger.info("Config carregada", code="CONFIG_LOADED", name=selected_file.stem)
+            SignalManager.instance().console_message.emit(
+                f"HotkeyPlugin config carregada: {selected_file.stem}.json"
+            )
+            MessageBox.show_info(
+                f"Configuração '{selected_file.stem}' carregada com sucesso!",
+                title="Carregado",
+            )
+        except Exception as e:
+            self.logger.error("Erro ao carregar config", code="CONFIG_LOAD_ERR", error=str(e))
+            MessageBox.show_error(f"Erro ao carregar configuração:\n{e}", title="Erro")
 
     # ── Dirty tracking ──────────────────────────────────────────────
 
