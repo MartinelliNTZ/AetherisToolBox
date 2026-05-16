@@ -11,7 +11,6 @@ fica encapsulada nos managers (MenuManager, WorkspaceManager).
 from __future__ import annotations
 
 import sys
-from enum import Enum
 from pathlib import Path
 from typing import List, Optional
 
@@ -25,17 +24,11 @@ if sys.platform == "win32":
     import ctypes.wintypes
 
 from core.model.Tool import Tool
+from core.enum.ResizeMode import ResizeMode
 from resources.widgets.app_bar import AppBar
 from core.config.MenuManager import MenuManager
 from core.config.WorkspaceManager import WorkspaceManager
 from core.dialogs.AboutDialog import AboutDialog
-
-
-class ResizeMode(Enum):
-    """Modos de redimensionamento da janela frameless."""
-    NONE = "none"       # Sem resize (comportamento atual)
-    NATIVE = "native"   # WM_NCHITTEST via nativeEvent (Windows)
-    CURSOR = "cursor"   # Mouse tracking manual (cross-platform)
 
 
 class MainWindow(QMainWindow):
