@@ -8,6 +8,8 @@ Registrado como uma aba no Workspace.
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QTextBrowser
 )
@@ -79,9 +81,11 @@ class ConsolePlugin(BasePlugin):
     def _on_console_message(self, message: str) -> None:
         """Recebe uma mensagem do SignalManager e exibe no console."""
         import html as html_mod
+        timestamp = datetime.now().strftime("%H:%M:%S")
         safe = html_mod.escape(message)
         self.append_log(
             f'<span style="color:#E5E7EB;font-family:Consolas,monospace;">'
+            f'<span style="color:#78716C;">[{timestamp}]</span> '
             f'{safe}</span>'
         )
 
