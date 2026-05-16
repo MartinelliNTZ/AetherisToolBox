@@ -268,3 +268,52 @@ path = ExplorerUtils.open_file("Abrir", filter="*.json", parent=self)
 from PySide6.QtWidgets import QFileDialog
 path, _ = QFileDialog.getOpenFileName(self, "Abrir", "", "*.json")
 ```
+
+## 🔴 Contrato 18 — Padrão de UI: Título → ExecutionButtons
+
+```
+Todo plugin DEVE seguir a estrutura:
+
+  Título → Separator → ExecutionButtons → (conteúdo do plugin)
+```
+
+NUNCA use `QHBoxLayout`, `QPushButton` bruto, `SimplePrimaryButton`/`SimpleSecondaryButton`/`SimpleDangerButton` individuais montados manualmente na seção de botões de ação. Use SEMPRE `ExecutionButtons` de `resources/widgets/ExecutionButtons.py`.
+
+**Regras:**
+- O `ExecutionButtons` já padroniza altura, font-size, padding e cursor para todos os botões.
+- Botões do tipo `primary` recebem destaque extra (altura +4px, font-size 13px vs 11px).
+- Botões do tipo `secondary`, `danger` e `ghost` têm altura e fonte uniformes (30px, 11px).
+- `ExecutionButtons` gerencia automaticamente o stretch entre grupos (secundários à esquerda, primary/danger à direita).
+- Nunca adicione `addStretch()` manual — o widget já faz isso.
+- Use `buttons["chave"]` para acessar botões individualmente (mudar texto, habilitar/desabilitar).
+
+```python
+# ✅ Correto — ExecutionButtons gerencia tudo
+from resources.widgets.ExecutionButtons import ExecutionButtons
+
+self._btns = ExecutionButtons(self)
+self._btns.setup({
+    "salvar": {"text": "SALVAR", "callback": self._on_salvar, "type": "secondary"},
+    "executar": {"text": "EXECUTAR", "callback": self._on_executar, "type": "primary"},
+})
+layout.addWidget(self._btns)
+
+# ❌ Proibido — botões manuais com QHBoxLayout
+from PySide6.QtWidgets import QHBoxLayout
+from resources.widgets.SimplePrimaryButton import SimplePrimaryButton
+from resources.widgets.SimpleSecondaryButton import SimpleSecondaryButton
+
+row = QHBoxLayout()
+btn_sec = SimpleSecondaryButton("SALVAR")
+btn_pri = SimplePrimaryButton("EXECUTAR")
+row.addWidget(btn_sec)
+row.addStretch()
+row.addWidget(btn_pri)
+layout.addLayout(row)
+```
+
+```python
+# ✅ Correto — acessar botão por chave
+self._btns["executar"].setText("PARAR")
+self._btns.set_enabled("salvar", False)
+self._btns.set_callback("executar", self._on_parar)

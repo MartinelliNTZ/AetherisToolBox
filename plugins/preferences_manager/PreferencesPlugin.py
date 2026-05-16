@@ -23,9 +23,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 
-from resources.widgets.SimplePrimaryButton import SimplePrimaryButton
-from resources.widgets.SimpleSecondaryButton import SimpleSecondaryButton
-from resources.widgets.SimpleDangerButton import SimpleDangerButton
+from resources.widgets.ExecutionButtons import ExecutionButtons
 from resources.widgets.PreferenceItemGrid import PreferenceItemGrid
 from utils.Preferences import Preferences
 
@@ -108,23 +106,28 @@ class PreferencesPlugin(QWidget):
         main_layout.addLayout(selector_row)
 
         # ── Action Buttons ──
-        actions_row = QHBoxLayout()
-        actions_row.setSpacing(6)
-
-        self.btn_save = SimplePrimaryButton("SALVAR")
-        self.btn_save.clicked.connect(self._on_save)
-        actions_row.addWidget(self.btn_save)
-
-        self.btn_reset = SimpleSecondaryButton("RESETAR PADRÃO")
-        self.btn_reset.clicked.connect(self._on_reset)
-        actions_row.addWidget(self.btn_reset)
-
-        self.btn_clear_all = SimpleDangerButton("APAGAR TUDO")
-        self.btn_clear_all.clicked.connect(self._on_clear_all)
-        actions_row.addWidget(self.btn_clear_all)
-
-        actions_row.addStretch()
-        main_layout.addLayout(actions_row)
+        self._btns = ExecutionButtons(self)
+        self._btns.setup({
+            "reset": {
+                "text": "RESETAR PADRÃO",
+                "callback": self._on_reset,
+                "type": "secondary",
+                "description": "Recarrega valores do disco descartando alterações",
+            },
+            "clear": {
+                "text": "APAGAR TUDO",
+                "callback": self._on_clear_all,
+                "type": "danger",
+                "description": "Remove todas as preferências da seção atual",
+            },
+            "save": {
+                "text": "SALVAR",
+                "callback": self._on_save,
+                "type": "primary",
+                "description": "Salva as preferências da seção atual",
+            },
+        })
+        main_layout.addWidget(self._btns)
 
         # ── Grid de Preferências ──
         self._grid_container = QWidget()

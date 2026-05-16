@@ -5,6 +5,10 @@ ExecutionButtons — Container de botões de ação para plugins
 Agrupa botões secundários à esquerda e primários/de perigo à direita,
 com espaçamento automático entre os grupos.
 
+Todos os botões recebem altura, font-size e padding uniformes.
+O botão primary é ligeiramente maior (altura extra + font-size maior)
+para destaque visual.
+
 Uso:
     from resources.widgets.ExecutionButtons import ExecutionButtons
 
@@ -48,31 +52,73 @@ from __future__ import annotations
 
 from typing import Callable, Dict, Optional
 
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QHBoxLayout, QPushButton, QWidget
 
-from resources.widgets.SimplePrimaryButton import SimplePrimaryButton
-from resources.widgets.SimpleSecondaryButton import SimpleSecondaryButton
-from resources.widgets.SimpleDangerButton import SimpleDangerButton
-from resources.widgets.SimpleGhostButton import SimpleGhostButton
+
+# ── Alturas e fontes padronizadas ──────────────────────────────────────
+
+_BTN_HEIGHT = 20
+_BTN_FONT_SIZE = 10
+_BTN_PADDING = "6px 14px"
+
+_PRIMARY_EXTRA_HEIGHT = 0
+_PRIMARY_FONT_SIZE = 10
+
+
+def _apply_uniform_style(btn: QPushButton, btn_type: str) -> None:
+    """Aplica styling padronizado: altura, font-size, padding."""
+    if btn_type == "primary":
+        btn.setMinimumHeight(_BTN_HEIGHT + _PRIMARY_EXTRA_HEIGHT)
+        btn.setStyleSheet(
+            btn.styleSheet()
+            + f"""
+            QPushButton {{
+                font-size: {_PRIMARY_FONT_SIZE}px;
+                padding: {_BTN_PADDING};
+                min-height: {_BTN_HEIGHT + _PRIMARY_EXTRA_HEIGHT}px;
+            }}
+            """
+        )
+    else:
+        btn.setMinimumHeight(_BTN_HEIGHT)
+        btn.setStyleSheet(
+            btn.styleSheet()
+            + f"""
+            QPushButton {{
+                font-size: {_BTN_FONT_SIZE}px;
+                padding: {_BTN_PADDING};
+                min-height: {_BTN_HEIGHT}px;
+            }}
+            """
+        )
+    btn.setCursor(Qt.CursorShape.PointingHandCursor)
 
 
 # ── Fábrica de botões ────────────────────────────────────────────────
 
-_BUTTON_CLASSES = {
-    "primary": SimplePrimaryButton,
-    "secondary": SimpleSecondaryButton,
-    "danger": SimpleDangerButton,
-    "ghost": SimpleGhostButton,
-}
-
-
 def _create_button(text: str, btn_type: str) -> QPushButton:
-    """Cria um botão do tipo apropriado com o texto dado."""
-    cls = _BUTTON_CLASSES.get(btn_type)
+    """Cria um botão do tipo apropriado com o texto dado e styling uniforme."""
+    from resources.widgets.SimplePrimaryButton import SimplePrimaryButton
+    from resources.widgets.SimpleSecondaryButton import SimpleSecondaryButton
+    from resources.widgets.SimpleDangerButton import SimpleDangerButton
+    from resources.widgets.SimpleGhostButton import SimpleGhostButton
+
+    _CLASSES = {
+        "primary": SimplePrimaryButton,
+        "secondary": SimpleSecondaryButton,
+        "danger": SimpleDangerButton,
+        "ghost": SimpleGhostButton,
+    }
+
+    cls = _CLASSES.get(btn_type)
     if cls is None:
         raise ValueError(f"Tipo de botão inválido: {btn_type!r}. "
-                         f"Use: {', '.join(_BUTTON_CLASSES)}")
-    return cls(text)
+                         f"Use: {', '.join(_CLASSES)}")
+
+    btn = cls(text)
+    _apply_uniform_style(btn, btn_type)
+    return btn
 
 
 # ── Widget principal ─────────────────────────────────────────────────
