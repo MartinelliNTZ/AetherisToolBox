@@ -73,7 +73,8 @@ class LogViewerPlugin(BasePlugin):
         """Le os valores atuais dos widgets e salva no disco."""
         self.preferences["search_text"] = self.search_input.text()
         self.preferences["level_filter"] = self.level_combo.currentText()
-        # O closeEvent do BasePlugin persiste com save_tool_prefs automaticamente
+        # Ferramentas laterais nunca recebem closeEvent, então força persistência imediata
+        self.force_save_prefs()
 
     # ═════════════════════════════════════════════════════════════════════
     # Construcao da UI
