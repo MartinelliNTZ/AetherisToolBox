@@ -227,6 +227,67 @@ grid.changed.connect(self._on_ext_changed)
 
 ---
 
+### `GridDoubleSpinBox` — `GridDoubleSpinBox.py`
+Grade rolável de campos numéricos (QDoubleSpinBox/QSpinBox) configurados por dicionário. Agrupa múltiplos campos em grid, com label, description, sufixo/prefixo.
+
+```python
+from resources.widgets.GridDoubleSpinBox import GridDoubleSpinBox
+
+config = {
+    "intervalo": {
+        "label": "Intervalo (s)",
+        "description": "Tempo entre execuções",
+        "decimal": 1,
+        "default": 1.0,
+        "min": 0.0,
+        "max": 999.0,
+        "step": 0.1,
+        "suffix": "s",
+    },
+    "repeticoes": {
+        "label": "Repetições",
+        "decimal": 0,       # 0 = inteiro (QSpinBox)
+        "default": 3,
+        "min": 1,
+        "max": 9999,
+    },
+}
+
+grid = GridDoubleSpinBox(config)
+grid.values           # {"intervalo": 1.0, "repeticoes": 3}
+grid.get("intervalo") # 1.0
+grid.set("repeticoes", 5)
+grid.set_values({"intervalo": 2.5})
+grid.changed.connect(self._on_value_changed)
+```
+
+**Sinais:**
+- `changed(key, value)` — emitido quando qualquer campo muda
+
+**Decimais:**
+- `decimal=0` → cria `QSpinBox` (inteiro)
+- `decimal>0` → cria `QDoubleSpinBox` com N casas decimais
+
+---
+
+### `HotkeySequenceCapture` — `HotkeySequenceCapture.py`
+Captura uma sequência de teclas/atalhos. Cada tecla é adicionada a uma lista com botões de remover. Ideal para configurar macros de teclado multi-tecla.
+
+```python
+from resources.widgets.HotkeySequenceCapture import HotkeySequenceCapture
+
+capture = HotkeySequenceCapture()
+capture.sequenceChanged.connect(self._on_seq_changed)
+sequence = capture.captured_sequence()  # ["f1", "ctrl+c", "enter"]
+capture.set_captured_sequence(["f", "enter", "del"])
+capture.clear()
+```
+
+**Sinais:**
+- `sequenceChanged(list)` — emitido quando a sequência é alterada
+
+---
+
 ### `PreferenceItemGrid` — `PreferenceItemGrid.py`
 Grade rolável de itens de preferência editáveis. Cada linha contém: título | valor (checkbox para bool, spin para float/int, line edit para texto) | botão lixeira.
 
