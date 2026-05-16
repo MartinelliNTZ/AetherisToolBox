@@ -227,6 +227,63 @@ grid.changed.connect(self._on_ext_changed)
 
 ---
 
+### `ExecutionButtons` — `ExecutionButtons.py`
+Container horizontal de botões de ação com suporte a múltiplos botões secundários à esquerda e primários/de perigo à direita, com stretch automático entre os grupos.
+
+Cada botão é configurado por um dicionário com chave única, permitindo acesso direto via `buttons["chave"]`.
+
+```python
+from resources.widgets.ExecutionButtons import ExecutionButtons
+
+buttons = ExecutionButtons(self, {
+    "salvar": {
+        "text": "SALVAR CONFIG",
+        "callback": self._on_salvar,
+        "type": "secondary",
+        "description": "Salva configuração em disco",
+    },
+    "preview": {
+        "text": "PRÉ-VISUALIZAR",
+        "callback": self._on_preview,
+        "type": "secondary",
+    },
+    "executar": {
+        "text": "EXECUTAR",
+        "callback": self._on_executar,
+        "type": "primary",
+        "description": "Inicia o pipeline",
+    },
+    "cancelar": {
+        "text": "CANCELAR",
+        "callback": self._on_cancelar,
+        "type": "danger",
+    },
+})
+
+# Acessa botão pela chave do config
+buttons["executar"].setEnabled(False)
+buttons["executar"].setText("PARAR")
+
+# Métodos auxiliares
+buttons.set_callback("executar", self._on_parar)
+buttons.set_visible("cancelar", True)
+buttons.set_enabled("salvar", False)
+buttons.set_all_enabled(False)
+```
+
+**Tipos suportados:** `primary`, `secondary`, `danger`, `ghost`
+
+**Sinais/Conexões:**
+- Cada botão tem `clicked.connect(callback)` automaticamente pelo config
+- Callback pode ser alterado em runtime via `set_callback(key, callable)`
+
+**Chaves disponíveis:**
+- `buttons.keys()` — lista de chaves
+- `"chave" in buttons` — verifica existência
+- `buttons.get("chave")` — retorna botão ou None
+
+---
+
 ### `GridDoubleSpinBox` — `GridDoubleSpinBox.py`
 Grade rolável de campos numéricos (QDoubleSpinBox/QSpinBox) configurados por dicionário. Agrupa múltiplos campos em grid, com label, description, sufixo/prefixo.
 

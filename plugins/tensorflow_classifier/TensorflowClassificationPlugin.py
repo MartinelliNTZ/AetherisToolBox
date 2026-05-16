@@ -19,9 +19,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 from resources.styles.styles import AppStyles, Palette
-from resources.widgets.SimplePrimaryButton import SimplePrimaryButton
-from resources.widgets.SimpleSecondaryButton import SimpleSecondaryButton
-from resources.widgets.SimpleDangerButton import SimpleDangerButton
+from resources.widgets.ExecutionButtons import ExecutionButtons
 from resources.widgets.SimpleGhostButton import SimpleGhostButton
 from resources.widgets.SimpleRemoveButton import SimpleRemoveButton
 from resources.widgets.GroupDiv import GroupDiv
@@ -89,23 +87,37 @@ class TensorflowClassificationPlugin(QWidget):
         main_layout.addWidget(sep)
 
         # --- ACTION BUTTONS ---
-        ab = QWidget()
-        al = QHBoxLayout(ab)
-        al.setContentsMargins(0, 0, 0, 0)
-        al.setSpacing(6)
-        self.btn_load_cfg = SimpleSecondaryButton("Carregar Config")
-        self.btn_save_cfg = SimpleSecondaryButton("Salvar Config")
-        self.btn_reset_cfg = SimpleSecondaryButton("Restaurar Padrao")
-        self.btn_cancelar = SimpleDangerButton("CANCELAR")
-        self.btn_cancelar.setEnabled(False)
-        al.addWidget(self.btn_load_cfg)
-        al.addWidget(self.btn_save_cfg)
-        al.addWidget(self.btn_reset_cfg)
-        al.addWidget(self.btn_cancelar)
-        al.addStretch()
-        self.btn_executar = SimplePrimaryButton("EXECUTAR PIPELINE")
-        al.addWidget(self.btn_executar)
-        main_layout.addWidget(ab)
+        # Callbacks conectados pelo MainController
+        self._btns = ExecutionButtons(self)
+        self._btns.setup({
+            "load_cfg": {
+                "text": "Carregar Config",
+                "type": "secondary",
+                "description": "Carrega uma configuração salva anteriormente",
+            },
+            "save_cfg": {
+                "text": "Salvar Config",
+                "type": "secondary",
+                "description": "Salva a configuração atual em disco",
+            },
+            "reset_cfg": {
+                "text": "Restaurar Padrao",
+                "type": "secondary",
+                "description": "Restaura configurações para o valor padrão",
+            },
+            "cancelar": {
+                "text": "CANCELAR",
+                "type": "danger",
+                "description": "Cancela a execução em andamento",
+            },
+            "executar": {
+                "text": "EXECUTAR PIPELINE",
+                "type": "primary",
+                "description": "Inicia o pipeline de classificação",
+            },
+        })
+        self._btns.set_enabled("cancelar", False)
+        main_layout.addWidget(self._btns)
 
         # =====================================================================
         # GRID 2x2

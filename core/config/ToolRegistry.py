@@ -115,8 +115,8 @@ class ToolRegistry:
             category=CategoryTool.CENTRAL,
             show_in_toolbar=True,
         ),
-        ToolKey.TECLADOR_F.value: Tool(
-            name=ToolKey.TECLADOR_F.value,
+        ToolKey.HOTKEY_PLUGIN.value: Tool(
+            name=ToolKey.HOTKEY_PLUGIN.value,
             title="Teclador",
             widget_factory=_make_factory(
                 "plugins.hotkey.HotkeyPlugin", "HotkeyPlugin"

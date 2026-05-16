@@ -19,7 +19,7 @@ class ToolKey(str, Enum):
     CONSOLE = "Console"
     CLASSIFIER = "Classifier"
     LOGVIEWER = "LogViewer"
-    TECLADOR_F = "TecladorF"
+    HOTKEY_PLUGIN = "HotkeyPlugin"
     PREFERENCES = "Preferences"
     RENAMER = "Renamer"
     SYSTEM = "System"

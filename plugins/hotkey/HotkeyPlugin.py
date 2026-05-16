@@ -33,8 +33,7 @@ from core.config.LogUtils import LogUtils
 from core.model.BasePlugin import BasePlugin
 from core.manager.SignalManager import SignalManager
 from core.enum.ToolKey import ToolKey
-from resources.widgets.SimplePrimaryButton import SimplePrimaryButton
-from resources.widgets.SimpleSecondaryButton import SimpleSecondaryButton
+from resources.widgets.ExecutionButtons import ExecutionButtons
 from resources.widgets.HotkeyCaptureLine import HotkeyCaptureLine
 from resources.widgets.HotkeySequenceCapture import HotkeySequenceCapture
 from resources.widgets.GridCheckBox import GridCheckBox
@@ -60,7 +59,7 @@ class HotkeyPlugin(BasePlugin):
     MODE_HOTKEY = "Teclar Atalho"
 
     def __init__(self, parent=None):
-        super().__init__(tool_key=ToolKey.TECLADOR_F.value, parent=parent)
+        super().__init__(tool_key=ToolKey.HOTKEY_PLUGIN.value, parent=parent)
         self._running = False
         self._hotkey_handler = None
         self._build_ui()
@@ -86,19 +85,28 @@ class HotkeyPlugin(BasePlugin):
         layout.addWidget(sep)
 
         # ── Botões de Ação ────────────────────────────────────────────
-        btn_layout = QHBoxLayout()
-        btn_layout.setSpacing(6)
-        self._btn_salvar_config = SimpleSecondaryButton("SALVAR CONFIG")
-        self._btn_salvar_config.clicked.connect(self._on_salvar_config)
-        btn_layout.addWidget(self._btn_salvar_config)
-        self._btn_ler_config = SimpleSecondaryButton("LER CONFIG")
-        self._btn_ler_config.clicked.connect(self._on_ler_config)
-        btn_layout.addWidget(self._btn_ler_config)
-        btn_layout.addStretch()
-        self._btn_executar = SimplePrimaryButton("EXECUTAR")
-        self._btn_executar.clicked.connect(self._on_executar)
-        btn_layout.addWidget(self._btn_executar)
-        layout.addLayout(btn_layout)
+        self._btns = ExecutionButtons(self)
+        self._btns.setup({
+            "salvar": {
+                "text": "SALVAR CONFIG",
+                "callback": self._on_salvar_config,
+                "type": "secondary",
+                "description": "Salva a configuração atual em disco",
+            },
+            "ler": {
+                "text": "LER CONFIG",
+                "callback": self._on_ler_config,
+                "type": "secondary",
+                "description": "Carrega uma configuração salva anteriormente",
+            },
+            "executar": {
+                "text": "EXECUTAR",
+                "callback": self._on_executar,
+                "type": "primary",
+                "description": "Inicia a execução com a tecla configurada",
+            },
+        })
+        layout.addWidget(self._btns)
 
         # ── Seletor de Modo ───────────────────────────────────────────
         self._combo_mode = QComboBox()
@@ -411,7 +419,7 @@ class HotkeyPlugin(BasePlugin):
             return
 
         self._running = True
-        self._btn_executar.setText("PARAR")
+        self._btns["executar"].setText("PARAR")
         self._set_inputs_enabled(False)
         self.save_prefs()
 
@@ -465,7 +473,7 @@ class HotkeyPlugin(BasePlugin):
 
     def _on_executar_finished(self):
         """Callback quando a execução termina."""
-        self._btn_executar.setText("EXECUTAR")
+        self._btns["executar"].setText("EXECUTAR")
         self._set_inputs_enabled(True)
         SignalManager.instance().progress_update.emit(100.0)
         QTimer.singleShot(500, lambda: SignalManager.instance().progress_update.emit(0.0))

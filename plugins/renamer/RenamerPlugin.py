@@ -24,16 +24,14 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel, QLineEdit,
+    QWidget, QVBoxLayout, QGridLayout, QLabel, QLineEdit,
     QSpinBox, QCheckBox, QComboBox, QFrame, QGroupBox,
 )
 from PySide6.QtCore import Qt
 
 from core.enum.ToolKey import ToolKey
 from core.model.BasePlugin import BasePlugin
-from resources.widgets.SimplePrimaryButton import SimplePrimaryButton
-from resources.widgets.SimpleSecondaryButton import SimpleSecondaryButton
-from resources.widgets.SimpleDangerButton import SimpleDangerButton
+from resources.widgets.ExecutionButtons import ExecutionButtons
 from resources.widgets.SimpleSelector import SimpleSelector
 from resources.widgets.GroupDiv import GroupDiv
 from resources.widgets.GridCheckBox import GridCheckBox
@@ -80,19 +78,28 @@ class RenamerPlugin(BasePlugin):
         main_layout.addWidget(sep)
 
         # ── Ações ──
-        actions = QHBoxLayout()
-        actions.setSpacing(6)
-        self.btn_preview = SimpleSecondaryButton("PRÉ-VISUALIZAR")
-        self.btn_preview.clicked.connect(self._on_preview)
-        actions.addWidget(self.btn_preview)
-        self.btn_reset = SimpleSecondaryButton("RESTAURAR PADRÃO")
-        self.btn_reset.clicked.connect(self._reset_prefs)
-        actions.addWidget(self.btn_reset)
-        actions.addStretch()
-        self.btn_executar = SimplePrimaryButton("EXECUTAR RENOMEIO")
-        self.btn_executar.clicked.connect(self._on_executar)
-        actions.addWidget(self.btn_executar)
-        main_layout.addLayout(actions)
+        self._btns = ExecutionButtons(self)
+        self._btns.setup({
+            "preview": {
+                "text": "PRÉ-VISUALIZAR",
+                "callback": self._on_preview,
+                "type": "secondary",
+                "description": "Exibe prévia das alterações antes de renomear",
+            },
+            "reset": {
+                "text": "RESTAURAR PADRÃO",
+                "callback": self._reset_prefs,
+                "type": "secondary",
+                "description": "Restaura configurações para o valor padrão",
+            },
+            "executar": {
+                "text": "EXECUTAR RENOMEIO",
+                "callback": self._on_executar,
+                "type": "primary",
+                "description": "Executa o renomeio em lote dos arquivos",
+            },
+        })
+        main_layout.addWidget(self._btns)
 
         # ── Seletores de Pasta ──
         grp_pastas = GroupDiv("Pastas")

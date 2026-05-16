@@ -93,15 +93,15 @@ class MainController:
         self._update_resumo()
 
     def _connect_signals(self):
-        self.view.btn_executar.clicked.connect(self._on_executar)
-        self.view.btn_load_cfg.clicked.connect(self._on_load_cfg)
-        self.view.btn_save_cfg.clicked.connect(self._on_save_cfg)
-        self.view.btn_reset_cfg.clicked.connect(self._on_reset_cfg)
+        self.view._btns["load_cfg"].clicked.connect(self._on_load_cfg)
+        self.view._btns["save_cfg"].clicked.connect(self._on_save_cfg)
+        self.view._btns["reset_cfg"].clicked.connect(self._on_reset_cfg)
+        self.view._btns["cancelar"].clicked.connect(self._on_cancelar)
+        self.view._btns["executar"].clicked.connect(self._on_executar)
         self.view.btn_add_shp.clicked.connect(self._on_add_shp)
         self.view.combo_model_action.currentTextChanged.connect(self._on_model_action_changed)
         self.view.btn_listar_modelos.clicked.connect(self._on_listar_modelos)
         self.view.btn_clear_console.clicked.connect(self._on_clear_console)
-        self.view.btn_cancelar.clicked.connect(self._on_cancelar)
         self.view.txt_log.anchorClicked.connect(self._on_log_link_clicked)
 
         widgets_bind = [
@@ -289,8 +289,8 @@ class MainController:
         self._append_log("> Cancelamento solicitado pelo usuario. Aguardando parada segura...")
         self._cancel_requested = True
         self.worker.cancel()
-        self.view.btn_cancelar.setEnabled(False)
-        self.view.btn_cancelar.setText("CANCELANDO...")
+        self.view._btns.set_enabled("cancelar", False)
+        self.view._btns["cancelar"].setText("CANCELANDO...")
 
     def _on_executar(self):
         if self.worker is not None and self.worker.isRunning():
@@ -469,13 +469,13 @@ class MainController:
         )
 
     def _set_running_state(self, running: bool) -> None:
-        self.view.btn_executar.setEnabled(not running)
-        self.view.btn_load_cfg.setEnabled(not running)
-        self.view.btn_save_cfg.setEnabled(not running)
-        self.view.btn_reset_cfg.setEnabled(not running)
-        self.view.btn_cancelar.setEnabled(running)
+        self.view._btns.set_enabled("executar", not running)
+        self.view._btns.set_enabled("load_cfg", not running)
+        self.view._btns.set_enabled("save_cfg", not running)
+        self.view._btns.set_enabled("reset_cfg", not running)
+        self.view._btns.set_enabled("cancelar", running)
         if running:
-            self.view.btn_cancelar.setText("CANCELAR")
+            self.view._btns["cancelar"].setText("CANCELAR")
             if not self._progress_timer.isActive():
                 self._progress_timer.start()
             if hasattr(self.view, "loader_overlay"):
