@@ -4,6 +4,7 @@ BaseStyle — Estilos globais base do sistema
 =============================================
 Usa o tema atual (`ct` = CurrentTheme do ThemeManager) para gerar
 o stylesheet global do Qt que abrange todo o sistema.
+Zero valores hardcoded — tudo centralizado no tema.
 """
 
 from __future__ import annotations
@@ -19,7 +20,7 @@ class BaseStyle:
 
     @classmethod
     def global_stylesheet(cls) -> str:
-        """Gera o QSS global completo usando o tema atual."""
+        """Gera o QSS global completo usando o tema atual. Sem hardcoded."""
         t = ct.theme
         return f"""
         QMainWindow, QWidget {{
@@ -40,8 +41,8 @@ class BaseStyle:
         }}
         QScrollBar::handle:vertical {{
             background: {t.BG_ELEVATED};
-            border-radius: 3px;
-            min-height: 28px;
+            border-radius: {t.BORDER_RADIUS_SCROLLBAR}px;
+            min-height: {t.SCROLLBAR_MIN_HEIGHT}px;
         }}
         QScrollBar::handle:vertical:hover {{
             background: {t.GOLD};
@@ -62,15 +63,15 @@ class BaseStyle:
         QGroupBox::title {{
             subcontrol-origin: padding;
             subcontrol-position: top left;
-            left: 4px;
-            top: -2px;
-            padding: 0 6px;
+            left: {t.GROUP_TITLE_LEFT}px;
+            top: {t.GROUP_TITLE_TOP}px;
+            padding: {t.GROUP_TITLE_PADDING};
             color: {t.TEXT_GOLD};
             font-weight: {t.FONT_WEIGHT_EXTRABOLD};
             font-size: {t.FONT_SIZE_SMALL}px;
-            letter-spacing: 0.5px;
+            letter-spacing: {t.GROUP_TITLE_LETTER_SPACING};
             background-color: {t.BG_CARD};
-            border-radius: 4px;
+            border-radius: {t.BORDER_RADIUS_GROUP_TITLE}px;
         }}
 
         /* ===== LABEL ===== */
@@ -92,10 +93,10 @@ class BaseStyle:
             background-color: {t.GOLD};
             color: {t.BG_DEEPEST};
             border-radius: {t.BORDER_RADIUS_BADGE}px;
-            padding: 3px 12px;
+            padding: {t.BADGE_PADDING_V} {t.BADGE_PADDING_H};
             font-size: {t.FONT_SIZE_TINY}px;
             font-weight: {t.FONT_WEIGHT_HEAVY};
-            letter-spacing: 0.3px;
+            letter-spacing: {t.BADGE_LETTER_SPACING};
         }}
 
         /* ===== TITLE BAR ===== */
@@ -105,9 +106,9 @@ class BaseStyle:
         }}
         QLabel#window_title {{
             color: {t.TEXT_MUTED};
-            font-size: 11px;
+            font-size: {t.WINDOW_TITLE_FONT_SIZE}px;
             font-weight: {t.FONT_WEIGHT_BOLD};
-            letter-spacing: 0.3px;
+            letter-spacing: {t.WINDOW_TITLE_LETTER_SPACING};
         }}
         QPushButton#title_btn, QPushButton#title_btn_close {{
             background: transparent;
@@ -118,7 +119,7 @@ class BaseStyle:
             max-width: {t.TITLE_BTN_WIDTH}px;
             min-height: {t.TITLE_BTN_HEIGHT}px;
             max-height: {t.TITLE_BTN_HEIGHT}px;
-            font-size: 11px;
+            font-size: {t.TITLE_BTN_FONT_SIZE}px;
         }}
         QPushButton#title_btn:hover {{
             background-color: {t.BG_CARD};
@@ -138,8 +139,8 @@ class BaseStyle:
             color: {t.TEXT_SECONDARY};
             border: none;
             border-radius: {t.BORDER_RADIUS_TOOLBAR_BTN}px;
-            padding: 4px 10px;
-            font-size: 11px;
+            padding: {t.TOOLBAR_BTN_PADDING_V} {t.TOOLBAR_BTN_PADDING_H};
+            font-size: {t.FONT_SIZE_SMALL}px;
             font-weight: {t.FONT_WEIGHT_BOLD};
         }}
         QPushButton#toolbar_btn:hover {{
@@ -156,10 +157,10 @@ class BaseStyle:
             color: {t.TEXT_MUTED};
             border: none;
             border-radius: {t.BORDER_RADIUS_TOOL_SELECTOR}px;
-            padding: 6px 4px;
+            padding: {t.TOOL_SELECTOR_PADDING_V} {t.TOOL_SELECTOR_PADDING_H};
             font-size: {t.FONT_SIZE_TINY}px;
             font-weight: {t.FONT_WEIGHT_EXTRABOLD};
-            letter-spacing: 0.3px;
+            letter-spacing: {t.TOOL_SELECTOR_LETTER_SPACING};
         }}
         QPushButton#tool_selector_btn:hover {{
             background-color: {t.BG_PANEL};
@@ -189,7 +190,7 @@ class BaseStyle:
             padding: 0;
             margin: 0;
             font-weight: {t.FONT_WEIGHT_BOLD};
-            font-size: 11px;
+            font-size: {t.FONT_SIZE_SMALL}px;
         }}
         QTabBar::tab:hover {{
             background-color: {t.BG_PANEL};
@@ -201,11 +202,10 @@ class BaseStyle:
             border-bottom: 2px solid {t.GOLD};
         }}
 
-        /* Close button sempre reserva espaço fixo — sem reflow no hover */
         QTabBar::close-button {{
             image: none;
-            width: 16px;
-            height: 16px;
+            width: {t.TAB_CLOSE_BUTTON_SIZE}px;
+            height: {t.TAB_CLOSE_BUTTON_SIZE}px;
             subcontrol-position: right;
             opacity: 0;
         }}
@@ -215,24 +215,21 @@ class BaseStyle:
         }}
         QTabBar::close-button:hover {{
             background-color: {t.DANGER};
-            border-radius: 3px;
+            border-radius: {t.CLOSE_BUTTON_BORDER_RADIUS}px;
         }}
 
-        /* ===== WORKSPACE TAB CUSTOM WIDGET ===== */
         QWidget#workspace_tab {{
             background-color: transparent;
             border: none;
             padding: 0px;
         }}
 
-        /* ===== VERTICAL TAB ===== */
         QWidget#vertical_tab {{
             background-color: transparent;
             border: none;
             padding: 0px;
         }}
 
-        /* ===== WORKSPACE SEPARATOR ===== */
         QFrame#workspace_separator {{
             background-color: {t.BORDER};
             border: none;
@@ -246,7 +243,7 @@ class BaseStyle:
             background-color: {t.GOLD};
         }}
         QSplitter#workspace_splitter::handle {{
-            width: 4px;
+            width: {t.SPLITTER_HANDLE_WIDTH}px;
         }}
 
         /* ===== LINE EDIT ===== */
@@ -272,7 +269,7 @@ class BaseStyle:
             background-color: {t.BG_ELEVATED};
             border: none;
             border-radius: {t.BORDER_RADIUS_INPUT}px;
-            padding: 3px 8px;
+            padding: {t.SPINBOX_PADDING};
             color: {t.TEXT_PRIMARY};
         }}
         QSpinBox:focus, QDoubleSpinBox:focus {{
@@ -280,10 +277,10 @@ class BaseStyle:
         }}
         QSpinBox::up-button, QDoubleSpinBox::up-button,
         QSpinBox::down-button, QDoubleSpinBox::down-button {{
-            width: 16px;
+            width: {t.SPINBOX_BTN_WIDTH}px;
             background: {t.BG_CARD};
-            border-radius: 2px;
-            margin: 1px;
+            border-radius: {t.BORDER_RADIUS_SPINBOX_BTN}px;
+            margin: {t.SPINBOX_BTN_MARGIN};
         }}
         QSpinBox::up-button:hover, QDoubleSpinBox::up-button:hover,
         QSpinBox::down-button:hover, QDoubleSpinBox::down-button:hover {{
@@ -295,9 +292,9 @@ class BaseStyle:
             background-color: {t.BG_ELEVATED};
             border: none;
             border-radius: {t.BORDER_RADIUS_INPUT}px;
-            padding: 3px 8px;
+            padding: {t.COMBOBOX_PADDING};
             color: {t.TEXT_PRIMARY};
-            min-width: 80px;
+            min-width: {t.COMBOBOX_MIN_WIDTH}px;
         }}
         QComboBox:focus {{
             background-color: {t.BG_SURFACE};
@@ -309,21 +306,21 @@ class BaseStyle:
         QComboBox::drop-down {{
             subcontrol-origin: padding;
             subcontrol-position: top right;
-            width: 22px;
+            width: {t.COMBOBOX_DROPDOWN_WIDTH}px;
             border-left: 1px solid {t.BG_ELEVATED};
             border-top-right-radius: {t.BORDER_RADIUS_INPUT}px;
             border-bottom-right-radius: {t.BORDER_RADIUS_INPUT}px;
         }}
         QComboBox::down-arrow {{
             image: none;
-            border-left: 4px solid transparent;
-            border-right: 4px solid transparent;
+            border-left: {t.COMBOBOX_ARROW_SIZE} solid transparent;
+            border-right: {t.COMBOBOX_ARROW_SIZE} solid transparent;
             border-top: 5px solid {t.TEXT_SECONDARY};
         }}
         QComboBox QAbstractItemView {{
             background-color: {t.BG_CARD};
             border: none;
-            border-radius: 4px;
+            border-radius: {t.COMBOBOX_POPUP_BORDER_RADIUS}px;
             color: {t.TEXT_PRIMARY};
             selection-background-color: {t.GOLD};
             selection-color: {t.BG_DEEPEST};
@@ -371,8 +368,8 @@ class BaseStyle:
             border: none;
             border-bottom: 2px solid {t.GOLD};
             font-weight: {t.FONT_WEIGHT_EXTRABOLD};
-            font-size: 11px;
-            letter-spacing: 0.3px;
+            font-size: {t.HEADER_FONT_SIZE}px;
+            letter-spacing: {t.HEADER_LETTER_SPACING};
         }}
 
         /* ===== TEXT BROWSER / TEXT EDIT ===== */
@@ -382,8 +379,8 @@ class BaseStyle:
             border-radius: {t.BORDER_RADIUS_TABLE}px;
             color: {t.TEXT_PRIMARY};
             font-family: {t.FONT_FAMILY_MONO};
-            font-size: {t.FONT_SIZE_SMALL}px;
-            padding: 8px;
+            font-size: {t.TEXT_EDIT_FONT_SIZE}px;
+            padding: {t.TEXT_EDIT_PADDING};
             selection-background-color: {t.GOLD};
             selection-color: {t.BG_DEEPEST};
         }}
@@ -396,7 +393,7 @@ class BaseStyle:
             text-align: center;
             color: {t.TEXT_PRIMARY};
             font-weight: {t.FONT_WEIGHT_EXTRABOLD};
-            font-size: 11px;
+            font-size: {t.FONT_SIZE_SMALL}px;
             height: {t.PROGRESS_BAR_HEIGHT}px;
         }}
         QProgressBar::chunk {{

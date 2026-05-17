@@ -87,17 +87,25 @@ class DarkCharcoalTheme(BaseTheme):
     # DIMENSÕES — Alturas Padrão
     # ═══════════════════════════════════════════════════════════════════
 
-    INPUT_HEIGHT = 0           # QLineEdit usa padding, sem height fixo
-    BUTTON_HEIGHT = 0          # botões secundários usam padding
+    INPUT_HEIGHT = 0
+    BUTTON_HEIGHT = 0
     BUTTON_HEIGHT_PRIMARY = 0
     ITEM_HEIGHT = 0
     CHECKBOX_SIZE = 16
     RADIO_SIZE = 16
     SCROLLBAR_WIDTH = 6
+    SCROLLBAR_BORDER_RADIUS = 3
+    SCROLLBAR_MIN_HEIGHT = 28
     TAB_HEIGHT = 0
+    TAB_CLOSE_BUTTON_SIZE = 16
+    CLOSE_BUTTON_BORDER_RADIUS = 3
+    SPLITTER_HANDLE_WIDTH = 4
     PROGRESS_BAR_HEIGHT = 18
     TITLE_BTN_HEIGHT = 22
     TITLE_BTN_WIDTH = 28
+    TITLE_BTN_FONT_SIZE = 11
+    TITLE_BAR_BORDER_WIDTH = "1px"
+    TITLE_BAR_BORDER_COLOR = ""  # usa BG_PANEL por compatibilidade
 
     # ═══════════════════════════════════════════════════════════════════
     # ESPAÇAMENTOS
@@ -126,6 +134,15 @@ class DarkCharcoalTheme(BaseTheme):
     BORDER_RADIUS_TITLE_BTN = 3
     BORDER_RADIUS_TOOLBAR_BTN = 4
     BORDER_RADIUS_TOOL_SELECTOR = 6
+    BORDER_RADIUS_GHOST = 5
+    BORDER_RADIUS_SCROLLBAR = 3
+    BORDER_RADIUS_SPINBOX_BTN = 2
+    BORDER_RADIUS_TAB_CLOSE = 3
+    BORDER_RADIUS_COMBO_POPUP = 4
+    BORDER_RADIUS_MENU = 6
+    BORDER_RADIUS_MENU_ITEM = 3
+    BORDER_RADIUS_GROUP_TITLE = 4
+    MENUBAR_ITEM_BORDER_RADIUS = "1px 1px 8px 1px"
 
     # ═══════════════════════════════════════════════════════════════════
     # CHECKBOX
@@ -133,6 +150,14 @@ class DarkCharcoalTheme(BaseTheme):
 
     CHECKBOX_BORDER_WIDTH = 0
     CHECKBOX_SPACING = 8
+
+    # ═══════════════════════════════════════════════════════════════════
+    # BADGE
+    # ═══════════════════════════════════════════════════════════════════
+
+    BADGE_PADDING_V = "3px"
+    BADGE_PADDING_H = "12px"
+    BADGE_LETTER_SPACING = "0.3px"
 
     # ═══════════════════════════════════════════════════════════════════
     # BOTÕES — Padding (px strings para QSS)
@@ -147,12 +172,96 @@ class DarkCharcoalTheme(BaseTheme):
     BUTTON_PADDING_V_PRIMARY = "6px"
     BUTTON_PADDING_H_PRIMARY = "20px"
 
+    BUTTON_LETTER_SPACING_NORMAL = "0.3px"
+    BUTTON_LETTER_SPACING_PRIMARY = "0.5px"
+
+    # ═══════════════════════════════════════════════════════════════════
+    # TOOLBAR
+    # ═══════════════════════════════════════════════════════════════════
+
+    TOOLBAR_BTN_PADDING_V = "4px"
+    TOOLBAR_BTN_PADDING_H = "10px"
+
+    # ═══════════════════════════════════════════════════════════════════
+    # TOOL SELECTOR (Side Panel)
+    # ═══════════════════════════════════════════════════════════════════
+
+    TOOL_SELECTOR_PADDING_V = "6px"
+    TOOL_SELECTOR_PADDING_H = "4px"
+    TOOL_SELECTOR_LETTER_SPACING = "0.3px"
+
     # ═══════════════════════════════════════════════════════════════════
     # INPUTS — Padding
     # ═══════════════════════════════════════════════════════════════════
 
     INPUT_PADDING_V = "2px"
     INPUT_PADDING_H = "2px"
+
+    # ═══════════════════════════════════════════════════════════════════
+    # SPINBOX
+    # ═══════════════════════════════════════════════════════════════════
+
+    SPINBOX_PADDING = "3px 8px"
+    SPINBOX_BTN_WIDTH = 16
+    SPINBOX_BTN_MARGIN = "1px"
+
+    # ═══════════════════════════════════════════════════════════════════
+    # COMBOBOX
+    # ═══════════════════════════════════════════════════════════════════
+
+    COMBOBOX_PADDING = "3px 8px"
+    COMBOBOX_MIN_WIDTH = 80
+    COMBOBOX_DROPDOWN_WIDTH = 22
+    COMBOBOX_ARROW_SIZE = "4px"
+    COMBOBOX_POPUP_BORDER_RADIUS = 4
+
+    # ═══════════════════════════════════════════════════════════════════
+    # TEXT BROWSER / TEXT EDIT
+    # ═══════════════════════════════════════════════════════════════════
+
+    TEXT_EDIT_PADDING = "8px"
+    TEXT_EDIT_FONT_SIZE = 12
+
+    # ═══════════════════════════════════════════════════════════════════
+    # GROUP TITLE
+    # ═══════════════════════════════════════════════════════════════════
+
+    GROUP_TITLE_LEFT = 4
+    GROUP_TITLE_TOP = -2
+    GROUP_TITLE_PADDING = "0 6px"
+    GROUP_TITLE_BORDER_RADIUS = 4
+    GROUP_TITLE_LETTER_SPACING = "0.5px"
+
+    # ═══════════════════════════════════════════════════════════════════
+    # WINDOW TITLE
+    # ═══════════════════════════════════════════════════════════════════
+
+    WINDOW_TITLE_FONT_SIZE = 11
+    WINDOW_TITLE_LETTER_SPACING = "0.3px"
+
+    # ═══════════════════════════════════════════════════════════════════
+    # QSPLITTER
+    # ═══════════════════════════════════════════════════════════════════
+
+    SPLITTER_HANDLE_WIDTH_H = 4
+    SPLITTER_HANDLE_WIDTH_V = 4
+
+    # ═══════════════════════════════════════════════════════════════════
+    # QMENU
+    # ═══════════════════════════════════════════════════════════════════
+
+    MENU_PADDING = "2px"
+    MENU_MARGIN_V = "1px 0"
+    MENU_ITEM_PADDING = "4px 16px 4px 8px"
+    MENU_SEPARATOR_HEIGHT = "1px"
+    MENU_SEPARATOR_MARGIN = "2px 6px"
+
+    # ═══════════════════════════════════════════════════════════════════
+    # HEADER / TABLE HEADER
+    # ═══════════════════════════════════════════════════════════════════
+
+    HEADER_FONT_SIZE = 11
+    HEADER_LETTER_SPACING = "0.3px"
 
     # ═══════════════════════════════════════════════════════════════════
     # TABELA — Padding

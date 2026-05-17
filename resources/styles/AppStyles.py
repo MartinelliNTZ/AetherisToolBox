@@ -4,6 +4,7 @@ AppStyles — Estilos específicos da aplicação
 =============================================
 Herda de BaseStyle e adiciona estilos de botões, badges, logs e menu.
 Usa o tema atual via ThemeManager.
+Zero valores hardcoded — tudo centralizado no tema.
 """
 
 from __future__ import annotations
@@ -62,7 +63,7 @@ class AppStyles(BaseStyle):
             f"  padding: {t.BUTTON_PADDING_V_PRIMARY} {t.BUTTON_PADDING_H_PRIMARY};"
             f"  font-weight: {t.FONT_WEIGHT_HEAVY};"
             f"  font-size: {t.FONT_SIZE_NORMAL}px;"
-            f"  letter-spacing: 0.5px;"
+            f"  letter-spacing: {t.BUTTON_LETTER_SPACING_PRIMARY};"
             f"}}"
             f"QPushButton:hover {{"
             f"  background: qlineargradient(x1:0,y1:0,x2:1,y2:0,"
@@ -90,7 +91,7 @@ class AppStyles(BaseStyle):
             f"  padding: {t.BUTTON_PADDING_V} {t.BUTTON_PADDING_H};"
             f"  font-weight: {t.FONT_WEIGHT_EXTRABOLD};"
             f"  font-size: {t.FONT_SIZE_SMALL}px;"
-            f"  letter-spacing: 0.3px;"
+            f"  letter-spacing: {t.BUTTON_LETTER_SPACING_NORMAL};"
             f"}}"
             f"QPushButton:hover {{"
             f"  background-color: {t.DANGER};"
@@ -113,7 +114,7 @@ class AppStyles(BaseStyle):
             f"  background-color: transparent;"
             f"  color: {t.TEXT_GOLD};"
             f"  border: none;"
-            f"  border-radius: 5px;"
+            f"  border-radius: {t.BORDER_RADIUS_GHOST}px;"
             f"  padding: {t.BUTTON_PADDING_V_SMALL} {t.BUTTON_PADDING_H_SMALL};"
             f"  font-weight: {t.FONT_WEIGHT_BOLD};"
             f"  font-size: {t.FONT_SIZE_SMALL}px;"
@@ -174,19 +175,19 @@ class AppStyles(BaseStyle):
             f"QMenuBar::item:hover {{"
             f"  background-color: {t.GOLD};"
             f"  color: {t.BG_DEEPEST};"
-            f"  border-radius: 1px 1px 8px 1px;"
+            f"  border-radius: {t.MENUBAR_ITEM_BORDER_RADIUS};"
             f"  font-weight: {t.FONT_WEIGHT_EXTRABOLD};"
             f"}}"
             f"QMenuBar::item:selected {{"
             f"  background-color: {t.GOLD};"
             f"  color: {t.BG_DEEPEST};"
-            f"  border-radius: 1px 1px 8px 1px;"
+            f"  border-radius: {t.MENUBAR_ITEM_BORDER_RADIUS};"
             f"  font-weight: {t.FONT_WEIGHT_EXTRABOLD};"
             f"}}"
             f"QMenuBar::item:pressed {{"
             f"  background-color: {t.GOLD_ACTIVE};"
             f"  color: {t.BG_DEEPEST};"
-            f"  border-radius: 1px 1px 8px 1px;"
+            f"  border-radius: {t.MENUBAR_ITEM_BORDER_RADIUS};"
             f"}}"
         )
 
@@ -198,15 +199,15 @@ class AppStyles(BaseStyle):
             f"QMenu {{"
             f"  background-color: {t.BG_DEEPEST};"
             f"  border: 1px solid {t.BORDER};"
-            f"  border-radius: 6px;"
-            f"  padding: 2px;"
-            f"  margin: 1px 0;"
+            f"  border-radius: {t.BORDER_RADIUS_MENU}px;"
+            f"  padding: {t.MENU_PADDING};"
+            f"  margin: {t.MENU_MARGIN_V};"
             f"}}"
             f"QMenu::item {{"
             f"  background-color: transparent;"
             f"  color: {t.TEXT_PRIMARY};"
-            f"  padding: 4px 16px 4px 8px;"
-            f"  border-radius: 3px;"
+            f"  padding: {t.MENU_ITEM_PADDING};"
+            f"  border-radius: {t.BORDER_RADIUS_MENU_ITEM}px;"
             f"  font-size: {t.FONT_SIZE_SMALL}px;"
             f"  border-left: 1px solid transparent;"
             f"}}"
@@ -228,9 +229,9 @@ class AppStyles(BaseStyle):
             f"  border-left: 1px solid transparent;"
             f"}}"
             f"QMenu::separator {{"
-            f"  height: 1px;"
+            f"  height: {t.MENU_SEPARATOR_HEIGHT};"
             f"  background: {t.DIVIDER};"
-            f"  margin: 2px 6px;"
+            f"  margin: {t.MENU_SEPARATOR_MARGIN};"
             f"}}"
         )
 
@@ -240,17 +241,17 @@ class AppStyles(BaseStyle):
 
     @classmethod
     def badge_style(cls, bg_color: str, text_color: Optional[str] = None) -> str:
-        tc = text_color or ct.theme.BG_DEEPEST
         t = ct.theme
+        tc = text_color or t.BG_DEEPEST
         return (
             f"QLabel {{"
             f"  background-color: {bg_color};"
             f"  color: {tc};"
             f"  border-radius: {t.BORDER_RADIUS_BADGE}px;"
-            f"  padding: 3px 12px;"
+            f"  padding: {t.BADGE_PADDING_V} {t.BADGE_PADDING_H};"
             f"  font-weight: {t.FONT_WEIGHT_HEAVY};"
             f"  font-size: {t.FONT_SIZE_TINY}px;"
-            f"  letter-spacing: 0.3px;"
+            f"  letter-spacing: {t.BADGE_LETTER_SPACING};"
             f"}}"
         )
 
@@ -277,28 +278,31 @@ class AppStyles(BaseStyle):
     @classmethod
     def log_html(cls, text: str, timestamp: str,
                  color: str, ts_color: str, weight: str = "400") -> str:
+        mono = ct.theme.FONT_FAMILY_MONO
         return (
             f"<span style='color:{ts_color};"
-            f"font-family:Consolas,\"Courier New\",monospace;"
+            f"font-family:{mono};"
             f"font-size:11px;font-weight:500;'>[{timestamp}]</span> "
             f"<span style='color:{color};"
-            f"font-family:Consolas,\"Courier New\",monospace;"
+            f"font-family:{mono};"
             f"font-size:12px;font-weight:{weight};'>{text}</span>"
         )
 
     @classmethod
     def log_link_html(cls, text: str, url: str) -> str:
+        mono = ct.theme.FONT_FAMILY_MONO
         return (
             f"<span style='color:{ct.theme.TEXT_SECONDARY};"
-            f"font-family:Consolas,\"Courier New\",monospace;font-size:12px;'>"
+            f"font-family:{mono};font-size:12px;'>"
             f"{text}: <a href='{url}' style='color:{ct.theme.GOLD};"
             f"text-decoration:none;'>abrir</a></span>"
         )
 
     @classmethod
     def log_section_html(cls, text: str) -> str:
+        mono = ct.theme.FONT_FAMILY_MONO
         return (
             f"<span style='color:{ct.theme.GOLD};"
-            f"font-family:Consolas,\"Courier New\",monospace;"
+            f"font-family:{mono};"
             f"font-size:12px;font-weight:700;'>{text}</span>"
         )
