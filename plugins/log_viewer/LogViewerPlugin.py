@@ -44,11 +44,16 @@ class LogViewerPlugin(BasePlugin):
     COLUMNS = ["timestamp", "level", "tool", "class", "message", "code"]
 
     def __init__(self, parent=None):
-        super().__init__(tool_key="LogViewer", parent=parent)
+        # Inicializa atributos ANTES do super().__init__ porque o
+        # BasePlugin.__init__ chama load_prefs(), que dispara
+        # _on_filter_changed → _render_table() → acessa self._raw_events.
         self._raw_events: List[dict] = []
         self._filtered_events: List[dict] = []
         self._sort_column: str = "timestamp"
         self._sort_ascending: bool = False
+
+        super().__init__(tool_key="LogViewer", parent=parent)
+
         self._build_ui()
         self.load_prefs()
         self._load_and_refresh()

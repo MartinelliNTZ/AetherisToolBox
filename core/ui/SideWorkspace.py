@@ -97,7 +97,11 @@ class SideWorkspace(QWidget):
         if name in self._tools:
             return name
         self._tools[name] = tool
-        self.stack.addWidget(QWidget())  # placeholder
+        # Cria o widget eager (não lazy) para que os sinais
+        # (ex: console_message) sejam conectados desde o startup,
+        # independente de o painel estar colapsado ou expandido.
+        widget = tool.widget
+        self.stack.addWidget(widget)
 
         tab = VerticalTab(title=tool.title,
                           tooltip=tool.tooltip or tool.title)
