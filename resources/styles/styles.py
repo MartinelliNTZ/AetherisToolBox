@@ -646,6 +646,53 @@ class AppStyles:
             f"}}"
         )
 
+    @classmethod
+    def menu_dropdown_style(cls) -> str:
+        """Estilo do QMenu dropdown (itens do menu suspenso).
+        Aplicado diretamente em cada QMenu via setStyleSheet()
+        porque QMenu é popup independente e não herda stylesheet do pai.
+        """
+        p = cls.P
+        return (
+            f"QMenu {{"
+            f"  background-color: {p.BG_DEEPEST};"
+            f"  border: 1px solid {p.BORDER};"
+            f"  border-radius: 6px;"
+            f"  padding: 2px;"
+            f"  margin: 1px 0;"
+            f"}}"
+            f"QMenu::item {{"
+            f"  background-color: transparent;"
+            f"  color: {p.TEXT_PRIMARY};"
+            f"  padding: 4px 16px 4px 8px;"
+            f"  border-radius: 3px;"
+            f"  font-size: 11px;"
+            f"  border-left: 1px solid transparent;"
+            f"}}"
+            f"QMenu::item:hover {{"
+            f"  background-color: {p.GOLD};"
+            f"  color: {p.BG_DEEPEST};"
+            f"  border-left: 1px solid {p.GOLD_HOVER};"
+            f"  font-weight: 700;"
+            f"}}"
+            f"QMenu::item:selected {{"
+            f"  background-color: {p.GOLD_HOVER};"
+            f"  color: {p.BG_DEEPEST};"
+            f"  border-left: 1px solid {p.GOLD};"
+            f"  font-weight: 700;"
+            f"}}"
+            f"QMenu::item:disabled {{"
+            f"  background-color: transparent;"
+            f"  color: {p.TEXT_MUTED};"
+            f"  border-left: 1px solid transparent;"
+            f"}}"
+            f"QMenu::separator {{"
+            f"  height: 1px;"
+            f"  background: {p.DIVIDER};"
+            f"  margin: 2px 6px;"
+            f"}}"
+        )
+
     # ────────────────────────────────────────────────────────────────────
     # BADGES
     # ────────────────────────────────────────────────────────────────────
