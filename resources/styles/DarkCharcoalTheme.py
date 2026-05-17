@@ -3,6 +3,10 @@
 DarkCharcoalTheme — Tema concreto Dark Charcoal + Gold
 =======================================================
 Subclasse de BaseTheme com valores para o tema escuro atual.
+
+Todos os grupos semânticos têm valores concretos.
+Aliases de compatibilidade (BG_DARK, GOLD, etc.) apontam
+para os mesmos valores → código legado continua funcionando.
 """
 
 from __future__ import annotations
@@ -16,57 +20,167 @@ class DarkCharcoalTheme(BaseTheme):
     """
 
     # ═══════════════════════════════════════════════════════════════════
-    # CORES — Fundos (profundidade: 0 = mais fundo, 5 = mais alto)
+    # 1. ACCENT — Dourado
     # ═══════════════════════════════════════════════════════════════════
 
-    BG_DEEPEST = "#08080A"
-    BG_DARK = "#0C0C0F"
-    BG_PANEL = "#121216"
-    BG_CARD = "#18181D"
-    BG_ELEVATED = "#1E1E24"
-    BG_SURFACE = "#24242B"
-    TITLE_BAR_BG = "#0A0A0D"
+    ACCENT = "#C9A84C"
+    ACCENT_HOVER = "#D4B85A"
+    ACCENT_ACTIVE = "#B8983E"
+    ACCENT_DIM = "#8A7A3A"
+    ACCENT_LIGHT = "#E8D08A"
+    ACCENT_SOFT = "rgba(201,168,76,0.12)"
+    ACCENT_TEXT = "#C9A84C"
+    ACCENT_BRIGHT = "#E0C878"
+    ACCENT_GRADIENT = ("#C9A84C", "#B8963A")
 
-    # ── Sombras ──────────────────────────────────────────────────────
-    SHADOW = "#040405"
-    SHADOW_DEEP = "#000000"
+    # ═══════════════════════════════════════════════════════════════════
+    # 2. SURFACE — Profundidade (0 = fundo, 5 = topo)
+    # ═══════════════════════════════════════════════════════════════════
+
+    SURFACE_0 = "#08080A"
+    SURFACE_1 = "#0C0C0F"
+    SURFACE_2 = "#121216"
+    SURFACE_3 = "#18181D"
+    SURFACE_4 = "#1E1E24"
+    SURFACE_5 = "#24242B"
+    TITLE_BAR = "#0A0A0D"
+
+    # ═══════════════════════════════════════════════════════════════════
+    # 3. TEXT — Hierarquia
+    # ═══════════════════════════════════════════════════════════════════
+
+    TEXT_HIGH = "#F0F0F0"
+    TEXT_MEDIUM = "#DCDCDC"
+    TEXT_LOW = "#888890"
+    TEXT_DISABLED = "#585860"
+    TEXT_ON_ACCENT = "#08080A"
+
+    # ═══════════════════════════════════════════════════════════════════
+    # 4. BORDER — Hierarquia
+    # ═══════════════════════════════════════════════════════════════════
+
+    BORDER_SUBTLE = "#1A1A20"
+    BORDER_DEFAULT = "#2A2A30"
+    BORDER_STRONG = "#3A3A44"
+    BORDER_ACCENT = "#C9A84C"
+    DIVIDER = "#1A1A20"
+
+    # ═══════════════════════════════════════════════════════════════════
+    # 5. SHADOW — Sombras
+    # ═══════════════════════════════════════════════════════════════════
+
+    SHADOW_SM = "#040405"
+    SHADOW_MD = "#040405"
+    SHADOW_LG = "#000000"
+    SHADOW_XL = "#000000"
+    SHADOW_ACCENT = "#C9A84C15"
     GLOW = "#C9A84C15"
     GLOW_STRONG = "#C9A84C25"
 
-    # ── Bordas ───────────────────────────────────────────────────────
-    BORDER = "#2A2A30"
-    BORDER_HOVER = "#C9A84C"
-    DIVIDER = "#1A1A20"
+    # ═══════════════════════════════════════════════════════════════════
+    # 6. RADIUS — Escala global
+    # ═══════════════════════════════════════════════════════════════════
 
-    # ── Texto ────────────────────────────────────────────────────────
-    TEXT_BRIGHT = "#F0F0F0"
-    TEXT_PRIMARY = "#DCDCDC"
-    TEXT_SECONDARY = "#888890"
-    TEXT_MUTED = "#585860"
-    TEXT_GOLD = "#C9A84C"
-    TEXT_GOLD_BRIGHT = "#E0C878"
-
-    # ── Acento Ouro ──────────────────────────────────────────────────
-    GOLD = "#C9A84C"
-    GOLD_HOVER = "#D4B85A"
-    GOLD_ACTIVE = "#B8983E"
-    GOLD_DIM = "#8A7A3A"
-    GOLD_LIGHT = "#E8D08A"
-    GOLD_GRADIENT = ("#C9A84C", "#B8963A")
-
-    # ── Status ───────────────────────────────────────────────────────
-    SUCCESS = "#43A047"
-    SUCCESS_HOVER = "#66BB6A"
-    SUCCESS_DIM = "#2E7D32"
-    WARNING = "#EF9A00"
-    WARNING_HOVER = "#FFB74D"
-    WARNING_DIM = "#BF6E00"
-    DANGER = "#D32F2F"
-    DANGER_HOVER = "#E53935"
-    DANGER_DIM = "#A02020"
+    RADIUS_XS = 2
+    RADIUS_SM = 4
+    RADIUS_MD = 6
+    RADIUS_LG = 10
+    RADIUS_XL = 16
+    RADIUS_FULL = 999
 
     # ═══════════════════════════════════════════════════════════════════
-    # FONTES
+    # 7. SPACE — Escala global de espaçamento
+    # ═══════════════════════════════════════════════════════════════════
+
+    SPACE_XXS = 2
+    SPACE_XS = 4
+    SPACE_SM = 8
+    SPACE_MD = 12
+    SPACE_LG = 16
+    SPACE_XL = 24
+    SPACE_2XL = 32
+    SPACE_3XL = 48
+
+    # ═══════════════════════════════════════════════════════════════════
+    # 8. ICON — Tamanhos
+    # ═══════════════════════════════════════════════════════════════════
+
+    ICON_XS = 12
+    ICON_SM = 16
+    ICON_MD = 20
+    ICON_LG = 24
+    ICON_XL = 32
+
+    # ═══════════════════════════════════════════════════════════════════
+    # 9. ANIMATION
+    # ═══════════════════════════════════════════════════════════════════
+
+    ANIMATION_FAST = 120
+    ANIMATION_NORMAL = 180
+    ANIMATION_SLOW = 260
+    EASING_STANDARD = "cubic-bezier(0.4, 0, 0.2, 1)"
+
+    # ═══════════════════════════════════════════════════════════════════
+    # 10. OPACITY
+    # ═══════════════════════════════════════════════════════════════════
+
+    OPACITY_DISABLED = 0.35
+    OPACITY_MUTED = 0.60
+    OPACITY_HOVER = 0.85
+    OPACITY_ACTIVE = 1.0
+
+    # ═══════════════════════════════════════════════════════════════════
+    # 11. LAYOUT
+    # ═══════════════════════════════════════════════════════════════════
+
+    PAGE_PADDING = 24
+    SECTION_GAP = 24
+    GRID_GAP = 20
+    CONTENT_MAX_WIDTH = 1600
+
+    # ═══════════════════════════════════════════════════════════════════
+    # 12. ELEVATION
+    # ═══════════════════════════════════════════════════════════════════
+
+    ELEVATION_FLAT = 0
+    ELEVATION_LOW = 1
+    ELEVATION_MEDIUM = 2
+    ELEVATION_HIGH = 3
+
+    # ═══════════════════════════════════════════════════════════════════
+    # 13. OVERLAY / Glass
+    # ═══════════════════════════════════════════════════════════════════
+
+    OVERLAY_BG = "rgba(8, 8, 10, 0.75)"
+    BACKDROP_BLUR = "4px"
+
+    # ═══════════════════════════════════════════════════════════════════
+    # 14. FOCUS_RING
+    # ═══════════════════════════════════════════════════════════════════
+
+    FOCUS_RING_COLOR = "#C9A84C"
+    FOCUS_RING_WIDTH = "2px"
+    FOCUS_RING_OFFSET = "1px"
+
+    # ═══════════════════════════════════════════════════════════════════
+    # 15. STATUS
+    # ═══════════════════════════════════════════════════════════════════
+
+    COLOR_SUCCESS = "#43A047"
+    COLOR_SUCCESS_HOVER = "#66BB6A"
+    COLOR_SUCCESS_DIM = "#2E7D32"
+    COLOR_WARNING = "#EF9A00"
+    COLOR_WARNING_HOVER = "#FFB74D"
+    COLOR_WARNING_DIM = "#BF6E00"
+    COLOR_DANGER = "#D32F2F"
+    COLOR_DANGER_HOVER = "#E53935"
+    COLOR_DANGER_DIM = "#A02020"
+    COLOR_INFO = "#5B9BD5"
+    COLOR_INFO_HOVER = "#7BB8E8"
+    COLOR_INFO_DIM = "#3A7CC2"
+
+    # ═══════════════════════════════════════════════════════════════════
+    # 16. FONT
     # ═══════════════════════════════════════════════════════════════════
 
     FONT_FAMILY_DEFAULT = "'Segoe UI', 'Inter', 'Roboto', sans-serif"
@@ -84,7 +198,7 @@ class DarkCharcoalTheme(BaseTheme):
     FONT_WEIGHT_HEAVY = 800
 
     # ═══════════════════════════════════════════════════════════════════
-    # DIMENSÕES — Alturas Padrão
+    # 17. DIMENSIONS
     # ═══════════════════════════════════════════════════════════════════
 
     INPUT_HEIGHT = 0
@@ -94,120 +208,71 @@ class DarkCharcoalTheme(BaseTheme):
     CHECKBOX_SIZE = 16
     RADIO_SIZE = 16
     SCROLLBAR_WIDTH = 6
-    SCROLLBAR_BORDER_RADIUS = 3
     SCROLLBAR_MIN_HEIGHT = 28
     TAB_HEIGHT = 0
     TAB_CLOSE_BUTTON_SIZE = 16
     CLOSE_BUTTON_BORDER_RADIUS = 3
-    SPLITTER_HANDLE_WIDTH = 4
     PROGRESS_BAR_HEIGHT = 18
     TITLE_BTN_HEIGHT = 22
     TITLE_BTN_WIDTH = 28
     TITLE_BTN_FONT_SIZE = 11
-    TITLE_BAR_BORDER_WIDTH = "1px"
-    TITLE_BAR_BORDER_COLOR = ""  # usa BG_PANEL por compatibilidade
-
-    # ═══════════════════════════════════════════════════════════════════
-    # ESPAÇAMENTOS
-    # ═══════════════════════════════════════════════════════════════════
-
-    LAYOUT_V_SPACING = 8
-    LAYOUT_H_SPACING = 8
-    CONTENT_PADDING_V = 10
-    CONTENT_PADDING_H = 14
-    CARD_PADDING_V = 16
-    CARD_PADDING_H = 10
     GROUP_MARGIN_TOP = 8
+    SPLITTER_HANDLE_WIDTH = 4
 
     # ═══════════════════════════════════════════════════════════════════
-    # BORDAS / ARREDONDAMENTO
+    # 18. SPECIFICS — BORDER_RADIUS (usam RADIUS semântico como base)
     # ═══════════════════════════════════════════════════════════════════
 
-    BORDER_RADIUS_CARD = 10
-    BORDER_RADIUS_BUTTON = 6
-    BORDER_RADIUS_INPUT = 6
-    BORDER_RADIUS_CHECKBOX = 3
+    BORDER_RADIUS_CARD = 10       # ≈ RADIUS_LG
+    BORDER_RADIUS_BUTTON = 6       # ≈ RADIUS_MD
+    BORDER_RADIUS_INPUT = 6        # ≈ RADIUS_MD
+    BORDER_RADIUS_CHECKBOX = 3     # ≈ RADIUS_XS+1
     BORDER_RADIUS_RADIO = 0
-    BORDER_RADIUS_BADGE = 4
+    BORDER_RADIUS_BADGE = 4        # ≈ RADIUS_SM
     BORDER_RADIUS_PROGRESS = 5
-    BORDER_RADIUS_TABLE = 8
+    BORDER_RADIUS_TABLE = 8        # ≈ RADIUS_SM*2
     BORDER_RADIUS_TITLE_BTN = 3
-    BORDER_RADIUS_TOOLBAR_BTN = 4
-    BORDER_RADIUS_TOOL_SELECTOR = 6
+    BORDER_RADIUS_TOOLBAR_BTN = 4  # ≈ RADIUS_SM
     BORDER_RADIUS_GHOST = 5
+    BORDER_RADIUS_TOOL_SELECTOR = 6  # ≈ RADIUS_MD
     BORDER_RADIUS_SCROLLBAR = 3
-    BORDER_RADIUS_SPINBOX_BTN = 2
+    BORDER_RADIUS_SPINBOX_BTN = 2    # ≈ RADIUS_XS
     BORDER_RADIUS_TAB_CLOSE = 3
-    BORDER_RADIUS_COMBO_POPUP = 4
-    BORDER_RADIUS_MENU = 6
+    BORDER_RADIUS_COMBO_POPUP = 4    # ≈ RADIUS_SM
+    BORDER_RADIUS_MENU = 6          # ≈ RADIUS_MD
     BORDER_RADIUS_MENU_ITEM = 3
-    BORDER_RADIUS_GROUP_TITLE = 4
+    BORDER_RADIUS_GROUP_TITLE = 4   # ≈ RADIUS_SM
     MENUBAR_ITEM_BORDER_RADIUS = "1px 1px 8px 1px"
-
-    # ═══════════════════════════════════════════════════════════════════
-    # CHECKBOX
-    # ═══════════════════════════════════════════════════════════════════
 
     CHECKBOX_BORDER_WIDTH = 0
     CHECKBOX_SPACING = 8
-
-    # ═══════════════════════════════════════════════════════════════════
-    # BADGE
-    # ═══════════════════════════════════════════════════════════════════
 
     BADGE_PADDING_V = "3px"
     BADGE_PADDING_H = "12px"
     BADGE_LETTER_SPACING = "0.3px"
 
-    # ═══════════════════════════════════════════════════════════════════
-    # BOTÕES — Padding (px strings para QSS)
-    # ═══════════════════════════════════════════════════════════════════
-
     BUTTON_PADDING_V = "6px"
     BUTTON_PADDING_H = "14px"
-
     BUTTON_PADDING_V_SMALL = "4px"
     BUTTON_PADDING_H_SMALL = "12px"
-
     BUTTON_PADDING_V_PRIMARY = "6px"
     BUTTON_PADDING_H_PRIMARY = "20px"
-
     BUTTON_LETTER_SPACING_NORMAL = "0.3px"
     BUTTON_LETTER_SPACING_PRIMARY = "0.5px"
 
-    # ═══════════════════════════════════════════════════════════════════
-    # TOOLBAR
-    # ═══════════════════════════════════════════════════════════════════
-
     TOOLBAR_BTN_PADDING_V = "4px"
     TOOLBAR_BTN_PADDING_H = "10px"
-
-    # ═══════════════════════════════════════════════════════════════════
-    # TOOL SELECTOR (Side Panel)
-    # ═══════════════════════════════════════════════════════════════════
 
     TOOL_SELECTOR_PADDING_V = "6px"
     TOOL_SELECTOR_PADDING_H = "4px"
     TOOL_SELECTOR_LETTER_SPACING = "0.3px"
 
-    # ═══════════════════════════════════════════════════════════════════
-    # INPUTS — Padding
-    # ═══════════════════════════════════════════════════════════════════
-
     INPUT_PADDING_V = "2px"
     INPUT_PADDING_H = "2px"
-
-    # ═══════════════════════════════════════════════════════════════════
-    # SPINBOX
-    # ═══════════════════════════════════════════════════════════════════
 
     SPINBOX_PADDING = "3px 8px"
     SPINBOX_BTN_WIDTH = 16
     SPINBOX_BTN_MARGIN = "1px"
-
-    # ═══════════════════════════════════════════════════════════════════
-    # COMBOBOX
-    # ═══════════════════════════════════════════════════════════════════
 
     COMBOBOX_PADDING = "3px 8px"
     COMBOBOX_MIN_WIDTH = 80
@@ -215,16 +280,8 @@ class DarkCharcoalTheme(BaseTheme):
     COMBOBOX_ARROW_SIZE = "4px"
     COMBOBOX_POPUP_BORDER_RADIUS = 4
 
-    # ═══════════════════════════════════════════════════════════════════
-    # TEXT BROWSER / TEXT EDIT
-    # ═══════════════════════════════════════════════════════════════════
-
     TEXT_EDIT_PADDING = "8px"
     TEXT_EDIT_FONT_SIZE = 12
-
-    # ═══════════════════════════════════════════════════════════════════
-    # GROUP TITLE
-    # ═══════════════════════════════════════════════════════════════════
 
     GROUP_TITLE_LEFT = 4
     GROUP_TITLE_TOP = -2
@@ -232,23 +289,16 @@ class DarkCharcoalTheme(BaseTheme):
     GROUP_TITLE_BORDER_RADIUS = 4
     GROUP_TITLE_LETTER_SPACING = "0.5px"
 
-    # ═══════════════════════════════════════════════════════════════════
-    # WINDOW TITLE
-    # ═══════════════════════════════════════════════════════════════════
-
     WINDOW_TITLE_FONT_SIZE = 11
     WINDOW_TITLE_LETTER_SPACING = "0.3px"
 
-    # ═══════════════════════════════════════════════════════════════════
-    # QSPLITTER
-    # ═══════════════════════════════════════════════════════════════════
+    TITLE_BAR_BORDER_WIDTH = "1px"
+    TITLE_BAR_BORDER_COLOR = ""  # usa BG_PANEL por compatibilidade
+    CARD_PADDING_V = 16
+    CARD_PADDING_H = 10
 
     SPLITTER_HANDLE_WIDTH_H = 4
     SPLITTER_HANDLE_WIDTH_V = 4
-
-    # ═══════════════════════════════════════════════════════════════════
-    # QMENU
-    # ═══════════════════════════════════════════════════════════════════
 
     MENU_PADDING = "2px"
     MENU_MARGIN_V = "1px 0"
@@ -256,16 +306,56 @@ class DarkCharcoalTheme(BaseTheme):
     MENU_SEPARATOR_HEIGHT = "1px"
     MENU_SEPARATOR_MARGIN = "2px 6px"
 
-    # ═══════════════════════════════════════════════════════════════════
-    # HEADER / TABLE HEADER
-    # ═══════════════════════════════════════════════════════════════════
-
     HEADER_FONT_SIZE = 11
     HEADER_LETTER_SPACING = "0.3px"
-
-    # ═══════════════════════════════════════════════════════════════════
-    # TABELA — Padding
-    # ═══════════════════════════════════════════════════════════════════
-
     TABLE_ITEM_PADDING = "3px 6px"
     HEADER_PADDING = "4px 6px"
+
+    # ═══════════════════════════════════════════════════════════════════
+    # ALIASES DE COMPATIBILIDADE RETROATIVA
+    # Mapeiam nomes antigos → tokens semânticos
+    # ═══════════════════════════════════════════════════════════════════
+
+    # ── Fundos (BG_*) → SURFACE ─────────────────────────────────────
+    BG_DEEPEST = SURFACE_0
+    BG_DARK = SURFACE_1
+    BG_PANEL = SURFACE_2
+    BG_CARD = SURFACE_3
+    BG_ELEVATED = SURFACE_4
+    BG_SURFACE = SURFACE_5
+    TITLE_BAR_BG = TITLE_BAR
+
+    # ── Sombras → SHADOW ────────────────────────────────────────────
+    SHADOW = SHADOW_SM
+    SHADOW_DEEP = SHADOW_LG
+
+    # ── Bordas → BORDER ─────────────────────────────────────────────
+    BORDER = BORDER_DEFAULT
+    BORDER_HOVER = BORDER_ACCENT
+
+    # ── Texto (TEXT_*) → TEXT ───────────────────────────────────────
+    TEXT_BRIGHT = TEXT_HIGH
+    TEXT_PRIMARY = TEXT_MEDIUM
+    TEXT_SECONDARY = TEXT_LOW
+    TEXT_MUTED = TEXT_DISABLED
+    TEXT_GOLD = ACCENT_TEXT
+    TEXT_GOLD_BRIGHT = ACCENT_BRIGHT
+
+    # ── Acento (GOLD*) → ACCENT ─────────────────────────────────────
+    GOLD = ACCENT
+    GOLD_HOVER = ACCENT_HOVER
+    GOLD_ACTIVE = ACCENT_ACTIVE
+    GOLD_DIM = ACCENT_DIM
+    GOLD_LIGHT = ACCENT_LIGHT
+    GOLD_GRADIENT = ACCENT_GRADIENT
+
+    # ── Status → COLOR_ ─────────────────────────────────────────────
+    SUCCESS = COLOR_SUCCESS
+    SUCCESS_HOVER = COLOR_SUCCESS_HOVER
+    SUCCESS_DIM = COLOR_SUCCESS_DIM
+    WARNING = COLOR_WARNING
+    WARNING_HOVER = COLOR_WARNING_HOVER
+    WARNING_DIM = COLOR_WARNING_DIM
+    DANGER = COLOR_DANGER
+    DANGER_HOVER = COLOR_DANGER_HOVER
+    DANGER_DIM = COLOR_DANGER_DIM
