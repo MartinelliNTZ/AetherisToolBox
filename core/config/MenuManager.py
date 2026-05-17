@@ -5,22 +5,25 @@ MenuManager — Construtor e gestor da toolbar + barra de menus
 Responsabilidades:
   1. Ler o ToolRegistry e obter a lista completa de ferramentas
   2. Agrupar por ToolType para criar ToolGroups (toolbar)
-  3. Agrupar por MenuCategory para popular o MenuBar
-  4. Encapsular MenuBar, Toolbar e seus sinais em um único lugar
+  3. Instanciar FileMenuItem, SystemMenuItem, HelpMenuItem
+  4. Montar a MenuBar com os items e conectar sinais
+  5. Encapsular MenuBar, Toolbar e seus sinais em um único lugar
 
 A MainWindow apenas posiciona os widgets prontos.
 """
 
 from __future__ import annotations
 
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 from PySide6.QtCore import Signal, QObject
 from PySide6.QtWidgets import QWidget, QHBoxLayout
 
 from core.config.ToolRegistry import ToolRegistry
-from core.enum.MenuCategory import MenuCategory
 from core.enum.ToolType import ToolType
+from core.menus.FileMenuItem import FileMenuItem
+from core.menus.SystemMenuItem import SystemMenuItem
+from core.menus.HelpMenuItem import HelpMenuItem
 from core.model.Tool import Tool
 from resources.widgets.MenuBar import MenuBar
 from resources.widgets.ToolGroup import ToolGroup
@@ -61,18 +64,29 @@ class MenuManager(QObject):
         registry = ToolRegistry()
         tools = registry.get_all()
 
-        # ── 1. Criar MenuBar e conectar sinais ──
+        # ── 1. Criar MenuBar ──
         self._menu_bar = MenuBar()
-        self._menu_bar.sair_clicked.connect(self._on_sair)
-        self._menu_bar.sobre_clicked.connect(self._on_sobre)
-        self._menu_bar.tool_clicked.connect(self._on_tool_clicked)
 
-        # Popula o menu com ferramentas que têm menu_category
-        menu_items = self._build_menu_items(tools)
-        sistema_items = menu_items.get(MenuCategory.SYSTEM, [])
-        self._menu_bar.add_menu_items(sistema_items)
+        # ── 2. Criar e registrar FileMenuItem ──
+        self._file_item = FileMenuItem()
+        self._file_item.sair_clicked.connect(self._on_sair)
+        self._menu_bar.add_menu_item(self._file_item)
 
-        # ── 2. Criar ToolGroups (toolbar) ──
+        # ── 3. Criar e registrar SystemMenuItem ──
+        self._system_item = SystemMenuItem()
+        self._system_item.refresh_tools()
+        self._system_item.tool_clicked.connect(self._on_tool_clicked)
+        self._menu_bar.add_menu_item(self._system_item)
+
+        # ── 4. Criar e registrar HelpMenuItem ──
+        self._help_item = HelpMenuItem()
+        self._help_item.sobre_clicked.connect(self._on_sobre)
+        self._menu_bar.add_menu_item(self._help_item)
+
+        # Conecta sinal genérico do MenuBar (fallback para cliques não tratados)
+        self._menu_bar.action_triggered.connect(self._on_menu_action)
+
+        # ── 5. Criar ToolGroups (toolbar) ──
         grouped: Dict[ToolType, list[Tool]] = {}
         for tool in tools:
             if not tool.show_in_toolbar:
@@ -89,7 +103,7 @@ class MenuManager(QObject):
                 group.tool_clicked.connect(self._on_tool_clicked)
                 self._groups.append(group)
 
-        # ── 3. Montar toolbar_widget ──
+        # ── 6. Montar toolbar_widget ──
         if self._groups:
             container = QWidget()
             container.setObjectName("toolbar_panel")
@@ -137,7 +151,6 @@ class MenuManager(QObject):
     # Sinais internos (conectados pela MainWindow)
     # ────────────────────────────────────────────────────────────────
 
-    # Expostos para a MainWindow conectar
     sair_clicked = Signal()
     sobre_clicked = Signal()
 
@@ -145,22 +158,20 @@ class MenuManager(QObject):
     # Métodos privados
     # ────────────────────────────────────────────────────────────────
 
-    @staticmethod
-    def _build_menu_items(tools: List[Tool]) -> Dict[MenuCategory, List[Tuple[str, str]]]:
-        """Agrupa ferramentas por MenuCategory."""
-        grouped: Dict[MenuCategory, List[Tuple[str, str]]] = {}
-        for tool in tools:
-            mc = tool.menu_category
-            if mc is None:
-                continue
-            if mc not in grouped:
-                grouped[mc] = []
-            grouped[mc].append((tool.name, tool.title))
-        return grouped
-
     def _on_tool_clicked(self, tool_name: str):
         """Propaga o clique da toolbar ou menu."""
         self.tool_activated.emit(tool_name)
+
+    def _on_menu_action(self, data: str):
+        """
+        Fallback para ações disparadas pelo MenuBar.
+        Se o data for um tool_name conhecido, propaga como tool_activated.
+        """
+        # Apenas propaga se não foi tratado por File/System/Help
+        registry = ToolRegistry()
+        tool = registry.get(data)
+        if tool is not None:
+            self.tool_activated.emit(data)
 
     def _on_sair(self):
         """Propaga sair_clicked."""
