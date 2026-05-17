@@ -461,6 +461,34 @@ class MeuPlugin(BasePlugin):
 
 ---
 
+### `GridGroupPainel` — `GridGroupPainel.py`
+Container com título dourado e layout em grade (QGridLayout). Similar ao GroupPainel, porém com grid configurável por número de colunas. Ideal para organizar widgets em grid com stretch por coluna/linha.
+
+```python
+from resources.widgets.GridGroupPainel import GridGroupPainel
+
+grid = GridGroupPainel("Configurações", num_columns=2)
+gl = grid.group_layout
+gl.addWidget(QLabel("Nome:"), 0, 0)
+gl.addWidget(QLineEdit(), 0, 1)
+gl.addWidget(QLabel("Idade:"), 1, 0)
+gl.addWidget(QSpinBox(), 1, 1)
+grid.set_column_stretch(0, 1)
+grid.set_column_stretch(1, 1)
+main_layout.addWidget(grid)
+```
+
+**Parâmetros:**
+- `title: str` — título do painel
+- `num_columns: int = 2` — número de colunas da grade
+
+**Propriedades:**
+- `group_layout` → QGridLayout interno
+- `set_column_stretch(col, stretch)` — estica coluna
+- `set_row_stretch(row, stretch)` — estica linha
+
+---
+
 ### `SimpleComboBox` — `SimpleComboBox.py`
 QComboBox genérico com label opcional. Aceita `Dict[str, str]` (recomendado) ou `List[str]`. Prefira **sempre** Dict — a chave é o valor interno estável, o texto é o display. Isso evita perda de índice e permite maior semântica.
 

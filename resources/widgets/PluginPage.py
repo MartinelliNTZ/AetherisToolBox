@@ -55,3 +55,17 @@ class PluginPage(QWidget):
     def add_widget(self, widget: QWidget, stretch: int = 0) -> None:
         """Atalho para adicionar widget ao main_layout."""
         self.main_layout.addWidget(widget, stretch)
+
+    def add_widgets(self, *widgets: QWidget, stretch: int = 0) -> None:
+        """
+        Adiciona múltiplos widgets ao main_layout de uma só vez.
+
+        Args:
+            *widgets: Widgets a serem adicionados (ordem sequencial)
+            stretch: Fator de esticamento aplicado a todos
+
+        Exemplo:
+            page.add_widgets(QLabel("A"), QLineEdit(), QPushButton("OK"))
+        """
+        for widget in widgets:
+            self.main_layout.addWidget(widget, stretch)
