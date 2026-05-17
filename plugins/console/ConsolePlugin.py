@@ -2,7 +2,7 @@
 """
 ConsoleTool — Console de execução compartilhado
 ================================================
-Widget de console independente com botão "Limpar Console" incluso.
+Widget de console independente com botões de ação padronizados.
 Registrado como uma aba no Workspace.
 """
 
@@ -10,63 +10,72 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QTextBrowser
-)
-from PySide6.QtCore import Qt
-from resources.widgets.SimpleGhostButton import SimpleGhostButton
 from core.model.BasePlugin import BasePlugin
 from core.manager.SignalManager import SignalManager
+from resources.widgets.ExecutionButtons import ExecutionButtons
+from resources.widgets.ReadOnlyTextBrowser import ReadOnlyTextBrowser
 
 
 class ConsolePlugin(BasePlugin):
     """
     Console de execução compartilhado.
     Exibe logs formatados com HTML, suporte a links.
-    Inclui botão "Limpar Console" na barra superior.
+    Inclui botões "Selecionar Tudo", "Copiar Tudo" e "Limpar Console".
     """
 
     def __init__(self, parent=None):
         super().__init__(tool_key="Console", parent=parent)
-        self._build_ui()
-        self.load_prefs()
         self._connect_signals()
         self.logger.info("ConsoleTool carregada", code="TOOL_READY")
 
     def _build_ui(self):
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
+        """Constrói a UI usando o layout padrão do BasePlugin + ExecutionButtons."""
+        super()._build_ui()
 
-        # Toolbar do console
-        toolbar = QWidget()
-        toolbar.setObjectName("console_toolbar")
-        toolbar_layout = QHBoxLayout(toolbar)
-        toolbar_layout.setContentsMargins(8, 6, 8, 6)
-        toolbar_layout.setSpacing(6)
-
-        self.btn_clear_console = SimpleGhostButton("Limpar Console")
-        toolbar_layout.addWidget(self.btn_clear_console)
-        toolbar_layout.addStretch()
-        layout.addWidget(toolbar)
+        # Botões de ação padronizados
+        self.buttons = ExecutionButtons(self, {
+            "select_all": {
+                "text": "SELECIONAR TUDO",
+                "callback": self._on_select_all,
+                "type": "secondary",
+                "description": "Seleciona todo o texto do console",
+            },
+            "copy_all": {
+                "text": "COPIAR TUDO",
+                "callback": self._on_copy_all,
+                "type": "secondary",
+                "description": "Copia todo o texto do console para a área de transferência",
+            },
+            "clear_console": {
+                "text": "LIMPAR CONSOLE",
+                "callback": self.clear_log,
+                "type": "secondary",
+                "description": "Limpa todo o conteúdo do console",
+            },
+        })
+        self.main_layout.addWidget(self.buttons)
 
         # Text browser do log
-        self.txt_log = QTextBrowser()
-        self.txt_log.setReadOnly(True)
-        self.txt_log.setOpenLinks(False)
-        self.txt_log.setOpenExternalLinks(False)
-        self.txt_log.setPlaceholderText(
-            "Console compartilhado — mensagens de execucao aparecem aqui..."
+        self.txt_log = ReadOnlyTextBrowser(
+            placeholder="Console compartilhado — mensagens de execucao aparecem aqui..."
         )
-        layout.addWidget(self.txt_log, 1)
+        self.main_layout.addWidget(self.txt_log, 1)
+
+    def _on_select_all(self) -> None:
+        """Seleciona todo o texto do console."""
+        self.txt_log.select_all()
+
+    def _on_copy_all(self) -> None:
+        """Copia todo o conteúdo do console para a área de transferência."""
+        self.txt_log.copy_all()
 
     def append_log(self, html: str) -> None:
         """Adiciona uma mensagem formatada em HTML ao console."""
-        self.txt_log.append(html)
+        self.txt_log.append_html(html)
 
     def clear_log(self) -> None:
         """Limpa o console."""
-        self.txt_log.clear()
+        self.txt_log.clear_content()
         self.logger.info("Console limpo", code="CONSOLE_CLEAR")
 
     def set_placeholder(self, text: str) -> None:
@@ -81,6 +90,7 @@ class ConsolePlugin(BasePlugin):
     def _on_console_message(self, message: str) -> None:
         """Recebe uma mensagem do SignalManager e exibe no console."""
         import html as html_mod
+
         timestamp = datetime.now().strftime("%H:%M:%S")
         safe = html_mod.escape(message)
         self.append_log(

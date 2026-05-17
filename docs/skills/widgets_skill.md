@@ -411,6 +411,36 @@ grid.clear_all()       # limpar tudo
 ```
 
 ---
+### `ReadOnlyTextBrowser` — `ReadOnlyTextBrowser.py`
+QTextBrowser pré-configurado como read-only com métodos auxiliares para exibição de logs e texto formatado. Substitui a configuração manual de QTextBrowser em consoles e visualizadores.
+
+```python
+from resources.widgets.ReadOnlyTextBrowser import ReadOnlyTextBrowser
+
+browser = ReadOnlyTextBrowser(
+    placeholder="Mensagens aparecem aqui...",
+    open_links=True,
+)
+browser.append_html("<b>texto</b>")
+browser.clear_content()
+browser.select_all()
+browser.copy_all()
+browser.to_plain_text()
+```
+
+**Métodos auxiliares:**
+- `append_html(html)` — adiciona HTML ao final
+- `clear_content()` — limpa o conteúdo
+- `select_all()` — seleciona todo o texto
+- `copy_all()` — copia texto puro para área de transferência
+- `to_plain_text()` — retorna conteúdo como string
+
+**Parâmetros do construtor:**
+- `placeholder: str = ""` — texto de placeholder
+- `open_links: bool = False` — permite clicar em links internos
+- `open_external_links: bool = False` — permite abrir links externos
+
+---
 
 ### `SectionPanel` — `SectionPanel.py`
 Container leve com QVBoxLayout de margem zero e spacing configurável. Ideal para agrupar widgets que precisam ser mostrados/escondidos juntos (seções alternáveis por modo/guia).
