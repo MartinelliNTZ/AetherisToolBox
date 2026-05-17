@@ -14,7 +14,7 @@ from PySide6.QtCore import QObject, Signal
 from PySide6.QtGui import QAction, QIcon
 from PySide6.QtWidgets import QMenu
 
-from resources.styles.styles import AppStyles
+from resources.styles.AppStyles import AppStyles
 
 
 class BaseMenuItem(QObject):

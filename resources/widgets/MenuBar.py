@@ -17,7 +17,7 @@ from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QMenuBar
 
 from core.menus.BaseMenuItem import BaseMenuItem
-from resources.styles.styles import AppStyles
+from resources.styles.AppStyles import AppStyles
 
 
 class MenuBar(QMenuBar):

@@ -18,7 +18,7 @@ from PySide6.QtWidgets import (
     QSizePolicy, QGridLayout, QScrollArea
 )
 from PySide6.QtCore import Qt
-from resources.styles.styles import AppStyles, Palette
+from resources.styles.AppStyles import AppStyles
 from resources.widgets.ExecutionButtons import ExecutionButtons
 from resources.widgets.SimpleGhostButton import SimpleGhostButton
 from resources.widgets.SimpleRemoveButton import SimpleRemoveButton

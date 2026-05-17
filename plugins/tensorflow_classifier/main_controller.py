@@ -26,7 +26,7 @@ from utils.MessageBox import MessageBox
 
 from utils.Preferences import Preferences
 from core.enum.ToolKey import ToolKey
-from resources.styles.styles import AppStyles, Palette
+from resources.styles.AppStyles import AppStyles
 from plugins.tensorflow_classifier.classifier_pipeline import ClassifierPipeline
 from plugins.tensorflow_classifier.pipeline_config import PipelineConfig, PipelineConfigError
 

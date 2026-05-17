@@ -4,20 +4,18 @@ resources/styles — Sistema de estilos e temas do Aetheris ToolBox
 =================================================================
 
 Estrutura:
-    BaseTheme      : Classe base abstrata com TODAS as variáveis de tema
+    BaseTheme        : Classe base abstrata com TODAS as variáveis de tema
     DarkCharcoalTheme : Tema concreto (Dark Charcoal + Gold)
-    ThemeManager   : Singleton que mantém o tema ativo
-    BaseStyle      : Estilos globais Qt usando o tema
-    AppStyles      : Herda BaseStyle + botões, badges, logs, menus
+    ThemeManager     : Singleton que mantém o tema ativo
+    BaseStyle        : Estilos globais Qt usando o tema
+    AppStyles        : Herda BaseStyle + botões, badges, logs, menus
 
-Uso moderno (preferido):
-    from resources.styles.ThemeManager import ct
-    color = ct.theme.GOLD
+Uso exclusivo (fora de resources/styles/):
+    from resources.styles.AppStyles import AppStyles
     stylesheet = AppStyles.global_stylesheet()
+    button_qss = AppStyles.btn_secondary_style()
 
-Compatibilidade retroativa:
-    from resources.styles.styles import Palette, AppStyles
-    # Funciona normalmente — styles.py redireciona para a nova estrutura
+Nenhum módulo fora de resources/styles/ pode importar temas diretamente.
 """
 
 from resources.styles.AppStyles import AppStyles

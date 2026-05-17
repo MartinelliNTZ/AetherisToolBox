@@ -7,10 +7,27 @@ Define TODAS as variáveis de tema organizadas em grupos semânticos.
 Cada tema concreto (ex: DarkCharcoalTheme, ModernBlueTheme) deve
 sobrescrever todos os atributos com valores concretos.
 
-Grupos:
-    ACCENT, SURFACE, TEXT, BORDER, SHADOW, RADIUS, SPACE,
-    ICON, ANIMATION, OPACITY, LAYOUT, ELEVATION, OVERLAY,
-    FOCUS_RING, STATUS, FONT, DIMENSIONS, SPECIFICS
+Grupos de tokens semânticos (organizados por categoria):
+    1.  ACCENT       — Cores de destaque principal
+    2.  SURFACE      — Níveis de profundidade (0=fundo … 5=topo)
+    3.  TEXT         — Hierarquia tipográfica
+    4.  BORDER       — Hierarquia de bordas
+    5.  SHADOW       — Sombras por tamanho
+    6.  RADIUS       — Escala global de cantos arredondados
+    7.  SPACE        — Escala global de espaçamento (px)
+    8.  ICON         — Tamanhos de ícone (px)
+    9.  ANIMATION    — Durações de animação (ms) + easing
+    10. OPACITY      — Níveis de opacidade (0.0–1.0)
+    11. LAYOUT       — Layout global (padding, gap, max-width)
+    12. ELEVATION    — Níveis de elevação (z-index conceitual)
+    13. OVERLAY      — Sobreposições / glass effect
+    14. FOCUS_RING   — Anel de foco visual
+    15. STATUS       — Cores de estado (success, warning, danger, info)
+    16. FONT         — Tipografia (famílias, tamanhos, pesos)
+    17. DIMENSIONS   — Alturas e tamanhos de widgets
+    18. SPECIFICS    — Tokens específicos de implementação (compatibilidade)
+
+    Aliases de compatibilidade retroativa (mapeiam nomes antigos → semânticos)
 """
 
 from __future__ import annotations
@@ -20,7 +37,17 @@ class BaseTheme:
     """Classe base para temas. Todos os atributos devem ser sobrescritos."""
 
     # ═══════════════════════════════════════════════════════════════════
-    # 1. ACCENT — Acento principal (substitui GOLD semânticamente)
+    # 1. ACCENT — Cores de destaque principal
+    #    Define a identidade visual do tema (dourado, ciano, azul, etc.)
+    #    ACCENT        → cor principal (botões, links, seleção)
+    #    ACCENT_HOVER  → hover / foco
+    #    ACCENT_ACTIVE → pressed / ativo
+    #    ACCENT_DIM    → versão escurecida / muted
+    #    ACCENT_LIGHT  → versão clara (badges, highlights sutis)
+    #    ACCENT_SOFT   → versão translucent (rgba) para backgrounds
+    #    ACCENT_TEXT   → cor para texto sobre superfície escura
+    #    ACCENT_BRIGHT → versão brilhante (glow, hover highlight)
+    #    ACCENT_GRADIENT → par (start, stop) para gradientes lineares
     # ═══════════════════════════════════════════════════════════════════
 
     ACCENT: str = ""
@@ -35,6 +62,13 @@ class BaseTheme:
 
     # ═══════════════════════════════════════════════════════════════════
     # 2. SURFACE — Níveis de profundidade (0 = mais fundo, 5 = mais alto)
+    #    SURFACE_0 → fundo absoluto (backdrop)
+    #    SURFACE_1 → fundo padrão da janela
+    #    SURFACE_2 → painéis base / side panels
+    #    SURFACE_3 → cards / groupbox / áreas elevadas
+    #    SURFACE_4 → inputs, tabelas, elementos interativos
+    #    SURFACE_5 → hover / focus state
+    #    TITLE_BAR → barra de título da janela
     # ═══════════════════════════════════════════════════════════════════
 
     SURFACE_0: str = ""       # fundo absoluto
@@ -47,6 +81,11 @@ class BaseTheme:
 
     # ═══════════════════════════════════════════════════════════════════
     # 3. TEXT — Hierarquia de texto
+    #    TEXT_HIGH      → títulos, labels importantes
+    #    TEXT_MEDIUM    → corpo padrão
+    #    TEXT_LOW       → secundário, metadados
+    #    TEXT_DISABLED  → widget desabilitado
+    #    TEXT_ON_ACCENT → texto sobre fundo ACCENT
     # ═══════════════════════════════════════════════════════════════════
 
     TEXT_HIGH: str = ""
@@ -57,6 +96,11 @@ class BaseTheme:
 
     # ═══════════════════════════════════════════════════════════════════
     # 4. BORDER — Hierarquia de bordas
+    #    BORDER_SUBTLE  → linhas muito sutis (divisores leves)
+    #    BORDER_DEFAULT → borda padrão de widgets
+    #    BORDER_STRONG  → borda de destaque (foco, validação)
+    #    BORDER_ACCENT  → borda com cor de acento
+    #    DIVIDER        → separadores (linhas horizontais/verticais)
     # ═══════════════════════════════════════════════════════════════════
 
     BORDER_SUBTLE: str = ""
@@ -66,7 +110,14 @@ class BaseTheme:
     DIVIDER: str = ""
 
     # ═══════════════════════════════════════════════════════════════════
-    # 5. SHADOW — Sombras por tamanho
+    # 5. SHADOW — Sombras por tamanho (usadas em QGraphicsDropShadowEffect)
+    #    SHADOW_SM      → sombra pequena (tooltip, badge)
+    #    SHADOW_MD      → sombra média (card, dropdown)
+    #    SHADOW_LG      → sombra grande (modal, dialog)
+    #    SHADOW_XL      → sombra extra grande (popup, overlay)
+    #    SHADOW_ACCENT  → sombra com cor de acento (glow)
+    #    GLOW           → brilho sutil (hover em botões)
+    #    GLOW_STRONG    → brilho forte (foco, destaque)
     # ═══════════════════════════════════════════════════════════════════
 
     SHADOW_SM: str = ""
@@ -78,7 +129,13 @@ class BaseTheme:
     GLOW_STRONG: str = ""
 
     # ═══════════════════════════════════════════════════════════════════
-    # 6. RADIUS — Escala global de arredondamento
+    # 6. RADIUS — Escala global de arredondamento (pixels)
+    #    RADIUS_XS   → 2px  (checkbox, scrollbar, spin btn)
+    #    RADIUS_SM   → 4px  (badge, toolbar btn)
+    #    RADIUS_MD   → 6px  (button, input, menu)
+    #    RADIUS_LG   → 10px (card, table, progress)
+    #    RADIUS_XL   → 16px (diálogos, painéis)
+    #    RADIUS_FULL → 999  (círculo / pill)
     # ═══════════════════════════════════════════════════════════════════
 
     RADIUS_XS: int = 0
@@ -90,6 +147,15 @@ class BaseTheme:
 
     # ═══════════════════════════════════════════════════════════════════
     # 7. SPACE — Escala global de espaçamento (pixels inteiros)
+    #    Usada para padding, margin, gap entre elementos.
+    #    SPACE_XXS →  2px   (micro espaçamento)
+    #    SPACE_XS  →  4px   (muito pequeno)
+    #    SPACE_SM  →  8px   (pequeno)
+    #    SPACE_MD  → 12px   (médio)
+    #    SPACE_LG  → 16px   (grande)
+    #    SPACE_XL  → 24px   (extra grande)
+    #    SPACE_2XL → 32px   (seção)
+    #    SPACE_3XL → 48px   (seção grande)
     # ═══════════════════════════════════════════════════════════════════
 
     SPACE_XXS: int = 0
@@ -102,7 +168,12 @@ class BaseTheme:
     SPACE_3XL: int = 0
 
     # ═══════════════════════════════════════════════════════════════════
-    # 8. ICON — Tamanhos de ícone
+    # 8. ICON — Tamanhos de ícone (pixels)
+    #    ICON_XS → 12px (tiny indicator)
+    #    ICON_SM → 16px (toolbar, menu item)
+    #    ICON_MD → 20px (botão padrão)
+    #    ICON_LG → 24px (seção, header)
+    #    ICON_XL → 32px (featured, empty state)
     # ═══════════════════════════════════════════════════════════════════
 
     ICON_XS: int = 0
@@ -112,7 +183,11 @@ class BaseTheme:
     ICON_XL: int = 0
 
     # ═══════════════════════════════════════════════════════════════════
-    # 9. ANIMATION — Tempo de animação (ms)
+    # 9. ANIMATION — Durações de animação (ms) + easing
+    #    ANIMATION_FAST   → 120ms (hover, micro-interações)
+    #    ANIMATION_NORMAL → 180ms (transições padrão)
+    #    ANIMATION_SLOW   → 260ms (expansão, colapso)
+    #    EASING_STANDARD  → curva de easing (ex: cubic-bezier)
     # ═══════════════════════════════════════════════════════════════════
 
     ANIMATION_FAST: int = 0
@@ -121,7 +196,11 @@ class BaseTheme:
     EASING_STANDARD: str = ""
 
     # ═══════════════════════════════════════════════════════════════════
-    # 10. OPACITY — Níveis de opacidade
+    # 10. OPACITY — Níveis de opacidade (0.0 = transparente, 1.0 = opaco)
+    #     OPACITY_DISABLED → widget desabilitado
+    #     OPACITY_MUTED    → texto/elemento secundário
+    #     OPACITY_HOVER    → feedback hover
+    #     OPACITY_ACTIVE   → estado ativo/pressed
     # ═══════════════════════════════════════════════════════════════════
 
     OPACITY_DISABLED: float = 0.0
@@ -131,6 +210,10 @@ class BaseTheme:
 
     # ═══════════════════════════════════════════════════════════════════
     # 11. LAYOUT — Layout global
+    #     PAGE_PADDING      → padding externo da página
+    #     SECTION_GAP       → espaçamento entre seções
+    #     GRID_GAP          → gap em layouts grid
+    #     CONTENT_MAX_WIDTH → largura máxima do conteúdo (px)
     # ═══════════════════════════════════════════════════════════════════
 
     PAGE_PADDING: int = 0
@@ -140,6 +223,7 @@ class BaseTheme:
 
     # ═══════════════════════════════════════════════════════════════════
     # 12. ELEVATION — Níveis de elevação (z-index conceitual)
+    #     Usado para determinar profundidade visual.
     # ═══════════════════════════════════════════════════════════════════
 
     ELEVATION_FLAT: int = 0
@@ -148,14 +232,20 @@ class BaseTheme:
     ELEVATION_HIGH: int = 0
 
     # ═══════════════════════════════════════════════════════════════════
-    # 13. OVERLAY — Sobreposições / Glass
+    # 13. OVERLAY — Sobreposições / Glass effect
+    #     OVERLAY_BG   → cor de fundo de modais/dialogs (rgba)
+    #     BACKDROP_BLUR → valor de desfoque (ex: "4px")
     # ═══════════════════════════════════════════════════════════════════
 
     OVERLAY_BG: str = ""
     BACKDROP_BLUR: str = ""
 
     # ═══════════════════════════════════════════════════════════════════
-    # 14. FOCUS_RING — Anel de foco
+    # 14. FOCUS_RING — Anel de foco visual
+    #     Usado em inputs e botões para acessibilidade.
+    #     FOCUS_RING_COLOR  → cor do anel
+    #     FOCUS_RING_WIDTH  → espessura (ex: "2px")
+    #     FOCUS_RING_OFFSET → distância do elemento (ex: "1px")
     # ═══════════════════════════════════════════════════════════════════
 
     FOCUS_RING_COLOR: str = ""
@@ -163,7 +253,12 @@ class BaseTheme:
     FOCUS_RING_OFFSET: str = ""
 
     # ═══════════════════════════════════════════════════════════════════
-    # 15. STATUS — Cores de estado (INFO adicionado)
+    # 15. STATUS — Cores de estado semântico
+    #     success → verde (operação bem-sucedida)
+    #     warning → amarelo/laranja (atenção)
+    #     danger  → vermelho (erro, perigo)
+    #     info    → azul (informação)
+    #     Cada cor tem variantes: _HOVER, _DIM
     # ═══════════════════════════════════════════════════════════════════
 
     COLOR_SUCCESS: str = ""
@@ -181,6 +276,7 @@ class BaseTheme:
 
     # ═══════════════════════════════════════════════════════════════════
     # 16. FONT — Tipografia
+    #     Famílias, tamanhos e pesos tipográficos.
     # ═══════════════════════════════════════════════════════════════════
 
     FONT_FAMILY_DEFAULT: str = ""
@@ -199,6 +295,7 @@ class BaseTheme:
 
     # ═══════════════════════════════════════════════════════════════════
     # 17. DIMENSIONS — Alturas e tamanhos de widgets
+    #     Valores em pixels para dimensões fixas de componentes.
     # ═══════════════════════════════════════════════════════════════════
 
     INPUT_HEIGHT: int = 0
@@ -221,9 +318,12 @@ class BaseTheme:
 
     # ═══════════════════════════════════════════════════════════════════
     # 18. SPECIFICS — Tokens específicos de implementação (não semânticos)
-    #     Mantidos para compatibilidade retroativa
+    #     Mantidos para compatibilidade retroativa com QSS existente.
+    #     Novos temas devem mapear estes valores a partir dos tokens
+    #     semânticos (RADIUS_XS..LG, SPACE_XXS..3XL, etc.).
     # ═══════════════════════════════════════════════════════════════════
 
+    # ── Border Radius específicos (mapear de RADIUS_*) ────────────
     BORDER_RADIUS_CARD: int = 0
     BORDER_RADIUS_BUTTON: int = 0
     BORDER_RADIUS_INPUT: int = 0
@@ -245,13 +345,16 @@ class BaseTheme:
     BORDER_RADIUS_GROUP_TITLE: int = 0
     MENUBAR_ITEM_BORDER_RADIUS: str = ""
 
+    # ── Checkbox ─────────────────────────────────────────────────
     CHECKBOX_BORDER_WIDTH: int = 0
     CHECKBOX_SPACING: int = 0
 
+    # ── Badge ────────────────────────────────────────────────────
     BADGE_PADDING_V: str = ""
     BADGE_PADDING_H: str = ""
     BADGE_LETTER_SPACING: str = ""
 
+    # ── Button ───────────────────────────────────────────────────
     BUTTON_PADDING_V: str = ""
     BUTTON_PADDING_H: str = ""
     BUTTON_PADDING_V_SMALL: str = ""
@@ -261,52 +364,66 @@ class BaseTheme:
     BUTTON_LETTER_SPACING_NORMAL: str = ""
     BUTTON_LETTER_SPACING_PRIMARY: str = ""
 
+    # ── Toolbar ──────────────────────────────────────────────────
     TOOLBAR_BTN_PADDING_V: str = ""
     TOOLBAR_BTN_PADDING_H: str = ""
 
+    # ── Tool Selector ────────────────────────────────────────────
     TOOL_SELECTOR_PADDING_V: str = ""
     TOOL_SELECTOR_PADDING_H: str = ""
     TOOL_SELECTOR_LETTER_SPACING: str = ""
 
+    # ── Input ────────────────────────────────────────────────────
     INPUT_PADDING_V: str = ""
     INPUT_PADDING_H: str = ""
 
+    # ── SpinBox ──────────────────────────────────────────────────
     SPINBOX_PADDING: str = ""
     SPINBOX_BTN_WIDTH: int = 0
     SPINBOX_BTN_MARGIN: str = ""
 
+    # ── ComboBox ─────────────────────────────────────────────────
     COMBOBOX_PADDING: str = ""
     COMBOBOX_MIN_WIDTH: int = 0
     COMBOBOX_DROPDOWN_WIDTH: int = 0
     COMBOBOX_ARROW_SIZE: str = ""
     COMBOBOX_POPUP_BORDER_RADIUS: int = 0
 
+    # ── TextEdit / TextBrowser ───────────────────────────────────
     TEXT_EDIT_PADDING: str = ""
     TEXT_EDIT_FONT_SIZE: int = 0
 
+    # ── GroupBox ─────────────────────────────────────────────────
     GROUP_TITLE_LEFT: int = 0
     GROUP_TITLE_TOP: int = 0
     GROUP_TITLE_PADDING: str = ""
     GROUP_TITLE_BORDER_RADIUS: int = 0
     GROUP_TITLE_LETTER_SPACING: str = ""
 
+    # ── Window Title ─────────────────────────────────────────────
     WINDOW_TITLE_FONT_SIZE: int = 0
     WINDOW_TITLE_LETTER_SPACING: str = ""
 
+    # ── Title Bar ────────────────────────────────────────────────
     TITLE_BAR_BORDER_WIDTH: str = ""
     TITLE_BAR_BORDER_COLOR: str = ""
+
+    # ── Card ─────────────────────────────────────────────────────
     CARD_PADDING_V: int = 0
     CARD_PADDING_H: int = 0
 
+    # ── Splitter ─────────────────────────────────────────────────
     SPLITTER_HANDLE_WIDTH_H: int = 0
     SPLITTER_HANDLE_WIDTH_V: int = 0
 
+    # ── Menu ─────────────────────────────────────────────────────
     MENU_PADDING: str = ""
     MENU_MARGIN_V: str = ""
     MENU_ITEM_PADDING: str = ""
     MENU_SEPARATOR_HEIGHT: str = ""
     MENU_SEPARATOR_MARGIN: str = ""
 
+    # ── Table / Header ───────────────────────────────────────────
     HEADER_FONT_SIZE: int = 0
     HEADER_LETTER_SPACING: str = ""
     TABLE_ITEM_PADDING: str = ""
@@ -314,8 +431,8 @@ class BaseTheme:
 
     # ═══════════════════════════════════════════════════════════════════
     # ALIASES DE COMPATIBILIDADE RETROATIVA
-    # Mapeiam nomes antigos → semânticos. Permitem que código legado
-    # continue funcionando sem alterações.
+    # Mapeiam nomes antigos → tokens semânticos. Permitem que código
+    # legado continue funcionando sem alterações.
     # ═══════════════════════════════════════════════════════════════════
 
     # ── Fundos (antigos BG_*) → SURFACE ─────────────────────────────

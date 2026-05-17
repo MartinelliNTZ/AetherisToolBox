@@ -15,7 +15,7 @@ from PySide6.QtCore    import Qt, Signal, QRect, QSize
 from PySide6.QtGui     import QPainter, QPen, QColor, QFont, QFontMetrics, QPainterPath
 from PySide6.QtWidgets import QWidget, QSizePolicy
 
-from resources.styles.styles import Palette
+from resources.styles.AppStyles import AppStyles
 
 
 class VerticalTab(QWidget):
@@ -88,20 +88,20 @@ class VerticalTab(QWidget):
         painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
 
         w, h = self.width(), self.height()
-        P    = Palette
+        P    = AppStyles.theme_colors()
 
         if self._selected:
-            bg     = QColor(P.GOLD)
-            fg     = QColor(P.TEXT_BRIGHT)
-            border = QColor(P.GOLD_DIM)
+            bg     = QColor(P["GOLD"])
+            fg     = QColor(P["TEXT_BRIGHT"])
+            border = QColor(P["GOLD_DIM"])
         elif self._hovered:
-            bg     = QColor(P.BG_PANEL)
-            fg     = QColor(P.TEXT_PRIMARY)
-            border = QColor(P.BORDER_HOVER)
+            bg     = QColor(P["BG_PANEL"])
+            fg     = QColor(P["TEXT_PRIMARY"])
+            border = QColor(P["BORDER_HOVER"])
         else:
-            bg     = QColor(P.BG_DEEPEST)
-            fg     = QColor(P.TEXT_SECONDARY)
-            border = QColor(P.BORDER)
+            bg     = QColor(P["BG_DEEPEST"])
+            fg     = QColor(P["TEXT_SECONDARY"])
+            border = QColor(P["BORDER"])
 
         # Desenhar background arredondado
         rect = QRect(0, 0, w, h)
@@ -115,7 +115,7 @@ class VerticalTab(QWidget):
 
         # Indicador de seleção (barra na esquerda)
         if self._selected:
-            painter.fillRect(0, 0, 3, h, QColor(P.GOLD_HOVER))
+            painter.fillRect(0, 0, 3, h, QColor(P["GOLD_HOVER"]))
 
         # Desenhar borda (com clip já ativo, fica segura dentro dos limites)
         painter.setPen(QPen(border, 1))

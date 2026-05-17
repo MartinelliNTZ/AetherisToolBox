@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QPushButton
-from resources.styles.styles import AppStyles
+from resources.styles.AppStyles import AppStyles
 
 
 class SimpleDangerButton(QPushButton):

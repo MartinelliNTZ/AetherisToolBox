@@ -22,7 +22,7 @@ from PySide6.QtWidgets import (
 from core.config.LogUtils import LogUtils
 from core.enum.CategoryTool import CategoryTool
 from core.model.Tool import Tool
-from resources.styles.styles import Palette
+from resources.styles.AppStyles import AppStyles
 
 
 class _WorkspaceTabBar(QTabBar):
@@ -89,10 +89,10 @@ class _WorkspaceTabBar(QTabBar):
             painter.setRenderHint(QPainter.RenderHint.Antialiasing)
             painter.setRenderHint(QPainter.RenderHint.TextAntialiasing)
 
-            P = Palette
+            P = AppStyles.theme_colors()
 
             # Fundo do tab bar (a area vazia a direita)
-            painter.fillRect(event.rect(), QColor(P.TITLE_BAR_BG))
+            painter.fillRect(event.rect(), QColor(P["TITLE_BAR_BG"]))
 
             for i in range(self.count()):
                 rect = self._tab_rect(i)
@@ -103,17 +103,17 @@ class _WorkspaceTabBar(QTabBar):
                 hovered = (i == self._hovered_tab)
 
                 if selected:
-                    bg     = QColor(P.GOLD)
-                    fg     = QColor(P.BG_DEEPEST)
-                    border = QColor(P.GOLD_DIM)
+                    bg     = QColor(P["GOLD"])
+                    fg     = QColor(P["BG_DEEPEST"])
+                    border = QColor(P["GOLD_DIM"])
                 elif hovered:
-                    bg     = QColor(P.GOLD)
-                    fg     = QColor(P.BG_DEEPEST)
-                    border = QColor(P.BORDER_HOVER)
+                    bg     = QColor(P["GOLD"])
+                    fg     = QColor(P["BG_DEEPEST"])
+                    border = QColor(P["BORDER_HOVER"])
                 else:
-                    bg     = QColor(P.BG_DEEPEST)
-                    fg     = QColor(P.TEXT_BRIGHT)
-                    border = QColor(P.BORDER)
+                    bg     = QColor(P["BG_DEEPEST"])
+                    fg     = QColor(P["TEXT_BRIGHT"])
+                    border = QColor(P["BORDER"])
 
                 path = self._draw_rounded_rect(painter, rect, tl=2, tr=8, br=2, bl=2)
                 painter.setClipPath(path)
@@ -121,7 +121,7 @@ class _WorkspaceTabBar(QTabBar):
 
                 # Indicador de selecao (barra no topo)
                 if selected:
-                    painter.fillRect(rect.x(), rect.y(), rect.width(), 3, QColor(P.GOLD_HOVER))
+                    painter.fillRect(rect.x(), rect.y(), rect.width(), 3, QColor(P["GOLD_HOVER"]))
 
                 painter.setPen(QPen(border, 1))
                 painter.drawPath(path)

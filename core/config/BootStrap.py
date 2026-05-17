@@ -26,7 +26,7 @@ from PySide6.QtGui import QFont
 
 from core.config.ToolRegistry import ToolRegistry
 from core.ui.ui_main import MainWindow
-from resources.styles.styles import DarkCharcoalStyle
+from resources.styles.AppStyles import AppStyles
 
 
 class BootStrap:
@@ -103,7 +103,7 @@ class BootStrap:
     def _create_application(self) -> None:
         """Cria a QApplication e aplica o tema global."""
         self._app = QApplication(sys.argv)
-        self._app.setStyleSheet(DarkCharcoalStyle.stylesheet())
+        self._app.setStyleSheet(AppStyles.global_stylesheet())
 
         font = QFont("Segoe UI", 10)
         font.setStyleHint(QFont.StyleHint.SansSerif)

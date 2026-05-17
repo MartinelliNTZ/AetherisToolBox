@@ -28,6 +28,7 @@ class ThemeManager:
 
     # ── Altere esta linha para trocar de tema ─────────────────────
     current_theme_class: type[BaseTheme] = DarkCharcoalTheme
+    current_theme_class: type[BaseTheme] = ZeroGrausTheme
     # ──────────────────────────────────────────────────────────────
 
     _instance: ThemeManager | None = None

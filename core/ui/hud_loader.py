@@ -4,7 +4,7 @@ from PySide6.QtCore import Qt, QTimer, QRectF
 from PySide6.QtGui import QColor, QFont, QLinearGradient, QPainter, QPainterPath, QPen
 from PySide6.QtWidgets import QWidget
 
-from resources.styles.styles import DarkCharcoalStyle
+from resources.styles.AppStyles import AppStyles
 
 
 class HudCircularRingsLoader(QWidget):
@@ -13,13 +13,16 @@ class HudCircularRingsLoader(QWidget):
         self.progress = 0.0
         self.phase = 0
         self.message = "Processando..."
+        accent = AppStyles.hud_accent_color()
+        accent_qcolor = QColor(accent) if QColor.isValidColor(accent) else QColor(212, 168, 83)
+        bright_qcolor = QColor(232, 200, 120)
         self.rings = [
             {"radius": 82, "width": 6, "speed": 2.0, "angle": 0, "segments": 10, "seg_span": 16, "seg_gap": 18,
-             "color": QColor(212, 168, 83, 240)},
+             "color": accent_qcolor},
             {"radius": 62, "width": 5, "speed": -3.2, "angle": 150, "segments": 2, "seg_span": 120, "seg_gap": 60,
              "color": QColor(33, 150, 243, 220)},
             {"radius": 45, "width": 4, "speed": 5.4, "angle": 45, "segments": 14, "seg_span": 10, "seg_gap": 12,
-             "color": QColor(232, 200, 120, 220)},
+             "color": bright_qcolor},
         ]
         self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         self.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground, False)
@@ -64,11 +67,12 @@ class HudCircularRingsLoader(QWidget):
         for ring in self.rings:
             self._draw_ring(p, center, ring)
 
-        p.setPen(QColor(DarkCharcoalStyle.ACCENT_GOLD))
+        accent_color = QColor(AppStyles.hud_accent_color())
+        p.setPen(accent_color)
         p.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
         p.drawText(QRectF(cx - 120, cy + 110, 240, 24), Qt.AlignmentFlag.AlignCenter, self.message)
 
-        p.setPen(QColor(DarkCharcoalStyle.ACCENT_GOLD))
+        p.setPen(accent_color)
         p.setFont(QFont("Consolas", 16, QFont.Weight.Bold))
         p.drawText(QRectF(cx - 60, cy - 0, 120, 38), Qt.AlignmentFlag.AlignCenter, f"{self.progress:.2f}%")
 

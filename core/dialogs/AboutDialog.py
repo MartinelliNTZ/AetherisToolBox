@@ -8,7 +8,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 
-from resources.styles.styles import Palette, AppStyles
+from resources.styles.AppStyles import AppStyles
 
 
 class AboutDialog(QDialog):
@@ -24,33 +24,7 @@ class AboutDialog(QDialog):
         self._build_ui()
 
     def _apply_style(self):
-        p = Palette
-        self.setStyleSheet(f"""
-            QDialog#about_dialog {{
-                background-color: {p.BG_DARK};
-                border: 1px solid {p.BORDER};
-                border-radius: 10px;
-            }}
-            QLabel#about_title {{
-                color: {p.TEXT_GOLD};
-                font-size: 16px;
-                font-weight: 700;
-                letter-spacing: 0.5px;
-            }}
-            QLabel#about_version {{
-                color: {p.TEXT_SECONDARY};
-                font-size: 12px;
-            }}
-            QLabel#about_desc {{
-                color: {p.TEXT_PRIMARY};
-                font-size: 12px;
-                line-height: 1.4;
-            }}
-            QLabel#about_copyright {{
-                color: {p.TEXT_MUTED};
-                font-size: 11px;
-            }}
-        """)
+        self.setStyleSheet(AppStyles.about_dialog_stylesheet())
 
     def _build_ui(self):
         layout = QVBoxLayout(self)

@@ -271,6 +271,111 @@ class AppStyles(BaseStyle):
     def badge_canceled(cls) -> str:
         return cls.badge_style(ct.theme.COLOR_WARNING)
 
+    @classmethod
+    def badge_info(cls) -> str:
+        return cls.badge_style(ct.theme.COLOR_INFO)
+
+    # ────────────────────────────────────────────────────────────────────
+    # ABOUT DIALOG — QSS completo para AboutDialog
+    # ────────────────────────────────────────────────────────────────────
+
+    @classmethod
+    def about_dialog_stylesheet(cls) -> str:
+        """QSS completo para o AboutDialog. Nenhum hardcoded."""
+        t = ct.theme
+        return (
+            f"QDialog#about_dialog {{"
+            f"  background-color: {t.BG_DARK};"
+            f"  border: 1px solid {t.BORDER};"
+            f"  border-radius: 10px;"
+            f"}}"
+            f"QLabel#about_title {{"
+            f"  color: {t.TEXT_GOLD};"
+            f"  font-size: 16px;"
+            f"  font-weight: 700;"
+            f"  letter-spacing: 0.5px;"
+            f"}}"
+            f"QLabel#about_version {{"
+            f"  color: {t.TEXT_SECONDARY};"
+            f"  font-size: 12px;"
+            f"}}"
+            f"QLabel#about_desc {{"
+            f"  color: {t.TEXT_PRIMARY};"
+            f"  font-size: 12px;"
+            f"  line-height: 1.4;"
+            f"}}"
+            f"QLabel#about_copyright {{"
+            f"  color: {t.TEXT_MUTED};"
+            f"  font-size: 11px;"
+            f"}}"
+        )
+
+    # ────────────────────────────────────────────────────────────────────
+    # HUD LOADER — cores para o HudCircularRingsLoader
+    # ────────────────────────────────────────────────────────────────────
+
+    @classmethod
+    def hud_accent_color(cls) -> str:
+        """Cor de acento para o HUD loader (usado em paintEvent)."""
+        return ct.theme.ACCENT_TEXT
+
+    # ────────────────────────────────────────────────────────────────────
+    # THEME COLORS — cores avulsas para widgets que usam paintEvent
+    #                (VerticalTab, WorkspaceTabBar, etc.)
+    #                Uso: from AppStyles import theme_colors
+    #                colors = AppStyles.theme_colors()
+    #                painter.fillRect(..., QColor(colors["BG_DEEPEST"]))
+    # ────────────────────────────────────────────────────────────────────
+
+    _THEME_COLORS_CACHE: dict = {}
+
+    @classmethod
+    def theme_colors(cls) -> dict[str, str]:
+        """Retorna um dicionário com TODAS as cores do tema atual.
+        Cacheado por performance (paintEvent é chamado a 60 fps)."""
+        t = ct.theme
+        # Recria cache se o id do tema mudar (nunca muda em runtime normal)
+        cache_id = id(t)
+        if cls._THEME_COLORS_CACHE.get("_cache_id") != cache_id:
+            cls._THEME_COLORS_CACHE = {
+                "_cache_id": cache_id,
+                # Aliases de compatibilidade para widgets legados
+                "BG_DEEPEST": t.BG_DEEPEST,
+                "BG_DARK": t.BG_DARK,
+                "BG_PANEL": t.BG_PANEL,
+                "BG_CARD": t.BG_CARD,
+                "BG_ELEVATED": t.BG_ELEVATED,
+                "BG_SURFACE": t.BG_SURFACE,
+                "TITLE_BAR_BG": t.TITLE_BAR_BG,
+                "BORDER": t.BORDER,
+                "BORDER_HOVER": t.BORDER_HOVER,
+                "TEXT_BRIGHT": t.TEXT_BRIGHT,
+                "TEXT_PRIMARY": t.TEXT_PRIMARY,
+                "TEXT_SECONDARY": t.TEXT_SECONDARY,
+                "TEXT_MUTED": t.TEXT_MUTED,
+                "TEXT_GOLD": t.TEXT_GOLD,
+                "GOLD": t.GOLD,
+                "GOLD_HOVER": t.GOLD_HOVER,
+                "GOLD_DIM": t.GOLD_DIM,
+                "GOLD_LIGHT": t.GOLD_LIGHT,
+                "GOLD_GRADIENT": t.GOLD_GRADIENT,
+                # Tokens semânticos
+                "ACCENT": t.ACCENT,
+                "ACCENT_TEXT": t.ACCENT_TEXT,
+                "ACCENT_BRIGHT": t.ACCENT_BRIGHT,
+                "SURFACE_0": t.SURFACE_0,
+                "SURFACE_1": t.SURFACE_1,
+                "SURFACE_2": t.SURFACE_2,
+                "SURFACE_3": t.SURFACE_3,
+                "SURFACE_4": t.SURFACE_4,
+                "SURFACE_5": t.SURFACE_5,
+                "COLOR_SUCCESS": t.COLOR_SUCCESS,
+                "COLOR_WARNING": t.COLOR_WARNING,
+                "COLOR_DANGER": t.COLOR_DANGER,
+                "COLOR_INFO": t.COLOR_INFO,
+            }
+        return cls._THEME_COLORS_CACHE
+
     # ────────────────────────────────────────────────────────────────────
     # LOG HTML
     # ────────────────────────────────────────────────────────────────────
