@@ -38,14 +38,23 @@ Suporta `layout_type=QGridLayout` para layout em grade.
 ---
 
 ### `MenuBar` — `MenuBar.py`
-Barra de menus com "Arquivo > Sair" e "Ajuda > Sobre". Estilizada com o tema escuro.
+Container da barra de menus. **Não contém lógica de negócio** — apenas exibe as abas (QMenu) construídas pelos MenuItems.
 
 ```python
 from resources.widgets.MenuBar import MenuBar
-menu = MenuBar()
-menu.sair_clicked.connect(self.close)
-menu.sobre_clicked.connect(self._show_about)
+from core.menus.FileMenuItem import FileMenuItem
+from core.menus.SystemMenuItem import SystemMenuItem
+from core.menus.HelpMenuItem import HelpMenuItem
+
+bar = MenuBar()
+bar.add_menu_item(FileMenuItem())
+bar.add_menu_item(SystemMenuItem())
+bar.add_menu_item(HelpMenuItem())
 ```
+
+**Sinais:** `action_triggered(str)` — repassa o data da ação clicada.
+
+> ⚠️ Consulte `docs/skills/menubar_skill.md` para a documentação completa do sistema de menus.
 
 ---
 
@@ -568,11 +577,3 @@ combo = SimpleComboBox(items=["Opção A", "Opção B"])
 - [ ] Se não existe, criei em `resources/widgets/` e atualizei esta skill?
 - [ ] Se modifiquei um existente, mantive compatibilidade retroativa?
 
-### `MenuBar` Update
-O `MenuBar` agora suporta o sinal `tool_clicked` e o método `add_menu_items` para inserir dinamicamente ações de ferramentas no menu "Sistema".
-
-```python
-menu_bar = MenuBar()
-menu_bar.tool_clicked.connect(self._on_tool_activated)
-menu_bar.add_menu_items([("Preferences", "Gerenciador de Preferências")])
-```

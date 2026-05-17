@@ -75,6 +75,21 @@ class ColorProvider:
     _class_cache: Dict[str, str] = {}
 
     # ── API ─────────────────────────────────────────────────────────
+    @staticmethod
+    def rgba(hex_color: str, alpha: int) -> str:
+        """
+        Converte HEX + alpha para rgba().
+        Exemplo:
+        rgba("#a6784f", 120) -> "rgba(166,120,79,120)"
+        """
+
+        hex_color = hex_color.lstrip("#")
+
+        r = int(hex_color[0:2], 16)
+        g = int(hex_color[2:4], 16)
+        b = int(hex_color[4:6], 16)
+
+        return f"rgba({r},{g},{b},{alpha})"
 
     @classmethod
     def level_color(cls, level: str) -> str:
