@@ -27,6 +27,7 @@ from core.menus.HelpMenuItem import HelpMenuItem
 from core.model.Tool import Tool
 from resources.widgets.MenuBar import MenuBar
 from resources.widgets.ToolGroup import ToolGroup
+from resources.widgets.ToolBar import ToolBar
 
 
 class MenuManager(QObject):
@@ -100,26 +101,12 @@ class MenuManager(QObject):
         for tool_type in ToolType:
             if tool_type in grouped and grouped[tool_type]:
                 group = ToolGroup(tool_type=tool_type, tools=grouped[tool_type])
-                group.tool_clicked.connect(self._on_tool_clicked)
                 self._groups.append(group)
 
-        # ── 6. Montar toolbar_widget ──
+        # ── 6. Montar toolbar_widget via ToolBar ──
         if self._groups:
-            container = QWidget()
-            container.setObjectName("toolbar_panel")
-            container.setStyleSheet("""
-                QWidget#toolbar_panel {
-                    background-color: #0A0A0D;
-                    border-bottom: 1px solid #1A1A20;
-                }
-            """)
-            layout = QHBoxLayout(container)
-            layout.setContentsMargins(4, 2, 4, 2)
-            layout.setSpacing(0)
-            for group in self._groups:
-                layout.addWidget(group)
-            layout.addStretch()
-            self._toolbar_widget = container
+            self._toolbar_widget = ToolBar(groups=self._groups)
+            self._toolbar_widget.tool_clicked.connect(self._on_tool_clicked)
         else:
             self._toolbar_widget = QWidget()
             self._toolbar_widget.setVisible(False)

@@ -30,6 +30,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtGui import QColor, QBrush
 
 from core.model.BasePlugin import BasePlugin
+from resources.styles.AppStyles import AppStyles
 
 
 class LogViewerPlugin(BasePlugin):
@@ -136,25 +137,26 @@ class LogViewerPlugin(BasePlugin):
 
         self.table.cellDoubleClicked.connect(self._on_cell_double_clicked)
 
+        P = AppStyles.theme_colors()
         self.table.setStyleSheet(f"""
             QTableWidget {{
-                background-color: #0C0C0F;
-                alternate-background-color: #121216;
+                background-color: {P["BG_DARK"]};
+                alternate-background-color: {P["BG_PANEL"]};
                 border: none;
                 border-radius: 8px;
-                gridline-color: #1A1A20;
+                gridline-color: {P["BORDER"]};
                 color: {ColorProvider.text_primary()};
             }}
             QTableWidget::item:selected {{
-                background-color: #24242B;
-                color: #F0F0F0;
+                background-color: {P["BG_SURFACE"]};
+                color: {P["TEXT_BRIGHT"]};
             }}
             QHeaderView::section {{
-                background-color: #18181D;
-                color: #888890;
+                background-color: {P["BG_CARD"]};
+                color: {P["TEXT_SECONDARY"]};
                 padding: 4px 6px;
                 border: none;
-                border-bottom: 2px solid #C9A84C;
+                border-bottom: 2px solid {P["GOLD"]};
                 font-weight: 700;
                 font-size: 11px;
                 letter-spacing: 0.3px;

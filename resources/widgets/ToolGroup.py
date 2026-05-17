@@ -13,6 +13,7 @@ from PySide6.QtWidgets import QWidget, QHBoxLayout, QToolButton
 
 from core.enum.ToolType import ToolType
 from core.model.Tool import Tool
+from resources.styles.AppStyles import AppStyles
 from resources.widgets.ToolSeparator import ToolSeparator
 
 
@@ -38,6 +39,8 @@ class ToolGroup(QWidget):
         layout.setContentsMargins(4, 2, 4, 2)
         layout.setSpacing(2)
 
+        P = AppStyles.theme_colors()
+
         # ── Botões de cada ferramenta (apenas ícone) ──
         for tool in tools:
             btn = QToolButton()
@@ -49,18 +52,18 @@ class ToolGroup(QWidget):
             btn.setFixedSize(32, 32)
             btn.setIconSize(QSize(20, 20))
             btn.clicked.connect(lambda checked, name=tool.name: self.tool_clicked.emit(name))
-            btn.setStyleSheet("""
-                QToolButton {
+            btn.setStyleSheet(f"""
+                QToolButton {{
                     background-color: transparent;
                     border: none;
                     border-radius: 6px;
-                }
-                QToolButton:hover {
-                    background-color: #1E1E24;
-                }
-                QToolButton:pressed {
-                    background-color: #121216;
-                }
+                }}
+                QToolButton:hover {{
+                    background-color: {P["BG_ELEVATED"]};
+                }}
+                QToolButton:pressed {{
+                    background-color: {P["BG_PANEL"]};
+                }}
             """)
             layout.addWidget(btn)
 
