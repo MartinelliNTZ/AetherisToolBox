@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-class BaseStyle:
+class BaseTheme:
 
     # ==========================================================
     # UTILITÁRIO DE COR
