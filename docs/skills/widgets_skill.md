@@ -187,15 +187,21 @@ tab = WorkspaceTab(title="Console", tooltip="Console do sistema")
 ---
 
 ### `HotkeyCaptureLine` — `HotkeyCaptureLine.py`
-Campo de captura de teclas. Ao clicar, entra em modo de escuta e a próxima tecla pressionada é capturada (F1, ESC, DEL, ENTER, etc.). Ideal para configuração de atalhos de teclado.
+Campo de captura de teclas com label opcional encapsulado. Ao clicar, entra em modo de escuta e a próxima tecla pressionada é capturada (F1, ESC, DEL, ENTER, etc.). Ideal para configuração de atalhos de teclado.
+
+Se ``label`` for informado, cria automaticamente um QFormLayout com o label + campo — eliminando a necessidade de criar layouts externos no plugin.
 
 ```python
 from resources.widgets.HotkeyCaptureLine import HotkeyCaptureLine
 
+# Sem label (comportamento original)
 capture = HotkeyCaptureLine(default_key="f")
 capture.keyChanged.connect(self._on_key_changed)
 captured = capture.captured_key()  # "f", "f1", "esc", "del", etc.
 capture.set_captured_key("f1")     # define programaticamente
+
+# Com label encapsulado (elimina QFormLayout no plugin)
+capture = HotkeyCaptureLine(default_key="f", label="Tecla gatilho:")
 ```
 
 **Comportamento:**
@@ -203,6 +209,9 @@ capture.set_captured_key("f1")     # define programaticamente
 - Valor interno é compatível com a biblioteca `keyboard`
 - Perde o foco → sai do modo escuta
 - Tab → sai do modo escuta sem capturar
+
+**Parâmetros:**
+- `label: str | None` — se informado, encapsula o campo em um QFormLayout com o label
 
 ---
 
@@ -327,13 +336,36 @@ grid.changed.connect(self._on_value_changed)
 
 ---
 
+### `GridLineEdit` — `GridLineEdit.py`
+Grade rolável de campos de texto (QLineEdit) configurados por dicionário. Suporta placeholder, valor padrão, tooltip e callback.
+
+```python
+from resources.widgets.GridLineEdit import GridLineEdit
+
+grid = GridLineEdit({
+    "valor": {
+        "label": "Valor",
+        "description": "Texto a ser digitado",
+        "default": "texto padrão",
+        "placeholder": "Digite algo...",
+    },
+})
+grid.values          # {"valor": "texto"}
+grid.get("valor")    # "texto"
+grid.set("valor", "novo texto")
+grid.set_values({"valor": "outro"})
+grid.changed.connect(self._on_value_changed)
+```
+
+---
+
 ### `HotkeySequenceCapture` — `HotkeySequenceCapture.py`
 Captura uma sequência de teclas/atalhos. Cada tecla é adicionada a uma lista com botões de remover. Ideal para configurar macros de teclado multi-tecla.
 
 ```python
 from resources.widgets.HotkeySequenceCapture import HotkeySequenceCapture
 
-capture = HotkeySequenceCapture()
+capture = HotkeySequenceCapture(title="Sequência de Teclas:")
 capture.sequenceChanged.connect(self._on_seq_changed)
 sequence = capture.captured_sequence()  # ["f1", "ctrl+c", "enter"]
 capture.set_captured_sequence(["f", "enter", "del"])
@@ -342,6 +374,9 @@ capture.clear()
 
 **Sinais:**
 - `sequenceChanged(list)` — emitido quando a sequência é alterada
+
+**Parâmetros:**
+- `title: str | None` — label opcional exibido antes do campo de captura
 
 ---
 

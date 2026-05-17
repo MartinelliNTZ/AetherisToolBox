@@ -14,7 +14,7 @@ from PySide6.QtWidgets import (
 )
 
 
-class GroupDiv(QWidget):
+class GroupPainel(QWidget):
     """
     Container com título dourado estilo QGroupBox.
     Fornece um layout interno (`group_layout`) para adicionar widgets filhos.

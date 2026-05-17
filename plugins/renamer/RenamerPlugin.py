@@ -33,7 +33,7 @@ from core.enum.ToolKey import ToolKey
 from core.model.BasePlugin import BasePlugin
 from resources.widgets.ExecutionButtons import ExecutionButtons
 from resources.widgets.SimpleSelector import SimpleSelector
-from resources.widgets.GroupDiv import GroupDiv
+from resources.widgets.GroupPainel import GroupPainel
 from resources.widgets.GridCheckBox import GridCheckBox
 from utils.DictManager import DictManager
 from utils.MessageBox import MessageBox
@@ -102,7 +102,7 @@ class RenamerPlugin(BasePlugin):
         main_layout.addWidget(self._btns)
 
         # ── Seletores de Pasta ──
-        grp_pastas = GroupDiv("Pastas")
+        grp_pastas = GroupPainel("Pastas")
         pl = grp_pastas.group_layout
         pl.setSpacing(6)
 
@@ -134,7 +134,7 @@ class RenamerPlugin(BasePlugin):
         grid.addWidget(grp_pastas, 0, 0)
 
         # ── Modo de Renomeio ──
-        grp_modo = GroupDiv("Modo de Renomeio")
+        grp_modo = GroupPainel("Modo de Renomeio")
         ml = grp_modo.group_layout
         ml.setSpacing(6)
 
@@ -181,7 +181,7 @@ class RenamerPlugin(BasePlugin):
         grid.addWidget(grp_modo, 0, 1)
 
         # ── Filtro de Extensões (ocupa as 2 colunas) ──
-        grp_ext = GroupDiv("Filtro de Extensões (deschecadas = ignoradas)")
+        grp_ext = GroupPainel("Filtro de Extensões (deschecadas = ignoradas)")
         ext_layout = grp_ext.group_layout
         ext_layout.setSpacing(4)
 

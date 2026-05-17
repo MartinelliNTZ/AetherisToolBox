@@ -22,7 +22,7 @@ from resources.styles.styles import AppStyles, Palette
 from resources.widgets.ExecutionButtons import ExecutionButtons
 from resources.widgets.SimpleGhostButton import SimpleGhostButton
 from resources.widgets.SimpleRemoveButton import SimpleRemoveButton
-from resources.widgets.GroupDiv import GroupDiv
+from resources.widgets.GroupPainel import GroupPainel
 from resources.widgets.SimpleSelector import SimpleSelector
 from resources.widgets.SelectorGrid import SelectorGrid
 from plugins.tensorflow_classifier.ui_field_specs import UI_FIELD_SPECS
@@ -137,7 +137,7 @@ class TensorflowClassificationPlugin(QWidget):
         grid.addWidget(grp_img, 0, 0)
 
         # ---- (0,1) - PERSISTENCIA DO MODELO ----
-        grp_mod = GroupDiv("Persistencia do Modelo")
+        grp_mod = GroupPainel("Persistencia do Modelo")
         lm = grp_mod.group_layout
         lm.setSpacing(6)
         lm.setContentsMargins(6, 6, 6, 6)
@@ -168,7 +168,7 @@ class TensorflowClassificationPlugin(QWidget):
         grid.addWidget(grp_mod, 0, 1)
 
         # ---- (1,0) - SHAPEFILES ----
-        grp_shp = GroupDiv("Shapefiles por Classe")
+        grp_shp = GroupPainel("Shapefiles por Classe")
         ls = grp_shp.group_layout
         ls.setSpacing(6)
         ls.setContentsMargins(6, 6, 6, 6)
@@ -191,7 +191,7 @@ class TensorflowClassificationPlugin(QWidget):
         grid.addWidget(grp_shp, 1, 0)
 
         # ---- (1,1) - REDE NEURAL & TREINAMENTO ----
-        grp_rede = GroupDiv("Rede Neural & Treinamento", layout_type=QGridLayout)
+        grp_rede = GroupPainel("Rede Neural & Treinamento", layout_type=QGridLayout)
         lr = grp_rede.group_layout
         lr.setSpacing(6)
         lr.setContentsMargins(6, 6, 6, 6)

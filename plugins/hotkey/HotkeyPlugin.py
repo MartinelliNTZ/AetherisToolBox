@@ -21,23 +21,24 @@ import random
 import time
 from datetime import datetime
 from pathlib import Path
+from typing import Any, Dict
 
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
-    QGroupBox, QFormLayout, QFrame, QComboBox,
-    QDialog, QListWidget, QPushButton,
+    QWidget, QVBoxLayout, QLabel, QGroupBox,
+    QDialog, QListWidget, QPushButton, QHBoxLayout, QLineEdit,
 )
 
-from core.config.LogUtils import LogUtils
+from core.enum.ToolKey import ToolKey
 from core.model.BasePlugin import BasePlugin
 from core.manager.SignalManager import SignalManager
-from core.enum.ToolKey import ToolKey
 from resources.widgets.ExecutionButtons import ExecutionButtons
-from resources.widgets.HotkeyCaptureLine import HotkeyCaptureLine
+from resources.widgets.HotkeyCaptureLine import HotkeyCaptureLine, _to_display
 from resources.widgets.HotkeySequenceCapture import HotkeySequenceCapture
 from resources.widgets.GridCheckBox import GridCheckBox
 from resources.widgets.GridDoubleSpinBox import GridDoubleSpinBox
+from resources.widgets.GridLineEdit import GridLineEdit
+from resources.widgets.SimpleComboBox import SimpleComboBox
 
 
 class HotkeyPlugin(BasePlugin):
@@ -59,30 +60,19 @@ class HotkeyPlugin(BasePlugin):
     MODE_HOTKEY = "Teclar Atalho"
 
     def __init__(self, parent=None):
-        super().__init__(tool_key=ToolKey.HOTKEY_PLUGIN.value, parent=parent)
+        super().__init__(
+            tool_key=ToolKey.HOTKEY_PLUGIN.value,
+            parent=parent,
+            title="Teclador F — Automação de Teclado",
+        )
         self._running = False
         self._hotkey_handler = None
-        self._build_ui()
-        self.load_prefs()
         self._update_mode_visibility()
         self.logger.info("HotkeyPlugin carregado", code="TOOL_READY")
 
     def _build_ui(self):
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(18, 10, 18, 10)
-        layout.setSpacing(8)
-
-        # ── Título ────────────────────────────────────────────────────
-        title = QLabel("Teclador F — Automação de Teclado")
-        title.setObjectName("header_title")
-        layout.addWidget(title)
-
-        # ── Separator ──
-        sep = QFrame()
-        sep.setObjectName("separator")
-        sep.setFrameShape(QFrame.Shape.HLine)
-        sep.setFixedHeight(1)
-        layout.addWidget(sep)
+        """Sobrescreve _build_ui do BasePlugin."""
+        super()._build_ui()
 
         # ── Botões de Ação ────────────────────────────────────────────
         self._btns = ExecutionButtons(self)
@@ -106,15 +96,15 @@ class HotkeyPlugin(BasePlugin):
                 "description": "Inicia a execução com a tecla configurada",
             },
         })
-        layout.addWidget(self._btns)
+        self.main_layout.addWidget(self._btns)
 
-        # ── Seletor de Modo ───────────────────────────────────────────
-        self._combo_mode = QComboBox()
-        self._combo_mode.addItem(self.MODE_TEXT)
-        self._combo_mode.addItem(self.MODE_HOTKEY)
-        self._combo_mode.setObjectName("mode_selector")
-        self._combo_mode.currentTextChanged.connect(self._on_mode_changed)
-        layout.addWidget(self._combo_mode)
+        # ── Seletor de Modo (SimpleComboBox) ──────────────────────────
+        self._combo_mode = SimpleComboBox(
+            items={self.MODE_TEXT: self.MODE_TEXT, self.MODE_HOTKEY: self.MODE_HOTKEY},
+            on_item_changed=self._on_mode_changed,
+            parent=self,
+        )
+        self.main_layout.addWidget(self._combo_mode)
 
         # ── Configurações ─────────────────────────────────────────────
         config_group = QGroupBox("Configurações")
@@ -126,16 +116,41 @@ class HotkeyPlugin(BasePlugin):
         text_layout = QVBoxLayout(self._stack_text)
         text_layout.setContentsMargins(0, 0, 0, 0)
 
-        # Modo Texto — form
-        text_form = QFormLayout()
+        # Modo Texto — GridLineEdit
+        self._grid_text = GridLineEdit(
+            config={
+                "valor": {
+                    "label": "Valor",
+                    "description": "Texto a ser digitado",
+                    "default": self.DEFAULT_VALUE,
+                    "placeholder": "Texto a ser digitado...",
+                },
+            },
+        )
+        self._grid_text.changed.connect(self._mark_dirty)
+        text_layout.addWidget(self._grid_text)
 
-        # Valor
-        self._edit_value = QLineEdit(self.DEFAULT_VALUE)
-        self._edit_value.setPlaceholderText("Texto a ser digitado...")
-        self._edit_value.textChanged.connect(self._mark_dirty)
-        text_form.addRow("Valor:", self._edit_value)
-
-        text_layout.addLayout(text_form)
+        # Modo Texto — GridDoubleSpinBox (atraso inicial e intervalo)
+        self._grid_text_numbers = GridDoubleSpinBox(
+            config={
+                "atraso": {
+                    "label": "Atraso inicial",
+                    "description": "Tempo de espera antes de começar (s)",
+                    "decimal": 1,
+                    "default": self.DEFAULT_STARTUP_DELAY,
+                    "suffix": "s",
+                },
+                "intervalo": {
+                    "label": "Intervalo entre caracteres",
+                    "description": "Tempo entre digitar cada caractere (s)",
+                    "decimal": 2,
+                    "default": self.DEFAULT_INTERVAL_DELAY,
+                    "suffix": "s",
+                },
+            },
+        )
+        self._grid_text_numbers.changed.connect(self._mark_dirty)
+        text_layout.addWidget(self._grid_text_numbers)
 
         # ── Stack: Modo Atalho ────────────────────────────────────────
         self._stack_hotkey = QWidget()
@@ -144,38 +159,30 @@ class HotkeyPlugin(BasePlugin):
         hotkey_layout.setContentsMargins(0, 0, 0, 0)
         hotkey_layout.setSpacing(6)
 
-        # Sequência de teclas
-        seq_label = QLabel("Sequência de Teclas:")
-        seq_label.setObjectName("subsection_label")
-        hotkey_layout.addWidget(seq_label)
-
-        self._edit_sequence = HotkeySequenceCapture()
+        # Sequência de teclas (com title embutido)
+        self._edit_sequence = HotkeySequenceCapture(
+            title="Sequência de Teclas:",
+        )
         self._edit_sequence.sequenceChanged.connect(self._on_sequence_changed)
         self._edit_sequence.setObjectName("sequence_capture")
         hotkey_layout.addWidget(self._edit_sequence)
 
-        # GridDoubleSpinBox: atraso, intervalo, aleatoriedade, repetições
-        self._grid_numbers = GridDoubleSpinBox(
+        # Modo Atalho — GridDoubleSpinBox: atraso, intervalo, aleatoriedade, repetições
+        self._grid_hotkey_numbers = GridDoubleSpinBox(
             config={
                 "atraso": {
                     "label": "Atraso inicial",
                     "description": "Tempo de espera antes de começar (s)",
                     "decimal": 1,
                     "default": self.DEFAULT_STARTUP_DELAY,
-                    "min": 0.0,
-                    "max": 30.0,
-                    "step": 0.1,
                     "suffix": "s",
                 },
                 "intervalo": {
                     "label": "Intervalo entre teclas",
-                    "description": "Tempo base entre pressionar cada tecla da sequência (s). "
+                    "description": "Tempo base entre pressionar cada tecla (s). "
                                    "O valor final será intervalo + aleatório(0, aleatoriedade).",
                     "decimal": 2,
                     "default": self.DEFAULT_SEQUENCE_INTERVAL,
-                    "min": 0.0,
-                    "max": 60.0,
-                    "step": 0.1,
                     "suffix": "s",
                 },
                 "aleatoriedade": {
@@ -184,9 +191,6 @@ class HotkeyPlugin(BasePlugin):
                                    "Ex: intervalo=1, aleatoriedade=1 → delay entre 1.00 e 2.00s.",
                     "decimal": 2,
                     "default": 0.0,
-                    "min": 0.0,
-                    "max": 30.0,
-                    "step": 0.1,
                     "suffix": "s",
                 },
                 "repeticoes": {
@@ -194,26 +198,24 @@ class HotkeyPlugin(BasePlugin):
                     "description": "Quantas vezes repetir a sequência inteira",
                     "decimal": 0,
                     "default": self.DEFAULT_SEQUENCE_REPEAT,
-                    "min": 1,
-                    "max": 9999,
-                    "step": 1,
                 },
             },
         )
-        self._grid_numbers.changed.connect(self._mark_dirty)
-        self._grid_numbers.setObjectName("grid_numeric")
-        hotkey_layout.addWidget(self._grid_numbers)
+        self._grid_hotkey_numbers.changed.connect(self._mark_dirty)
+        self._grid_hotkey_numbers.setObjectName("grid_hotkey_numeric")
+        hotkey_layout.addWidget(self._grid_hotkey_numbers)
 
         # Adiciona stacks ao config group
         config_layout.addWidget(self._stack_text)
         config_layout.addWidget(self._stack_hotkey)
 
         # ── Tecla de atalho (comum aos dois modos) ────────────────────
-        hotkey_form = QFormLayout()
-        self._edit_hotkey = HotkeyCaptureLine(default_key=self.DEFAULT_HOTKEY)
+        self._edit_hotkey = HotkeyCaptureLine(
+            default_key=self.DEFAULT_HOTKEY,
+            label="Tecla gatilho:",
+        )
         self._edit_hotkey.keyChanged.connect(self._mark_dirty)
-        hotkey_form.addRow("Tecla gatilho:", self._edit_hotkey)
-        config_layout.addLayout(hotkey_form)
+        config_layout.addWidget(self._edit_hotkey)
 
         # ── Grid: Bloquear propagação ────────────────────────────────
         self._grid_suppress = GridCheckBox(
@@ -234,14 +236,12 @@ class HotkeyPlugin(BasePlugin):
         self._grid_suppress.changed.connect(self._mark_dirty)
         config_layout.addWidget(self._grid_suppress)
 
-        layout.addWidget(config_group, 1)
+        self.main_layout.addWidget(config_group, 1)
 
     # ── Modo ──────────────────────────────────────────────────────────
 
     def _on_sequence_changed(self, keys: list[str]):
         """Quando a sequência de teclas muda, exibe no console."""
-        from resources.widgets.HotkeyCaptureLine import _to_display
-
         if not keys:
             SignalManager.instance().console_message.emit(
                 "HotkeyPlugin sequência limpa"
@@ -260,7 +260,7 @@ class HotkeyPlugin(BasePlugin):
 
     def _update_mode_visibility(self):
         """Exibe/esconde os stacks conforme o modo selecionado."""
-        mode = self._combo_mode.currentText()
+        mode = self._combo_mode.current_value
         is_text = mode == self.MODE_TEXT
         self._stack_text.setVisible(is_text)
         self._stack_hotkey.setVisible(not is_text)
@@ -278,11 +278,11 @@ class HotkeyPlugin(BasePlugin):
         """Valida e registra o hook de teclado global."""
         from utils.MessageBox import MessageBox
 
-        mode = self._combo_mode.currentText()
+        mode = self._combo_mode.current_value
 
         # Validação conforme o modo
         if mode == self.MODE_TEXT:
-            value = self._edit_value.text().strip()
+            value = self._grid_text.get("valor").strip()
             if not value:
                 MessageBox.show_warning("Valor não pode estar vazio.", title="Aviso")
                 return
@@ -312,14 +312,14 @@ class HotkeyPlugin(BasePlugin):
 
         # Monta callback conforme o modo
         if mode == self.MODE_TEXT:
-            value = self._edit_value.text().strip()
-            startup_delay = self.DEFAULT_STARTUP_DELAY
-            interval_delay = self.DEFAULT_INTERVAL_DELAY
+            value = self._grid_text.get("valor").strip()
+            startup_delay = self._grid_text_numbers.get("atraso")
+            interval_delay = self._grid_text_numbers.get("intervalo")
         else:
-            startup_delay = self._grid_numbers.get("atraso")
-            interval_delay = self._grid_numbers.get("intervalo")
-            aleatoriedade = self._grid_numbers.get("aleatoriedade")
-            repeat_count = int(self._grid_numbers.get("repeticoes"))
+            startup_delay = self._grid_hotkey_numbers.get("atraso")
+            interval_delay = self._grid_hotkey_numbers.get("intervalo")
+            aleatoriedade = self._grid_hotkey_numbers.get("aleatoriedade")
+            repeat_count = int(self._grid_hotkey_numbers.get("repeticoes"))
 
         def type_value():
             """Callback chamado pela keyboard library na thread de hook."""
@@ -328,7 +328,6 @@ class HotkeyPlugin(BasePlugin):
             time.sleep(startup_delay)
 
             if mode == self.MODE_TEXT:
-                # Modo texto: digita caractere por caractere
                 count = 0
                 total_chars = len(value)
                 for ch in value:
@@ -345,9 +344,7 @@ class HotkeyPlugin(BasePlugin):
                     time.sleep(interval_delay)
                 QTimer.singleShot(0, lambda: self._on_typed(count, hotkey))
             else:
-                # Modo atalho: executa sequência N vezes
                 import pyautogui
-                from resources.widgets.HotkeyCaptureLine import _to_display
 
                 total_steps = repeat_count * len(sequence)
                 step_index = 0
@@ -364,8 +361,6 @@ class HotkeyPlugin(BasePlugin):
                                 f"HotkeyPlugin pressionando: {display_name} "
                                 f"(loop {rep + 1}/{repeat_count})"
                             )
-                            # pyautogui.press() suporta F1-F12, enter, del, etc.
-                            # pyautogui.hotkey() para combinações ctrl+c, alt+tab
                             if "+" in key_name.strip("+"):
                                 parts = key_name.replace(" ", "").split("+")
                                 pyautogui.hotkey(*parts)
@@ -483,10 +478,11 @@ class HotkeyPlugin(BasePlugin):
 
     def _set_inputs_enabled(self, enabled: bool):
         """Habilita/desabilita inputs durante execução."""
-        self._edit_value.setEnabled(enabled)
+        self._grid_text.setEnabled(enabled)
+        self._grid_text_numbers.setEnabled(enabled)
         self._edit_hotkey.setEnabled(enabled)
         self._edit_sequence.setEnabled(enabled)
-        self._grid_numbers.setEnabled(enabled)
+        self._grid_hotkey_numbers.setEnabled(enabled)
         self._grid_suppress.setEnabled(enabled)
         self._combo_mode.setEnabled(enabled)
 
@@ -494,52 +490,38 @@ class HotkeyPlugin(BasePlugin):
 
     def load_prefs(self) -> None:
         """Carrega preferências salvas e aplica nos widgets."""
-        # Modo
         saved_mode = self.preferences.get("mode")
         if saved_mode is not None:
-            idx = self._combo_mode.findText(saved_mode)
-            if idx >= 0:
-                self._combo_mode.setCurrentIndex(idx)
+            self._combo_mode.current_value = saved_mode
 
-        # Modo texto
         value = self.preferences.get("value")
         if value is not None:
-            self._edit_value.setText(value)
+            self._grid_text.set("valor", value, block_signals=True)
 
-        # Tecla gatilho
         hotkey = self.preferences.get("hotkey")
         if hotkey is not None:
             self._edit_hotkey.set_captured_key(hotkey)
 
-        # Atraso e intervalo (modo texto) — compatibilidade retroativa
-        startup_delay = self.preferences.get("startup_delay")
-        if startup_delay is not None:
-            self._grid_numbers.set("atraso", float(startup_delay), block_signals=True)
-
-        interval_delay = self.preferences.get("interval_delay")
-        if interval_delay is not None:
-            pass  # manter default do grid
-
-        # Modo atalho — campos específicos
         sequence = self.preferences.get("sequence")
         if sequence is not None and isinstance(sequence, list):
             self._edit_sequence.set_captured_sequence(sequence)
 
         seq_interval = self.preferences.get("seq_interval")
         if seq_interval is not None:
-            self._grid_numbers.set("intervalo", float(seq_interval), block_signals=True)
+            self._grid_hotkey_numbers.set("intervalo", float(seq_interval), block_signals=True)
 
         aleatoriedade = self.preferences.get("aleatoriedade")
         if aleatoriedade is not None:
-            self._grid_numbers.set("aleatoriedade", float(aleatoriedade), block_signals=True)
+            self._grid_hotkey_numbers.set("aleatoriedade", float(aleatoriedade), block_signals=True)
 
         seq_repeat = self.preferences.get("seq_repeat")
         if seq_repeat is not None:
-            self._grid_numbers.set("repeticoes", float(seq_repeat), block_signals=True)
+            self._grid_hotkey_numbers.set("repeticoes", float(seq_repeat), block_signals=True)
 
         atraso = self.preferences.get("atraso")
         if atraso is not None:
-            self._grid_numbers.set("atraso", float(atraso), block_signals=True)
+            self._grid_text_numbers.set("atraso", float(atraso), block_signals=True)
+            self._grid_hotkey_numbers.set("atraso", float(atraso), block_signals=True)
 
         suppress = self.preferences.get("suppress")
         if suppress is not None:
@@ -547,16 +529,17 @@ class HotkeyPlugin(BasePlugin):
 
     def save_prefs(self) -> None:
         """Lê os widgets e persiste as preferências."""
-        self.preferences["mode"] = self._combo_mode.currentText()
-        self.preferences["value"] = self._edit_value.text()
+        self.preferences["mode"] = self._combo_mode.current_value
+        self.preferences["value"] = self._grid_text.get("valor")
         self.preferences["hotkey"] = self._edit_hotkey.captured_key()
         self.preferences["suppress"] = bool(
             self._grid_suppress.all.get("suppress", True)
         )
 
-        # Salva todos os valores do GridDoubleSpinBox
-        vals = self._grid_numbers.values
+        vals = self._grid_hotkey_numbers.values
+        text_vals = self._grid_text_numbers.values
         self.preferences["atraso"] = vals.get("atraso", self.DEFAULT_STARTUP_DELAY)
+        self.preferences["text_intervalo"] = text_vals.get("intervalo", self.DEFAULT_INTERVAL_DELAY)
         self.preferences["seq_interval"] = vals.get("intervalo", self.DEFAULT_SEQUENCE_INTERVAL)
         self.preferences["aleatoriedade"] = vals.get("aleatoriedade", 0.0)
         self.preferences["seq_repeat"] = vals.get("repeticoes", self.DEFAULT_SEQUENCE_REPEAT)
@@ -574,10 +557,10 @@ class HotkeyPlugin(BasePlugin):
 
     def _collect_config_data(self) -> dict:
         """Coleta todos os parâmetros atuais do plugin em um dicionário."""
-        vals = self._grid_numbers.values
+        vals = self._grid_hotkey_numbers.values
         return {
-            "mode": self._combo_mode.currentText(),
-            "value": self._edit_value.text(),
+            "mode": self._combo_mode.current_value,
+            "value": self._grid_text.get("valor"),
             "hotkey": self._edit_hotkey.captured_key(),
             "suppress": bool(self._grid_suppress.all.get("suppress", True)),
             "atraso": vals.get("atraso", self.DEFAULT_STARTUP_DELAY),
@@ -590,13 +573,11 @@ class HotkeyPlugin(BasePlugin):
     def _apply_config_data(self, data: dict):
         """Aplica os parâmetros de um dicionário nos widgets do plugin."""
         mode = data.get("mode", self.MODE_TEXT)
-        idx = self._combo_mode.findText(mode)
-        if idx >= 0:
-            self._combo_mode.setCurrentIndex(idx)
+        self._combo_mode.current_value = mode
 
         value = data.get("value")
         if value is not None:
-            self._edit_value.setText(value)
+            self._grid_text.set("valor", value, block_signals=True)
 
         hotkey = data.get("hotkey")
         if hotkey is not None:
@@ -608,19 +589,20 @@ class HotkeyPlugin(BasePlugin):
 
         atraso = data.get("atraso")
         if atraso is not None:
-            self._grid_numbers.set("atraso", float(atraso), block_signals=True)
+            self._grid_text_numbers.set("atraso", float(atraso), block_signals=True)
+            self._grid_hotkey_numbers.set("atraso", float(atraso), block_signals=True)
 
         intervalo = data.get("intervalo")
         if intervalo is not None:
-            self._grid_numbers.set("intervalo", float(intervalo), block_signals=True)
+            self._grid_hotkey_numbers.set("intervalo", float(intervalo), block_signals=True)
 
         aleatoriedade_val = data.get("aleatoriedade")
         if aleatoriedade_val is not None:
-            self._grid_numbers.set("aleatoriedade", float(aleatoriedade_val), block_signals=True)
+            self._grid_hotkey_numbers.set("aleatoriedade", float(aleatoriedade_val), block_signals=True)
 
         repeticoes = data.get("repeticoes")
         if repeticoes is not None:
-            self._grid_numbers.set("repeticoes", float(repeticoes), block_signals=True)
+            self._grid_hotkey_numbers.set("repeticoes", float(repeticoes), block_signals=True)
 
         sequence = data.get("sequence")
         if sequence is not None and isinstance(sequence, list):

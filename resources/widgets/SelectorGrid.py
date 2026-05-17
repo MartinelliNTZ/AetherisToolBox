@@ -11,7 +11,7 @@ from typing import Optional
 
 from PySide6.QtWidgets import QWidget, QGridLayout, QVBoxLayout
 from resources.widgets.SimpleSelector import SimpleSelector
-from resources.widgets.GroupDiv import GroupDiv
+from resources.widgets.GroupPainel import GroupPainel
 
 
 class SelectorGrid(QWidget):
@@ -47,7 +47,7 @@ class SelectorGrid(QWidget):
 
     def _build(self, specs: dict[str, dict], title: Optional[str], columns: int):
         if title:
-            container = GroupDiv(title)
+            container = GroupPainel(title)
             outer = QVBoxLayout(self)
             outer.setContentsMargins(0, 0, 0, 0)
             outer.setSpacing(0)

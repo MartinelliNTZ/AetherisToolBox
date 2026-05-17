@@ -39,6 +39,13 @@ class HotkeySequenceCapture(QWidget):
     """
     Captura uma sequência de teclas/atalhos.
 
+    Parameters:
+        title: str | None — se informado, exibe um QLabel com o título antes do resto
+        default_keys: list[str] | None
+        placeholder: str
+        columns: int
+        parent: QWidget | None
+
     Signals:
         sequenceChanged(list[str])
     """
@@ -47,6 +54,7 @@ class HotkeySequenceCapture(QWidget):
 
     def __init__(
         self,
+        title: str | None = None,
         default_keys: list[str] | None = None,
         placeholder: str = "Clique e pressione uma tecla...",
         columns: int = 5,
@@ -54,6 +62,7 @@ class HotkeySequenceCapture(QWidget):
     ):
         super().__init__(parent)
 
+        self._title = title
         self._keys = list(default_keys) if default_keys else []
         self._placeholder = placeholder
         self._columns = max(1, columns)
@@ -69,6 +78,12 @@ class HotkeySequenceCapture(QWidget):
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(4)
+
+        # ── Título opcional ──
+        if self._title:
+            title_lbl = QLabel(self._title)
+            title_lbl.setObjectName("subsection_label")
+            main_layout.addWidget(title_lbl)
 
         # --------------------------------------------------------------
         # Linha superior
@@ -128,10 +143,7 @@ class HotkeySequenceCapture(QWidget):
     def _on_add_clicked(self):
         """Coloca o campo em modo de captura."""
         self._capture_field.setFocus()
-
-        # Método interno do seu widget
-        if hasattr(self._capture_field, "_on_mouse_press"):
-            self._capture_field._on_mouse_press(None)
+        self._capture_field._start_capture()
 
     def _on_key_captured(self, key_name: str):
         """Adiciona uma tecla capturada."""
