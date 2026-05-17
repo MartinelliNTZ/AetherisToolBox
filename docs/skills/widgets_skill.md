@@ -24,12 +24,12 @@ appbar.close_clicked.connect(self.close)
 
 ---
 
-### `GroupDiv` — `GroupDiv.py`
+### `GroupPainel` — `GroupPainel.py`
 Container com fundo escuro e título dourado (estilo QGroupBox). Ideal para agrupar widgets relacionados.
 
 ```python
-from resources.widgets.GroupDiv import GroupDiv
-grupo = GroupDiv("Configurações")
+from resources.widgets.GroupPainel import GroupPainel
+grupo = GroupPainel("Configurações")
 grupo.group_layout.addWidget(QLabel("Opções:"))  # QVBoxLayout interno
 ```
 
@@ -409,6 +409,32 @@ grid.save_values()     # salvar no disco
 grid.reset_values()    # restaurar defaults
 grid.clear_all()       # limpar tudo
 ```
+
+---
+
+### `SectionPanel` — `SectionPanel.py`
+Container leve com QVBoxLayout de margem zero e spacing configurável. Ideal para agrupar widgets que precisam ser mostrados/escondidos juntos (seções alternáveis por modo/guia).
+
+```python
+from resources.widgets.SectionPanel import SectionPanel
+
+panel = SectionPanel(object_name="stack_text")
+panel.section_layout.addWidget(QLabel("conteúdo"))
+panel.setVisible(True)  # mostrar/esconder o bloco
+
+# Com spacing personalizado:
+panel = SectionPanel(object_name="stack_hotkey", spacing=6)
+```
+
+**Atalho em relação a QWidget puro:** elimina a criação manual de QVBoxLayout + setContentsMargins + setObjectName.
+
+**Parâmetros:**
+- `object_name: str = ""` — setObjectName (opcional, útil para encontrar o widget via findChild)
+- `spacing: int = 0` — espaçamento entre widgets filhos
+- `parent` — widget pai
+
+**Propriedades:**
+- `section_layout` → QVBoxLayout interno (contentsMargins=0,0,0,0)
 
 ---
 

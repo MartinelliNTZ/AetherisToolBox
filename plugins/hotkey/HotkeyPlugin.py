@@ -16,26 +16,23 @@ Uso:
 
 from __future__ import annotations
 
-import json
 import random
 import time
-from datetime import datetime
-from pathlib import Path
-from typing import Any, Dict
-
-from PySide6.QtCore import Qt, QTimer
-from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QLabel, QGroupBox,
-    QDialog, QListWidget, QPushButton, QHBoxLayout, QLineEdit,
-)
+from PySide6.QtCore import QTimer
+from utils.ExplorerUtils import ExplorerUtils
+from core.dialogs.ConfigSalvarDialog import ConfigSalvarDialog
+from core.dialogs.ConfigCarregarDialog import ConfigCarregarDialog
 
 from core.enum.ToolKey import ToolKey
 from core.model.BasePlugin import BasePlugin
 from core.manager.SignalManager import SignalManager
+from utils.MessageBox import MessageBox
 from resources.widgets.ExecutionButtons import ExecutionButtons
 from resources.widgets.HotkeyCaptureLine import HotkeyCaptureLine, _to_display
 from resources.widgets.HotkeySequenceCapture import HotkeySequenceCapture
 from resources.widgets.GridCheckBox import GridCheckBox
+from resources.widgets.GroupPainel import GroupPainel
+from resources.widgets.SectionPanel import SectionPanel
 from resources.widgets.GridDoubleSpinBox import GridDoubleSpinBox
 from resources.widgets.GridLineEdit import GridLineEdit
 from resources.widgets.SimpleComboBox import SimpleComboBox
@@ -107,14 +104,10 @@ class HotkeyPlugin(BasePlugin):
         self.main_layout.addWidget(self._combo_mode)
 
         # ── Configurações ─────────────────────────────────────────────
-        config_group = QGroupBox("Configurações")
-        config_layout = QVBoxLayout(config_group)
+        config_group = GroupPainel("Configurações")
 
         # ── Stack de modos ────────────────────────────────────────────
-        self._stack_text = QWidget()
-        self._stack_text.setObjectName("stack_text")
-        text_layout = QVBoxLayout(self._stack_text)
-        text_layout.setContentsMargins(0, 0, 0, 0)
+        self._stack_text = SectionPanel(object_name="stack_text")
 
         # Modo Texto — GridLineEdit
         self._grid_text = GridLineEdit(
@@ -128,7 +121,7 @@ class HotkeyPlugin(BasePlugin):
             },
         )
         self._grid_text.changed.connect(self._mark_dirty)
-        text_layout.addWidget(self._grid_text)
+        self._stack_text.section_layout.addWidget(self._grid_text)
 
         # Modo Texto — GridDoubleSpinBox (atraso inicial e intervalo)
         self._grid_text_numbers = GridDoubleSpinBox(
@@ -150,14 +143,10 @@ class HotkeyPlugin(BasePlugin):
             },
         )
         self._grid_text_numbers.changed.connect(self._mark_dirty)
-        text_layout.addWidget(self._grid_text_numbers)
+        self._stack_text.section_layout.addWidget(self._grid_text_numbers)
 
         # ── Stack: Modo Atalho ────────────────────────────────────────
-        self._stack_hotkey = QWidget()
-        self._stack_hotkey.setObjectName("stack_hotkey")
-        hotkey_layout = QVBoxLayout(self._stack_hotkey)
-        hotkey_layout.setContentsMargins(0, 0, 0, 0)
-        hotkey_layout.setSpacing(6)
+        self._stack_hotkey = SectionPanel(object_name="stack_hotkey", spacing=6)
 
         # Sequência de teclas (com title embutido)
         self._edit_sequence = HotkeySequenceCapture(
@@ -165,7 +154,7 @@ class HotkeyPlugin(BasePlugin):
         )
         self._edit_sequence.sequenceChanged.connect(self._on_sequence_changed)
         self._edit_sequence.setObjectName("sequence_capture")
-        hotkey_layout.addWidget(self._edit_sequence)
+        self._stack_hotkey.section_layout.addWidget(self._edit_sequence)
 
         # Modo Atalho — GridDoubleSpinBox: atraso, intervalo, aleatoriedade, repetições
         self._grid_hotkey_numbers = GridDoubleSpinBox(
@@ -203,11 +192,11 @@ class HotkeyPlugin(BasePlugin):
         )
         self._grid_hotkey_numbers.changed.connect(self._mark_dirty)
         self._grid_hotkey_numbers.setObjectName("grid_hotkey_numeric")
-        hotkey_layout.addWidget(self._grid_hotkey_numbers)
+        self._stack_hotkey.section_layout.addWidget(self._grid_hotkey_numbers)
 
         # Adiciona stacks ao config group
-        config_layout.addWidget(self._stack_text)
-        config_layout.addWidget(self._stack_hotkey)
+        config_group.group_layout.addWidget(self._stack_text)
+        config_group.group_layout.addWidget(self._stack_hotkey)
 
         # ── Tecla de atalho (comum aos dois modos) ────────────────────
         self._edit_hotkey = HotkeyCaptureLine(
@@ -215,7 +204,7 @@ class HotkeyPlugin(BasePlugin):
             label="Tecla gatilho:",
         )
         self._edit_hotkey.keyChanged.connect(self._mark_dirty)
-        config_layout.addWidget(self._edit_hotkey)
+        config_group.group_layout.addWidget(self._edit_hotkey)
 
         # ── Grid: Bloquear propagação ────────────────────────────────
         self._grid_suppress = GridCheckBox(
@@ -234,7 +223,7 @@ class HotkeyPlugin(BasePlugin):
         )
         self._grid_suppress.setObjectName("group_suppress")
         self._grid_suppress.changed.connect(self._mark_dirty)
-        config_layout.addWidget(self._grid_suppress)
+        config_group.group_layout.addWidget(self._grid_suppress)
 
         self.main_layout.addWidget(config_group, 1)
 
@@ -276,8 +265,6 @@ class HotkeyPlugin(BasePlugin):
 
     def _start_worker(self):
         """Valida e registra o hook de teclado global."""
-        from utils.MessageBox import MessageBox
-
         mode = self._combo_mode.current_value
 
         # Validação conforme o modo
@@ -546,15 +533,6 @@ class HotkeyPlugin(BasePlugin):
 
         self.preferences["sequence"] = self._edit_sequence.captured_sequence()
 
-    # ── Config Dir ─────────────────────────────────────────────────
-
-    @staticmethod
-    def _get_config_dir() -> Path:
-        """Retorna o diretório config/data/hotkey/."""
-        config_dir = Path("config/data/hotkey")
-        config_dir.mkdir(parents=True, exist_ok=True)
-        return config_dir
-
     def _collect_config_data(self) -> dict:
         """Coleta todos os parâmetros atuais do plugin em um dicionário."""
         vals = self._grid_hotkey_numbers.values
@@ -612,144 +590,31 @@ class HotkeyPlugin(BasePlugin):
 
     def _on_salvar_config(self):
         """
-        Abre um diálogo para inserir um nome e salva a config atual
-        em config/data/hotkey/<nome>.json.
-        Se o arquivo já existir, pergunta se deseja substituir.
+        Salva a configuração atual em disco via ConfigSalvarDialog.
         """
-        from utils.MessageBox import MessageBox
-
-        dlg = QDialog(self)
-        dlg.setWindowTitle("Salvar Configuração")
-        dlg.setFixedSize(400, 140)
-
-        v_layout = QVBoxLayout(dlg)
-        v_layout.setSpacing(12)
-
-        label = QLabel("Nome da configuração:")
-        v_layout.addWidget(label)
-
-        edit_nome = QLineEdit()
-        edit_nome.setPlaceholderText("Ex: config_meu_jogo")
-        v_layout.addWidget(edit_nome)
-
-        btn_layout = QHBoxLayout()
-        btn_layout.addStretch()
-        btn_cancelar = QPushButton("Cancelar")
-        btn_cancelar.clicked.connect(dlg.reject)
-        btn_layout.addWidget(btn_cancelar)
-        btn_salvar = QPushButton("Salvar")
-        btn_salvar.clicked.connect(dlg.accept)
-        btn_layout.addWidget(btn_salvar)
-        v_layout.addLayout(btn_layout)
-
-        if dlg.exec() != QDialog.DialogCode.Accepted:
-            return
-
-        nome = edit_nome.text().strip()
-        if not nome:
-            MessageBox.show_warning("O nome não pode estar vazio.", title="Aviso")
-            return
-
-        config_dir = self._get_config_dir()
-        filepath = config_dir / f"{nome}.json"
-
-        if filepath.exists():
-            substituir = MessageBox.show_question(
-                f"O arquivo '{nome}.json' já existe.\nDeseja substituir?",
-                title="Substituir?",
-            )
-            if not substituir:
-                return
-
-        data = self._collect_config_data()
-        data["_saved_at"] = datetime.now().isoformat()
-
-        try:
-            with open(filepath, "w", encoding="utf-8") as f:
-                json.dump(data, f, ensure_ascii=False, indent=2)
-            self.logger.info("Config salva", code="CONFIG_SAVED", name=nome)
-            SignalManager.instance().console_message.emit(
-                f"HotkeyPlugin config salva: {nome}.json"
-            )
-            MessageBox.show_info(f"Configuração '{nome}' salva com sucesso!", title="Salvo")
-        except Exception as e:
-            self.logger.error("Erro ao salvar config", code="CONFIG_SAVE_ERR", error=str(e))
-            MessageBox.show_error(f"Erro ao salvar configuração:\n{e}", title="Erro")
+        ConfigSalvarDialog.exec_save(
+            config_dir=ExplorerUtils.get_plugin_config_dir("hotkey"),
+            data=self._collect_config_data(),
+            parent=self,
+            logger=self.logger,
+            console_message_fn=SignalManager.instance().console_message.emit,
+            plugin_tag="HotkeyPlugin",
+        )
 
     def _on_ler_config(self):
         """
-        Abre uma janela listando todos os arquivos .json dentro de
-        config/data/hotkey/ com nome e data. Ao selecionar um, carrega
-        a configuração nos widgets.
+        Carrega uma configuração do disco via ConfigCarregarDialog.
         """
-        from utils.MessageBox import MessageBox
-
-        config_dir = self._get_config_dir()
-        json_files = sorted(config_dir.glob("*.json"))
-
-        if not json_files:
-            MessageBox.show_info(
-                "Nenhuma configuração salva encontrada.\n"
-                "Use 'SALVAR CONFIG' para criar uma.",
-                title="Nenhuma Config",
-            )
-            return
-
-        dlg = QDialog(self)
-        dlg.setWindowTitle("Carregar Configuração")
-        dlg.resize(500, 400)
-
-        v_layout = QVBoxLayout(dlg)
-        v_layout.setSpacing(8)
-
-        label = QLabel("Selecione uma configuração para carregar:")
-        v_layout.addWidget(label)
-
-        list_widget = QListWidget()
-        for fp in json_files:
-            nome = fp.stem
-            mtime = datetime.fromtimestamp(fp.stat().st_mtime)
-            data_str = mtime.strftime("%d/%m/%Y %H:%M:%S")
-            list_widget.addItem(f"{nome}  [{data_str}]")
-        v_layout.addWidget(list_widget)
-
-        btn_layout = QHBoxLayout()
-        btn_layout.addStretch()
-        btn_cancelar = QPushButton("Cancelar")
-        btn_cancelar.clicked.connect(dlg.reject)
-        btn_layout.addWidget(btn_cancelar)
-        btn_carregar = QPushButton("Carregar")
-        btn_carregar.clicked.connect(dlg.accept)
-        btn_layout.addWidget(btn_carregar)
-        v_layout.addLayout(btn_layout)
-
-        if dlg.exec() != QDialog.DialogCode.Accepted:
-            return
-
-        current_row = list_widget.currentRow()
-        if current_row < 0:
-            return
-
-        selected_file = json_files[current_row]
-
-        try:
-            with open(selected_file, "r", encoding="utf-8") as f:
-                data = json.load(f)
-
+        data = ConfigCarregarDialog.exec_load(
+            config_dir=ExplorerUtils.get_plugin_config_dir("hotkey"),
+            parent=self,
+            logger=self.logger,
+            console_message_fn=SignalManager.instance().console_message.emit,
+            plugin_tag="HotkeyPlugin",
+        )
+        if data is not None:
             self._apply_config_data(data)
             self.save_prefs()
-
-            self.logger.info("Config carregada", code="CONFIG_LOADED", name=selected_file.stem)
-            SignalManager.instance().console_message.emit(
-                f"HotkeyPlugin config carregada: {selected_file.stem}.json"
-            )
-            MessageBox.show_info(
-                f"Configuração '{selected_file.stem}' carregada com sucesso!",
-                title="Carregado",
-            )
-        except Exception as e:
-            self.logger.error("Erro ao carregar config", code="CONFIG_LOAD_ERR", error=str(e))
-            MessageBox.show_error(f"Erro ao carregar configuração:\n{e}", title="Erro")
 
     # ── Dirty tracking ──────────────────────────────────────────────
 

@@ -18,6 +18,7 @@ Uso:
 from __future__ import annotations
 
 import os
+from pathlib import Path
 from typing import List, Optional, Tuple
 
 from PySide6.QtWidgets import QFileDialog, QWidget
@@ -121,6 +122,25 @@ class ExplorerUtils:
             parent, title, initial_dir,
         )
         return [path] if path else []
+
+    # ── Config Directory ────────────────────────────────────────────
+
+    @staticmethod
+    def get_plugin_config_dir(plugin_name: str) -> Path:
+        """
+        Retorna e garante a existência do diretório de config de um plugin.
+
+        Estrutura: ``config/data/<plugin_name>/``
+
+        Args:
+            plugin_name: Nome do plugin (ex: "hotkey", "renamer").
+
+        Returns:
+            Path do diretório (já criado).
+        """
+        config_dir = Path("config/data") / plugin_name
+        config_dir.mkdir(parents=True, exist_ok=True)
+        return config_dir
 
     # ── Utilitário ──────────────────────────────────────────────────
 
