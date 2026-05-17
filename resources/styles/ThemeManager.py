@@ -16,6 +16,7 @@ from __future__ import annotations
 
 from resources.styles.BaseTheme import BaseTheme
 from resources.styles.DarkCharcoalTheme import DarkCharcoalTheme
+from resources.styles.ZeroGrausTheme import ZeroGrausTheme
 
 
 class ThemeManager:
@@ -26,7 +27,8 @@ class ThemeManager:
     """
 
     # ── Altere esta linha para trocar de tema ─────────────────────
-    current_theme_class: type[BaseTheme] = DarkCharcoalTheme
+    #$current_theme_class: type[BaseTheme] = DarkCharcoalTheme
+    current_theme_class: type[BaseTheme] = ZeroGrausTheme
     # ──────────────────────────────────────────────────────────────
 
     _instance: ThemeManager | None = None
