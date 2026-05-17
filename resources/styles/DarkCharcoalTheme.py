@@ -1,161 +1,162 @@
 # -*- coding: utf-8 -*-
 """
-BaseTheme — Classe base abstrata para temas do Aetheris ToolBox
-================================================================
-Define TODAS as variáveis de tema: cores, fontes, dimensões, espaçamentos.
-
-Subclasses (ex: DarkCharcoalTheme, WhiteTheme) devem sobrescrever
-cada atributo com valores concretos.
+DarkCharcoalTheme — Tema concreto Dark Charcoal + Gold
+=======================================================
+Subclasse de BaseTheme com valores para o tema escuro atual.
 """
 
 from __future__ import annotations
 
+from resources.styles.BaseTheme import BaseTheme
 
-class BaseTheme:
-    """Classe base para temas. Todos os atributos devem ser sobrescritos."""
+
+class DarkCharcoalTheme(BaseTheme):
+    """
+    Tema Dark Charcoal + Gold — design minimalista com profundidade via sombras.
+    """
 
     # ═══════════════════════════════════════════════════════════════════
     # CORES — Fundos (profundidade: 0 = mais fundo, 5 = mais alto)
     # ═══════════════════════════════════════════════════════════════════
 
-    BG_DEEPEST: str = ""
-    BG_DARK: str = ""
-    BG_PANEL: str = ""
-    BG_CARD: str = ""
-    BG_ELEVATED: str = ""
-    BG_SURFACE: str = ""
-    TITLE_BAR_BG: str = ""
+    BG_DEEPEST = "#08080A"
+    BG_DARK = "#0C0C0F"
+    BG_PANEL = "#121216"
+    BG_CARD = "#18181D"
+    BG_ELEVATED = "#1E1E24"
+    BG_SURFACE = "#24242B"
+    TITLE_BAR_BG = "#0A0A0D"
 
     # ── Sombras ──────────────────────────────────────────────────────
-    SHADOW: str = ""
-    SHADOW_DEEP: str = ""
-    GLOW: str = ""
-    GLOW_STRONG: str = ""
+    SHADOW = "#040405"
+    SHADOW_DEEP = "#000000"
+    GLOW = "#C9A84C15"
+    GLOW_STRONG = "#C9A84C25"
 
     # ── Bordas ───────────────────────────────────────────────────────
-    BORDER: str = ""
-    BORDER_HOVER: str = ""
-    DIVIDER: str = ""
+    BORDER = "#2A2A30"
+    BORDER_HOVER = "#C9A84C"
+    DIVIDER = "#1A1A20"
 
     # ── Texto ────────────────────────────────────────────────────────
-    TEXT_BRIGHT: str = ""
-    TEXT_PRIMARY: str = ""
-    TEXT_SECONDARY: str = ""
-    TEXT_MUTED: str = ""
-    TEXT_GOLD: str = ""
-    TEXT_GOLD_BRIGHT: str = ""
+    TEXT_BRIGHT = "#F0F0F0"
+    TEXT_PRIMARY = "#DCDCDC"
+    TEXT_SECONDARY = "#888890"
+    TEXT_MUTED = "#585860"
+    TEXT_GOLD = "#C9A84C"
+    TEXT_GOLD_BRIGHT = "#E0C878"
 
     # ── Acento Ouro ──────────────────────────────────────────────────
-    GOLD: str = ""
-    GOLD_HOVER: str = ""
-    GOLD_ACTIVE: str = ""
-    GOLD_DIM: str = ""
-    GOLD_LIGHT: str = ""
-    GOLD_GRADIENT: tuple[str, str] = ("", "")
+    GOLD = "#C9A84C"
+    GOLD_HOVER = "#D4B85A"
+    GOLD_ACTIVE = "#B8983E"
+    GOLD_DIM = "#8A7A3A"
+    GOLD_LIGHT = "#E8D08A"
+    GOLD_GRADIENT = ("#C9A84C", "#B8963A")
 
     # ── Status ───────────────────────────────────────────────────────
-    SUCCESS: str = ""
-    SUCCESS_HOVER: str = ""
-    SUCCESS_DIM: str = ""
-    WARNING: str = ""
-    WARNING_HOVER: str = ""
-    WARNING_DIM: str = ""
-    DANGER: str = ""
-    DANGER_HOVER: str = ""
-    DANGER_DIM: str = ""
+    SUCCESS = "#43A047"
+    SUCCESS_HOVER = "#66BB6A"
+    SUCCESS_DIM = "#2E7D32"
+    WARNING = "#EF9A00"
+    WARNING_HOVER = "#FFB74D"
+    WARNING_DIM = "#BF6E00"
+    DANGER = "#D32F2F"
+    DANGER_HOVER = "#E53935"
+    DANGER_DIM = "#A02020"
 
     # ═══════════════════════════════════════════════════════════════════
     # FONTES
     # ═══════════════════════════════════════════════════════════════════
 
-    FONT_FAMILY_DEFAULT: str = ""
-    FONT_FAMILY_MONO: str = ""
+    FONT_FAMILY_DEFAULT = "'Segoe UI', 'Inter', 'Roboto', sans-serif"
+    FONT_FAMILY_MONO = "'Consolas', 'Courier New', monospace"
 
-    FONT_SIZE_TITLE: int = 21       # header_title
-    FONT_SIZE_BIG: int = 16         # about_title
-    FONT_SIZE_NORMAL: int = 13      # corpo padrão
-    FONT_SIZE_SMALL: int = 11       # labels secundários, badges
-    FONT_SIZE_TINY: int = 10        # badges, remove_btn
+    FONT_SIZE_TITLE = 21
+    FONT_SIZE_BIG = 16
+    FONT_SIZE_NORMAL = 13
+    FONT_SIZE_SMALL = 11
+    FONT_SIZE_TINY = 10
 
-    FONT_WEIGHT_NORMAL: int = 400
-    FONT_WEIGHT_BOLD: int = 600
-    FONT_WEIGHT_EXTRABOLD: int = 700
-    FONT_WEIGHT_HEAVY: int = 800
+    FONT_WEIGHT_NORMAL = 400
+    FONT_WEIGHT_BOLD = 600
+    FONT_WEIGHT_EXTRABOLD = 700
+    FONT_WEIGHT_HEAVY = 800
 
     # ═══════════════════════════════════════════════════════════════════
     # DIMENSÕES — Alturas Padrão
     # ═══════════════════════════════════════════════════════════════════
 
-    INPUT_HEIGHT: int = 0
-    BUTTON_HEIGHT: int = 0
-    BUTTON_HEIGHT_PRIMARY: int = 0
-    ITEM_HEIGHT: int = 0
-    CHECKBOX_SIZE: int = 0
-    RADIO_SIZE: int = 0
-    SCROLLBAR_WIDTH: int = 0
-    TAB_HEIGHT: int = 0
-    PROGRESS_BAR_HEIGHT: int = 0
-    TITLE_BTN_HEIGHT: int = 0
-    TITLE_BTN_WIDTH: int = 0
+    INPUT_HEIGHT = 0           # QLineEdit usa padding, sem height fixo
+    BUTTON_HEIGHT = 0          # botões secundários usam padding
+    BUTTON_HEIGHT_PRIMARY = 0
+    ITEM_HEIGHT = 0
+    CHECKBOX_SIZE = 16
+    RADIO_SIZE = 16
+    SCROLLBAR_WIDTH = 6
+    TAB_HEIGHT = 0
+    PROGRESS_BAR_HEIGHT = 18
+    TITLE_BTN_HEIGHT = 22
+    TITLE_BTN_WIDTH = 28
 
     # ═══════════════════════════════════════════════════════════════════
     # ESPAÇAMENTOS
     # ═══════════════════════════════════════════════════════════════════
 
-    LAYOUT_V_SPACING: int = 0
-    LAYOUT_H_SPACING: int = 0
-    CONTENT_PADDING_V: int = 0
-    CONTENT_PADDING_H: int = 0
-    CARD_PADDING_V: int = 0
-    CARD_PADDING_H: int = 0
-    GROUP_MARGIN_TOP: int = 0
+    LAYOUT_V_SPACING = 8
+    LAYOUT_H_SPACING = 8
+    CONTENT_PADDING_V = 10
+    CONTENT_PADDING_H = 14
+    CARD_PADDING_V = 16
+    CARD_PADDING_H = 10
+    GROUP_MARGIN_TOP = 8
 
     # ═══════════════════════════════════════════════════════════════════
     # BORDAS / ARREDONDAMENTO
     # ═══════════════════════════════════════════════════════════════════
 
-    BORDER_RADIUS_CARD: int = 0
-    BORDER_RADIUS_BUTTON: int = 0
-    BORDER_RADIUS_INPUT: int = 0
-    BORDER_RADIUS_CHECKBOX: int = 0
-    BORDER_RADIUS_RADIO: int = 0
-    BORDER_RADIUS_BADGE: int = 0
-    BORDER_RADIUS_PROGRESS: int = 0
-    BORDER_RADIUS_TABLE: int = 0
-    BORDER_RADIUS_TITLE_BTN: int = 0
-    BORDER_RADIUS_TOOLBAR_BTN: int = 0
-    BORDER_RADIUS_TOOL_SELECTOR: int = 0
+    BORDER_RADIUS_CARD = 10
+    BORDER_RADIUS_BUTTON = 6
+    BORDER_RADIUS_INPUT = 6
+    BORDER_RADIUS_CHECKBOX = 3
+    BORDER_RADIUS_RADIO = 0
+    BORDER_RADIUS_BADGE = 4
+    BORDER_RADIUS_PROGRESS = 5
+    BORDER_RADIUS_TABLE = 8
+    BORDER_RADIUS_TITLE_BTN = 3
+    BORDER_RADIUS_TOOLBAR_BTN = 4
+    BORDER_RADIUS_TOOL_SELECTOR = 6
 
     # ═══════════════════════════════════════════════════════════════════
     # CHECKBOX
     # ═══════════════════════════════════════════════════════════════════
 
-    CHECKBOX_BORDER_WIDTH: int = 0
-    CHECKBOX_SPACING: int = 0
+    CHECKBOX_BORDER_WIDTH = 0
+    CHECKBOX_SPACING = 8
 
     # ═══════════════════════════════════════════════════════════════════
-    # BOTÕES — Padding
+    # BOTÕES — Padding (px strings para QSS)
     # ═══════════════════════════════════════════════════════════════════
 
-    BUTTON_PADDING_V: str = ""
-    BUTTON_PADDING_H: str = ""
+    BUTTON_PADDING_V = "6px"
+    BUTTON_PADDING_H = "14px"
 
-    BUTTON_PADDING_V_SMALL: str = ""
-    BUTTON_PADDING_H_SMALL: str = ""
+    BUTTON_PADDING_V_SMALL = "4px"
+    BUTTON_PADDING_H_SMALL = "12px"
 
-    BUTTON_PADDING_V_PRIMARY: str = ""
-    BUTTON_PADDING_H_PRIMARY: str = ""
+    BUTTON_PADDING_V_PRIMARY = "6px"
+    BUTTON_PADDING_H_PRIMARY = "20px"
 
     # ═══════════════════════════════════════════════════════════════════
     # INPUTS — Padding
     # ═══════════════════════════════════════════════════════════════════
 
-    INPUT_PADDING_V: str = ""
-    INPUT_PADDING_H: str = ""
+    INPUT_PADDING_V = "2px"
+    INPUT_PADDING_H = "2px"
 
     # ═══════════════════════════════════════════════════════════════════
     # TABELA — Padding
     # ═══════════════════════════════════════════════════════════════════
 
-    TABLE_ITEM_PADDING: str = ""
-    HEADER_PADDING: str = ""
+    TABLE_ITEM_PADDING = "3px 6px"
+    HEADER_PADDING = "4px 6px"
