@@ -14,6 +14,8 @@ from PySide6.QtCore import QObject, Signal
 from PySide6.QtGui import QAction, QIcon
 from PySide6.QtWidgets import QMenu
 
+from resources.styles.styles import AppStyles
+
 
 class BaseMenuItem(QObject):
     """
@@ -75,14 +77,62 @@ class BaseMenuItem(QObject):
         """Remove todas as ações."""
         self._actions.clear()
 
+    @staticmethod
+    def _menu_style() -> str:
+        """Estilo QSS para o QMenu (dropdown) e seus itens."""
+        p = AppStyles.P
+        return (
+            f"QMenu {{"
+            f"  background-color: {p.BG_DEEPEST};"
+            f"  border: 1px solid {p.BORDER};"
+            f"  border-radius: 6px;"
+            f"  padding: 4px;"
+            f"  margin: 2px 0;"
+            f"}}"
+            f"QMenu::item {{"
+            f"  background-color: transparent;"
+            f"  color: {p.TEXT_PRIMARY};"
+            f"  padding: 6px 24px 6px 12px;"
+            f"  border-radius: 3px;"
+            f"  font-size: 11px;"
+            f"  border-left: 2px solid transparent;"
+            f"}}"
+            f"QMenu::item:hover {{"
+            f"  background-color: {p.GOLD};"
+            f"  color: {p.BG_DEEPEST};"
+            f"  border-left: 2px solid {p.GOLD_HOVER};"
+            f"  font-weight: 700;"
+            f"}}"
+            f"QMenu::item:selected {{"
+            f"  background-color: {p.GOLD_HOVER};"
+            f"  color: {p.BG_DEEPEST};"
+            f"  border-left: 2px solid {p.GOLD};"
+            f"  font-weight: 700;"
+            f"}}"
+            f"QMenu::item:disabled {{"
+            f"  background-color: transparent;"
+            f"  color: {p.TEXT_MUTED};"
+            f"  border-left: 2px solid transparent;"
+            f"}}"
+            f"QMenu::separator {{"
+            f"  height: 1px;"
+            f"  background: {p.DIVIDER};"
+            f"  margin: 4px 8px;"
+            f"}}"
+        )
+
     def build_menu(self) -> QMenu:
         """
         Constrói e retorna um QMenu populado com as ações registradas.
 
         O QMenu é recriado a cada chamada — chame novamente se as ações
         mudarem dinamicamente (ex: SystemMenuItem com tools).
+        O estilo QSS do dropdown é aplicado diretamente no QMenu
+        (necessário porque QMenu é um popup independente, não herda
+        stylesheet do QMenuBar pai).
         """
         menu = QMenu(self._title, self.parent())
+        menu.setStyleSheet(self._menu_style())
         for action_cfg in self._actions:
             if action_cfg.get("separator"):
                 menu.addSeparator()
