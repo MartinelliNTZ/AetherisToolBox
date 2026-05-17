@@ -12,16 +12,16 @@ from PySide6.QtWidgets import QWidget, QSizePolicy
 from PySide6.QtGui import QPainter, QLinearGradient, QColor, QBrush
 from PySide6.QtCore import Qt, QPointF, QRectF
 
+from resources.styles.AppStyles import AppStyles
+
 
 class ToolSeparator(QWidget):
     """
-    Separador slim com fade dourado suave.
+    Separador slim com fade usando ACCENT como cor base.
 
     Args:
         orientation: "vertical" (padrão) ou "horizontal"
     """
-
-    _GOLD = (201, 168, 76)
 
     def __init__(self, parent=None, orientation: str = "vertical"):
         super().__init__(parent)
@@ -35,7 +35,7 @@ class ToolSeparator(QWidget):
 
     def _apply_size_policy(self) -> None:
         if self._orientation == "horizontal":
-            self.setFixedHeight(1.5)
+            self.setFixedHeight(1)
             self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         else:
             self.setFixedWidth(2)
@@ -51,7 +51,12 @@ class ToolSeparator(QWidget):
 
         w = float(self.width())
         h = float(self.height())
-        r, g, b = self._GOLD
+
+        # Busca ACCENT do tema via AppStyles
+        P = AppStyles.theme_colors()
+        accent_hex = P.get("ACCENT", "#C9A84C")
+        c = QColor(accent_hex)
+        r, g, b = c.red(), c.green(), c.blue()
 
         # Gradiente ao longo do eixo principal
         if self._orientation == "horizontal":
