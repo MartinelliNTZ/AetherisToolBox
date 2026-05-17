@@ -117,9 +117,13 @@ class PreferencesPlugin(BasePlugin):
         self._grid_layout.setContentsMargins(0, 0, 0, 0)
         self.main_layout.addWidget(self._grid_container, 1)
 
-        # Seleciona o primeiro item
+        # Seleciona o primeiro item e carrega o grid manualmente
+        # (select_first pode não disparar sinal se o índice já for 0)
         if self._toolkey_dict:
-            self._combo.select_first()
+            first_key = next(iter(self._toolkey_dict.keys()))
+            self._current_section = first_key
+            self._combo.current_value = first_key
+            self._rebuild_grid()
 
     def _get_toolkey_dict(self) -> Dict[str, str]:
         """
@@ -185,8 +189,11 @@ class PreferencesPlugin(BasePlugin):
                 all_data = Preferences.all_data()
                 all_data.pop(self._current_section, None)
                 Preferences.save_all(all_data)
-                # Atualiza dicionário e reseleciona
+                # Atualiza dicionário e reseleciona primeiro
                 self._toolkey_dict = self._get_toolkey_dict()
                 self._combo.set_items(self._toolkey_dict)
                 if self._toolkey_dict:
-                    self._combo.select_first()
+                    first_key = next(iter(self._toolkey_dict.keys()))
+                    self._current_section = first_key
+                    self._combo.current_value = first_key
+                    self._rebuild_grid()
