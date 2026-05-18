@@ -54,6 +54,7 @@ class DarkCharcoalTheme(BaseTheme):
     TEXT_LOW = "#888890"
     TEXT_DISABLED = "#585860"
     TEXT_ON_ACCENT = "#08080A"
+    TEXT_ON_DANGER = "#FFFFFF"
 
     # ═══════════════════════════════════════════════════════════════════
     # 4. BORDER — Hierarquia
@@ -242,6 +243,7 @@ class DarkCharcoalTheme(BaseTheme):
     BORDER_RADIUS_MENU = 6          # ≈ RADIUS_MD
     BORDER_RADIUS_MENU_ITEM = 3
     BORDER_RADIUS_GROUP_TITLE = 4   # ≈ RADIUS_SM
+    BORDER_RADIUS_DIALOG = 16       # ≈ RADIUS_XL
     MENUBAR_ITEM_BORDER_RADIUS = "1px 1px 8px 1px"
 
     CHECKBOX_BORDER_WIDTH = 0
@@ -259,6 +261,14 @@ class DarkCharcoalTheme(BaseTheme):
     BUTTON_PADDING_H_PRIMARY = "20px"
     BUTTON_LETTER_SPACING_NORMAL = "0.3px"
     BUTTON_LETTER_SPACING_PRIMARY = "0.5px"
+    LETTER_SPACING_TITLE = "1px"
+    LETTER_SPACING_BADGE = "0.3px"
+    LETTER_SPACING_GROUP = "0.5px"
+    LETTER_SPACING_BUTTON = "0.3px"
+    LETTER_SPACING_BUTTON_PRIMARY = "0.5px"
+    LETTER_SPACING_HEADER = "0.3px"
+    LETTER_SPACING_TOOL_SELECTOR = "0.3px"
+    LETTER_SPACING_WINDOW_TITLE = "0.3px"
 
     TOOLBAR_BTN_PADDING_V = "4px"
     TOOLBAR_BTN_PADDING_H = "10px"

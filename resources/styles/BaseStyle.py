@@ -83,7 +83,7 @@ class BaseStyle:
             font-size: {t.FONT_SIZE_TITLE}px;
             font-weight: {t.FONT_WEIGHT_EXTRABOLD};
             color: {t.TEXT_HIGH};
-            letter-spacing: 1px;
+            letter-spacing: {t.LETTER_SPACING_TITLE};
         }}
         QLabel#header_subtitle {{
             font-size: {t.FONT_SIZE_SMALL}px;
@@ -127,7 +127,7 @@ class BaseStyle:
         }}
         QPushButton#title_btn_close:hover {{
             background-color: {t.COLOR_DANGER};
-            color: white;
+            color: {t.TEXT_ON_DANGER};
         }}
 
         /* ===== APPBAR TOOLBAR ===== */

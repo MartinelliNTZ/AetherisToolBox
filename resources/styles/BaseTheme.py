@@ -93,6 +93,7 @@ class BaseTheme:
     TEXT_LOW: str = ""
     TEXT_DISABLED: str = ""
     TEXT_ON_ACCENT: str = ""
+    TEXT_ON_DANGER: str = ""   # texto sobre fundo danger (ex: close btn, btn_danger)
 
     # ═══════════════════════════════════════════════════════════════════
     # 4. BORDER — Hierarquia de bordas
@@ -343,6 +344,7 @@ class BaseTheme:
     BORDER_RADIUS_MENU: int = 0
     BORDER_RADIUS_MENU_ITEM: int = 0
     BORDER_RADIUS_GROUP_TITLE: int = 0
+    BORDER_RADIUS_DIALOG: int = 0    # ≈ RADIUS_XL (about dialog, modals)
     MENUBAR_ITEM_BORDER_RADIUS: str = ""
 
     # ── Checkbox ─────────────────────────────────────────────────
@@ -399,6 +401,16 @@ class BaseTheme:
     GROUP_TITLE_PADDING: str = ""
     GROUP_TITLE_BORDER_RADIUS: int = 0
     GROUP_TITLE_LETTER_SPACING: str = ""
+
+    # ── Letter Spacing ───────────────────────────────────────────
+    LETTER_SPACING_TITLE: str = ""       # títulos grandes (header_title)
+    LETTER_SPACING_BADGE: str = ""       # badge
+    LETTER_SPACING_GROUP: str = ""       # título de group box
+    LETTER_SPACING_BUTTON: str = ""      # botão normal
+    LETTER_SPACING_BUTTON_PRIMARY: str = ""  # botão primário
+    LETTER_SPACING_HEADER: str = ""      # cabeçalho de tabela
+    LETTER_SPACING_TOOL_SELECTOR: str = ""  # seletor de ferramenta
+    LETTER_SPACING_WINDOW_TITLE: str = ""    # título da janela
 
     # ── Window Title ─────────────────────────────────────────────
     WINDOW_TITLE_FONT_SIZE: int = 0

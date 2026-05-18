@@ -61,6 +61,7 @@ class ZeroGrausTheme(BaseTheme):
     TEXT_LOW = "#9CC7D8"
     TEXT_DISABLED = "#5C7D90"
     TEXT_ON_ACCENT = "#02060A"
+    TEXT_ON_DANGER = "#FFFFFF"
 
     # ═══════════════════════════════════════════════════════════════════
     # 4. BORDER — Hierarquia
@@ -249,6 +250,7 @@ class ZeroGrausTheme(BaseTheme):
     BORDER_RADIUS_MENU = 6           # ≈ RADIUS_MD
     BORDER_RADIUS_MENU_ITEM = 3      # ≈ RADIUS_XS + 1
     BORDER_RADIUS_GROUP_TITLE = 4    # ≈ RADIUS_SM
+    BORDER_RADIUS_DIALOG = 16        # ≈ RADIUS_XL
     MENUBAR_ITEM_BORDER_RADIUS = "1px 1px 8px 1px"
 
     CHECKBOX_BORDER_WIDTH = 0
@@ -266,6 +268,14 @@ class ZeroGrausTheme(BaseTheme):
     BUTTON_PADDING_H_PRIMARY = "20px"
     BUTTON_LETTER_SPACING_NORMAL = "0.3px"
     BUTTON_LETTER_SPACING_PRIMARY = "0.5px"
+    LETTER_SPACING_TITLE = "1px"
+    LETTER_SPACING_BADGE = "0.3px"
+    LETTER_SPACING_GROUP = "0.5px"
+    LETTER_SPACING_BUTTON = "0.3px"
+    LETTER_SPACING_BUTTON_PRIMARY = "0.5px"
+    LETTER_SPACING_HEADER = "0.3px"
+    LETTER_SPACING_TOOL_SELECTOR = "0.3px"
+    LETTER_SPACING_WINDOW_TITLE = "0.3px"
 
     TOOLBAR_BTN_PADDING_V = "4px"
     TOOLBAR_BTN_PADDING_H = "10px"
