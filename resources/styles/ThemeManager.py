@@ -36,6 +36,7 @@ from __future__ import annotations
 from resources.styles.BaseTheme import BaseTheme
 from resources.styles.DarkCharcoalTheme import DarkCharcoalTheme
 from resources.styles.ZeroGrausTheme import ZeroGrausTheme
+from resources.styles.BlueTheme import BlueTheme
 
 
 THEMES: dict[str, dict] = {
@@ -55,6 +56,15 @@ THEMES: dict[str, dict] = {
                        "brilho frio mbar-azulado e superfícies que "
                        "simulam gelo translúcido.",
     },
+    "blue_theme": {
+        "module":      "resources.styles.BlueTheme",
+        "class":       BlueTheme,
+        "label":       "Blue Theme",
+        "description": "Tema inspirado no design: "
+                       "https://dribbble.com/shots/23707627-Modern-Dashboard-UI-Design. "
+                       "Fundo azul-escuro profundo, cards em glassmorphism sutil, "
+                       "acento azul elétrico vibrante e texto branco suave.",
+    },
 }
 
 # ═══════════════════════════════════════════════════════════════════
@@ -65,7 +75,7 @@ THEMES: dict[str, dict] = {
 # ═══════════════════════════════════════════════════════════════════
 
 CURRENT_THEME_KEY: str = "zero_graus"
-CURRENT_THEME_KEY: str = "dark_charcoal"
+CURRENT_THEME_KEY: str = "blue_theme"
 
 
 class ThemeManager:
