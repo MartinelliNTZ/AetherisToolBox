@@ -46,10 +46,11 @@ class DarkCharcoalTheme(BaseTheme):
     TITLE_BAR = "#0A0A0D"
 
     # ── Gradientes de superfície (top-left → bottom-right) ─────
-    GRADIENT_BUTTON = ("#121216", "#1E1E24")   # SURFACE_2 → SURFACE_4
-    GRADIENT_PANEL = ("#08080A", "#121216")    # SURFACE_0 → SURFACE_2
-    GRADIENT_TAB = ("#08080A", "#0C0C0F")     # SURFACE_0 → SURFACE_1
-    GRADIENT_INPUT = ("#18181D", "#1E1E24")   # SURFACE_3 → SURFACE_4
+    # start = mais escuro (~ SURFACE_0 / SURFACE_2), end = SURFACE_4 / SURFACE_5
+    GRADIENT_BUTTON = ("#08080A", "#1E1E24")   # SURFACE_0 → SURFACE_4
+    GRADIENT_PANEL = ("#060609", "#121216")     # SURFACE_0+ → SURFACE_2
+    GRADIENT_TAB = ("#060609", "#121216")       # SURFACE_0+ → SURFACE_2
+    GRADIENT_INPUT = ("#0C0C0F", "#1E1E24")    # SURFACE_1 → SURFACE_4
 
     # ═══════════════════════════════════════════════════════════════════
     # 3. TEXT — Hierarquia
