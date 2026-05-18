@@ -38,7 +38,7 @@ class ToolSeparator(QWidget):
             self.setFixedHeight(1)
             self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         else:
-            self.setFixedWidth(2)
+            self.setFixedWidth(1.2)
             self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Expanding)
 
     # ------------------------------------------------------------------
