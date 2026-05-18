@@ -82,8 +82,7 @@ class BaseStyle:
             font-weight: {t.FONT_WEIGHT_EXTRABOLD};
             font-size: {t.FONT_SIZE_SMALL}px;
             letter-spacing: {t.GROUP_TITLE_LETTER_SPACING};
-            background: {grad_panel};
-            border-radius: {t.BORDER_RADIUS_GROUP_TITLE}px;
+            background: transparent;
         }}
 
         /* ===== LABEL ===== */
