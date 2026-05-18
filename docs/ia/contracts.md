@@ -325,3 +325,14 @@ layout.addLayout(row)
 self._btns["executar"].setText("PARAR")
 self._btns.set_enabled("salvar", False)
 self._btns.set_callback("executar", self._on_parar)
+
+## 🔴 Contrato 19 — Importação de Estilos
+
+```
+Fora de resources/styles/, importe APENAS AppStyles.
+Nunca importe BaseTheme, ThemeManager, temas concretos ou ct diretamente.
+```
+
+Widgets que precisam de cores para `paintEvent()` devem usar os métodos específicos
+do AppStyles (ex: `AppStyles.vertical_tab_colors()`, `AppStyles.theme_colors()`).
+Nunca importe `ct` ou `BaseTheme` fora de `resources/styles/`.

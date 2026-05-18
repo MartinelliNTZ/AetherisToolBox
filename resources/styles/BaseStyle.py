@@ -65,7 +65,7 @@ class BaseStyle:
 
         /* ===== GROUP BOX ===== */
         QGroupBox {{
-            background-color: {t.SURFACE_3};
+            background: {grad_panel};
             border: none;
             border-radius: {t.BORDER_RADIUS_CARD}px;
             margin-top: {t.GROUP_MARGIN_TOP}px;
@@ -82,7 +82,7 @@ class BaseStyle:
             font-weight: {t.FONT_WEIGHT_EXTRABOLD};
             font-size: {t.FONT_SIZE_SMALL}px;
             letter-spacing: {t.GROUP_TITLE_LETTER_SPACING};
-            background-color: {t.SURFACE_3};
+            background: {grad_panel};
             border-radius: {t.BORDER_RADIUS_GROUP_TITLE}px;
         }}
 
@@ -231,13 +231,13 @@ class BaseStyle:
         }}
 
         QWidget#workspace_tab {{
-            background-color: transparent;
+            background: transparent;
             border: none;
             padding: 0px;
         }}
 
         QWidget#vertical_tab {{
-            background-color: transparent;
+            background: transparent;
             border: none;
             padding: 0px;
         }}

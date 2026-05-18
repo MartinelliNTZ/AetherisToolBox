@@ -321,6 +321,36 @@ class AppStyles(BaseStyle):
         return ct.theme.ACCENT_TEXT
 
     # ────────────────────────────────────────────────────────────────────
+    # VERTICAL TAB — cores para VerticalTab (paintEvent custom)
+    # ────────────────────────────────────────────────────────────────────
+
+    @classmethod
+    def vertical_tab_colors(cls) -> dict[str, str]:
+        """Retorna cores para pintura manual do VerticalTab.
+        Usa tokens semânticos — nenhum alias antigo.
+        Inclui gradientes top-left → bottom-right para backgrounds."""
+        t = ct.theme
+        return {
+            "bg_selected":  t.ACCENT,
+            "fg_selected":  t.SURFACE_0,
+            "border_selected": t.ACCENT_DIM,
+            "indicator":    t.ACCENT_HOVER,
+            "bg_hovered":   t.SURFACE_3,
+            "fg_hovered":   t.TEXT_MEDIUM,
+            "border_hovered": t.BORDER_ACCENT,
+            "bg_default":   t.SURFACE_0,
+            "fg_default":   t.TEXT_LOW,
+            "border_default": t.BORDER_DEFAULT,
+            # Gradientes (start, end) para background
+            "gradient_default_start": t.GRADIENT_TAB[0],
+            "gradient_default_end":   t.GRADIENT_TAB[1],
+            "gradient_hovered_start": t.GRADIENT_BUTTON[0],
+            "gradient_hovered_end":   t.GRADIENT_BUTTON[1],
+            "gradient_selected_start": "",
+            "gradient_selected_end":   "",
+        }
+
+    # ────────────────────────────────────────────────────────────────────
     # THEME COLORS — cores avulsas para widgets que usam paintEvent
     #                (VerticalTab, WorkspaceTabBar, etc.)
     #                Uso: from AppStyles import theme_colors
