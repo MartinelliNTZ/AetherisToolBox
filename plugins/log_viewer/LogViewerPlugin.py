@@ -55,8 +55,9 @@ class LogViewerPlugin(BasePlugin):
 
         super().__init__(tool_key="LogViewer", parent=parent)
 
-        self._build_ui()
-        self.load_prefs()
+        # NOTA: BasePlugin.__init__ já chama _build_ui() e load_prefs()
+        # automaticamente. Não duplicar as chamadas aqui.
+
         self._load_and_refresh()
         self.logger.info("LogViewer carregado", code="TOOL_READY")
 
