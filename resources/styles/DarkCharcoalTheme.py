@@ -47,9 +47,10 @@ class DarkCharcoalTheme(BaseTheme):
 
     # ── Gradientes de superfície (top-left → bottom-right) ─────
     # start = mais escuro (~ SURFACE_0 / SURFACE_2), end = SURFACE_4 / SURFACE_5
+    # PANEL/TAB precisam contrastar com SURFACE_1 (fundo da janela)
     GRADIENT_BUTTON = ("#08080A", "#1E1E24")   # SURFACE_0 → SURFACE_4
-    GRADIENT_PANEL = ("#060609", "#121216")     # SURFACE_0+ → SURFACE_2
-    GRADIENT_TAB = ("#060609", "#121216")       # SURFACE_0+ → SURFACE_2
+    GRADIENT_PANEL = ("#121216", "#24242B")     # SURFACE_3 → SURFACE_5 (mais claro, contrasta com fundo)
+    GRADIENT_TAB = ("#18181D", "#1E1E24")       # SURFACE_3 → SURFACE_4 (mais claro que fundo)
     GRADIENT_INPUT = ("#0C0C0F", "#1E1E24")    # SURFACE_1 → SURFACE_4
 
     # ═══════════════════════════════════════════════════════════════════
