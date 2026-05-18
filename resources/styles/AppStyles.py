@@ -28,11 +28,12 @@ class AppStyles(BaseStyle):
 
     @classmethod
     def btn_secondary_style(cls) -> str:
-        """Botao secundario — sem borda, fundo elevado, hover com glow."""
+        """Botao secundario — gradiente suave, hover com glow."""
         t = ct.theme
+        grad = cls._gradient(*t.GRADIENT_BUTTON)
         return (
             f"QPushButton {{"
-            f"  background-color: {t.SURFACE_3};"
+            f"  background: {grad};"
             f"  color: {t.ACCENT_TEXT};"
             f"  border: none;"
             f"  border-radius: {t.BORDER_RADIUS_BUTTON}px;"
@@ -41,11 +42,11 @@ class AppStyles(BaseStyle):
             f"  font-size: {t.FONT_SIZE_SMALL}px;"
             f"}}"
             f"QPushButton:hover {{"
-            f"  background-color: {t.SURFACE_4};"
+            f"  background: {t.SURFACE_4};"
             f"  color: {t.ACCENT_BRIGHT};"
             f"}}"
             f"QPushButton:pressed {{"
-            f"  background-color: {t.SURFACE_2};"
+            f"  background: {t.SURFACE_2};"
             f"}}"
         )
 

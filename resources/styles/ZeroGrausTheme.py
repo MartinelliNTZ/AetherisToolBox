@@ -52,6 +52,12 @@ class ZeroGrausTheme(BaseTheme):
     SURFACE_5 = "#1C3E59"
     TITLE_BAR = "#040B12"
 
+    # ── Gradientes de superfície (top-left → bottom-right) ─────
+    GRADIENT_BUTTON = ("#0C1824", "#173046")   # SURFACE_2 → SURFACE_4
+    GRADIENT_PANEL = ("#02060A", "#0C1824")    # SURFACE_0 → SURFACE_2
+    GRADIENT_TAB = ("#02060A", "#071018")      # SURFACE_0 → SURFACE_1
+    GRADIENT_INPUT = ("#122131", "#173046")    # SURFACE_3 → SURFACE_4
+
     # ═══════════════════════════════════════════════════════════════════
     # 3. TEXT — Hierarquia
     # ═══════════════════════════════════════════════════════════════════

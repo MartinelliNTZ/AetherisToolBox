@@ -19,9 +19,21 @@ class BaseStyle:
     """
 
     @classmethod
+    def _gradient(cls, start: str, end: str) -> str:
+        """Gera string qlineargradient top-left → bottom-right."""
+        return (
+            f"qlineargradient(x1:0,y1:0,x2:1,y2:1,"
+            f"stop:0 {start},stop:1 {end})"
+        )
+
+    @classmethod
     def global_stylesheet(cls) -> str:
         """Gera o QSS global completo usando o tema atual. Sem hardcoded."""
         t = ct.theme
+        grad_panel = cls._gradient(*t.GRADIENT_PANEL)
+        grad_tab = cls._gradient(*t.GRADIENT_TAB)
+        grad_input = cls._gradient(*t.GRADIENT_INPUT)
+        grad_btn = cls._gradient(*t.GRADIENT_BUTTON)
         return f"""
         QMainWindow, QWidget {{
             background-color: {t.SURFACE_1};
@@ -150,10 +162,10 @@ class BaseStyle:
 
         /* ===== SIDE PANEL (Workspace) ===== */
         QWidget#tool_side_panel {{
-            background-color: {t.SURFACE_0};
+            background: {grad_panel};
         }}
         QPushButton#tool_selector_btn {{
-            background-color: transparent;
+            background: {grad_btn};
             color: {t.TEXT_DISABLED};
             border: none;
             border-radius: {t.BORDER_RADIUS_TOOL_SELECTOR}px;
@@ -163,7 +175,7 @@ class BaseStyle:
             letter-spacing: {t.TOOL_SELECTOR_LETTER_SPACING};
         }}
         QPushButton#tool_selector_btn:hover {{
-            background-color: {t.SURFACE_2};
+            background: {t.SURFACE_2};
             color: {t.ACCENT_TEXT};
         }}
         QPushButton#tool_selector_btn:checked {{
@@ -184,7 +196,7 @@ class BaseStyle:
             font-size: {t.FONT_SIZE_SMALL}px;
         }}
         QTabBar::tab {{
-            background-color: transparent;
+            background: {grad_tab};
             color: {t.TEXT_LOW};
             border: none;
             padding: 0;
@@ -248,7 +260,7 @@ class BaseStyle:
 
         /* ===== LINE EDIT ===== */
         QLineEdit {{
-            background-color: {t.SURFACE_4};
+            background: {grad_input};
             border: none;
             border-radius: {t.BORDER_RADIUS_INPUT}px;
             padding: {t.INPUT_PADDING_V} {t.INPUT_PADDING_H};
@@ -257,23 +269,23 @@ class BaseStyle:
             selection-color: {t.SURFACE_0};
         }}
         QLineEdit:focus {{
-            background-color: {t.SURFACE_5};
+            background: {t.SURFACE_5};
         }}
         QLineEdit:disabled {{
-            background-color: {t.SURFACE_3};
+            background: {t.SURFACE_3};
             color: {t.TEXT_DISABLED};
         }}
 
         /* ===== SPIN BOX ===== */
         QSpinBox, QDoubleSpinBox {{
-            background-color: {t.SURFACE_4};
+            background: {grad_input};
             border: none;
             border-radius: {t.BORDER_RADIUS_INPUT}px;
             padding: {t.SPINBOX_PADDING};
             color: {t.TEXT_MEDIUM};
         }}
         QSpinBox:focus, QDoubleSpinBox:focus {{
-            background-color: {t.SURFACE_5};
+            background: {t.SURFACE_5};
         }}
         QSpinBox::up-button, QDoubleSpinBox::up-button,
         QSpinBox::down-button, QDoubleSpinBox::down-button {{
@@ -289,7 +301,7 @@ class BaseStyle:
 
         /* ===== COMBO BOX ===== */
         QComboBox {{
-            background-color: {t.SURFACE_4};
+            background: {grad_input};
             border: none;
             border-radius: {t.BORDER_RADIUS_INPUT}px;
             padding: {t.COMBOBOX_PADDING};
@@ -297,10 +309,10 @@ class BaseStyle:
             min-width: {t.COMBOBOX_MIN_WIDTH}px;
         }}
         QComboBox:focus {{
-            background-color: {t.SURFACE_5};
+            background: {t.SURFACE_5};
         }}
         QComboBox:disabled {{
-            background-color: {t.SURFACE_3};
+            background: {t.SURFACE_3};
             color: {t.TEXT_DISABLED};
         }}
         QComboBox::drop-down {{
@@ -318,7 +330,7 @@ class BaseStyle:
             border-top: 5px solid {t.TEXT_LOW};
         }}
         QComboBox QAbstractItemView {{
-            background-color: {t.SURFACE_3};
+            background: {t.SURFACE_3};
             border: none;
             border-radius: {t.COMBOBOX_POPUP_BORDER_RADIUS}px;
             color: {t.TEXT_MEDIUM};

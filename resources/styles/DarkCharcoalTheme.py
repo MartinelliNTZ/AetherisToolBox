@@ -45,6 +45,12 @@ class DarkCharcoalTheme(BaseTheme):
     SURFACE_5 = "#24242B"
     TITLE_BAR = "#0A0A0D"
 
+    # ── Gradientes de superfície (top-left → bottom-right) ─────
+    GRADIENT_BUTTON = ("#121216", "#1E1E24")   # SURFACE_2 → SURFACE_4
+    GRADIENT_PANEL = ("#08080A", "#121216")    # SURFACE_0 → SURFACE_2
+    GRADIENT_TAB = ("#08080A", "#0C0C0F")     # SURFACE_0 → SURFACE_1
+    GRADIENT_INPUT = ("#18181D", "#1E1E24")   # SURFACE_3 → SURFACE_4
+
     # ═══════════════════════════════════════════════════════════════════
     # 3. TEXT — Hierarquia
     # ═══════════════════════════════════════════════════════════════════

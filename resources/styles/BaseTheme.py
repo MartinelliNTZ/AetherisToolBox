@@ -79,6 +79,15 @@ class BaseTheme:
     SURFACE_5: str = ""       # superfície (hover, focus)
     TITLE_BAR: str = ""       # barra de título
 
+    # ── Gradientes de superfície (top-left → bottom-right) ─────
+    # Cada gradiente é uma tupla (start_color, end_color).
+    # start_color = versão mais escura, end_color = versão mais clara.
+    # Direção: x1:0,y1:0 → x2:1,y2:1 (canto superior esquerdo → inferior direito)
+    GRADIENT_BUTTON: tuple[str, str] = ("", "")  # botões secundários / ghost
+    GRADIENT_PANEL: tuple[str, str] = ("", "")   # side panels, tool panels
+    GRADIENT_TAB: tuple[str, str] = ("", "")     # tabs (não selecionadas)
+    GRADIENT_INPUT: tuple[str, str] = ("", "")   # inputs, combo, spin
+
     # ═══════════════════════════════════════════════════════════════════
     # 3. TEXT — Hierarquia de texto
     #    TEXT_HIGH      → títulos, labels importantes

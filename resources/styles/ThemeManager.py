@@ -65,6 +65,7 @@ THEMES: dict[str, dict] = {
 # ═══════════════════════════════════════════════════════════════════
 
 CURRENT_THEME_KEY: str = "zero_graus"
+CURRENT_THEME_KEY: str = "dark_charcoal"
 
 
 class ThemeManager:
