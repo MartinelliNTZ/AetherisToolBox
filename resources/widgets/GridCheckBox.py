@@ -25,18 +25,19 @@ Uso:
 
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QWidget, QGridLayout, QCheckBox, QScrollArea, QLabel,
+    QWidget, QGridLayout, QCheckBox, QLabel, QSizePolicy,
 )
 from PySide6.QtCore import Signal
 
 
-class GridCheckBox(QScrollArea):
+class GridCheckBox(QWidget):
     """
-    Grade rolável de checkboxes configurados por dicionário.
+    Grade de checkboxes configurados por dicionário.
+    Widget compacto — sem QScrollArea para evitar expansão vertical indesejada.
 
     Sinais:
         changed — emitido quando qualquer checkbox muda de estado
@@ -54,16 +55,11 @@ class GridCheckBox(QScrollArea):
         self._config = config
         self._num_columns = max(1, num_columns)
         self._checkboxes: Dict[str, QCheckBox] = {}
+        self.setObjectName("grid_checkbox")
 
-        self.setWidgetResizable(True)
-        self.setObjectName("grid_checkbox_scroll")
-
-        self._container = QWidget()
-        self._container.setObjectName("grid_checkbox_container")
-        self._grid = QGridLayout(self._container)
+        self._grid = QGridLayout(self)
         self._grid.setContentsMargins(2, 2, 2, 2)
         self._grid.setSpacing(2)
-        self.setWidget(self._container)
 
         self._build()
 
@@ -100,14 +96,10 @@ class GridCheckBox(QScrollArea):
                 col = 0
                 row += 1
 
-        # Linha de stretch no final para absorver espaço vertical extra
-        # e impedir que as linhas de checkboxes se expandam
+        # Row stretch absorve espaço vertical extra sem criar linha visível
         stretch_row = row + (1 if col > 0 else 0)
         if keys:
             self._grid.setRowStretch(stretch_row, 1)
-
-        # Coluna de stretch na última coluna para alinhar à esquerda
-        self._grid.setColumnStretch(self._num_columns - 1, 1)
 
     def _on_changed(self):
         """Propaga mudança."""

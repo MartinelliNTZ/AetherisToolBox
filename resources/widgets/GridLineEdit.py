@@ -26,19 +26,19 @@ Uso:
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional, Callable
+from typing import Any, Dict
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QWidget, QGridLayout, QLabel, QLineEdit,
-    QScrollArea,
 )
 from PySide6.QtCore import Signal
 
 
-class GridLineEdit(QScrollArea):
+class GridLineEdit(QWidget):
     """
-    Grade rolável de QLineEdit configurados por dicionário.
+    Grade de QLineEdit configurados por dicionário.
+    Widget compacto — sem QScrollArea para evitar expansão vertical indesejada.
 
     Sinais:
         changed(key, value) — emitido quando qualquer campo muda
@@ -54,17 +54,12 @@ class GridLineEdit(QScrollArea):
         super().__init__(parent)
         self._config = config
         self._line_edits: Dict[str, QLineEdit] = {}
+        self.setObjectName("grid_lineedit")
 
-        self.setWidgetResizable(True)
-        self.setObjectName("grid_lineedit_scroll")
-
-        self._container = QWidget()
-        self._container.setObjectName("grid_lineedit_container")
-        self._grid = QGridLayout(self._container)
+        self._grid = QGridLayout(self)
         self._grid.setContentsMargins(0, 0, 0, 0)
         self._grid.setSpacing(6)
         self._grid.setColumnStretch(1, 1)
-        self.setWidget(self._container)
 
         self._build()
 
