@@ -22,7 +22,7 @@ from PySide6.QtWidgets import (
     QTextEdit,
     QFrame,
     QSizePolicy,
-    QGridLayout,
+    QGridLayout,QComboBox,
 )
 from PySide6.QtCore import Qt
 from plugins.BasePlugin import BasePlugin
@@ -35,6 +35,7 @@ from resources.widgets.SimpleSelector import SimpleSelector
 from resources.widgets.SelectorGrid import SelectorGrid
 from resources.widgets.SimpleComboBox import SimpleComboBox
 from resources.widgets.GridGroupPainel import GridGroupPainel
+from resources.widgets.ItemTable import ItemTable
 from plugins.tensorflow_classifier.tensor_utils.ui_field_specs import UI_FIELD_SPECS
 
 # =============================================================================
@@ -172,18 +173,14 @@ class TensorflowClassificationPlugin(BasePlugin):
 
         # ---- (col 0) - SHAPEFILES ----
         grp_shp = GroupPainel("Shapefiles por Classe")
-        self.table_shp = QTableWidget(0, 4)
-        self.table_shp.setHorizontalHeaderLabels(["Caminho", "ID", "Legenda", ""])
-        hh = self.table_shp.horizontalHeader()
-        hh.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
-        hh.setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)
-        hh.setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
-        hh.setSectionResizeMode(3, QHeaderView.ResizeMode.Fixed)
-        self.table_shp.setColumnWidth(1, 55)
-        self.table_shp.setColumnWidth(2, 90)
-        self.table_shp.setColumnWidth(3, 65)
-        self.table_shp.setMinimumHeight(100)
-        self.table_shp.verticalHeader().setDefaultSectionSize(24)
+        self.table_shp = ItemTable(
+            columns=[
+                {"header": "Caminho", "type": "text", "stretch": True, "editable": False},
+                {"header": "ID",      "type": "spin", "width": 55, "min": 0, "max": 999},
+                {"header": "Legenda", "type": "line", "width": 90, "placeholder": "Legenda..."},
+                {"header": "",        "type": "remove", "width": 65},
+            ]
+        )
         grp_shp.group_layout.addWidget(self.table_shp)
         self.btn_add_shp = SimpleGhostButton("+ Adicionar Shapefile")
         grp_shp.group_layout.addWidget(self.btn_add_shp, alignment=Qt.AlignmentFlag.AlignLeft)
@@ -355,34 +352,4 @@ class TensorflowClassificationPlugin(BasePlugin):
 
     def add_shp_row_ui(self, path: str, classe: int, legenda: str = ""):
         """Adiciona uma linha na tabela de shapefiles (chamado pelo controller)."""
-        row = self.table_shp.rowCount()
-        self.table_shp.insertRow(row)
-        ip = QTableWidgetItem(path)
-        ip.setFlags(ip.flags() & ~Qt.ItemFlag.ItemIsEditable)
-        self.table_shp.setItem(row, 0, ip)
-        sc = QSpinBox()
-        sc.setRange(0, 999)
-        sc.setValue(classe)
-        sc.setStyleSheet("background-color: transparent; border: none;")
-        self.table_shp.setCellWidget(row, 1, sc)
-        el = QLineEdit(legenda)
-        el.setPlaceholderText("Legenda...")
-        el.setStyleSheet("background-color: transparent; border: none;")
-        self.table_shp.setCellWidget(row, 2, el)
-        br = SimpleRemoveButton("Remover")
-        br.clicked.connect(lambda checked, r=row: self._remove_shp_row_ui(r))
-        self.table_shp.setCellWidget(row, 3, br)
-
-    def _remove_shp_row_ui(self, row: int):
-        """Remove uma linha da tabela de shapefiles."""
-        self.table_shp.removeRow(row)
-        for r in range(self.table_shp.rowCount()):
-            btn = self.table_shp.cellWidget(r, 3)
-            if btn:
-                try:
-                    btn.clicked.disconnect()
-                except Exception:
-                    pass
-                btn.clicked.connect(
-                    lambda checked, fixed_row=r: self._remove_shp_row_ui(fixed_row)
-                )
+        self.table_shp.add_row(path, classe, legenda)
