@@ -40,19 +40,20 @@ Uso:
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional, Callable
+from typing import Any, Dict
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QWidget, QGridLayout, QLabel, QDoubleSpinBox, QSpinBox,
-    QScrollArea, QHBoxLayout, QSizePolicy,
+    QHBoxLayout, QSizePolicy,
 )
 from PySide6.QtCore import Signal
 
 
-class GridDoubleSpinBox(QScrollArea):
+class GridDoubleSpinBox(QWidget):
     """
-    Grade rolável de QDoubleSpinBox configurados por dicionário.
+    Grade de campos numéricos (QDoubleSpinBox) configurados por dicionário.
+    Widget compacto — sem QScrollArea para evitar expansão vertical indesejada.
 
     Sinais:
         changed(key, value) — emitido quando qualquer spin box muda de valor
@@ -70,16 +71,11 @@ class GridDoubleSpinBox(QScrollArea):
         self._config = config
         self._spinboxes: Dict[str, QDoubleSpinBox | QSpinBox] = {}
         self._columns = max(1, columns)
+        self.setObjectName("grid_doublespinbox")
 
-        self.setWidgetResizable(True)
-        self.setObjectName("grid_doublespinbox_scroll")
-
-        self._container = QWidget()
-        self._container.setObjectName("grid_doublespinbox_container")
-        self._grid = QGridLayout(self._container)
-        self._grid.setContentsMargins(4, 4, 4, 4)
+        self._grid = QGridLayout(self)
+        self._grid.setContentsMargins(0, 0, 0, 0)
         self._grid.setSpacing(6)
-        self.setWidget(self._container)
 
         self._build()
 
