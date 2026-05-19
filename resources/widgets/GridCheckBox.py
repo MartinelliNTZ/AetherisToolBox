@@ -100,7 +100,13 @@ class GridCheckBox(QScrollArea):
                 col = 0
                 row += 1
 
-        # Preenche última linha com stretch
+        # Linha de stretch no final para absorver espaço vertical extra
+        # e impedir que as linhas de checkboxes se expandam
+        stretch_row = row + (1 if col > 0 else 0)
+        if keys:
+            self._grid.setRowStretch(stretch_row, 1)
+
+        # Coluna de stretch na última coluna para alinhar à esquerda
         self._grid.setColumnStretch(self._num_columns - 1, 1)
 
     def _on_changed(self):

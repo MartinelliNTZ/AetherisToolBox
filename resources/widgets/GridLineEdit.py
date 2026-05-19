@@ -61,7 +61,7 @@ class GridLineEdit(QScrollArea):
         self._container = QWidget()
         self._container.setObjectName("grid_lineedit_container")
         self._grid = QGridLayout(self._container)
-        self._grid.setContentsMargins(4, 4, 4, 4)
+        self._grid.setContentsMargins(0, 0, 0, 0)
         self._grid.setSpacing(6)
         self._grid.setColumnStretch(1, 1)
         self.setWidget(self._container)
@@ -99,8 +99,9 @@ class GridLineEdit(QScrollArea):
 
             row += 1
 
-        # Preenche final com stretch
-        self._grid.setRowStretch(row, 1)
+        # Preenche final com stretch para absorver espaço vertical extra
+        if row > 0:
+            self._grid.setRowStretch(row, 1)
 
     def _on_changed(self, key: str, text: str):
         """Propaga mudança."""
