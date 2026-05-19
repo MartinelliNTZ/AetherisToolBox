@@ -17,6 +17,7 @@ import html
 from pathlib import Path
 from datetime import datetime, timedelta
 from time import perf_counter
+from typing import Dict, Any
 
 import threading
 from PySide6.QtCore import Qt, QThread, Signal, QTimer
@@ -26,7 +27,7 @@ from utils.MessageBox import MessageBox
 
 from utils.Preferences import Preferences
 from core.enum.ToolKey import ToolKey
-from resources.styles.AppStyles import AppStyles
+from core.manager.SignalManager import SignalManager
 from plugins.tensorflow_classifier.tensor_utils.classifier_pipeline import ClassifierPipeline
 from plugins.tensorflow_classifier.tensor_utils.pipeline_config import PipelineConfig, PipelineConfigError
 
@@ -414,7 +415,7 @@ class MainController:
         safe = html.escape(text)
         lower = text.lower()
 
-        color = "#CFCFCF"  # default
+        color = "#CFCFCF"
         weight = "400"
         ts_color = "#606060"
 
@@ -474,38 +475,39 @@ class MainController:
         self.view._btns.set_enabled("save_cfg", not running)
         self.view._btns.set_enabled("reset_cfg", not running)
         self.view._btns.set_enabled("cancelar", running)
+        signals = SignalManager.instance()
         if running:
             self.view._btns["cancelar"].setText("CANCELAR")
             if not self._progress_timer.isActive():
                 self._progress_timer.start()
             if hasattr(self.view, "loader_overlay"):
-                self.view.loader_overlay.set_progress(0, self._format_progress_message("Iniciando pipeline..."))
+                self.view.loader_overlay.set_progress(0, self._last_progress_message)
                 self.view.loader_overlay.show_loader()
-            self.view.badge_status.setText("EXECUTANDO")
-            self.view.badge_status.setStyleSheet(AppStyles.badge_running())
-            # Switch to Console tab to show logs
+            if hasattr(self.view, "page"):
+                self.view.page.set_badge(self.view.page.RUNNING)
             if hasattr(self.view, "switch_to_console"):
                 self.view.switch_to_console()
+            signals.progress_update.emit(1.0)
         else:
             self._cancel_requested = False
             if self._progress_timer.isActive():
                 self._progress_timer.stop()
             if hasattr(self.view, "loader_overlay"):
                 self.view.loader_overlay.hide_loader()
-            self.view.badge_status.setText("PRONTA")
-            self.view.badge_status.setStyleSheet(AppStyles.badge_success())
+            if hasattr(self.view, "page"):
+                self.view.page.set_badge(self.view.page.PRONTA)
+            signals.progress_update.emit(100.0)
 
     def _on_progress_update(self, percent: int, message: str) -> None:
         self._last_progress_message = message or self._last_progress_message
         self._refresh_time_based_progress()
 
     def _refresh_time_based_progress(self) -> None:
-        display_percent = self._time_based_progress_percent(float(self.view.progress.value()))
+        display_percent = self._time_based_progress_percent(0.0)
         display_message = self._format_progress_message(self._last_progress_message)
-        self.view.progress.setValue(int(round(display_percent)))
-        self.view.progress.setFormat(f" {display_percent:.2f}% - {display_message} ")
         if hasattr(self.view, "loader_overlay"):
             self.view.loader_overlay.set_progress(display_percent, display_message)
+        SignalManager.instance().progress_update.emit(display_percent / 100.0)
 
     def _on_pipeline_finished(self, message: str) -> None:
         is_cancel = self._cancel_requested or "cancelado" in str(message).lower()
@@ -514,23 +516,17 @@ class MainController:
         if not is_cancel:
             self._append_output_links()
         self._set_running_state(False)
-        if is_cancel:
-            self.view.badge_status.setText("CANCELADO")
-            self.view.badge_status.setStyleSheet(AppStyles.badge_canceled())
-        self.view.progress.setValue(100)
-        self.view.progress.setFormat(" 100% - concluido " if not is_cancel else " 100% - cancelado ")
-        if hasattr(self.view, "loader_overlay"):
-            self.view.loader_overlay.set_progress(100, "Concluido" if not is_cancel else "Cancelado")
-            self.view.loader_overlay.hide_loader()
+        if is_cancel and hasattr(self.view, "page"):
+            self.view.page.set_badge(self.view.page.CANCELED)
+        SignalManager.instance().progress_update.emit(100.0)
 
     def _on_pipeline_error(self, message: str) -> None:
         self._finalize_run_metrics(success=False)
         self._append_log(f"> ERRO: {message}")
         self._set_running_state(False)
-        if hasattr(self.view, "loader_overlay"):
-            self.view.loader_overlay.hide_loader()
-        self.view.badge_status.setText("ERRO")
-        self.view.badge_status.setStyleSheet(AppStyles.badge_error())
+        if hasattr(self.view, "page"):
+            self.view.page.set_badge(self.view.page.ERROR)
+        SignalManager.instance().progress_update.emit(0.0)
 
     def _populate_fields(self, config: PipelineConfig) -> None:
         self.view.row_img_treino.edit.setText(str(config.training_image))
@@ -621,7 +617,6 @@ class MainController:
 
     @staticmethod
     def _count_classes(config: PipelineConfig) -> int:
-        """Retorna o numero de classes distintas nos shapefiles."""
         unique_classes = set()
         for entry in config.shapefiles:
             unique_classes.add(entry.class_id)
