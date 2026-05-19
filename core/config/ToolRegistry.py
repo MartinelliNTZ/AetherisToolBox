@@ -1,0 +1,252 @@
+# -*- coding: utf-8 -*-
+"""
+ToolRegistry — Registro centralizado de ferramentas (lazy loading)
+===================================================================
+Aqui ficam definidas TODAS as ferramentas do sistema.
+Cada ferramenta é um objeto Tool com lazy loading via widget_factory.
+
+Uso:
+    registry = ToolRegistry()
+    registry.register_default_tools()
+    tools = registry.get_all()       # lista de objetos Tool
+    widget = tools[0].widget          # lazy: cria aqui
+"""
+
+from __future__ import annotations
+
+from typing import Callable, List, Optional
+
+from PySide6.QtGui import QIcon
+from PySide6.QtWidgets import QWidget
+
+from core.enum.CategoryTool import CategoryTool
+from core.enum.MenuCategory import MenuCategory
+from core.enum.ToolKey import ToolKey
+from core.enum.ToolType import ToolType
+from core.model.Tool import Tool
+
+
+def _make_factory(module_path: str, class_name: str) -> Callable[[], QWidget]:
+    """
+    Retorna uma factory que importa e instancia a classe sob demanda.
+    Função no nível do módulo para ser usada na definição do dict _TOOLS.
+
+    module_path: caminho do módulo sem .py (ex: "plugins.home.HomePlugin")
+    class_name:  nome exato da classe (ex: "HomePlugin")
+    """
+
+    def factory() -> QWidget:
+        mod = __import__(module_path, fromlist=[class_name])
+        cls = getattr(mod, class_name)
+        return cls()
+
+    return factory
+
+
+class ToolRegistry:
+    """
+    Singleton que mantém o registro de todas as ferramentas disponiveis.
+
+    Cada tool e um objeto Tool com lazy loading via widget_factory.
+    """
+
+    _instance: ToolRegistry | None = None
+
+    def __new__(cls) -> ToolRegistry:
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance._tools: dict[str, Tool] = {}
+            cls._instance._order: list[str] = []
+        return cls._instance
+
+    # ══════════════════════════════════════════════════════════════════
+    # Definição direta de todas as ferramentas como objetos Tool
+    # ══════════════════════════════════════════════════════════════════
+    # Para adicionar uma NOVA ferramenta:
+    #   1. Crie a classe widget em plugins/NomeDaFerramenta/NomeDaFerramentaPlugin.py
+    #   2. Adicione uma entrada no dict _TOOLS abaixo
+    #      com Tool() contendo name, title, widget_factory, etc.
+    #
+    # REGRA: module_path = "plugins.pasta_plugin.NomeDoArquivoPlugin"
+    #        class_name   = mesmo nome da classe (PascalCase + Plugin)
+    # ══════════════════════════════════════════════════════════════════
+
+    _TOOLS: dict[str, Tool] = {
+        ToolKey.HOME.value: Tool(
+            name=ToolKey.HOME.value,
+            title="Inicial",
+            widget_factory=_make_factory(
+                "plugins.home.HomePlugin", "HomePlugin"
+            ),
+            tooltip="Pagina inicial do Aetheris ToolBox",
+            tool_type=ToolType.SYSTEM,
+            category=CategoryTool.CENTRAL,
+        ),
+        ToolKey.CONSOLE.value: Tool(
+            name=ToolKey.CONSOLE.value,
+            title="Console",
+            widget_factory=_make_factory(
+                "plugins.console.ConsolePlugin", "ConsolePlugin"
+            ),
+            tooltip="Console de execucao compartilhado",
+            tool_type=ToolType.SYSTEM,
+            category=CategoryTool.SIDE,
+            show_in_toolbar=False,
+        ),
+        ToolKey.LOGVIEWER.value: Tool(
+            name=ToolKey.LOGVIEWER.value,
+            title="LogViewer",
+            widget_factory=_make_factory(
+                "plugins.log_viewer.LogViewerPlugin", "LogViewerPlugin"
+            ),
+            tooltip="Visualizador de logs do sistema",
+            tool_type=ToolType.SYSTEM,
+            category=CategoryTool.BOTH,
+        ),
+        ToolKey.CLASSIFIER.value: Tool(
+            name=ToolKey.CLASSIFIER.value,
+            title="TensorFlow",
+            widget_factory=_make_factory(
+                "plugins.tensorflow_classifier.TensorflowClassificationPlugin",
+                "TensorflowClassificationPlugin",
+            ),
+            tooltip="Classificacao Raster com Redes Neurais (inativo)",
+            tool_type=ToolType.RASTER,
+            category=CategoryTool.CENTRAL,
+            show_in_toolbar=True,
+        ),
+        ToolKey.HOTKEY_PLUGIN.value: Tool(
+            name=ToolKey.HOTKEY_PLUGIN.value,
+            title="Teclador",
+            widget_factory=_make_factory(
+                "plugins.hotkey.HotkeyPlugin", "HotkeyPlugin"
+            ),
+            tooltip="Automacao de teclado: digita uma string ao pressionar F",
+            tool_type=ToolType.FOLDER,
+            category=CategoryTool.CENTRAL,
+        ),
+        ToolKey.PREFERENCES.value: Tool(
+            name=ToolKey.PREFERENCES.value,
+            title="Preferências",
+            widget_factory=_make_factory(
+                "plugins.preferences_manager.PreferencesPlugin",
+                "PreferencesPlugin",
+            ),
+            tooltip="Gerenciar preferências das ferramentas do sistema",
+            tool_type=ToolType.SYSTEM,
+            category=CategoryTool.CENTRAL,
+            show_in_toolbar=False,
+            menu_category=MenuCategory.SYSTEM,
+        ),
+        ToolKey.RENAMER.value: Tool(
+            name=ToolKey.RENAMER.value,
+            title="Renomeador",
+            widget_factory=_make_factory(
+                "plugins.renamer.RenamerPlugin",
+                "RenamerPlugin",
+            ),
+            tooltip="Renomear arquivos em lote (prefixo, sufixo, substituir, etc.)",
+            tool_type=ToolType.FOLDER,
+            category=CategoryTool.CENTRAL,
+            show_in_toolbar=True,
+        ),
+        ToolKey.SAVE_PROJECT.value: Tool(
+            name=ToolKey.SAVE_PROJECT.value,
+            title="Gerenciar Projeto",
+            widget_factory=_make_factory(
+                "plugins.project_manager.SaveProjectPlugin",
+                "SaveProjectPlugin",
+            ),
+            tooltip="Criar ou salvar projeto atual (.mtl)",
+            tool_type=ToolType.SYSTEM,
+            category=CategoryTool.INSTANT,
+            show_in_toolbar=True,
+        ),
+    }
+
+    def register_default_tools(self) -> None:
+        """Registra todas as ferramentas definidas em _TOOLS."""
+        for name, tool in self._TOOLS.items():
+            if name not in self._tools:  # evita duplicatas
+                self._tools[name] = tool
+                self._order.append(name)
+
+    # ==================================================================
+    # Metodos de registro direto
+    # ==================================================================
+
+    def register(
+        self,
+        name: str,
+        widget_factory: Callable[[], QWidget],
+        *,
+        title: str | None = None,
+        tooltip: str = "",
+        tool_type: ToolType = ToolType.SYSTEM,
+        category: CategoryTool = CategoryTool.CENTRAL,
+        icon: Optional[QIcon] = None,
+        show_in_toolbar: bool = True,
+        menu_category: Optional[MenuCategory] = None,
+    ) -> int:
+        """
+        Registra uma ferramenta no sistema com lazy loading.
+
+        Parametros:
+            name           : Chave unica da ferramenta (ex: "Home", "Console")
+            widget_factory : Callable sem argumentos que retorna um QWidget.
+            title          : Nome exibido nas abas/titulos. Se None, usa name.
+            tooltip        : Texto de dica (opcional).
+            tool_type      : Categoria visual (ToolType.SYSTEM, RASTER, etc.)
+            category       : Onde exibir (WORKSPACE ou SIDE).
+            icon           : QIcon personalizado.
+            show_in_toolbar: Se True (padrão), exibe na toolbar. Se False, oculta.
+            menu_category  : Se definido, exibe no menu suspenso correspondente.
+
+        Retorna:
+            Indice da ferramenta na ordem de registro.
+        """
+        if name in self._tools:
+            raise ValueError(f"Tool '{name}' ja esta registrada.")
+        tool = Tool(
+            name=name,
+            title=title or name,
+            widget_factory=widget_factory,
+            tooltip=tooltip,
+            tool_type=tool_type,
+            category=category,
+            icon=icon,
+            show_in_toolbar=show_in_toolbar,
+            menu_category=menu_category,
+        )
+        self._tools[name] = tool
+        self._order.append(name)
+        return len(self._order) - 1
+
+    def unregister(self, name: str) -> bool:
+        """Remove uma ferramenta pelo nome. Retorna True se removeu."""
+        tool = self._tools.pop(name, None)
+        if tool is None:
+            return False
+        tool.unload()
+        self._order.remove(name)
+        return True
+
+    # ==================================================================
+    # Consulta
+    # ==================================================================
+
+    def get_all(self) -> List[Tool]:
+        """Retorna lista de objetos Tool na ordem de registro."""
+        return [self._tools[name] for name in self._order]
+
+    def get(self, name: str) -> Optional[Tool]:
+        """Retorna um objeto Tool pelo nome, ou None."""
+        return self._tools.get(name)
+
+    def count(self) -> int:
+        """Quantidade de ferramentas registradas."""
+        return len(self._tools)
+
+    def names(self) -> List[str]:
+        """Lista dos nomes de todas as ferramentas na ordem de registro."""
+        return list(self._order)

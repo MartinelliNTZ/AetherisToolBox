@@ -28,14 +28,14 @@ if exist "%VENV_NAME%" (
         echo [...] Removendo venv existente...
         rmdir /s /q "%VENV_NAME%"
         echo [OK] Venv antiga removida.
-        python -m venv %VENV_NAME%
+        py -3.12 -m venv %VENV_NAME%
         echo [OK] Virtual Environment criada em: %CD%\%VENV_NAME%
     ) else (
         echo [INFO] Utilizando venv existente.
     )
 ) else (
     echo [...] Criando Virtual Environment...
-    python -m venv %VENV_NAME%
+    py -3.12 -m venv %VENV_NAME%
     echo [OK] Virtual Environment criada em: %CD%\%VENV_NAME%
 )
 echo.
