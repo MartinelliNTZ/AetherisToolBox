@@ -21,7 +21,7 @@ from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QVBoxLayout, QLabel
 
 from core.enum.ToolKey import ToolKey
-from core.model.BasePlugin import BasePlugin
+from plugins.BasePlugin import BasePlugin
 from utils.ExplorerUtils import ExplorerUtils
 from utils.MessageBox import MessageBox
 from utils.ProjectUtil import ProjectUtil

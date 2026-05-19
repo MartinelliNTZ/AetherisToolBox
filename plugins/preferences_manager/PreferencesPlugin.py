@@ -20,7 +20,7 @@ from typing import Any, Dict
 from PySide6.QtWidgets import QWidget, QVBoxLayout
 
 from core.enum.ToolKey import ToolKey
-from core.model.BasePlugin import BasePlugin
+from plugins.BasePlugin import BasePlugin
 from resources.widgets.ExecutionButtons import ExecutionButtons
 from resources.widgets.PreferenceItemGrid import PreferenceItemGrid
 from resources.widgets.SimpleComboBox import SimpleComboBox

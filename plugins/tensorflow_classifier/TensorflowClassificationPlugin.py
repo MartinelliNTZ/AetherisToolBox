@@ -11,11 +11,22 @@ from __future__ import annotations
 
 from pathlib import Path
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
-    QPushButton, QSpinBox, QDoubleSpinBox, QComboBox, QCheckBox,
-    QTableWidget, QTableWidgetItem, QHeaderView, QFileDialog,
-    QGroupBox, QTextEdit, QProgressBar, QFrame,
-    QSizePolicy, QGridLayout, QScrollArea
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QSpinBox,
+    QDoubleSpinBox,
+    QComboBox,
+    QCheckBox,
+    QTableWidget,
+    QTableWidgetItem,
+    QHeaderView,
+    QTextEdit,
+    QFrame,
+    QSizePolicy,
+    QGridLayout,
 )
 from PySide6.QtCore import Qt
 from resources.styles.AppStyles import AppStyles
@@ -25,12 +36,12 @@ from resources.widgets.SimpleRemoveButton import SimpleRemoveButton
 from resources.widgets.GroupPainel import GroupPainel
 from resources.widgets.SimpleSelector import SimpleSelector
 from resources.widgets.SelectorGrid import SelectorGrid
-from plugins.tensorflow_classifier.ui_field_specs import UI_FIELD_SPECS
-
+from plugins.tensorflow_classifier.tensor_utils.ui_field_specs import UI_FIELD_SPECS
 
 # =============================================================================
 # WIDGETS AUXILIARES
 # =============================================================================
+
 
 class Badge(QLabel):
     def __init__(self, text: str, parent=None):
@@ -51,6 +62,7 @@ class Separator(QFrame):
 # =============================================================================
 # FERRAMENTA DE CLASSIFICAÇÃO
 # =============================================================================
+
 
 class TensorflowClassificationPlugin(QWidget):
     """
@@ -89,33 +101,35 @@ class TensorflowClassificationPlugin(QWidget):
         # --- ACTION BUTTONS ---
         # Callbacks conectados pelo MainController
         self._btns = ExecutionButtons(self)
-        self._btns.setup({
-            "load_cfg": {
-                "text": "Carregar Config",
-                "type": "secondary",
-                "description": "Carrega uma configuração salva anteriormente",
-            },
-            "save_cfg": {
-                "text": "Salvar Config",
-                "type": "secondary",
-                "description": "Salva a configuração atual em disco",
-            },
-            "reset_cfg": {
-                "text": "Restaurar Padrao",
-                "type": "secondary",
-                "description": "Restaura configurações para o valor padrão",
-            },
-            "cancelar": {
-                "text": "CANCELAR",
-                "type": "danger",
-                "description": "Cancela a execução em andamento",
-            },
-            "executar": {
-                "text": "EXECUTAR PIPELINE",
-                "type": "primary",
-                "description": "Inicia o pipeline de classificação",
-            },
-        })
+        self._btns.setup(
+            {
+                "load_cfg": {
+                    "text": "Carregar Config",
+                    "type": "secondary",
+                    "description": "Carrega uma configuração salva anteriormente",
+                },
+                "save_cfg": {
+                    "text": "Salvar Config",
+                    "type": "secondary",
+                    "description": "Salva a configuração atual em disco",
+                },
+                "reset_cfg": {
+                    "text": "Restaurar Padrao",
+                    "type": "secondary",
+                    "description": "Restaura configurações para o valor padrão",
+                },
+                "cancelar": {
+                    "text": "CANCELAR",
+                    "type": "danger",
+                    "description": "Cancela a execução em andamento",
+                },
+                "executar": {
+                    "text": "EXECUTAR PIPELINE",
+                    "type": "primary",
+                    "description": "Inicia o pipeline de classificação",
+                },
+            }
+        )
         self._btns.set_enabled("cancelar", False)
         main_layout.addWidget(self._btns)
 
@@ -126,11 +140,24 @@ class TensorflowClassificationPlugin(QWidget):
         grid.setSpacing(10)
 
         # ---- (0,0) - IMAGENS & SAIDA ----
-        grp_img = SelectorGrid({
-            "Imagem Treino":   {"file_filter": "GeoTIFF (*.tif *.tiff)", "default_path": "dados/imagemTreino.tif"},
-            "Imagem Classif.": {"file_filter": "GeoTIFF (*.tif *.tiff)", "default_path": "dados/imagemCompleta.tif"},
-            "Saida GeoTIFF":   {"file_filter": "GeoTIFF (*.tif *.tiff)", "default_path": "resultado/mapa_classificado_ui.tif", "browse_mode": "save_file"},
-        }, title="Imagens & Saida")
+        grp_img = SelectorGrid(
+            {
+                "Imagem Treino": {
+                    "file_filter": "GeoTIFF (*.tif *.tiff)",
+                    "default_path": "dados/imagemTreino.tif",
+                },
+                "Imagem Classif.": {
+                    "file_filter": "GeoTIFF (*.tif *.tiff)",
+                    "default_path": "dados/imagemCompleta.tif",
+                },
+                "Saida GeoTIFF": {
+                    "file_filter": "GeoTIFF (*.tif *.tiff)",
+                    "default_path": "resultado/mapa_classificado_ui.tif",
+                    "browse_mode": "save_file",
+                },
+            },
+            title="Imagens & Saida",
+        )
         self._sel_img_treino = grp_img["Imagem Treino"]
         self._sel_img_classif = grp_img["Imagem Classif."]
         self._sel_img_saida = grp_img["Saida GeoTIFF"]
@@ -145,14 +172,15 @@ class TensorflowClassificationPlugin(QWidget):
         rm.setSpacing(6)
         rm.addWidget(QLabel("Acao:"))
         self.combo_model_action = QComboBox()
-        self.combo_model_action.addItems([
-            "Treinar modelo novo", "Treinar modelo existente", "Usar modelo existente"
-        ])
+        self.combo_model_action.addItems(
+            ["Treinar modelo novo", "Treinar modelo existente", "Usar modelo existente"]
+        )
         self.combo_model_action.setCurrentText("Treinar modelo novo")
         rm.addWidget(self.combo_model_action, 1)
         lm.addLayout(rm)
-        self.row_modelo_existente = SimpleSelector("Modelo Existente", "",
-            file_filter="Keras Model (*.keras)")
+        self.row_modelo_existente = SimpleSelector(
+            "Modelo Existente", "", file_filter="Keras Model (*.keras)"
+        )
         self.row_modelo_existente.setVisible(False)
         lm.addWidget(self.row_modelo_existente)
         self.btn_listar_modelos = SimpleGhostButton("Listar Modelos")
@@ -161,8 +189,12 @@ class TensorflowClassificationPlugin(QWidget):
         self.chk_salvar_modelo = QCheckBox("Salvar modelo (.keras)")
         self.chk_salvar_modelo.setChecked(True)
         lm.addWidget(self.chk_salvar_modelo)
-        self.row_modelo_path = SimpleSelector("Caminho", "resultado/modelo_ui.keras",
-            file_filter="Keras Model (*.keras)", browse_mode="save_file")
+        self.row_modelo_path = SimpleSelector(
+            "Caminho",
+            "resultado/modelo_ui.keras",
+            file_filter="Keras Model (*.keras)",
+            browse_mode="save_file",
+        )
         lm.addWidget(self.row_modelo_path)
         lm.addStretch()
         grid.addWidget(grp_mod, 0, 1)
@@ -300,9 +332,30 @@ class TensorflowClassificationPlugin(QWidget):
 
     def _apply_field_tooltips(self):
         mapping = [
-            ("training_image", [self._sel_img_treino.label, self._sel_img_treino.edit, self._sel_img_treino.btn]),
-            ("classification_image", [self._sel_img_classif.label, self._sel_img_classif.edit, self._sel_img_classif.btn]),
-            ("output_tiff", [self._sel_img_saida.label, self._sel_img_saida.edit, self._sel_img_saida.btn]),
+            (
+                "training_image",
+                [
+                    self._sel_img_treino.label,
+                    self._sel_img_treino.edit,
+                    self._sel_img_treino.btn,
+                ],
+            ),
+            (
+                "classification_image",
+                [
+                    self._sel_img_classif.label,
+                    self._sel_img_classif.edit,
+                    self._sel_img_classif.btn,
+                ],
+            ),
+            (
+                "output_tiff",
+                [
+                    self._sel_img_saida.label,
+                    self._sel_img_saida.edit,
+                    self._sel_img_saida.btn,
+                ],
+            ),
             ("hidden_layers", [self.edit_camadas]),
             ("activation", [self.combo_ativacao]),
             ("dropout_rate", [self.spin_dropout]),
@@ -316,9 +369,23 @@ class TensorflowClassificationPlugin(QWidget):
             ("zero_as_nodata", [self.chk_zero_nodata]),
             ("nodata_threshold", [self.spin_alpha]),
             ("model_action", [self.combo_model_action]),
-            ("existing_model_path", [self.row_modelo_existente.label, self.row_modelo_existente.edit, self.row_modelo_existente.btn]),
+            (
+                "existing_model_path",
+                [
+                    self.row_modelo_existente.label,
+                    self.row_modelo_existente.edit,
+                    self.row_modelo_existente.btn,
+                ],
+            ),
             ("save_model", [self.chk_salvar_modelo]),
-            ("model_path", [self.row_modelo_path.label, self.row_modelo_path.edit, self.row_modelo_path.btn]),
+            (
+                "model_path",
+                [
+                    self.row_modelo_path.label,
+                    self.row_modelo_path.edit,
+                    self.row_modelo_path.btn,
+                ],
+            ),
         ]
         for key, widgets in mapping:
             spec = UI_FIELD_SPECS.get(key)
@@ -362,4 +429,6 @@ class TensorflowClassificationPlugin(QWidget):
                     btn.clicked.disconnect()
                 except Exception:
                     pass
-                btn.clicked.connect(lambda checked, fixed_row=r: self._remove_shp_row_ui(fixed_row))
+                btn.clicked.connect(
+                    lambda checked, fixed_row=r: self._remove_shp_row_ui(fixed_row)
+                )

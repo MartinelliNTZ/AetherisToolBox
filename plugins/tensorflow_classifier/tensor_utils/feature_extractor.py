@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 from typing import Tuple
 
-from plugins.tensorflow_classifier.raster_source import RasterSource
+from plugins.tensorflow_classifier.tensor_utils.raster_source import RasterSource
 
 
 class FeatureExtractor:

@@ -27,8 +27,8 @@ from utils.MessageBox import MessageBox
 from utils.Preferences import Preferences
 from core.enum.ToolKey import ToolKey
 from resources.styles.AppStyles import AppStyles
-from plugins.tensorflow_classifier.classifier_pipeline import ClassifierPipeline
-from plugins.tensorflow_classifier.pipeline_config import PipelineConfig, PipelineConfigError
+from plugins.tensorflow_classifier.tensor_utils.classifier_pipeline import ClassifierPipeline
+from plugins.tensorflow_classifier.tensor_utils.pipeline_config import PipelineConfig, PipelineConfigError
 
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 warnings.filterwarnings("ignore", category=FutureWarning)
@@ -608,7 +608,7 @@ class MainController:
         pixels = 0.0
         gb = 0.0
         try:
-            from plugins.tensorflow_classifier.raster_source import RasterSource
+            from plugins.tensorflow_classifier.tensor_utils.raster_source import RasterSource
             raster = RasterSource(path)
             pixels = float(raster.width * raster.height)
         except Exception:
