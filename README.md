@@ -21,7 +21,7 @@ Este projeto realiza a **classificação de uso/cobertura do solo** a partir de 
 ---
 
 ## 2. Estrutura do Projeto
-
+#
 ```
 .
 ├── main.py              # Código-fonte principal (pipeline completo)
