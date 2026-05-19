@@ -18,7 +18,7 @@ class SignalManager(QObject):
         console_message(str)        — mensagem para exibir no console
     """
 
-    tool_opened: Signal = Signal(str, object)
+    tool_opened: Signal = Signal(str)
     tool_closed: Signal = Signal(str)
     console_message: Signal = Signal(str)
     progress_update: Signal = Signal(float)

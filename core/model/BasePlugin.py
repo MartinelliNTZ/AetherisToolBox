@@ -82,7 +82,7 @@ class BasePlugin(QWidget):
         self.load_prefs()
 
         from core.manager.SignalManager import SignalManager
-        SignalManager.instance().tool_opened.emit(tool_key, self)
+        SignalManager.instance().tool_opened.emit(tool_key)
 
     def _build_ui(self) -> None:
         """
