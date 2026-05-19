@@ -2,8 +2,8 @@
 """
 ClassificationTool — Ferramenta de Classificação Raster
 =========================================================
-Widget extraído da UI principal para ser uma ferramenta
-hospedada no Workspace do Aetheris ToolBox.
+Widget hospedado no Workspace do Aetheris ToolBox.
+Comunicação via SignalManager.
 """
 
 from __future__ import annotations
@@ -12,8 +12,8 @@ from PySide6.QtCore import Qt
 from plugins.BasePlugin import BasePlugin
 from core.enum.ToolKey import ToolKey
 from resources.widgets.ExecutionButtons import ExecutionButtons
-from resources.widgets.SimpleGhostButton import SimpleGhostButton
 from resources.widgets.GroupPainel import GroupPainel
+from resources.widgets.SimpleSecondaryButton import SimpleSecondaryButton
 from resources.widgets.SimpleSelector import SimpleSelector
 from resources.widgets.SelectorGrid import SelectorGrid
 from resources.widgets.SimpleComboBox import SimpleComboBox
@@ -22,14 +22,13 @@ from resources.widgets.ItemTable import ItemTable
 from resources.widgets.GridLineEdit import GridLineEdit
 from resources.widgets.GridDoubleSpinBox import GridDoubleSpinBox
 from resources.widgets.GridCheckBox import GridCheckBox
-from resources.widgets.ReadOnlyTextBrowser import ReadOnlyTextBrowser
 from plugins.tensorflow_classifier.tensor_utils.ui_field_specs import UI_FIELD_SPECS
 
 
 class TensorflowClassificationPlugin(BasePlugin):
     """
     Widget completo da ferramenta de classificação raster.
-    Pode ser hospedada no Workspace.
+    Comunica logs e progresso via SignalManager.
     """
 
     def __init__(self, parent=None):
@@ -47,59 +46,23 @@ class TensorflowClassificationPlugin(BasePlugin):
         self._btns = ExecutionButtons(self)
         self._btns.setup(
             {
-                "load_cfg": {
-                    "text": "Carregar Config",
-                    "type": "secondary",
-                    "description": "Carrega uma configuração salva anteriormente",
-                },
-                "save_cfg": {
-                    "text": "Salvar Config",
-                    "type": "secondary",
-                    "description": "Salva a configuração atual em disco",
-                },
-                "reset_cfg": {
-                    "text": "Restaurar Padrao",
-                    "type": "secondary",
-                    "description": "Restaura configurações para o valor padrão",
-                },
-                "cancelar": {
-                    "text": "CANCELAR",
-                    "type": "danger",
-                    "description": "Cancela a execução em andamento",
-                },
-                "executar": {
-                    "text": "EXECUTAR PIPELINE",
-                    "type": "primary",
-                    "description": "Inicia o pipeline de classificação",
-                },
+                "load_cfg": {"text": "Carregar Config", "type": "secondary", "description": "Carrega uma configuração salva anteriormente"},
+                "save_cfg": {"text": "Salvar Config", "type": "secondary", "description": "Salva a configuração atual em disco"},
+                "reset_cfg": {"text": "Restaurar Padrao", "type": "secondary", "description": "Restaura configurações para o valor padrão"},
+                "cancelar": {"text": "CANCELAR", "type": "danger", "description": "Cancela a execução em andamento"},
+                "executar": {"text": "EXECUTAR PIPELINE", "type": "primary", "description": "Inicia o pipeline de classificação"},
             }
         )
         self._btns.set_enabled("cancelar", False)
         main_layout.addWidget(self._btns)
 
-        # =====================================================================
-        # TOP ROW — Imagens & Saida | Persistencia do Modelo
-        # =====================================================================
-
+        # TOP ROW
         grp_img = GroupPainel("Imagens & Saida")
-        sel_grid = SelectorGrid(
-            {
-                "Imagem Treino": {
-                    "file_filter": "GeoTIFF (*.tif *.tiff)",
-                    "default_path": "dados/imagemTreino.tif",
-                },
-                "Imagem Classif.": {
-                    "file_filter": "GeoTIFF (*.tif *.tiff)",
-                    "default_path": "dados/imagemCompleta.tif",
-                },
-                "Saida GeoTIFF": {
-                    "file_filter": "GeoTIFF (*.tif *.tiff)",
-                    "default_path": "resultado/mapa_classificado_ui.tif",
-                    "browse_mode": "save_file",
-                },
-            },
-            title=None,
-        )
+        sel_grid = SelectorGrid({
+            "Imagem Treino": {"file_filter": "GeoTIFF (*.tif *.tiff)", "default_path": "dados/imagemTreino.tif"},
+            "Imagem Classif.": {"file_filter": "GeoTIFF (*.tif *.tiff)", "default_path": "dados/imagemCompleta.tif"},
+            "Saida GeoTIFF": {"file_filter": "GeoTIFF (*.tif *.tiff)", "default_path": "resultado/mapa_classificado_ui.tif", "browse_mode": "save_file"},
+        }, title=None)
         self._sel_img_treino = sel_grid["Imagem Treino"]
         self._sel_img_classif = sel_grid["Imagem Classif."]
         self._sel_img_saida = sel_grid["Saida GeoTIFF"]
@@ -115,163 +78,64 @@ class TensorflowClassificationPlugin(BasePlugin):
         )
         self._combo_model_action.select_first()
         grp_mod.group_layout.addWidget(self._combo_model_action)
-        self._selector_modelo_existente = SimpleSelector(
-            "Modelo Existente", "", file_filter="Keras Model (*.keras)"
-        )
+        self._selector_modelo_existente = SimpleSelector("Modelo Existente", "", file_filter="Keras Model (*.keras)")
         self._selector_modelo_existente.setVisible(False)
         grp_mod.group_layout.addWidget(self._selector_modelo_existente)
-        self.btn_listar_modelos = SimpleGhostButton("Listar Modelos")
+        self.btn_listar_modelos = SimpleSecondaryButton("Listar Modelos")
         self.btn_listar_modelos.setVisible(False)
         grp_mod.group_layout.addWidget(self.btn_listar_modelos, alignment=Qt.AlignmentFlag.AlignLeft)
-        self._grid_salvar_modelo = GridCheckBox({
-            "save_model": {
-                "label": "Salvar modelo (.keras)",
-                "description": "Salvar o modelo treinado em disco (.keras)",
-                "default": True,
-            },
-        }, num_columns=1)
+        self._grid_salvar_modelo = GridCheckBox({"save_model": {"label": "Salvar modelo (.keras)", "description": "Salvar o modelo treinado em disco (.keras)", "default": True}}, num_columns=1)
         grp_mod.group_layout.addWidget(self._grid_salvar_modelo)
-        self._selector_modelo_path = SimpleSelector(
-            "Caminho",
-            "resultado/modelo_ui.keras",
-            file_filter="Keras Model (*.keras)",
-            browse_mode="save_file",
-        )
+        self._selector_modelo_path = SimpleSelector("Caminho", "resultado/modelo_ui.keras", file_filter="Keras Model (*.keras)", browse_mode="save_file")
         grp_mod.group_layout.addWidget(self._selector_modelo_path)
         grp_mod.group_layout.addStretch()
 
         top_row = GridGroupPainel(grp_img, grp_mod)
         main_layout.addWidget(top_row)
 
-        # =====================================================================
-        # BOTTOM ROW — Shapefiles | Rede Neural & Treinamento
-        # =====================================================================
-
+        # BOTTOM ROW
         grp_shp = GroupPainel("Shapefiles por Classe")
-        self.table_shp = ItemTable(
-            columns=[
-                {"header": "Caminho", "type": "text", "stretch": True, "editable": False},
-                {"header": "ID",      "type": "spin", "width": 55, "min": 0, "max": 999},
-                {"header": "Legenda", "type": "line", "width": 90, "placeholder": "Legenda..."},
-                {"header": "",        "type": "remove", "width": 65},
-            ]
-        )
+        self.table_shp = ItemTable(columns=[
+            {"header": "Caminho", "type": "text", "stretch": True, "editable": False},
+            {"header": "ID", "type": "spin", "width": 55, "min": 0, "max": 999},
+            {"header": "Legenda", "type": "line", "width": 90, "placeholder": "Legenda..."},
+            {"header": "", "type": "remove", "width": 65},
+        ])
         grp_shp.group_layout.addWidget(self.table_shp)
-        self.btn_add_shp = SimpleGhostButton("+ Adicionar Shapefile")
+        self.btn_add_shp = SimpleSecondaryButton("+ Adicionar Shapefile")
+        self.btn_add_shp.setToolTip("Abre seletor de arquivos para adicionar um shapefile .shp à tabela de classes")
         grp_shp.group_layout.addWidget(self.btn_add_shp, alignment=Qt.AlignmentFlag.AlignLeft)
         grp_shp.group_layout.addStretch()
 
         grp_rede = GroupPainel("Rede Neural & Treinamento")
-
-        self._grid_camadas = GridLineEdit({
-            "camadas": {
-                "label": "Camadas:",
-                "default": "128, 64, 32",
-                "placeholder": "ex: 256, 128, 64",
-                "description": "Neurônios por camada oculta, separados por vírgula",
-            },
-        })
+        self._grid_camadas = GridLineEdit({"camadas": {"label": "Camadas:", "default": "128, 64, 32", "placeholder": "ex: 256, 128, 64", "description": "Neurônios por camada oculta, separados por vírgula"}})
         grp_rede.group_layout.addWidget(self._grid_camadas)
-
-        self._combo_ativacao = SimpleComboBox(
-            items={"relu": "relu", "elu": "elu", "tanh": "tanh",
-                   "sigmoid": "sigmoid", "linear": "linear"},
-            label="Ativacao:",
-        )
+        self._combo_ativacao = SimpleComboBox(items={"relu": "relu", "elu": "elu", "tanh": "tanh", "sigmoid": "sigmoid", "linear": "linear"}, label="Ativacao:")
         self._combo_ativacao.current_value = "relu"
         grp_rede.group_layout.addWidget(self._combo_ativacao)
-
         self._grid_numericos = GridDoubleSpinBox({
-            "dropout": {
-                "label": "Dropout:", "decimal": 2, "default": 0.10,
-                "min": 0.0, "max": 0.9, "step": 0.05,
-                "description": "Taxa de dropout para regularização",
-            },
-            "epochs": {
-                "label": "Epocas:", "decimal": 0, "default": 150,
-                "min": 1, "max": 10000, "step": 1,
-                "description": "Número de épocas de treinamento",
-            },
-            "batch_train": {
-                "label": "Batch Treino:", "decimal": 0, "default": 64,
-                "min": 1, "max": 8192, "step": 1,
-                "description": "Tamanho do lote para treinamento",
-            },
-            "batch_pred": {
-                "label": "Batch Pred.:", "decimal": 0, "default": 4096,
-                "min": 1, "max": 65536, "step": 1,
-                "description": "Tamanho do lote para predição",
-            },
-            "test_size": {
-                "label": "Test Size:", "decimal": 2, "default": 0.30,
-                "min": 0.01, "max": 0.99, "step": 0.01,
-                "description": "Proporção dos dados para validação",
-            },
-            "random_state": {
-                "label": "Random State:", "decimal": 0, "default": 42,
-                "min": 0, "max": 999999, "step": 1,
-                "description": "Semente aleatória para reprodutibilidade",
-            },
-            "ram_pct": {
-                "label": "RAM:", "decimal": 0, "default": 70,
-                "min": 10, "max": 95, "step": 1, "suffix": "%",
-                "description": "Limite percentual de RAM utilizável",
-            },
-            "nodata_limiar": {
-                "label": "Limiar Nodata:", "decimal": 0, "default": 250,
-                "min": 0, "max": 255, "step": 1,
-                "description": "Valor de limiar para considerar nodata",
-            },
+            "dropout": {"label": "Dropout:", "decimal": 2, "default": 0.10, "min": 0.0, "max": 0.9, "step": 0.05, "description": "Taxa de dropout para regularização"},
+            "epochs": {"label": "Epocas:", "decimal": 0, "default": 150, "min": 1, "max": 10000, "step": 1, "description": "Número de épocas de treinamento"},
+            "batch_train": {"label": "Batch Treino:", "decimal": 0, "default": 64, "min": 1, "max": 8192, "step": 1, "description": "Tamanho do lote para treinamento"},
+            "batch_pred": {"label": "Batch Pred.:", "decimal": 0, "default": 4096, "min": 1, "max": 65536, "step": 1, "description": "Tamanho do lote para predição"},
+            "test_size": {"label": "Test Size:", "decimal": 2, "default": 0.30, "min": 0.01, "max": 0.99, "step": 0.01, "description": "Proporção dos dados para validação"},
+            "random_state": {"label": "Random State:", "decimal": 0, "default": 42, "min": 0, "max": 999999, "step": 1, "description": "Semente aleatória para reprodutibilidade"},
+            "ram_pct": {"label": "RAM:", "decimal": 0, "default": 70, "min": 10, "max": 95, "step": 1, "suffix": "%", "description": "Limite percentual de RAM utilizável"},
+            "nodata_limiar": {"label": "Limiar Nodata:", "decimal": 0, "default": 250, "min": 0, "max": 255, "step": 1, "description": "Valor de limiar para considerar nodata"},
         }, columns=2)
         grp_rede.group_layout.addWidget(self._grid_numericos)
-
-        self._grid_checkboxes = GridCheckBox({
-            "use_mask": {
-                "label": "Mascara alpha",
-                "description": "Aplicar máscara alpha na saída",
-                "default": True,
-            },
-            "zero_nodata": {
-                "label": "0 = nodata",
-                "description": "Considerar valor 0 como nodata",
-                "default": False,
-            },
-        }, num_columns=2)
+        self._grid_checkboxes = GridCheckBox({"use_mask": {"label": "Mascara alpha", "description": "Aplicar máscara alpha na saída", "default": True}, "zero_nodata": {"label": "0 = nodata", "description": "Considerar valor 0 como nodata", "default": False}}, num_columns=2)
         grp_rede.group_layout.addWidget(self._grid_checkboxes)
         grp_rede.group_layout.addStretch()
 
         bottom_row = GridGroupPainel(grp_shp, grp_rede)
         main_layout.addWidget(bottom_row)
 
-        # =====================================================================
-        # HUD LOADER (overlay) + LOG
-        # =====================================================================
-
-        from core.ui.hud_loader import HudCircularRingsLoader
-        self.loader_overlay = HudCircularRingsLoader(self)
-
-        self.txt_log = ReadOnlyTextBrowser(
-            placeholder="Log do pipeline...",
-            open_links=True,
-        )
-        self.txt_log.setMinimumHeight(120)
-        self.txt_log.setMaximumHeight(250)
-
-        from resources.widgets.SimpleSecondaryButton import SimpleSecondaryButton
-        self.btn_clear_console = SimpleSecondaryButton("Limpar")
-        main_layout.addWidget(self.btn_clear_console)
-        main_layout.addWidget(self.txt_log, 1)
-
-        # --- Resumo (compatibilidade controller) ---
-        self.lbl_resumo = ReadOnlyTextBrowser()
-        self.lbl_resumo.setMaximumHeight(1)
-        self.lbl_resumo.setVisible(False)
-        main_layout.addWidget(self.lbl_resumo)
+        # Resumo interno (controller)
+        self.lbl_resumo = type('', (), {'setHtml': lambda s, h: None, 'setMaximumHeight': lambda s, h: None, 'setVisible': lambda s, v: None})()
 
         self._apply_field_tooltips()
         self._init_controller()
-
-    # ─── Controller ───────────────────────────────────────────────────
 
     def _init_controller(self):
         from plugins.tensorflow_classifier.tensor_utils.main_controller import MainController
@@ -308,17 +172,11 @@ class TensorflowClassificationPlugin(BasePlugin):
             for widget in widgets:
                 widget.setToolTip(desc)
 
-    # ────────────────────────────────────────────────────────────────────────
-    # Métodos públicos (compatibilidade com controller)
-    # ────────────────────────────────────────────────────────────────────────
-
     def add_shp_row_ui(self, path: str, classe: int, legenda: str = ""):
         self.table_shp.add_row(path, classe, legenda)
 
     def switch_to_console(self):
         pass
-
-    # ─── Exposição de campos para compatibilidade com MainController ─────
 
     @property
     def row_img_treino(self) -> SimpleSelector:
