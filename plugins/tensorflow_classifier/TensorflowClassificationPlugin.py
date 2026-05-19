@@ -9,9 +9,7 @@ Console removido — agora é compartilhado via ConsoleTool.
 
 from __future__ import annotations
 
-from pathlib import Path
 from PySide6.QtWidgets import (
-    QWidget,
     QVBoxLayout,
     QHBoxLayout,
     QLabel,
@@ -29,7 +27,8 @@ from PySide6.QtWidgets import (
     QGridLayout,
 )
 from PySide6.QtCore import Qt
-from resources.styles.AppStyles import AppStyles
+from plugins.BasePlugin import BasePlugin
+from core.enum.ToolKey import ToolKey
 from resources.widgets.ExecutionButtons import ExecutionButtons
 from resources.widgets.SimpleGhostButton import SimpleGhostButton
 from resources.widgets.SimpleRemoveButton import SimpleRemoveButton
@@ -41,13 +40,6 @@ from plugins.tensorflow_classifier.tensor_utils.ui_field_specs import UI_FIELD_S
 # =============================================================================
 # WIDGETS AUXILIARES
 # =============================================================================
-
-
-class Badge(QLabel):
-    def __init__(self, text: str, parent=None):
-        super().__init__(text, parent)
-        self.setObjectName("section_badge")
-        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
 
 class Separator(QFrame):
@@ -64,39 +56,21 @@ class Separator(QFrame):
 # =============================================================================
 
 
-class TensorflowClassificationPlugin(QWidget):
+class TensorflowClassificationPlugin(BasePlugin):
     """
     Widget completo da ferramenta de classificação raster.
-    Pode ser hospedado no Workspace.
+    Pode ser hospedada no Workspace.
     """
 
     def __init__(self, parent=None):
-        super().__init__(parent)
-        self._build_ui()
+        super().__init__(tool_key=ToolKey.CLASSIFIER.value, parent=parent, title="TensorFlow")
+        self.logger.info("TensorFlow plugin carregado", code="TOOL_READY")
 
     def _build_ui(self):
-        main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(18, 10, 18, 10)
-        main_layout.setSpacing(8)
+        super()._build_ui()
+        main_layout = self.main_layout
 
-        # --- HEADER ---
-        header = QWidget()
-        hl = QHBoxLayout(header)
-        hl.setContentsMargins(0, 0, 0, 0)
-        hl.setSpacing(10)
-        self.lbl_title = QLabel("Aetheris Classifier")
-        self.lbl_title.setObjectName("header_title")
-        hl.addWidget(self.lbl_title, 1)
-        self.badge_status = Badge("PRONTA")
-        self.badge_status.setStyleSheet(AppStyles.badge_success())
-        hl.addWidget(self.badge_status, alignment=Qt.AlignmentFlag.AlignVCenter)
-        main_layout.addWidget(header)
-
-        sep = QFrame()
-        sep.setObjectName("separator")
-        sep.setFrameShape(QFrame.Shape.HLine)
-        sep.setFixedHeight(1)
-        main_layout.addWidget(sep)
+        self.badge_status = self.page.set_badge(self.page.PRONTA)
 
         # --- ACTION BUTTONS ---
         # Callbacks conectados pelo MainController
