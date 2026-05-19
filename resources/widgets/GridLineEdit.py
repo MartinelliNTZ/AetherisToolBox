@@ -106,6 +106,24 @@ class GridLineEdit(QScrollArea):
         """Propaga mudança."""
         self.changed.emit(key, text)
 
+    def widget(self, key: str) -> QLineEdit:
+        """
+        Retorna o QLineEdit subjacente para acesso direto (compatibilidade).
+
+        Args:
+            key: Chave do campo configurado no construtor
+
+        Returns:
+            QLineEdit interno
+
+        Raises:
+            KeyError: se a chave não existir
+        """
+        le = self._line_edits.get(key)
+        if le is None:
+            raise KeyError(f"Campo '{key}' não encontrado no GridLineEdit")
+        return le
+
     # ── Propriedades públicas ────────────────────────────────────────
 
     @property

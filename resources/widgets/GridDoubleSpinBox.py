@@ -63,11 +63,13 @@ class GridDoubleSpinBox(QScrollArea):
     def __init__(
         self,
         config: Dict[str, Dict[str, Any]],
+        columns: int = 1,
         parent=None,
     ):
         super().__init__(parent)
         self._config = config
         self._spinboxes: Dict[str, QDoubleSpinBox | QSpinBox] = {}
+        self._columns = max(1, columns)
 
         self.setWidgetResizable(True)
         self.setObjectName("grid_doublespinbox_scroll")
@@ -77,15 +79,13 @@ class GridDoubleSpinBox(QScrollArea):
         self._grid = QGridLayout(self._container)
         self._grid.setContentsMargins(4, 4, 4, 4)
         self._grid.setSpacing(6)
-        self._grid.setColumnStretch(1, 1)
         self.setWidget(self._container)
 
         self._build()
 
     def _build(self):
-        """Constrói a grade de spin boxes a partir do config."""
-        row = 0
-        for key, item in self._config.items():
+        """Constrói a grade de spin boxes a partir do config em N colunas."""
+        for idx, (key, item) in enumerate(self._config.items()):
             label_text = item.get("label", key)
             description = item.get("description", "")
             decimal = item.get("decimal", 1)
@@ -96,12 +96,24 @@ class GridDoubleSpinBox(QScrollArea):
             prefix = item.get("prefix", "")
             suffix = item.get("suffix", "")
 
+            if self._columns > 1:
+                # Layout multi-coluna
+                col_pair = idx % self._columns          # 0, 1, 2...
+                row = idx // self._columns               # linha base
+                col_start = col_pair * 2                 # label ocupa esta col
+                col_value = col_pair * 2 + 1             # value ocupa esta col
+            else:
+                # Layout vertical (1 coluna)
+                row = idx
+                col_start = 0
+                col_value = 1
+
             # Label
             lbl = QLabel(label_text)
             lbl.setObjectName("grid_dsb_label")
             if description:
                 lbl.setToolTip(description)
-            self._grid.addWidget(lbl, row, 0, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+            self._grid.addWidget(lbl, row, col_start, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
 
             # Spin box container (value + suffix)
             spin_container = QHBoxLayout()
@@ -109,14 +121,12 @@ class GridDoubleSpinBox(QScrollArea):
             spin_container.setSpacing(2)
 
             if decimal == 0:
-                # Inteiro — usa QSpinBox
                 spin = QSpinBox()
                 spin.setRange(int(min_val), int(max_val))
                 spin.setValue(int(default))
                 spin.setSingleStep(int(step) if step >= 1 else 1)
                 spin.setObjectName("grid_spinbox_int")
             else:
-                # Float — usa QDoubleSpinBox
                 spin = QDoubleSpinBox()
                 spin.setRange(float(min_val), float(max_val))
                 spin.setValue(float(default))
@@ -143,12 +153,21 @@ class GridDoubleSpinBox(QScrollArea):
                 prefix_lbl.setObjectName("grid_dsb_prefix")
                 spin_container.insertWidget(0, prefix_lbl)
 
-            self._grid.addLayout(spin_container, row, 1, Qt.AlignmentFlag.AlignLeft)
+            self._grid.addLayout(spin_container, row, col_value, Qt.AlignmentFlag.AlignLeft)
 
-            row += 1
+        # Define stretch nas colunas pares (label) e ímpares (value)
+        if self._columns > 1:
+            for c in range(self._columns * 2):
+                if c % 2 == 0:
+                    self._grid.setColumnStretch(c, 0)      # label — fixo
+                else:
+                    self._grid.setColumnStretch(c, 1)      # value — expande
 
-        # Preenche final com stretch
-        self._grid.setRowStretch(row, 1)
+            num_rows = (len(self._config) + self._columns - 1) // self._columns
+            self._grid.setRowStretch(num_rows, 1)
+        else:
+            self._grid.setColumnStretch(1, 1)
+            self._grid.setRowStretch(len(self._config), 1)
 
     def _on_changed(self, key: str, value: float):
         """Propaga mudança."""
@@ -157,6 +176,24 @@ class GridDoubleSpinBox(QScrollArea):
         if onchanged and callable(onchanged):
             onchanged(value)
         self.changed.emit(key, value)
+
+    def widget(self, key: str) -> QDoubleSpinBox | QSpinBox:
+        """
+        Retorna o spin box subjacente para acesso direto (compatibilidade).
+
+        Args:
+            key: Chave do campo configurado no construtor
+
+        Returns:
+            QDoubleSpinBox ou QSpinBox interno
+
+        Raises:
+            KeyError: se a chave não existir
+        """
+        spin = self._spinboxes.get(key)
+        if spin is None:
+            raise KeyError(f"Campo '{key}' não encontrado no GridDoubleSpinBox")
+        return spin
 
     # ── Propriedades públicas ────────────────────────────────────────
 

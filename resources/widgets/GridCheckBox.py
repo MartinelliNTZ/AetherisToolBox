@@ -61,8 +61,8 @@ class GridCheckBox(QScrollArea):
         self._container = QWidget()
         self._container.setObjectName("grid_checkbox_container")
         self._grid = QGridLayout(self._container)
-        self._grid.setContentsMargins(6, 6, 6, 6)
-        self._grid.setSpacing(4)
+        self._grid.setContentsMargins(2, 2, 2, 2)
+        self._grid.setSpacing(2)
         self.setWidget(self._container)
 
         self._build()
@@ -106,6 +106,24 @@ class GridCheckBox(QScrollArea):
     def _on_changed(self):
         """Propaga mudança."""
         self.changed.emit()
+
+    def widget(self, key: str) -> QCheckBox:
+        """
+        Retorna o QCheckBox subjacente (compatibilidade).
+
+        Args:
+            key: Chave do checkbox
+
+        Returns:
+            QCheckBox interno
+
+        Raises:
+            KeyError: se a chave não existir
+        """
+        cb = self._checkboxes.get(key)
+        if cb is None:
+            raise KeyError(f"Checkbox '{key}' não encontrado no GridCheckBox")
+        return cb
 
     # ── Propriedades públicas ────────────────────────────────────────
 

@@ -11,36 +11,25 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import (
     QVBoxLayout,
-    QLabel,
-    QLineEdit,
-    QSpinBox,
-    QDoubleSpinBox,
-    QCheckBox,
-    QTableWidget,
-    QTableWidgetItem,
-    QHeaderView,
     QTextEdit,
     QFrame,
     QSizePolicy,
-    QGridLayout,QComboBox,
 )
 from PySide6.QtCore import Qt
 from plugins.BasePlugin import BasePlugin
 from core.enum.ToolKey import ToolKey
 from resources.widgets.ExecutionButtons import ExecutionButtons
 from resources.widgets.SimpleGhostButton import SimpleGhostButton
-from resources.widgets.SimpleRemoveButton import SimpleRemoveButton
 from resources.widgets.GroupPainel import GroupPainel
 from resources.widgets.SimpleSelector import SimpleSelector
 from resources.widgets.SelectorGrid import SelectorGrid
 from resources.widgets.SimpleComboBox import SimpleComboBox
 from resources.widgets.GridGroupPainel import GridGroupPainel
 from resources.widgets.ItemTable import ItemTable
+from resources.widgets.GridLineEdit import GridLineEdit
+from resources.widgets.GridDoubleSpinBox import GridDoubleSpinBox
+from resources.widgets.GridCheckBox import GridCheckBox
 from plugins.tensorflow_classifier.tensor_utils.ui_field_specs import UI_FIELD_SPECS
-
-# =============================================================================
-# WIDGETS AUXILIARES
-# =============================================================================
 
 
 class Separator(QFrame):
@@ -50,11 +39,6 @@ class Separator(QFrame):
         self.setFrameShape(QFrame.Shape.HLine)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.setFixedHeight(1)
-
-
-# =============================================================================
-# FERRAMENTA DE CLASSIFICAÇÃO
-# =============================================================================
 
 
 class TensorflowClassificationPlugin(BasePlugin):
@@ -111,7 +95,6 @@ class TensorflowClassificationPlugin(BasePlugin):
         # TOP ROW — Imagens & Saida | Persistencia do Modelo
         # =====================================================================
 
-        # ---- (col 0) - IMAGENS & SAIDA ----
         grp_img = GroupPainel("Imagens & Saida")
         sel_grid = SelectorGrid(
             {
@@ -137,7 +120,6 @@ class TensorflowClassificationPlugin(BasePlugin):
         grp_img.group_layout.addWidget(sel_grid)
         grp_img.group_layout.addStretch()
 
-        # ---- (col 1) - PERSISTENCIA DO MODELO ----
         grp_mod = GroupPainel("Persistencia do Modelo")
         self.combo_model_action = SimpleComboBox(
             items=["Treinar modelo novo", "Treinar modelo existente", "Usar modelo existente"],
@@ -152,9 +134,14 @@ class TensorflowClassificationPlugin(BasePlugin):
         self.btn_listar_modelos = SimpleGhostButton("Listar Modelos")
         self.btn_listar_modelos.setVisible(False)
         grp_mod.group_layout.addWidget(self.btn_listar_modelos, alignment=Qt.AlignmentFlag.AlignLeft)
-        self.chk_salvar_modelo = QCheckBox("Salvar modelo (.keras)")
-        self.chk_salvar_modelo.setChecked(True)
-        grp_mod.group_layout.addWidget(self.chk_salvar_modelo)
+        self.grid_salvar_modelo = GridCheckBox({
+            "save_model": {
+                "label": "Salvar modelo (.keras)",
+                "description": "Salvar o modelo treinado em disco (.keras)",
+                "default": True,
+            },
+        }, num_columns=1)
+        grp_mod.group_layout.addWidget(self.grid_salvar_modelo)
         self.row_modelo_path = SimpleSelector(
             "Caminho",
             "resultado/modelo_ui.keras",
@@ -171,7 +158,6 @@ class TensorflowClassificationPlugin(BasePlugin):
         # BOTTOM ROW — Shapefiles | Rede Neural & Treinamento
         # =====================================================================
 
-        # ---- (col 0) - SHAPEFILES ----
         grp_shp = GroupPainel("Shapefiles por Classe")
         self.table_shp = ItemTable(
             columns=[
@@ -186,87 +172,125 @@ class TensorflowClassificationPlugin(BasePlugin):
         grp_shp.group_layout.addWidget(self.btn_add_shp, alignment=Qt.AlignmentFlag.AlignLeft)
         grp_shp.group_layout.addStretch()
 
-        # ---- (col 1) - REDE NEURAL & TREINAMENTO ----
-        grp_rede = GroupPainel("Rede Neural & Treinamento", layout_type=QGridLayout)
-        lr = grp_rede.group_layout
+        # =====================================================================
+        # REDE NEURAL & TREINAMENTO — composto por widgets genéricos
+        # =====================================================================
 
-        # Row 0: Camadas Ocultas + Ativacao
-        lr.addWidget(QLabel("Camadas:"), 0, 0)
-        self.edit_camadas = QLineEdit("128, 64, 32")
-        self.edit_camadas.setPlaceholderText("ex: 256, 128, 64")
-        lr.addWidget(self.edit_camadas, 0, 1)
-        lr.addWidget(QLabel("Ativacao:"), 0, 2)
-        self.combo_ativacao = QComboBox()
-        self.combo_ativacao.addItems(["relu", "elu", "tanh", "sigmoid", "linear"])
-        self.combo_ativacao.setCurrentText("relu")
-        lr.addWidget(self.combo_ativacao, 0, 3)
+        grp_rede = GroupPainel("Rede Neural & Treinamento")
 
-        # Row 1: Dropout + Epocas
-        lr.addWidget(QLabel("Dropout:"), 1, 0)
-        self.spin_dropout = QDoubleSpinBox()
-        self.spin_dropout.setRange(0.0, 0.9)
-        self.spin_dropout.setSingleStep(0.05)
-        self.spin_dropout.setDecimals(2)
-        self.spin_dropout.setValue(0.1)
-        lr.addWidget(self.spin_dropout, 1, 1)
-        lr.addWidget(QLabel("Epocas:"), 1, 2)
-        self.spin_epochs = QSpinBox()
-        self.spin_epochs.setRange(1, 10000)
-        self.spin_epochs.setValue(150)
-        lr.addWidget(self.spin_epochs, 1, 3)
+        # Camadas (GridLineEdit — 1 campo genérico)
+        self.grid_camadas = GridLineEdit({
+            "camadas": {
+                "label": "Camadas:",
+                "default": "128, 64, 32",
+                "placeholder": "ex: 256, 128, 64",
+                "description": "Neurônios por camada oculta, separados por vírgula",
+            },
+        })
+        grp_rede.group_layout.addWidget(self.grid_camadas)
 
-        # Row 2: Batch Treino + Batch Pred
-        lr.addWidget(QLabel("Batch Treino:"), 2, 0)
-        self.spin_batch_train = QSpinBox()
-        self.spin_batch_train.setRange(1, 8192)
-        self.spin_batch_train.setValue(64)
-        lr.addWidget(self.spin_batch_train, 2, 1)
-        lr.addWidget(QLabel("Batch Pred.:"), 2, 2)
-        self.spin_batch_pred = QSpinBox()
-        self.spin_batch_pred.setRange(1, 65536)
-        self.spin_batch_pred.setValue(4096)
-        lr.addWidget(self.spin_batch_pred, 2, 3)
+        # Ativação (SimpleComboBox)
+        self.combo_ativacao = SimpleComboBox(
+            items=["relu", "elu", "tanh", "sigmoid", "linear"],
+            label="Ativacao:",
+        )
+        self.combo_ativacao.current_value = "relu"
+        grp_rede.group_layout.addWidget(self.combo_ativacao)
 
-        # Row 3: Test Size + Random State
-        lr.addWidget(QLabel("Test Size:"), 3, 0)
-        self.spin_test_size = QDoubleSpinBox()
-        self.spin_test_size.setRange(0.01, 0.99)
-        self.spin_test_size.setSingleStep(0.01)
-        self.spin_test_size.setDecimals(2)
-        self.spin_test_size.setValue(0.30)
-        lr.addWidget(self.spin_test_size, 3, 1)
-        lr.addWidget(QLabel("Random State:"), 3, 2)
-        self.spin_random = QSpinBox()
-        self.spin_random.setRange(0, 999999)
-        self.spin_random.setValue(42)
-        lr.addWidget(self.spin_random, 3, 3)
+        # Campos numéricos (GridDoubleSpinBox) em 2 colunas
+        self.grid_numericos = GridDoubleSpinBox({
+            "dropout": {
+                "label": "Dropout:",
+                "decimal": 2,
+                "default": 0.10,
+                "min": 0.0,
+                "max": 0.9,
+                "step": 0.05,
+                "description": "Taxa de dropout para regularização",
+            },
+            "epochs": {
+                "label": "Epocas:",
+                "decimal": 0,
+                "default": 150,
+                "min": 1,
+                "max": 10000,
+                "step": 1,
+                "description": "Número de épocas de treinamento",
+            },
+            "batch_train": {
+                "label": "Batch Treino:",
+                "decimal": 0,
+                "default": 64,
+                "min": 1,
+                "max": 8192,
+                "step": 1,
+                "description": "Tamanho do lote para treinamento",
+            },
+            "batch_pred": {
+                "label": "Batch Pred.:",
+                "decimal": 0,
+                "default": 4096,
+                "min": 1,
+                "max": 65536,
+                "step": 1,
+                "description": "Tamanho do lote para predição",
+            },
+            "test_size": {
+                "label": "Test Size:",
+                "decimal": 2,
+                "default": 0.30,
+                "min": 0.01,
+                "max": 0.99,
+                "step": 0.01,
+                "description": "Proporção dos dados para validação",
+            },
+            "random_state": {
+                "label": "Random State:",
+                "decimal": 0,
+                "default": 42,
+                "min": 0,
+                "max": 999999,
+                "step": 1,
+                "description": "Semente aleatória para reprodutibilidade",
+            },
+            "ram_pct": {
+                "label": "RAM:",
+                "decimal": 0,
+                "default": 70,
+                "min": 10,
+                "max": 95,
+                "step": 1,
+                "suffix": "%",
+                "description": "Limite percentual de RAM utilizável",
+            },
+            "nodata_limiar": {
+                "label": "Limiar Nodata:",
+                "decimal": 0,
+                "default": 250,
+                "min": 0,
+                "max": 255,
+                "step": 1,
+                "description": "Valor de limiar para considerar nodata",
+            },
+        }, columns=2)
+        grp_rede.group_layout.addWidget(self.grid_numericos)
 
-        # Row 4: RAM % + Mascara + Nodata
-        lr.addWidget(QLabel("RAM:"), 4, 0)
-        self.spin_ram = QSpinBox()
-        self.spin_ram.setRange(10, 95)
-        self.spin_ram.setValue(70)
-        self.spin_ram.setSuffix(" %")
-        lr.addWidget(self.spin_ram, 4, 1)
-        self.chk_mascara = QCheckBox("Mascara alpha")
-        self.chk_mascara.setChecked(True)
-        lr.addWidget(self.chk_mascara, 4, 2)
-        self.chk_zero_nodata = QCheckBox("0 = nodata")
-        self.chk_zero_nodata.setChecked(False)
-        lr.addWidget(self.chk_zero_nodata, 4, 3)
+        # Checkboxes (GridCheckBox)
+        self.grid_checkboxes = GridCheckBox({
+            "use_mask": {
+                "label": "Mascara alpha",
+                "description": "Aplicar máscara alpha na saída",
+                "default": True,
+            },
+            "zero_nodata": {
+                "label": "0 = nodata",
+                "description": "Considerar valor 0 como nodata",
+                "default": False,
+            },
+        }, num_columns=2)
+        grp_rede.group_layout.addWidget(self.grid_checkboxes)
 
-        # Row 5: Limiar nodata
-        lr.addWidget(QLabel("Limiar Nodata:"), 5, 0)
-        self.spin_alpha = QSpinBox()
-        self.spin_alpha.setRange(0, 255)
-        self.spin_alpha.setValue(250)
-        lr.addWidget(self.spin_alpha, 5, 1)
-
-        lr.setColumnStretch(0, 0)
-        lr.setColumnStretch(1, 1)
-        lr.setColumnStretch(2, 0)
-        lr.setColumnStretch(3, 1)
-        lr.setRowStretch(5, 1)
+        grp_rede.group_layout.addStretch()
 
         bottom_row = GridGroupPainel(grp_shp, grp_rede)
         main_layout.addWidget(bottom_row)
@@ -307,18 +331,18 @@ class TensorflowClassificationPlugin(BasePlugin):
                     self._sel_img_saida.btn,
                 ],
             ),
-            ("hidden_layers", [self.edit_camadas]),
+            ("hidden_layers", [self.grid_camadas]),
             ("activation", [self.combo_ativacao]),
-            ("dropout_rate", [self.spin_dropout]),
-            ("epochs", [self.spin_epochs]),
-            ("batch_size_train", [self.spin_batch_train]),
-            ("batch_size_pred", [self.spin_batch_pred]),
-            ("test_size", [self.spin_test_size]),
-            ("random_state", [self.spin_random]),
-            ("ram_limit_pct", [self.spin_ram]),
-            ("use_mask", [self.chk_mascara]),
-            ("zero_as_nodata", [self.chk_zero_nodata]),
-            ("nodata_threshold", [self.spin_alpha]),
+            ("dropout_rate", [self.grid_numericos]),
+            ("epochs", [self.grid_numericos]),
+            ("batch_size_train", [self.grid_numericos]),
+            ("batch_size_pred", [self.grid_numericos]),
+            ("test_size", [self.grid_numericos]),
+            ("random_state", [self.grid_numericos]),
+            ("ram_limit_pct", [self.grid_numericos]),
+            ("use_mask", [self.grid_checkboxes]),
+            ("zero_as_nodata", [self.grid_checkboxes]),
+            ("nodata_threshold", [self.grid_numericos]),
             ("model_action", [self.combo_model_action]),
             (
                 "existing_model_path",
@@ -328,7 +352,7 @@ class TensorflowClassificationPlugin(BasePlugin):
                     self.row_modelo_existente.btn,
                 ],
             ),
-            ("save_model", [self.chk_salvar_modelo]),
+            ("save_model", [self.grid_salvar_modelo]),
             (
                 "model_path",
                 [
@@ -353,3 +377,57 @@ class TensorflowClassificationPlugin(BasePlugin):
     def add_shp_row_ui(self, path: str, classe: int, legenda: str = ""):
         """Adiciona uma linha na tabela de shapefiles (chamado pelo controller)."""
         self.table_shp.add_row(path, classe, legenda)
+
+    # ─── Exposição de campos para compatibilidade com o controller ─────
+
+    @property
+    def edit_camadas(self):
+        """Compatibilidade: QLineEdit de camadas."""
+        return self.grid_camadas.widget("camadas")
+
+    @property
+    def spin_dropout(self):
+        """Compatibilidade: spin de dropout."""
+        return self.grid_numericos.widget("dropout")
+
+    @property
+    def spin_epochs(self):
+        return self.grid_numericos.widget("epochs")
+
+    @property
+    def spin_batch_train(self):
+        return self.grid_numericos.widget("batch_train")
+
+    @property
+    def spin_batch_pred(self):
+        return self.grid_numericos.widget("batch_pred")
+
+    @property
+    def spin_test_size(self):
+        return self.grid_numericos.widget("test_size")
+
+    @property
+    def spin_random(self):
+        return self.grid_numericos.widget("random_state")
+
+    @property
+    def spin_ram(self):
+        return self.grid_numericos.widget("ram_pct")
+
+    @property
+    def spin_alpha(self):
+        return self.grid_numericos.widget("nodata_limiar")
+
+    @property
+    def chk_mascara(self):
+        """Compatibilidade: QCheckBox de máscara."""
+        return self.grid_checkboxes.widget("use_mask")
+
+    @property
+    def chk_zero_nodata(self):
+        return self.grid_checkboxes.widget("zero_nodata")
+
+    @property
+    def chk_salvar_modelo(self):
+        """Compatibilidade: QCheckBox de salvar modelo."""
+        return self.grid_salvar_modelo.widget("save_model")
