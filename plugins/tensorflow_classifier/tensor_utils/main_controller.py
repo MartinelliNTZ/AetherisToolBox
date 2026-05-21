@@ -3,11 +3,14 @@
 Controlador Principal para a UI do Classificador Raster Neural v6
 =================================================================
 Logica de controle separada da view (MainWindow).
+Comunica logs via SignalManager.console_message e
+progresso via SignalManager.progress_update.
 """
+
+from __future__ import annotations
 
 import os
 
-# Supressao de warnings do TensorFlow - deve ser configurado antes dos imports
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
 os.environ["TF_CPP_MAX_LOG_LEVEL"] = "3"
@@ -17,18 +20,19 @@ import html
 from pathlib import Path
 from datetime import datetime, timedelta
 from time import perf_counter
+from typing import Dict, Any
 
 import threading
-from PySide6.QtCore import Qt, QThread, Signal, QTimer
-from PySide6.QtGui import QDesktopServices
-from PySide6.QtWidgets import QTableWidgetItem, QLineEdit, QSpinBox, QPushButton, QFileDialog, QInputDialog
+from PySide6.QtCore import QThread, Signal, QTimer
+from PySide6.QtWidgets import QInputDialog
+from utils.ExplorerUtils import ExplorerUtils
 from utils.MessageBox import MessageBox
 
 from utils.Preferences import Preferences
 from core.enum.ToolKey import ToolKey
-from resources.styles.AppStyles import AppStyles
-from plugins.tensorflow_classifier.classifier_pipeline import ClassifierPipeline
-from plugins.tensorflow_classifier.pipeline_config import PipelineConfig, PipelineConfigError
+from core.manager.SignalManager import SignalManager
+from plugins.tensorflow_classifier.tensor_utils.classifier_pipeline import ClassifierPipeline
+from plugins.tensorflow_classifier.tensor_utils.pipeline_config import PipelineConfig, PipelineConfigError
 
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 warnings.filterwarnings("ignore", category=FutureWarning)
@@ -86,13 +90,29 @@ class MainController:
         self._last_output_tif_path: Path | None = None
         self._last_report_html_path: Path | None = None
         self._cancel_requested = False
+        self._signals = SignalManager.instance()
 
         self._connect_signals()
+        print("> Sinais conectados no MainController")
+        print(f"{self.view.btn_add_shp}")
         self._init_defaults()
         self.loadpreferences()
         self._update_resumo()
 
     def _connect_signals(self):
+        from core.config.LogUtils import LogUtils
+        logger = LogUtils(tool=ToolKey.CLASSIFIER.value, class_name="MainController")
+        logger.info("Iniciando conexao de sinais", code="SIG_CONNECT_START")
+        logger.debug(f"view type = {type(self.view).__name__}", code="SIG_VIEW_TYPE")
+        logger.debug(f"view tem _btns = {hasattr(self.view, '_btns')}", code="SIG_HAS_BTNS")
+        if hasattr(self.view, '_btns'):
+            logger.debug(f"_btns keys: {list(self.view._btns._buttons.keys())}", code="SIG_BTNS_KEYS")
+        logger.debug(f"view tem btn_add_shp = {hasattr(self.view, 'btn_add_shp')}", code="SIG_HAS_ADD_SHP")
+        if hasattr(self.view, 'btn_add_shp'):
+            logger.debug(f"btn_add_shp type = {type(self.view.btn_add_shp).__name__}", code="SIG_ADD_SHP_TYPE")
+        logger.debug(f"view tem btn_listar_modelos = {hasattr(self.view, 'btn_listar_modelos')}", code="SIG_HAS_LISTAR")
+        logger.debug(f"view tem combo_model_action = {hasattr(self.view, 'combo_model_action')}", code="SIG_HAS_COMBO")
+
         self.view._btns["load_cfg"].clicked.connect(self._on_load_cfg)
         self.view._btns["save_cfg"].clicked.connect(self._on_save_cfg)
         self.view._btns["reset_cfg"].clicked.connect(self._on_reset_cfg)
@@ -101,8 +121,7 @@ class MainController:
         self.view.btn_add_shp.clicked.connect(self._on_add_shp)
         self.view.combo_model_action.currentTextChanged.connect(self._on_model_action_changed)
         self.view.btn_listar_modelos.clicked.connect(self._on_listar_modelos)
-        self.view.btn_clear_console.clicked.connect(self._on_clear_console)
-        self.view.txt_log.anchorClicked.connect(self._on_log_link_clicked)
+        logger.info("Conexao de sinais finalizada", code="SIG_CONNECT_DONE")
 
         widgets_bind = [
             self.view.row_img_treino.edit,
@@ -150,58 +169,36 @@ class MainController:
             self._add_shp_row(p, c, legenda)
 
     def _add_shp_row(self, path: str, classe: int, legenda: str = ""):
-        row = self.view.table_shp.rowCount()
-        self.view.table_shp.insertRow(row)
+        self.view.table_shp.add_row(path, classe, legenda)
 
-        item_path = QTableWidgetItem(path)
-        item_path.setFlags(item_path.flags() & ~Qt.ItemFlag.ItemIsEditable)
-        self.view.table_shp.setItem(row, 0, item_path)
-
-        spin_cls = QSpinBox()
-        spin_cls.setRange(0, 999)
-        spin_cls.setValue(classe)
-        spin_cls.setStyleSheet("background-color: transparent; border: none;")
-        spin_cls.valueChanged.connect(self.savepreferences)
-        self.view.table_shp.setCellWidget(row, 1, spin_cls)
-
-        edit_legenda = QLineEdit(legenda)
-        edit_legenda.setPlaceholderText("Legenda da classe...")
-        edit_legenda.textChanged.connect(self.savepreferences)
-        self.view.table_shp.setCellWidget(row, 2, edit_legenda)
-
-        btn_rem = QPushButton("Remover")
-        btn_rem.setObjectName("btn_danger")
-        btn_rem.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn_rem.clicked.connect(lambda _, r=row: self._remove_shp_row(r))
-        self.view.table_shp.setCellWidget(row, 3, btn_rem)
-
-    def _remove_shp_row(self, row: int):
-        self.view.table_shp.removeRow(row)
-        for r in range(self.view.table_shp.rowCount()):
-            btn = self.view.table_shp.cellWidget(r, 3)
-            if btn:
-                try:
-                    btn.clicked.disconnect()
-                except Exception:
-                    pass
-                btn.clicked.connect(lambda _, nr=r: self._remove_shp_row(nr))
+    def _on_shp_row_removed(self):
         self._update_resumo()
         self.savepreferences()
 
     def _on_add_shp(self):
-        path, _ = QFileDialog.getOpenFileName(
-            self.view, "Adicionar Shapefile", "", "Shapefile (*.shp)"
-        )
+        print("> _on_add_shp: INICIO - botao + Adicionar Shapefile clicado")    
+        self._log("[DEBUG] _on_add_shp: INICIO - botao + Adicionar Shapefile clicado")
+        self._log(f"[DEBUG] _on_add_shp: self.view type={type(self.view).__name__}")
+        self._log(f"[DEBUG] _on_add_shp: self.view.btn_add_shp existe={hasattr(self.view, 'btn_add_shp')}")
+        self._log(f"[DEBUG] _on_add_shp: self.view.btn_add_shp text={self.view.btn_add_shp.text() if hasattr(self.view, 'btn_add_shp') else 'N/A'}")
+        path = ExplorerUtils.open_file("Adicionar Shapefile", "", "Shapefile (*.shp)", self.view)
+        self._log(f"[DEBUG] _on_add_shp: ExplorerUtils.open_file retornou path={path!r}")
         if path:
-            max_cls = -1
-            for r in range(self.view.table_shp.rowCount()):
-                w = self.view.table_shp.cellWidget(r, 1)
-                if isinstance(w, QSpinBox):
-                    max_cls = max(max_cls, w.value())
+            self._log(f"[DEBUG] _on_add_shp: path valido, chamando all_rows() da table_shp")
+            data = self.view.table_shp.all_rows()
+            self._log(f"[DEBUG] _on_add_shp: all_rows() retornou {len(data)} linhas")
+            max_cls = max((d.get("col_1", -1) for d in data), default=-1)
+            self._log(f"[DEBUG] _on_add_shp: max_cls calculado = {max_cls}")
             default_legend = Path(path).stem
+            self._log(f"[DEBUG] _on_add_shp: chamando _add_shp_row(path={path}, classe={max_cls + 1}, legenda={default_legend})")
             self._add_shp_row(path, max_cls + 1, default_legend)
+            self._log("[DEBUG] _on_add_shp: _add_shp_row executado, chamando _update_resumo")
             self._update_resumo()
+            self._log("[DEBUG] _on_add_shp: _update_resumo executado, chamando savepreferences")
             self.savepreferences()
+            self._log("[DEBUG] _on_add_shp: FINALIZADO com sucesso")
+        else:
+            self._log("[DEBUG] _on_add_shp: path vazio ou None - usuario cancelou a selecao")
 
     def _on_model_action_changed(self):
         action = self.view.combo_model_action.currentText()
@@ -213,40 +210,23 @@ class MainController:
     def _on_listar_modelos(self):
         model_root = Path("models")
         if not model_root.exists():
-            MessageBox.show_info(
-                "Pasta 'models' nao encontrada.",
-                title="Modelos",
-            )
+            MessageBox.show_info("Pasta 'models' nao encontrada.", title="Modelos")
             return
-
         model_files = [p for p in model_root.rglob("*.keras") if p.is_file()]
         if not model_files:
-            MessageBox.show_info(
-                "Nenhum modelo .keras encontrado em 'models'.",
-                title="Modelos",
-            )
+            MessageBox.show_info("Nenhum modelo .keras encontrado em 'models'.", title="Modelos")
             return
-
         model_files.sort(key=lambda p: p.stat().st_mtime, reverse=True)
         options = []
         for p in model_files:
             modified_at = datetime.fromtimestamp(p.stat().st_mtime).strftime("%Y-%m-%d %H:%M:%S")
             options.append(f"{p} | modificado: {modified_at}")
-
-        selected, ok = QInputDialog.getItem(
-            self.view,
-            "Selecionar Modelo",
-            "Modelos (mais recentes primeiro):",
-            options,
-            0,
-            False,
-        )
+        selected, ok = QInputDialog.getItem(self.view, "Selecionar Modelo", "Modelos (mais recentes primeiro):", options, 0, False)
         if not ok or not selected:
             return
-
         selected_path = selected.split(" | modificado: ")[0]
         self.view.row_modelo_existente.edit.setText(selected_path)
-        self._append_log(f"> Modelo selecionado: {selected_path}")
+        self._log(f"> Modelo selecionado: {selected_path}")
         self.savepreferences()
 
     def _update_resumo(self):
@@ -262,7 +242,6 @@ class MainController:
         ram = self.view.spin_ram.value()
         mask = "Sim" if self.view.chk_mascara.isChecked() else "Nao"
         zero_nodata = "Sim" if self.view.chk_zero_nodata.isChecked() else "Nao"
-
         model_action = self.view.combo_model_action.currentText()
         resumo = (
             f"<b>Imagem Treino:</b> {treino}<br>"
@@ -280,13 +259,10 @@ class MainController:
         )
         self.view.lbl_resumo.setHtml(resumo)
 
-    def _on_clear_console(self):
-        self.view.txt_log.clear()
-
     def _on_cancelar(self):
         if self.worker is None or not self.worker.isRunning():
             return
-        self._append_log("> Cancelamento solicitado pelo usuario. Aguardando parada segura...")
+        self._log("> Cancelamento solicitado pelo usuario. Aguardando parada segura...")
         self._cancel_requested = True
         self.worker.cancel()
         self.view._btns.set_enabled("cancelar", False)
@@ -294,75 +270,64 @@ class MainController:
 
     def _on_executar(self):
         if self.worker is not None and self.worker.isRunning():
-            self._append_log("> O pipeline ja esta em execucao")
+            self._log("> O pipeline ja esta em execucao")
             return
         self._cancel_requested = False
-
         pipeline_data = self.get_pipeline_config()
         try:
             config = PipelineConfig.from_dict(pipeline_data)
         except PipelineConfigError as exc:
-            self._append_log(f"> Configuracao invalida: {exc}")
+            self._log(f"> Configuracao invalida: {exc}")
             return
-
         self.savepreferences()
         self._prepare_run_metrics(config)
         self._log_eta_estimado()
         self._last_progress_message = "Iniciando pipeline..."
-        self._append_log("> Pipeline iniciado")
+        self._log("> Pipeline iniciado")
         self._set_running_state(True)
         self.worker = PipelineWorker(config)
-        self.worker.log.connect(self._append_log)
+        self.worker.log.connect(self._on_worker_log)
         self.worker.progress.connect(self._on_progress_update)
         self.worker.finished.connect(self._on_pipeline_finished)
         self.worker.error.connect(self._on_pipeline_error)
         self.worker.start()
 
     def _on_load_cfg(self):
-        path, _ = QFileDialog.getOpenFileName(
-            self.view, "Carregar Configuracao", "", "JSON (*.json)"
-        )
+        path = ExplorerUtils.open_file("Carregar Configuracao", "", "JSON (*.json)", self.view)
         if not path:
             return
         try:
             config = PipelineConfig.load(Path(path))
             self._populate_fields(config)
-            self._append_log(f"> Configuracao carregada: {path}")
+            self._log(f"> Configuracao carregada: {path}")
             self.savepreferences()
         except Exception as exc:
-            self._append_log(f"> Falha ao carregar configuracao: {exc}")
+            self._log(f"> Falha ao carregar configuracao: {exc}")
 
     def _on_save_cfg(self):
-        path, _ = QFileDialog.getSaveFileName(
-            self.view, "Salvar Configuracao", "config_ui.json", "JSON (*.json)"
-        )
+        path = ExplorerUtils.save_file("Salvar Configuracao", "config_ui.json", "JSON (*.json)", self.view)
         if not path:
             return
         try:
             config = PipelineConfig.from_dict(self.get_pipeline_config())
             config.save(Path(path))
-            self._append_log(f"> Configuracao salva: {path}")
+            self._log(f"> Configuracao salva: {path}")
         except Exception as exc:
-            self._append_log(f"> Falha ao salvar configuracao: {exc}")
+            self._log(f"> Falha ao salvar configuracao: {exc}")
 
     def _on_reset_cfg(self):
         if self.worker is not None and self.worker.isRunning():
-            self._append_log("> Nao e possivel restaurar padrao durante execucao")
+            self._log("> Nao e possivel restaurar padrao durante execucao")
             return
-
         confirm = MessageBox.show_question(
             "Isso vai zerar o preferences.json e restaurar os valores padrao. Deseja continuar?",
-            title="Restaurar Padrao",
-            buttons=MessageBox.YES_NO,
-            default_button=MessageBox.NO,
+            title="Restaurar Padrao", buttons=MessageBox.YES_NO, default_button=MessageBox.NO,
         )
         if confirm != MessageBox.YES:
             return
-
         self._loading_preferences = True
         self._data = {}
         Preferences.save_tool_prefs(ToolKey.CLASSIFIER, self._data)
-
         self.view.row_img_treino.edit.setText("dados/imagemTreino.tif")
         self.view.row_img_classif.edit.setText("dados/imagemCompleta.tif")
         self.view.row_img_saida.edit.setText("resultado/mapa_classificado_ui.tif")
@@ -382,91 +347,33 @@ class MainController:
         self.view.row_modelo_path.edit.setText("resultado/modelo_ui.keras")
         self.view.combo_model_action.setCurrentText("Treinar modelo novo")
         self.view.row_modelo_existente.edit.setText("")
-
         self.view.table_shp.setRowCount(0)
         self._init_defaults()
         self._on_model_action_changed()
         self._update_resumo()
-
         self._loading_preferences = False
         self.savepreferences()
-        self._append_log("> Configuracoes restauradas para o padrao")
+        self._log("> Configuracoes restauradas para o padrao")
 
-    def _append_log(self, message: str) -> None:
+    def _log(self, message: str) -> None:
         text = str(message)
         lower = text.lower()
-        report_prefix = "report html salvo em "
-
-        if lower.startswith(report_prefix):
-            self._last_report_html_path = Path(text[len(report_prefix):].strip())
-
+        if lower.startswith("report html salvo em "):
+            self._last_report_html_path = Path(text[len("report html salvo em "):].strip())
         if "treinando modelo" in lower:
             self._last_progress_message = "Treinando"
             self._refresh_time_based_progress()
         elif "classificando imagem completa" in lower:
             self._last_progress_message = "Classificando"
             self._refresh_time_based_progress()
-
+        from datetime import datetime
         timestamp = datetime.now().strftime("%H:%M:%S")
-        self.view.txt_log.append(self._format_log_html(text, timestamp))
-
-    def _format_log_html(self, text: str, timestamp: str = "") -> str:
         safe = html.escape(text)
-        lower = text.lower()
+        msg = f"<span style='color:#909090; font-family:Consolas,monospace; font-size:11px;'>[{timestamp}]</span> <span style='color:#E0E0E0; font-family:Consolas,monospace; font-size:12px;'>{safe}</span>"
+        self._signals.console_message.emit(msg)
 
-        color = "#CFCFCF"  # default
-        weight = "400"
-        ts_color = "#606060"
-
-        if text.startswith("> ETA estimado:"):
-            color = "#D4A853"
-            weight = "700"
-            ts_color = "#8A6E2F"
-        elif text.startswith("> ERRO:"):
-            color = "#FF6B6B"
-            weight = "700"
-            ts_color = "#CC4444"
-        elif text.startswith(">"):
-            color = "#8EC5FF"
-            weight = "600"
-            ts_color = "#5A8DBF"
-        elif "treinando modelo" in lower or "classificando imagem completa" in lower:
-            color = "#D4A853"
-            weight = "700"
-            ts_color = "#8A6E2F"
-        elif lower.startswith("epoch "):
-            color = "#7EE787"
-            weight = "500"
-            ts_color = "#4A8F50"
-        elif lower.startswith("rasterpredictor:"):
-            color = "#56D4DD"
-            weight = "600"
-            ts_color = "#3A9AA0"
-        elif lower.startswith("chunk "):
-            color = "#F2CC60"
-            weight = "500"
-            ts_color = "#A88B30"
-        elif "salvando modelo" in lower or "info de execucao salva" in lower:
-            color = "#CFA8FF"
-            weight = "500"
-            ts_color = "#8A6BBF"
-        elif "hardware:" in lower or "avaliando modelo" in lower:
-            color = "#56D4DD"
-            weight = "500"
-            ts_color = "#3A9AA0"
-
-        if timestamp:
-            return (
-                f"<span style='color:{ts_color}; font-family:Consolas, \"Courier New\", monospace; "
-                f"font-size:11px; font-weight:500;'>[{timestamp}]</span> "
-                f"<span style='color:{color}; font-family:Consolas, \"Courier New\", monospace; "
-                f"font-size:12px; font-weight:{weight};'>{safe}</span>"
-            )
-
-        return (
-            f"<span style='color:{color}; font-family:Consolas, \"Courier New\", monospace; "
-            f"font-size:12px; font-weight:{weight};'>{safe}</span>"
-        )
+    def _on_worker_log(self, message: str) -> None:
+        self._log(message)
 
     def _set_running_state(self, running: bool) -> None:
         self.view._btns.set_enabled("executar", not running)
@@ -478,59 +385,43 @@ class MainController:
             self.view._btns["cancelar"].setText("CANCELAR")
             if not self._progress_timer.isActive():
                 self._progress_timer.start()
-            if hasattr(self.view, "loader_overlay"):
-                self.view.loader_overlay.set_progress(0, self._format_progress_message("Iniciando pipeline..."))
-                self.view.loader_overlay.show_loader()
-            self.view.badge_status.setText("EXECUTANDO")
-            self.view.badge_status.setStyleSheet(AppStyles.badge_running())
-            # Switch to Console tab to show logs
-            if hasattr(self.view, "switch_to_console"):
-                self.view.switch_to_console()
+            if hasattr(self.view, "page"):
+                self.view.page.set_badge(self.view.page.RUNNING)
+            self._signals.progress_update.emit(1.0)
         else:
             self._cancel_requested = False
             if self._progress_timer.isActive():
                 self._progress_timer.stop()
-            if hasattr(self.view, "loader_overlay"):
-                self.view.loader_overlay.hide_loader()
-            self.view.badge_status.setText("PRONTA")
-            self.view.badge_status.setStyleSheet(AppStyles.badge_success())
+            if hasattr(self.view, "page"):
+                self.view.page.set_badge(self.view.page.PRONTA)
+            self._signals.progress_update.emit(100.0)
 
     def _on_progress_update(self, percent: int, message: str) -> None:
         self._last_progress_message = message or self._last_progress_message
         self._refresh_time_based_progress()
 
     def _refresh_time_based_progress(self) -> None:
-        display_percent = self._time_based_progress_percent(float(self.view.progress.value()))
-        display_message = self._format_progress_message(self._last_progress_message)
-        self.view.progress.setValue(int(round(display_percent)))
-        self.view.progress.setFormat(f" {display_percent:.2f}% - {display_message} ")
-        if hasattr(self.view, "loader_overlay"):
-            self.view.loader_overlay.set_progress(display_percent, display_message)
+        display_percent = self._time_based_progress_percent(0.0)
+        self._signals.progress_update.emit(display_percent / 100.0)
 
     def _on_pipeline_finished(self, message: str) -> None:
         is_cancel = self._cancel_requested or "cancelado" in str(message).lower()
         self._finalize_run_metrics(success=not is_cancel)
-        self._append_log(f"> {message}")
+        self._log(f"> {message}")
         if not is_cancel:
             self._append_output_links()
         self._set_running_state(False)
-        if is_cancel:
-            self.view.badge_status.setText("CANCELADO")
-            self.view.badge_status.setStyleSheet(AppStyles.badge_canceled())
-        self.view.progress.setValue(100)
-        self.view.progress.setFormat(" 100% - concluido " if not is_cancel else " 100% - cancelado ")
-        if hasattr(self.view, "loader_overlay"):
-            self.view.loader_overlay.set_progress(100, "Concluido" if not is_cancel else "Cancelado")
-            self.view.loader_overlay.hide_loader()
+        if is_cancel and hasattr(self.view, "page"):
+            self.view.page.set_badge(self.view.page.CANCELED)
+        self._signals.progress_update.emit(100.0)
 
     def _on_pipeline_error(self, message: str) -> None:
         self._finalize_run_metrics(success=False)
-        self._append_log(f"> ERRO: {message}")
+        self._log(f"> ERRO: {message}")
         self._set_running_state(False)
-        if hasattr(self.view, "loader_overlay"):
-            self.view.loader_overlay.hide_loader()
-        self.view.badge_status.setText("ERRO")
-        self.view.badge_status.setStyleSheet(AppStyles.badge_error())
+        if hasattr(self.view, "page"):
+            self.view.page.set_badge(self.view.page.ERROR)
+        self._signals.progress_update.emit(0.0)
 
     def _populate_fields(self, config: PipelineConfig) -> None:
         self.view.row_img_treino.edit.setText(str(config.training_image))
@@ -552,18 +443,15 @@ class MainController:
         self.view.row_modelo_path.edit.setText(str(config.model_path))
         self.view.combo_model_action.setCurrentText(config.model_action)
         self.view.row_modelo_existente.edit.setText(str(config.existing_model_path or ""))
-
         self.view.table_shp.setRowCount(0)
         for entry in config.shapefiles:
             self._add_shp_row(str(entry.path), int(entry.class_id), str(entry.legend or ""))
-
         self._on_model_action_changed()
         self.savepreferences()
 
     def loadpreferences(self) -> None:
         self._loading_preferences = True
         self._data = Preferences.load_tool_prefs(ToolKey.CLASSIFIER)
-
         self.view.row_img_treino.edit.setText(str(self._data.get("training_image", self.view.row_img_treino.path())))
         self.view.row_img_classif.edit.setText(str(self._data.get("classification_image", self.view.row_img_classif.path())))
         self.view.row_img_saida.edit.setText(str(self._data.get("output", self.view.row_img_saida.path())))
@@ -578,21 +466,17 @@ class MainController:
         self.view.spin_ram.setValue(int(self._data.get("ram_limit_pct", self.view.spin_ram.value())))
         self.view.chk_mascara.setChecked(bool(self._data.get("use_mask", self.view.chk_mascara.isChecked())))
         self.view.chk_zero_nodata.setChecked(bool(self._data.get("zero_as_nodata", self.view.chk_zero_nodata.isChecked())))
-        self.view.spin_alpha.setValue(
-            int(self._data.get("nodata_threshold", self._data.get("alpha_threshold", self.view.spin_alpha.value())))
-        )
+        self.view.spin_alpha.setValue(int(self._data.get("nodata_threshold", self._data.get("alpha_threshold", self.view.spin_alpha.value()))))
         self.view.chk_salvar_modelo.setChecked(bool(self._data.get("save_model", self.view.chk_salvar_modelo.isChecked())))
         self.view.row_modelo_path.edit.setText(str(self._data.get("model_path", self.view.row_modelo_path.path())))
         self.view.combo_model_action.setCurrentText(str(self._data.get("model_action", self.view.combo_model_action.currentText())))
         self.view.row_modelo_existente.edit.setText(str(self._data.get("existing_model_path", self.view.row_modelo_existente.path())))
-
         shapefiles = self._data.get("shapefiles", [])
         if isinstance(shapefiles, list) and shapefiles:
             self.view.table_shp.setRowCount(0)
             for item in shapefiles:
                 if isinstance(item, dict) and "path" in item and "class_id" in item:
                     self._add_shp_row(str(item["path"]), int(item["class_id"]), str(item.get("legend", "")))
-
         self._on_model_action_changed()
         self._update_resumo()
         self._loading_preferences = False
@@ -608,7 +492,7 @@ class MainController:
         pixels = 0.0
         gb = 0.0
         try:
-            from plugins.tensorflow_classifier.raster_source import RasterSource
+            from plugins.tensorflow_classifier.tensor_utils.raster_source import RasterSource
             raster = RasterSource(path)
             pixels = float(raster.width * raster.height)
         except Exception:
@@ -621,7 +505,6 @@ class MainController:
 
     @staticmethod
     def _count_classes(config: PipelineConfig) -> int:
-        """Retorna o numero de classes distintas nos shapefiles."""
         unique_classes = set()
         for entry in config.shapefiles:
             unique_classes.add(entry.class_id)
@@ -642,13 +525,7 @@ class MainController:
         self._run_estimated_seconds = max(est_seconds, 1.0)
         self._eta_target = datetime.now() + timedelta(seconds=max(est_seconds, 0.0))
         self._run_started_at = perf_counter()
-        self._run_metrics = {
-            "train_pixels": train_pixels,
-            "train_gb": train_gb,
-            "class_pixels": class_pixels,
-            "class_gb": class_gb,
-            "num_classes": self._run_num_classes,
-        }
+        self._run_metrics = {"train_pixels": train_pixels, "train_gb": train_gb, "class_pixels": class_pixels, "class_gb": class_gb, "num_classes": self._run_num_classes}
 
     def _avg_px_per_sec(self, prefix: str, num_classes: int = 2) -> float:
         suffix = f"_{num_classes}class"
@@ -663,11 +540,7 @@ class MainController:
     def _log_eta_estimado(self) -> None:
         train_rate = self._avg_px_per_sec("train", self._run_num_classes)
         class_rate = self._avg_px_per_sec("class", self._run_num_classes)
-        self._append_log(
-            f"> ETA estimado: {self._eta_target.strftime('%H:%M:%S') if self._eta_target else '--:--:--'} | "
-            f"{self._run_num_classes} classes | "
-            f"Treino={train_rate:.2f} px/s | Classificacao={class_rate:.2f} px/s"
-        )
+        self._log(f"> ETA estimado: {self._eta_target.strftime('%H:%M:%S') if self._eta_target else '--:--:--'} | {self._run_num_classes} classes | Treino={train_rate:.2f} px/s | Classificacao={class_rate:.2f} px/s")
 
     def _format_progress_message(self, message: str) -> str:
         if self._eta_target is None:
@@ -688,7 +561,6 @@ class MainController:
             self._eta_target = None
             self._run_estimated_seconds = 0.0
             return
-
         elapsed = max(perf_counter() - self._run_started_at, 0.0)
         train_pixels = float(self._run_metrics.get("train_pixels", 0.0))
         class_pixels = float(self._run_metrics.get("class_pixels", 0.0))
@@ -696,25 +568,16 @@ class MainController:
         class_gb = float(self._run_metrics.get("class_gb", 0.0))
         num_classes = int(self._run_metrics.get("num_classes", 2))
         suffix = f"_{num_classes}class"
-
         train_seconds = elapsed * (train_pixels / (train_pixels + class_pixels)) if (train_pixels + class_pixels) > 0 else 0.0
         class_seconds = max(elapsed - train_seconds, 0.0)
-
         self._data[f"train_total_pixels{suffix}"] = float(self._data.get(f"train_total_pixels{suffix}", 1000.0)) + train_pixels
         self._data[f"train_total_gb{suffix}"] = float(self._data.get(f"train_total_gb{suffix}", 0.0)) + train_gb
         self._data[f"train_total_seconds{suffix}"] = float(self._data.get(f"train_total_seconds{suffix}", 1.0)) + train_seconds
-
         self._data[f"class_total_pixels{suffix}"] = float(self._data.get(f"class_total_pixels{suffix}", 1000.0)) + class_pixels
         self._data[f"class_total_gb{suffix}"] = float(self._data.get(f"class_total_gb{suffix}", 0.0)) + class_gb
         self._data[f"class_total_seconds{suffix}"] = float(self._data.get(f"class_total_seconds{suffix}", 1.0)) + class_seconds
-
         self.savepreferences()
-        self._append_log(
-            f"> Estatisticas acumuladas atualizadas ({num_classes} classes) | "
-            f"Treino: {train_pixels:.0f}px, {train_gb:.3f}GB | "
-            f"Classificacao: {class_pixels:.0f}px, {class_gb:.3f}GB | "
-            f"Tempo total execucao: {elapsed:.2f}s"
-        )
+        self._log(f"> Estatisticas acumuladas atualizadas ({num_classes} classes) | Treino: {train_pixels:.0f}px, {train_gb:.3f}GB | Classificacao: {class_pixels:.0f}px, {class_gb:.3f}GB | Tempo total execucao: {elapsed:.2f}s")
         self._run_started_at = None
         self._run_metrics = {}
         self._eta_target = None
@@ -727,48 +590,23 @@ class MainController:
     def _append_output_links(self) -> None:
         output_path = self._last_output_tif_path
         report_path = self._last_report_html_path
-
         if not output_path and not report_path:
             return
-
-        lines = [
-            "<span style='color:#8EC5FF; font-family:Consolas, \"Courier New\", monospace; font-size:12px; font-weight:600;'>> Atalhos de saida</span>"
-        ]
+        parts = ["<span style='color:#8EC5FF; font-family:Consolas,monospace; font-size:12px; font-weight:600;'>> Atalhos de saida</span>"]
         if output_path:
-            output_folder = output_path.resolve().parent
-            lines.append(
-                "<span style='color:#CFCFCF; font-family:Consolas, \"Courier New\", monospace; font-size:12px;'>"
-                f"Pasta do TIFF classificado: <a href='{self._to_file_url(output_folder)}' style='color:#56D4DD;'>abrir pasta</a>"
-                "</span>"
-            )
+            parts.append(f"<span style='color:#CFCFCF; font-family:Consolas,monospace; font-size:12px;'>Pasta do TIFF classificado: <a href='{self._to_file_url(output_path.resolve().parent)}' style='color:#56D4DD;'>abrir pasta</a></span>")
         if report_path:
-            lines.append(
-                "<span style='color:#CFCFCF; font-family:Consolas, \"Courier New\", monospace; font-size:12px;'>"
-                f"Report HTML: <a href='{self._to_file_url(report_path)}' style='color:#56D4DD;'>abrir report</a>"
-                "</span>"
-            )
-
-        self.view.txt_log.append("<br/>".join(lines))
-
-    def _on_log_link_clicked(self, url) -> None:
-        if not QDesktopServices.openUrl(url):
-            self._append_log(f"> ERRO: nao foi possivel abrir o link: {url.toString()}")
+            parts.append(f"<span style='color:#CFCFCF; font-family:Consolas,monospace; font-size:12px;'>Report HTML: <a href='{self._to_file_url(report_path)}' style='color:#56D4DD;'>abrir report</a></span>")
+        self._signals.console_message.emit("<br/>".join(parts))
 
     def get_shapefile_entries(self):
         entries = []
-        for row in range(self.view.table_shp.rowCount()):
-            path_item = self.view.table_shp.item(row, 0)
-            cls_widget = self.view.table_shp.cellWidget(row, 1)
-            legend_widget = self.view.table_shp.cellWidget(row, 2)
-            if path_item and isinstance(cls_widget, QSpinBox):
-                legend = ""
-                if isinstance(legend_widget, QLineEdit):
-                    legend = legend_widget.text().strip()
-                entries.append({
-                    "path": path_item.text(),
-                    "class_id": cls_widget.value(),
-                    "legend": legend,
-                })
+        for row in self.view.table_shp.all_rows():
+            path = row.get("col_0", "")
+            class_id = row.get("col_1", 0)
+            legend = row.get("col_2", "")
+            if path:
+                entries.append({"path": path, "class_id": class_id, "legend": legend})
         return entries
 
     def get_output_path(self):

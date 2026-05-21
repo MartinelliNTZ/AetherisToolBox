@@ -481,6 +481,15 @@ panel = SectionPanel(object_name="stack_hotkey", spacing=6)
 Container base padrão para todos os plugins. Fornece:
 - QVBoxLayout com margins (18, 10, 18, 10) e spacing 8
 - Header opcional (QLabel + QFrame separator) se `title` for informado
+- **Badge de status encapsulado** — o plugin chama apenas:
+
+      self.page.set_badge(self.page.PRONTA)
+      self.page.set_badge(self.page.RUNNING)
+      self.page.set_badge(self.page.ERROR)
+      self.page.set_badge(self.page.CANCELED)
+      self.page.set_badge(self.page.INFO)
+
+  O estilo (cor de fundo, padding, font) é aplicado automaticamente.
 
 Usado automaticamente pelo `BasePlugin._build_ui()`.
 
@@ -490,41 +499,72 @@ from resources.widgets.PluginPage import PluginPage
 # Uso direto (raro)
 page = PluginPage(title="Meu Plugin")
 page.main_layout.addWidget(QLabel("conteúdo"))
+page.set_badge(page.PRONTA)
 
 # Uso via BasePlugin (padrão)
 class MeuPlugin(BasePlugin):
     def _build_ui(self):
         super()._build_ui()
         self.main_layout.addWidget(QLabel("meu widget"))
+        self.page.set_badge(self.page.PRONTA)
 ```
+
+**Constantes do badge:** `page.PRONTA`, `page.RUNNING`, `page.ERROR`, `page.CANCELED`, `page.INFO`
 
 ---
 
 ### `GridGroupPainel` — `GridGroupPainel.py`
-Container com título dourado e layout em grade (QGridLayout). Similar ao GroupPainel, porém com grid configurável por número de colunas. Ideal para organizar widgets em grid com stretch por coluna/linha.
+Container que distribui N instâncias de `GroupPainel` em colunas com stretch=1 igual para todas. Ideal para organizar painéis lado a lado.
 
 ```python
 from resources.widgets.GridGroupPainel import GridGroupPainel
 
-grid = GridGroupPainel("Configurações", num_columns=2)
-gl = grid.group_layout
-gl.addWidget(QLabel("Nome:"), 0, 0)
-gl.addWidget(QLineEdit(), 0, 1)
-gl.addWidget(QLabel("Idade:"), 1, 0)
-gl.addWidget(QSpinBox(), 1, 1)
-grid.set_column_stretch(0, 1)
-grid.set_column_stretch(1, 1)
+painel_a = GroupPainel("Painel A")
+painel_a.group_layout.addWidget(...)
+
+painel_b = GroupPainel("Painel B")
+painel_b.group_layout.addWidget(...)
+
+grid = GridGroupPainel(painel_a, painel_b)
 main_layout.addWidget(grid)
 ```
 
-**Parâmetros:**
-- `title: str` — título do painel
-- `num_columns: int = 2` — número de colunas da grade
-
 **Propriedades:**
-- `group_layout` → QGridLayout interno
-- `set_column_stretch(col, stretch)` — estica coluna
-- `set_row_stretch(row, stretch)` — estica linha
+- `painels` → lista de GroupPainel
+- `painel(index)` → retorna o GroupPainel do índice
+
+---
+
+### `ItemTable` — `ItemTable.py`
+Tabela genérica configurável por especificação de colunas. Suporta colunas dos tipos: texto (QTableWidgetItem), spin (QSpinBox), line edit (QLineEdit) e botão remover (SimpleRemoveButton). Elimina formatação manual de QTableWidget.
+
+```python
+from resources.widgets.ItemTable import ItemTable
+
+table = ItemTable(
+    columns=[
+        {"header": "Caminho", "type": "text", "stretch": True, "editable": False},
+        {"header": "ID",      "type": "spin", "width": 55, "min": 0, "max": 999},
+        {"header": "Legenda", "type": "line", "width": 90, "placeholder": "Legenda..."},
+        {"header": "",        "type": "remove", "width": 65},
+    ]
+)
+painel.group_layout.addWidget(table)
+
+table.add_row("arquivo.shp", 1, "Mata")
+table.get_row_data(0)       # {"col_0": "arquivo.shp", "col_1": 1, "col_2": "Mata"}
+table.all_rows()             # lista de dicts
+table.remove_row(0)
+table.clear_rows()
+```
+
+**Specs de coluna:**
+- `"type": "text"` — QTableWidgetItem. Opcional: `editable` (bool)
+- `"type": "spin"` — QSpinBox. Opcional: `min`, `max` (int)
+- `"type": "line"` — QLineEdit. Opcional: `placeholder` (str)
+- `"type": "remove"` — SimpleRemoveButton. Opcional: `remove_text` (str)
+- `"stretch": True` — coluna expande
+- `"width": N` — largura fixa (se stretch=False)
 
 ---
 

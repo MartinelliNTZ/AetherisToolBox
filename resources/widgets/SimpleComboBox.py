@@ -36,11 +36,17 @@ from __future__ import annotations
 from typing import Callable, Dict, List
 
 from PySide6.QtWidgets import QWidget, QHBoxLayout, QLabel, QComboBox
+from PySide6.QtCore import Signal
 
 
 class SimpleComboBox(QWidget):
     """
     ComboBox genérico com label opcional.
+
+    Sinais
+    ------
+    currentTextChanged(str) — encaminhado do QComboBox interno (compatibilidade)
+    currentIndexChanged(int) — encaminhado do QComboBox interno
 
     Parameters
     ----------
@@ -77,7 +83,12 @@ class SimpleComboBox(QWidget):
 
         self._combo = QComboBox()
         self._combo.setMinimumWidth(200)
+
+        # Encaminha sinais do combo interno para compatibilidade com controllers
         self._combo.currentIndexChanged.connect(self._on_index_changed)
+        self._combo.currentTextChanged.connect(self._forward_current_text)
+        self._combo.currentIndexChanged.connect(self._forward_index)
+
         layout.addWidget(self._combo, 1)
 
         layout.addStretch()
@@ -138,6 +149,27 @@ class SimpleComboBox(QWidget):
 
         self._order = list(self._items.keys())
         self._populate()
+
+    # Sinais encaminhados para compatibilidade
+    currentTextChanged = Signal(str)
+    currentIndexChanged = Signal(int)
+
+    def _forward_current_text(self, text: str):
+        """Encaminha currentTextChanged do combo interno."""
+        self.currentTextChanged.emit(text)
+
+    def _forward_index(self, idx: int):
+        """Encaminha currentIndexChanged do combo interno."""
+        self.currentIndexChanged.emit(idx)
+
+    def widget(self) -> QComboBox:
+        """
+        Retorna o QComboBox interno para binding de sinais (compatibilidade).
+
+        Returns:
+            QComboBox interno
+        """
+        return self._combo
 
     def select_first(self) -> None:
         """Seleciona o primeiro item se existir."""

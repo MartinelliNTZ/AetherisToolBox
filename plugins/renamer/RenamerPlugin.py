@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import List
 
 from core.enum.ToolKey import ToolKey
-from core.model.BasePlugin import BasePlugin
+from plugins.BasePlugin import BasePlugin
 from core.dialogs.PreviewDialog import PreviewDialog
 from resources.widgets.ExecutionButtons import ExecutionButtons
 from resources.widgets.SimpleSelector import SimpleSelector

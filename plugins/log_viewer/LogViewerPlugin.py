@@ -29,7 +29,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtGui import QColor, QBrush
 
-from core.model.BasePlugin import BasePlugin
+from plugins.BasePlugin import BasePlugin
 from resources.styles.AppStyles import AppStyles
 
 

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from core.model.BasePlugin import BasePlugin
+from plugins.BasePlugin import BasePlugin
 from core.manager.SignalManager import SignalManager
 from resources.widgets.ExecutionButtons import ExecutionButtons
 from resources.widgets.ReadOnlyTextBrowser import ReadOnlyTextBrowser

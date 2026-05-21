@@ -14,7 +14,7 @@ from PySide6.QtWidgets import (
     QLabel, QVBoxLayout, QFrame
 )
 
-from core.model.BasePlugin import BasePlugin
+from plugins.BasePlugin import BasePlugin
 
 
 class HomePlugin(BasePlugin):

@@ -24,7 +24,7 @@ from core.dialogs.ConfigSalvarDialog import ConfigSalvarDialog
 from core.dialogs.ConfigCarregarDialog import ConfigCarregarDialog
 
 from core.enum.ToolKey import ToolKey
-from core.model.BasePlugin import BasePlugin
+from plugins.BasePlugin import BasePlugin
 from core.manager.SignalManager import SignalManager
 from utils.MessageBox import MessageBox
 from resources.widgets.ExecutionButtons import ExecutionButtons

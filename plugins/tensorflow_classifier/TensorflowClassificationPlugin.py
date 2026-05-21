@@ -2,323 +2,167 @@
 """
 ClassificationTool — Ferramenta de Classificação Raster
 =========================================================
-Widget extraído da UI principal para ser uma ferramenta
-hospedada no Workspace do Aetheris ToolBox.
-Console removido — agora é compartilhado via ConsoleTool.
+Widget hospedado no Workspace do Aetheris ToolBox.
+Comunicação via SignalManager.
 """
 
 from __future__ import annotations
 
-from pathlib import Path
-from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
-    QPushButton, QSpinBox, QDoubleSpinBox, QComboBox, QCheckBox,
-    QTableWidget, QTableWidgetItem, QHeaderView, QFileDialog,
-    QGroupBox, QTextEdit, QProgressBar, QFrame,
-    QSizePolicy, QGridLayout, QScrollArea
-)
 from PySide6.QtCore import Qt
-from resources.styles.AppStyles import AppStyles
+from plugins.BasePlugin import BasePlugin
+from core.enum.ToolKey import ToolKey
 from resources.widgets.ExecutionButtons import ExecutionButtons
-from resources.widgets.SimpleGhostButton import SimpleGhostButton
-from resources.widgets.SimpleRemoveButton import SimpleRemoveButton
 from resources.widgets.GroupPainel import GroupPainel
+from resources.widgets.SimpleSecondaryButton import SimpleSecondaryButton
 from resources.widgets.SimpleSelector import SimpleSelector
 from resources.widgets.SelectorGrid import SelectorGrid
-from plugins.tensorflow_classifier.ui_field_specs import UI_FIELD_SPECS
+from resources.widgets.SimpleComboBox import SimpleComboBox
+from resources.widgets.GridGroupPainel import GridGroupPainel
+from resources.widgets.ItemTable import ItemTable
+from resources.widgets.GridLineEdit import GridLineEdit
+from resources.widgets.GridDoubleSpinBox import GridDoubleSpinBox
+from resources.widgets.GridCheckBox import GridCheckBox
+from plugins.tensorflow_classifier.tensor_utils.ui_field_specs import UI_FIELD_SPECS
 
 
-# =============================================================================
-# WIDGETS AUXILIARES
-# =============================================================================
-
-class Badge(QLabel):
-    def __init__(self, text: str, parent=None):
-        super().__init__(text, parent)
-        self.setObjectName("section_badge")
-        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
-
-class Separator(QFrame):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setObjectName("separator")
-        self.setFrameShape(QFrame.Shape.HLine)
-        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        self.setFixedHeight(1)
-
-
-# =============================================================================
-# FERRAMENTA DE CLASSIFICAÇÃO
-# =============================================================================
-
-class TensorflowClassificationPlugin(QWidget):
+class TensorflowClassificationPlugin(BasePlugin):
     """
     Widget completo da ferramenta de classificação raster.
-    Pode ser hospedado no Workspace.
+    Comunica logs e progresso via SignalManager.
     """
 
     def __init__(self, parent=None):
-        super().__init__(parent)
-        self._build_ui()
+        super().__init__(tool_key=ToolKey.CLASSIFIER.value, parent=parent, title="TensorFlow")
+        self.logger.info("TensorFlow plugin carregado", code="TOOL_READY")
+        self._controller = None
 
     def _build_ui(self):
-        main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(18, 10, 18, 10)
-        main_layout.setSpacing(8)
+        super()._build_ui()
+        main_layout = self.main_layout
 
-        # --- HEADER ---
-        header = QWidget()
-        hl = QHBoxLayout(header)
-        hl.setContentsMargins(0, 0, 0, 0)
-        hl.setSpacing(10)
-        self.lbl_title = QLabel("Aetheris Classifier")
-        self.lbl_title.setObjectName("header_title")
-        hl.addWidget(self.lbl_title, 1)
-        self.badge_status = Badge("PRONTA")
-        self.badge_status.setStyleSheet(AppStyles.badge_success())
-        hl.addWidget(self.badge_status, alignment=Qt.AlignmentFlag.AlignVCenter)
-        main_layout.addWidget(header)
-
-        sep = QFrame()
-        sep.setObjectName("separator")
-        sep.setFrameShape(QFrame.Shape.HLine)
-        sep.setFixedHeight(1)
-        main_layout.addWidget(sep)
+        self.page.set_badge(self.page.PRONTA)
 
         # --- ACTION BUTTONS ---
-        # Callbacks conectados pelo MainController
         self._btns = ExecutionButtons(self)
-        self._btns.setup({
-            "load_cfg": {
-                "text": "Carregar Config",
-                "type": "secondary",
-                "description": "Carrega uma configuração salva anteriormente",
-            },
-            "save_cfg": {
-                "text": "Salvar Config",
-                "type": "secondary",
-                "description": "Salva a configuração atual em disco",
-            },
-            "reset_cfg": {
-                "text": "Restaurar Padrao",
-                "type": "secondary",
-                "description": "Restaura configurações para o valor padrão",
-            },
-            "cancelar": {
-                "text": "CANCELAR",
-                "type": "danger",
-                "description": "Cancela a execução em andamento",
-            },
-            "executar": {
-                "text": "EXECUTAR PIPELINE",
-                "type": "primary",
-                "description": "Inicia o pipeline de classificação",
-            },
-        })
+        self._btns.setup(
+            {
+                "load_cfg": {"text": "Carregar Config", "type": "secondary", "description": "Carrega uma configuração salva anteriormente"},
+                "save_cfg": {"text": "Salvar Config", "type": "secondary", "description": "Salva a configuração atual em disco"},
+                "reset_cfg": {"text": "Restaurar Padrao", "type": "secondary", "description": "Restaura configurações para o valor padrão"},
+                "cancelar": {"text": "CANCELAR", "type": "danger", "description": "Cancela a execução em andamento"},
+                "executar": {"text": "EXECUTAR PIPELINE", "type": "primary", "description": "Inicia o pipeline de classificação"},
+            }
+        )
         self._btns.set_enabled("cancelar", False)
         main_layout.addWidget(self._btns)
 
-        # =====================================================================
-        # GRID 2x2
-        # =====================================================================
-        grid = QGridLayout()
-        grid.setSpacing(10)
-
-        # ---- (0,0) - IMAGENS & SAIDA ----
-        grp_img = SelectorGrid({
-            "Imagem Treino":   {"file_filter": "GeoTIFF (*.tif *.tiff)", "default_path": "dados/imagemTreino.tif"},
+        # TOP ROW
+        grp_img = GroupPainel("Imagens & Saida")
+        sel_grid = SelectorGrid({
+            "Imagem Treino": {"file_filter": "GeoTIFF (*.tif *.tiff)", "default_path": "dados/imagemTreino.tif"},
             "Imagem Classif.": {"file_filter": "GeoTIFF (*.tif *.tiff)", "default_path": "dados/imagemCompleta.tif"},
-            "Saida GeoTIFF":   {"file_filter": "GeoTIFF (*.tif *.tiff)", "default_path": "resultado/mapa_classificado_ui.tif", "browse_mode": "save_file"},
-        }, title="Imagens & Saida")
-        self._sel_img_treino = grp_img["Imagem Treino"]
-        self._sel_img_classif = grp_img["Imagem Classif."]
-        self._sel_img_saida = grp_img["Saida GeoTIFF"]
-        grid.addWidget(grp_img, 0, 0)
+            "Saida GeoTIFF": {"file_filter": "GeoTIFF (*.tif *.tiff)", "default_path": "resultado/mapa_classificado_ui.tif", "browse_mode": "save_file"},
+        }, title=None)
+        self._sel_img_treino = sel_grid["Imagem Treino"]
+        self._sel_img_classif = sel_grid["Imagem Classif."]
+        self._sel_img_saida = sel_grid["Saida GeoTIFF"]
+        grp_img.group_layout.addWidget(sel_grid)
+        grp_img.group_layout.addStretch()
 
-        # ---- (0,1) - PERSISTENCIA DO MODELO ----
         grp_mod = GroupPainel("Persistencia do Modelo")
-        lm = grp_mod.group_layout
-        lm.setSpacing(6)
-        lm.setContentsMargins(6, 6, 6, 6)
-        rm = QHBoxLayout()
-        rm.setSpacing(6)
-        rm.addWidget(QLabel("Acao:"))
-        self.combo_model_action = QComboBox()
-        self.combo_model_action.addItems([
-            "Treinar modelo novo", "Treinar modelo existente", "Usar modelo existente"
-        ])
-        self.combo_model_action.setCurrentText("Treinar modelo novo")
-        rm.addWidget(self.combo_model_action, 1)
-        lm.addLayout(rm)
-        self.row_modelo_existente = SimpleSelector("Modelo Existente", "",
-            file_filter="Keras Model (*.keras)")
-        self.row_modelo_existente.setVisible(False)
-        lm.addWidget(self.row_modelo_existente)
-        self.btn_listar_modelos = SimpleGhostButton("Listar Modelos")
+        self._combo_model_action = SimpleComboBox(
+            items={"Treinar modelo novo": "Treinar modelo novo",
+                   "Treinar modelo existente": "Treinar modelo existente",
+                   "Usar modelo existente": "Usar modelo existente"},
+            label="Acao:",
+        )
+        self._combo_model_action.select_first()
+        grp_mod.group_layout.addWidget(self._combo_model_action)
+        self._selector_modelo_existente = SimpleSelector("Modelo Existente", "", file_filter="Keras Model (*.keras)")
+        self._selector_modelo_existente.setVisible(False)
+        grp_mod.group_layout.addWidget(self._selector_modelo_existente)
+        self.btn_listar_modelos = SimpleSecondaryButton("Listar Modelos")
         self.btn_listar_modelos.setVisible(False)
-        lm.addWidget(self.btn_listar_modelos, alignment=Qt.AlignmentFlag.AlignLeft)
-        self.chk_salvar_modelo = QCheckBox("Salvar modelo (.keras)")
-        self.chk_salvar_modelo.setChecked(True)
-        lm.addWidget(self.chk_salvar_modelo)
-        self.row_modelo_path = SimpleSelector("Caminho", "resultado/modelo_ui.keras",
-            file_filter="Keras Model (*.keras)", browse_mode="save_file")
-        lm.addWidget(self.row_modelo_path)
-        lm.addStretch()
-        grid.addWidget(grp_mod, 0, 1)
+        grp_mod.group_layout.addWidget(self.btn_listar_modelos, alignment=Qt.AlignmentFlag.AlignLeft)
+        self._grid_salvar_modelo = GridCheckBox({"save_model": {"label": "Salvar modelo (.keras)", "description": "Salvar o modelo treinado em disco (.keras)", "default": True}}, num_columns=1)
+        grp_mod.group_layout.addWidget(self._grid_salvar_modelo)
+        self._selector_modelo_path = SimpleSelector("Caminho", "resultado/modelo_ui.keras", file_filter="Keras Model (*.keras)", browse_mode="save_file")
+        grp_mod.group_layout.addWidget(self._selector_modelo_path)
+        grp_mod.group_layout.addStretch()
 
-        # ---- (1,0) - SHAPEFILES ----
+        top_row = GridGroupPainel(grp_img, grp_mod)
+        main_layout.addWidget(top_row)
+
+        # BOTTOM ROW
         grp_shp = GroupPainel("Shapefiles por Classe")
-        ls = grp_shp.group_layout
-        ls.setSpacing(6)
-        ls.setContentsMargins(6, 6, 6, 6)
-        self.table_shp = QTableWidget(0, 4)
-        self.table_shp.setHorizontalHeaderLabels(["Caminho", "ID", "Legenda", ""])
-        hh = self.table_shp.horizontalHeader()
-        hh.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
-        hh.setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)
-        hh.setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
-        hh.setSectionResizeMode(3, QHeaderView.ResizeMode.Fixed)
-        self.table_shp.setColumnWidth(1, 55)
-        self.table_shp.setColumnWidth(2, 90)
-        self.table_shp.setColumnWidth(3, 65)
-        self.table_shp.setMinimumHeight(100)
-        self.table_shp.verticalHeader().setDefaultSectionSize(24)
-        ls.addWidget(self.table_shp)
-        self.btn_add_shp = SimpleGhostButton("+ Adicionar Shapefile")
-        ls.addWidget(self.btn_add_shp, alignment=Qt.AlignmentFlag.AlignLeft)
-        ls.addStretch()
-        grid.addWidget(grp_shp, 1, 0)
+        self.table_shp = ItemTable(columns=[
+            {"header": "Caminho", "type": "text", "stretch": True, "editable": False},
+            {"header": "ID", "type": "spin", "width": 55, "min": 0, "max": 999},
+            {"header": "Legenda", "type": "line", "width": 90, "placeholder": "Legenda..."},
+            {"header": "", "type": "remove", "width": 65},
+        ])
+        grp_shp.group_layout.addWidget(self.table_shp)
+        self.btn_add_shp = SimpleSecondaryButton("+ Adicionar Shapefile")
+        self.btn_add_shp.setToolTip("Abre seletor de arquivos para adicionar um shapefile .shp à tabela de classes")
+        grp_shp.group_layout.addWidget(self.btn_add_shp, alignment=Qt.AlignmentFlag.AlignLeft)
+        grp_shp.group_layout.addStretch()
 
-        # ---- (1,1) - REDE NEURAL & TREINAMENTO ----
-        grp_rede = GroupPainel("Rede Neural & Treinamento", layout_type=QGridLayout)
-        lr = grp_rede.group_layout
-        lr.setSpacing(6)
-        lr.setContentsMargins(6, 6, 6, 6)
+        grp_rede = GroupPainel("Rede Neural & Treinamento")
+        self._grid_camadas = GridLineEdit({"camadas": {"label": "Camadas:", "default": "128, 64, 32", "placeholder": "ex: 256, 128, 64", "description": "Neurônios por camada oculta, separados por vírgula"}})
+        grp_rede.group_layout.addWidget(self._grid_camadas)
+        self._combo_ativacao = SimpleComboBox(items={"relu": "relu", "elu": "elu", "tanh": "tanh", "sigmoid": "sigmoid", "linear": "linear"}, label="Ativacao:")
+        self._combo_ativacao.current_value = "relu"
+        grp_rede.group_layout.addWidget(self._combo_ativacao)
+        self._grid_numericos = GridDoubleSpinBox({
+            "dropout": {"label": "Dropout:", "decimal": 2, "default": 0.10, "min": 0.0, "max": 0.9, "step": 0.05, "description": "Taxa de dropout para regularização"},
+            "epochs": {"label": "Epocas:", "decimal": 0, "default": 150, "min": 1, "max": 10000, "step": 1, "description": "Número de épocas de treinamento"},
+            "batch_train": {"label": "Batch Treino:", "decimal": 0, "default": 64, "min": 1, "max": 8192, "step": 1, "description": "Tamanho do lote para treinamento"},
+            "batch_pred": {"label": "Batch Pred.:", "decimal": 0, "default": 4096, "min": 1, "max": 65536, "step": 1, "description": "Tamanho do lote para predição"},
+            "test_size": {"label": "Test Size:", "decimal": 2, "default": 0.30, "min": 0.01, "max": 0.99, "step": 0.01, "description": "Proporção dos dados para validação"},
+            "random_state": {"label": "Random State:", "decimal": 0, "default": 42, "min": 0, "max": 999999, "step": 1, "description": "Semente aleatória para reprodutibilidade"},
+            "ram_pct": {"label": "RAM:", "decimal": 0, "default": 70, "min": 10, "max": 95, "step": 1, "suffix": "%", "description": "Limite percentual de RAM utilizável"},
+            "nodata_limiar": {"label": "Limiar Nodata:", "decimal": 0, "default": 250, "min": 0, "max": 255, "step": 1, "description": "Valor de limiar para considerar nodata"},
+        }, columns=2)
+        grp_rede.group_layout.addWidget(self._grid_numericos)
+        self._grid_checkboxes = GridCheckBox({"use_mask": {"label": "Mascara alpha", "description": "Aplicar máscara alpha na saída", "default": True}, "zero_nodata": {"label": "0 = nodata", "description": "Considerar valor 0 como nodata", "default": False}}, num_columns=2)
+        grp_rede.group_layout.addWidget(self._grid_checkboxes)
+        grp_rede.group_layout.addStretch()
 
-        # Row 0: Camadas Ocultas + Ativacao
-        lr.addWidget(QLabel("Camadas:"), 0, 0)
-        self.edit_camadas = QLineEdit("128, 64, 32")
-        self.edit_camadas.setPlaceholderText("ex: 256, 128, 64")
-        lr.addWidget(self.edit_camadas, 0, 1)
-        lr.addWidget(QLabel("Ativacao:"), 0, 2)
-        self.combo_ativacao = QComboBox()
-        self.combo_ativacao.addItems(["relu", "elu", "tanh", "sigmoid", "linear"])
-        self.combo_ativacao.setCurrentText("relu")
-        lr.addWidget(self.combo_ativacao, 0, 3)
+        bottom_row = GridGroupPainel(grp_shp, grp_rede)
+        main_layout.addWidget(bottom_row)
 
-        # Row 1: Dropout + Epocas + Batch Treino
-        lr.addWidget(QLabel("Dropout:"), 1, 0)
-        self.spin_dropout = QDoubleSpinBox()
-        self.spin_dropout.setRange(0.0, 0.9)
-        self.spin_dropout.setSingleStep(0.05)
-        self.spin_dropout.setDecimals(2)
-        self.spin_dropout.setValue(0.1)
-        lr.addWidget(self.spin_dropout, 1, 1)
+        # Resumo interno (controller)
+        self.lbl_resumo = type('', (), {'setHtml': lambda s, h: None, 'setMaximumHeight': lambda s, h: None, 'setVisible': lambda s, v: None})()
 
-        lr.addWidget(QLabel("Epocas:"), 1, 2)
-        self.spin_epochs = QSpinBox()
-        self.spin_epochs.setRange(1, 10000)
-        self.spin_epochs.setValue(150)
-        lr.addWidget(self.spin_epochs, 1, 3)
-
-        # Row 2: Batch Treino + Batch Pred
-        lr.addWidget(QLabel("Batch Treino:"), 2, 0)
-        self.spin_batch_train = QSpinBox()
-        self.spin_batch_train.setRange(1, 8192)
-        self.spin_batch_train.setValue(64)
-        lr.addWidget(self.spin_batch_train, 2, 1)
-
-        lr.addWidget(QLabel("Batch Pred.:"), 2, 2)
-        self.spin_batch_pred = QSpinBox()
-        self.spin_batch_pred.setRange(1, 65536)
-        self.spin_batch_pred.setValue(4096)
-        lr.addWidget(self.spin_batch_pred, 2, 3)
-
-        # Row 3: Test Size + Random State
-        lr.addWidget(QLabel("Test Size:"), 3, 0)
-        self.spin_test_size = QDoubleSpinBox()
-        self.spin_test_size.setRange(0.01, 0.99)
-        self.spin_test_size.setSingleStep(0.01)
-        self.spin_test_size.setDecimals(2)
-        self.spin_test_size.setValue(0.30)
-        lr.addWidget(self.spin_test_size, 3, 1)
-
-        lr.addWidget(QLabel("Random State:"), 3, 2)
-        self.spin_random = QSpinBox()
-        self.spin_random.setRange(0, 999999)
-        self.spin_random.setValue(42)
-        lr.addWidget(self.spin_random, 3, 3)
-
-        # Row 4: RAM % + Mascara + Nodata + Limiar
-        lr.addWidget(QLabel("RAM:"), 4, 0)
-        self.spin_ram = QSpinBox()
-        self.spin_ram.setRange(10, 95)
-        self.spin_ram.setValue(70)
-        self.spin_ram.setSuffix(" %")
-        lr.addWidget(self.spin_ram, 4, 1)
-
-        self.chk_mascara = QCheckBox("Mascara alpha")
-        self.chk_mascara.setChecked(True)
-        lr.addWidget(self.chk_mascara, 4, 2)
-
-        self.chk_zero_nodata = QCheckBox("0 = nodata")
-        self.chk_zero_nodata.setChecked(False)
-        lr.addWidget(self.chk_zero_nodata, 4, 3)
-
-        # Row 5: Limiar nodata
-        lr.addWidget(QLabel("Limiar Nodata:"), 5, 0)
-        self.spin_alpha = QSpinBox()
-        self.spin_alpha.setRange(0, 255)
-        self.spin_alpha.setValue(250)
-        lr.addWidget(self.spin_alpha, 5, 1)
-
-        lr.setColumnStretch(0, 0)
-        lr.setColumnStretch(1, 1)
-        lr.setColumnStretch(2, 0)
-        lr.setColumnStretch(3, 1)
-        lr.setRowStretch(5, 1)
-
-        grid.addWidget(grp_rede, 1, 1)
-
-        grid.setColumnStretch(0, 1)
-        grid.setColumnStretch(1, 1)
-        grid.setRowStretch(0, 1)
-        grid.setRowStretch(1, 1)
-
-        main_layout.addLayout(grid)
-
-        # --- Resumo hidden (compatibilidade controller) ---
-        self.lbl_resumo = QTextEdit()
-        self.lbl_resumo.setReadOnly(True)
-        self.lbl_resumo.setMaximumHeight(1)
-        self.lbl_resumo.setVisible(False)
-        main_layout.addWidget(self.lbl_resumo)
-
-        # --- Apply field tooltips ---
         self._apply_field_tooltips()
+        self._init_controller()
+
+    def _init_controller(self):
+        from plugins.tensorflow_classifier.tensor_utils.main_controller import MainController
+        self._controller = MainController(view=self)
+        self.logger.info("MainController acoplado", code="CONTROLLER_READY")
 
     def _apply_field_tooltips(self):
         mapping = [
             ("training_image", [self._sel_img_treino.label, self._sel_img_treino.edit, self._sel_img_treino.btn]),
             ("classification_image", [self._sel_img_classif.label, self._sel_img_classif.edit, self._sel_img_classif.btn]),
             ("output_tiff", [self._sel_img_saida.label, self._sel_img_saida.edit, self._sel_img_saida.btn]),
-            ("hidden_layers", [self.edit_camadas]),
-            ("activation", [self.combo_ativacao]),
-            ("dropout_rate", [self.spin_dropout]),
-            ("epochs", [self.spin_epochs]),
-            ("batch_size_train", [self.spin_batch_train]),
-            ("batch_size_pred", [self.spin_batch_pred]),
-            ("test_size", [self.spin_test_size]),
-            ("random_state", [self.spin_random]),
-            ("ram_limit_pct", [self.spin_ram]),
-            ("use_mask", [self.chk_mascara]),
-            ("zero_as_nodata", [self.chk_zero_nodata]),
-            ("nodata_threshold", [self.spin_alpha]),
-            ("model_action", [self.combo_model_action]),
-            ("existing_model_path", [self.row_modelo_existente.label, self.row_modelo_existente.edit, self.row_modelo_existente.btn]),
-            ("save_model", [self.chk_salvar_modelo]),
-            ("model_path", [self.row_modelo_path.label, self.row_modelo_path.edit, self.row_modelo_path.btn]),
+            ("hidden_layers", [self._grid_camadas]),
+            ("activation", [self._combo_ativacao]),
+            ("dropout_rate", [self._grid_numericos]),
+            ("epochs", [self._grid_numericos]),
+            ("batch_size_train", [self._grid_numericos]),
+            ("batch_size_pred", [self._grid_numericos]),
+            ("test_size", [self._grid_numericos]),
+            ("random_state", [self._grid_numericos]),
+            ("ram_limit_pct", [self._grid_numericos]),
+            ("use_mask", [self._grid_checkboxes]),
+            ("zero_as_nodata", [self._grid_checkboxes]),
+            ("nodata_threshold", [self._grid_numericos]),
+            ("model_action", [self._combo_model_action]),
+            ("existing_model_path", [self._selector_modelo_existente.label, self._selector_modelo_existente.edit, self._selector_modelo_existente.btn]),
+            ("save_model", [self._grid_salvar_modelo]),
+            ("model_path", [self._selector_modelo_path.label, self._selector_modelo_path.edit, self._selector_modelo_path.btn]),
         ]
         for key, widgets in mapping:
             spec = UI_FIELD_SPECS.get(key)
@@ -328,38 +172,84 @@ class TensorflowClassificationPlugin(QWidget):
             for widget in widgets:
                 widget.setToolTip(desc)
 
-    # ────────────────────────────────────────────────────────────────────────
-    # Métodos públicos (compatibilidade com controller)
-    # ────────────────────────────────────────────────────────────────────────
-
     def add_shp_row_ui(self, path: str, classe: int, legenda: str = ""):
-        """Adiciona uma linha na tabela de shapefiles (chamado pelo controller)."""
-        row = self.table_shp.rowCount()
-        self.table_shp.insertRow(row)
-        ip = QTableWidgetItem(path)
-        ip.setFlags(ip.flags() & ~Qt.ItemFlag.ItemIsEditable)
-        self.table_shp.setItem(row, 0, ip)
-        sc = QSpinBox()
-        sc.setRange(0, 999)
-        sc.setValue(classe)
-        sc.setStyleSheet("background-color: transparent; border: none;")
-        self.table_shp.setCellWidget(row, 1, sc)
-        el = QLineEdit(legenda)
-        el.setPlaceholderText("Legenda...")
-        el.setStyleSheet("background-color: transparent; border: none;")
-        self.table_shp.setCellWidget(row, 2, el)
-        br = SimpleRemoveButton("Remover")
-        br.clicked.connect(lambda checked, r=row: self._remove_shp_row_ui(r))
-        self.table_shp.setCellWidget(row, 3, br)
+        self.table_shp.add_row(path, classe, legenda)
 
-    def _remove_shp_row_ui(self, row: int):
-        """Remove uma linha da tabela de shapefiles."""
-        self.table_shp.removeRow(row)
-        for r in range(self.table_shp.rowCount()):
-            btn = self.table_shp.cellWidget(r, 3)
-            if btn:
-                try:
-                    btn.clicked.disconnect()
-                except Exception:
-                    pass
-                btn.clicked.connect(lambda checked, fixed_row=r: self._remove_shp_row_ui(fixed_row))
+    def switch_to_console(self):
+        pass
+
+    @property
+    def row_img_treino(self) -> SimpleSelector:
+        return self._sel_img_treino
+
+    @property
+    def row_img_classif(self) -> SimpleSelector:
+        return self._sel_img_classif
+
+    @property
+    def row_img_saida(self) -> SimpleSelector:
+        return self._sel_img_saida
+
+    @property
+    def edit_camadas(self):
+        return self._grid_camadas.widget("camadas")
+
+    @property
+    def combo_model_action(self):
+        return self._combo_model_action.widget()
+
+    @property
+    def combo_ativacao(self):
+        return self._combo_ativacao.widget()
+
+    @property
+    def row_modelo_existente(self) -> SimpleSelector:
+        return self._selector_modelo_existente
+
+    @property
+    def row_modelo_path(self) -> SimpleSelector:
+        return self._selector_modelo_path
+
+    @property
+    def spin_dropout(self):
+        return self._grid_numericos.widget("dropout")
+
+    @property
+    def spin_epochs(self):
+        return self._grid_numericos.widget("epochs")
+
+    @property
+    def spin_batch_train(self):
+        return self._grid_numericos.widget("batch_train")
+
+    @property
+    def spin_batch_pred(self):
+        return self._grid_numericos.widget("batch_pred")
+
+    @property
+    def spin_test_size(self):
+        return self._grid_numericos.widget("test_size")
+
+    @property
+    def spin_random(self):
+        return self._grid_numericos.widget("random_state")
+
+    @property
+    def spin_ram(self):
+        return self._grid_numericos.widget("ram_pct")
+
+    @property
+    def spin_alpha(self):
+        return self._grid_numericos.widget("nodata_limiar")
+
+    @property
+    def chk_mascara(self):
+        return self._grid_checkboxes.widget("use_mask")
+
+    @property
+    def chk_zero_nodata(self):
+        return self._grid_checkboxes.widget("zero_nodata")
+
+    @property
+    def chk_salvar_modelo(self):
+        return self._grid_salvar_modelo.widget("save_model")

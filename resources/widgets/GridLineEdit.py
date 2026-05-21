@@ -26,19 +26,19 @@ Uso:
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional, Callable
+from typing import Any, Dict
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QWidget, QGridLayout, QLabel, QLineEdit,
-    QScrollArea,
 )
 from PySide6.QtCore import Signal
 
 
-class GridLineEdit(QScrollArea):
+class GridLineEdit(QWidget):
     """
-    Grade rolável de QLineEdit configurados por dicionário.
+    Grade de QLineEdit configurados por dicionário.
+    Widget compacto — sem QScrollArea para evitar expansão vertical indesejada.
 
     Sinais:
         changed(key, value) — emitido quando qualquer campo muda
@@ -54,17 +54,12 @@ class GridLineEdit(QScrollArea):
         super().__init__(parent)
         self._config = config
         self._line_edits: Dict[str, QLineEdit] = {}
+        self.setObjectName("grid_lineedit")
 
-        self.setWidgetResizable(True)
-        self.setObjectName("grid_lineedit_scroll")
-
-        self._container = QWidget()
-        self._container.setObjectName("grid_lineedit_container")
-        self._grid = QGridLayout(self._container)
-        self._grid.setContentsMargins(4, 4, 4, 4)
+        self._grid = QGridLayout(self)
+        self._grid.setContentsMargins(0, 0, 0, 0)
         self._grid.setSpacing(6)
         self._grid.setColumnStretch(1, 1)
-        self.setWidget(self._container)
 
         self._build()
 
@@ -99,12 +94,31 @@ class GridLineEdit(QScrollArea):
 
             row += 1
 
-        # Preenche final com stretch
-        self._grid.setRowStretch(row, 1)
+        # Preenche final com stretch para absorver espaço vertical extra
+        if row > 0:
+            self._grid.setRowStretch(row, 1)
 
     def _on_changed(self, key: str, text: str):
         """Propaga mudança."""
         self.changed.emit(key, text)
+
+    def widget(self, key: str) -> QLineEdit:
+        """
+        Retorna o QLineEdit subjacente para acesso direto (compatibilidade).
+
+        Args:
+            key: Chave do campo configurado no construtor
+
+        Returns:
+            QLineEdit interno
+
+        Raises:
+            KeyError: se a chave não existir
+        """
+        le = self._line_edits.get(key)
+        if le is None:
+            raise KeyError(f"Campo '{key}' não encontrado no GridLineEdit")
+        return le
 
     # ── Propriedades públicas ────────────────────────────────────────
 
