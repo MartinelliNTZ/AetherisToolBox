@@ -97,11 +97,13 @@ class SideWorkspace(QWidget):
         if name in self._tools:
             return name
         self._tools[name] = tool
-        # Cria o widget eager (não lazy) para que os sinais
-        # (ex: console_message) sejam conectados desde o startup,
-        # independente de o painel estar colapsado ou expandido.
-        widget = tool.widget
-        self.stack.addWidget(widget)
+
+        # Placeholder no stack — o widget real só é criado sob demanda
+        # (lazy loading) em _load_tool(), quando a aba é expandida.
+        # Isso evita que BasePlugin.__init__() dispare tool_opened
+        # prematuramente durante o startup.
+        placeholder = QWidget()
+        self.stack.addWidget(placeholder)
 
         tab = VerticalTab(title=tool.title,
                           tooltip=tool.tooltip or tool.title)
@@ -110,7 +112,7 @@ class SideWorkspace(QWidget):
         self._tabs[name] = tab
         self._tabs_layout.addWidget(tab)
 
-        self._log.info(f"Tool SIDE registrada: {name}", code="SIDE_REG")
+        self._log.info(f"Tool SIDE registrada (lazy): {name}", code="SIDE_REG")
         return name
 
     def open_tool(self, tool: Tool) -> str:
@@ -167,16 +169,16 @@ class SideWorkspace(QWidget):
             return
         idx = keys.index(name)
 
-        # Obtem o widget (lazy ou ja carregado de outro workspace)
-        widget = tool.widget  # property: cria ou retorna o existente
+        # Obtem o widget (lazy: cria só agora, na primeira expansão)
+        widget = tool.widget
 
         # Substitui o placeholder pelo widget real
         old = self.stack.widget(idx)
-        if old is None or old is widget:
-            # Se ja estiver no lugar certo, apenas muda o indice
+        if old is widget:
+            # Já está no lugar certo, apenas muda o índice
             pass
         else:
-            self._log.info(f"Carregando tool SIDE: {name}", code="SIDE_LOAD")
+            self._log.info(f"Carregando tool SIDE (lazy): {name}", code="SIDE_LOAD")
             self.stack.removeWidget(old)
             old.deleteLater()
             self.stack.insertWidget(idx, widget)

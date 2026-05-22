@@ -6,7 +6,7 @@ Aetheris ToolBox — Ponto de Entrada
 Executável principal. Apenas chama o BootStrap singleton.
 
 Uso:
-    python main.py
+    python main.py#lll
 """
 
 from __future__ import annotations
