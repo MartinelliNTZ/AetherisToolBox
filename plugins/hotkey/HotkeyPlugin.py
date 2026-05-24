@@ -30,6 +30,7 @@ from utils.MessageBox import MessageBox
 from resources.widgets.ExecutionButtons import ExecutionButtons
 from resources.widgets.HotkeyCaptureLine import HotkeyCaptureLine, _to_display
 from resources.widgets.HotkeySequenceCapture import HotkeySequenceCapture
+from resources.widgets.MouseButtonCapture import MouseButtonCapture
 from resources.widgets.GridCheckBox import GridCheckBox
 from resources.widgets.GroupPainel import GroupPainel
 from resources.widgets.SectionPanel import SectionPanel
@@ -55,6 +56,7 @@ class HotkeyPlugin(BasePlugin):
 
     MODE_TEXT = "Teclar Texto"
     MODE_HOTKEY = "Teclar Atalho"
+    MODE_MOUSE = "Multi Clique Mouse"
 
     def __init__(self, parent=None):
         super().__init__(
@@ -97,7 +99,11 @@ class HotkeyPlugin(BasePlugin):
 
         # ── Seletor de Modo (SimpleComboBox) ──────────────────────────
         self._combo_mode = SimpleComboBox(
-            items={self.MODE_TEXT: self.MODE_TEXT, self.MODE_HOTKEY: self.MODE_HOTKEY},
+            items={
+                self.MODE_TEXT: self.MODE_TEXT,
+                self.MODE_HOTKEY: self.MODE_HOTKEY,
+                self.MODE_MOUSE: self.MODE_MOUSE,
+            },
             on_item_changed=self._on_mode_changed,
             parent=self,
         )
@@ -194,9 +200,52 @@ class HotkeyPlugin(BasePlugin):
         self._grid_hotkey_numbers.setObjectName("grid_hotkey_numeric")
         self._stack_hotkey.section_layout.addWidget(self._grid_hotkey_numbers)
 
+        # ── Stack: Modo Mouse ──────────────────────────────────────────
+        self._stack_mouse = SectionPanel(object_name="stack_mouse")
+
+        # MouseButtonCapture
+        self._mouse_button_capture = MouseButtonCapture(
+            default_button="left",
+            label="Botão do mouse:",
+        )
+        self._mouse_button_capture.buttonChanged.connect(self._mark_dirty)
+        self._stack_mouse.section_layout.addWidget(self._mouse_button_capture)
+
+        # GridDoubleSpinBox para modo mouse
+        self._grid_mouse_numbers = GridDoubleSpinBox(
+            config={
+                "atraso": {
+                    "label": "Atraso inicial",
+                    "description": "Tempo de espera antes de começar (s)",
+                    "decimal": 1,
+                    "default": self.DEFAULT_STARTUP_DELAY,
+                    "suffix": "s",
+                },
+                "intervalo": {
+                    "label": "Intervalo entre cliques",
+                    "description": "Tempo entre cada clique (s)",
+                    "decimal": 2,
+                    "default": 0.04,
+                    "suffix": "s",
+                },
+                "repeticoes": {
+                    "label": "Número de cliques",
+                    "description": "Quantos cliques por acionamento (0 = contínuo enquanto segurar)",
+                    "decimal": 0,
+                    "default": 1,
+                    "min": 0,
+                    "max": 99999,
+                },
+            },
+        )
+        self._grid_mouse_numbers.changed.connect(self._mark_dirty)
+        self._grid_mouse_numbers.setObjectName("grid_mouse_numeric")
+        self._stack_mouse.section_layout.addWidget(self._grid_mouse_numbers)
+
         # Adiciona stacks ao config group
         config_group.group_layout.addWidget(self._stack_text)
         config_group.group_layout.addWidget(self._stack_hotkey)
+        config_group.group_layout.addWidget(self._stack_mouse)
 
         # ── Tecla de atalho (comum aos dois modos) ────────────────────
         self._edit_hotkey = HotkeyCaptureLine(
@@ -250,9 +299,9 @@ class HotkeyPlugin(BasePlugin):
     def _update_mode_visibility(self):
         """Exibe/esconde os stacks conforme o modo selecionado."""
         mode = self._combo_mode.current_value
-        is_text = mode == self.MODE_TEXT
-        self._stack_text.setVisible(is_text)
-        self._stack_hotkey.setVisible(not is_text)
+        self._stack_text.setVisible(mode == self.MODE_TEXT)
+        self._stack_hotkey.setVisible(mode == self.MODE_HOTKEY)
+        self._stack_mouse.setVisible(mode == self.MODE_MOUSE)
 
     # ── Ações ─────────────────────────────────────────────────────────
 
@@ -268,6 +317,18 @@ class HotkeyPlugin(BasePlugin):
         mode = self._combo_mode.current_value
 
         # Validação conforme o modo
+        if mode == self.MODE_MOUSE:
+            button = self._mouse_button_capture.captured_button()
+            if not button:
+                MessageBox.show_warning(
+                    "Selecione um botão do mouse.", title="Aviso"
+                )
+                return
+
+            startup_delay = self._grid_mouse_numbers.get("atraso")
+            interval_delay = self._grid_mouse_numbers.get("intervalo")
+            repeat_count = int(self._grid_mouse_numbers.get("repeticoes"))
+
         if mode == self.MODE_TEXT:
             value = self._grid_text.get("valor").strip()
             if not value:
@@ -298,7 +359,10 @@ class HotkeyPlugin(BasePlugin):
         SignalManager.instance().progress_update.emit(0.0)
 
         # Monta callback conforme o modo
-        if mode == self.MODE_TEXT:
+        if mode == self.MODE_MOUSE:
+            pass  # já tratado acima
+
+        elif mode == self.MODE_TEXT:
             value = self._grid_text.get("valor").strip()
             startup_delay = self._grid_text_numbers.get("atraso")
             interval_delay = self._grid_text_numbers.get("intervalo")
@@ -314,7 +378,27 @@ class HotkeyPlugin(BasePlugin):
                 return
             time.sleep(startup_delay)
 
-            if mode == self.MODE_TEXT:
+            if mode == self.MODE_MOUSE:
+                import pyautogui
+                total_clicks = repeat_count
+                interval = interval_delay
+                continuous = (total_clicks == 0)
+                count = 0
+                while self._running:
+                    if not continuous and count >= total_clicks:
+                        break
+                    pyautogui.click(button=button)
+                    count += 1
+                    if not continuous:
+                        progress = (count / total_clicks) * 100.0
+                        SignalManager.instance().progress_update.emit(progress)
+                    time.sleep(interval)
+                QTimer.singleShot(
+                    0,
+                    lambda: self._on_mouse_done(count, button, hotkey),
+                )
+
+            elif mode == self.MODE_TEXT:
                 count = 0
                 total_chars = len(value)
                 for ch in value:
@@ -418,6 +502,14 @@ class HotkeyPlugin(BasePlugin):
             suppress=suppress,
         )
 
+    def _on_mouse_done(self, count: int, button: str, hotkey: str) -> None:
+        """Recebe notificação na thread da UI após execução de cliques (modo mouse)."""
+        if count > 0:
+            SignalManager.instance().console_message.emit(
+                f"HotkeyPlugin executou {count} cliques ({button}) "
+                f"via tecla {hotkey.upper()}"
+            )
+
     def _on_typed(self, count: int, hotkey: str) -> None:
         """Recebe notificação na thread da UI após digitação (modo texto)."""
         if count > 0:
@@ -472,6 +564,9 @@ class HotkeyPlugin(BasePlugin):
         self._grid_hotkey_numbers.setEnabled(enabled)
         self._grid_suppress.setEnabled(enabled)
         self._combo_mode.setEnabled(enabled)
+        self._grid_mouse_numbers.setEnabled(enabled)
+        self._mouse_button_capture.setEnabled(enabled)
+        self._stack_mouse.setEnabled(enabled)
 
     # ── Preferences ─────────────────────────────────────────────────
 
@@ -514,6 +609,23 @@ class HotkeyPlugin(BasePlugin):
         if suppress is not None:
             self._grid_suppress.set_all({"suppress": bool(suppress)})
 
+        # ── Preferências do modo mouse ───────────────────────────────
+        mouse_button = self.preferences.get("mouse_button")
+        if mouse_button is not None:
+            self._mouse_button_capture.set_captured_button(mouse_button)
+
+        mouse_interval = self.preferences.get("mouse_interval")
+        if mouse_interval is not None:
+            self._grid_mouse_numbers.set("intervalo", float(mouse_interval), block_signals=True)
+
+        mouse_repeat = self.preferences.get("mouse_repeat")
+        if mouse_repeat is not None:
+            self._grid_mouse_numbers.set("repeticoes", float(mouse_repeat), block_signals=True)
+
+        # Sincroniza atraso do modo mouse com os demais modos
+        if atraso is not None:
+            self._grid_mouse_numbers.set("atraso", float(atraso), block_signals=True)
+
     def save_prefs(self) -> None:
         """Lê os widgets e persiste as preferências."""
         self.preferences["mode"] = self._combo_mode.current_value
@@ -533,19 +645,31 @@ class HotkeyPlugin(BasePlugin):
 
         self.preferences["sequence"] = self._edit_sequence.captured_sequence()
 
+        # ── Preferências do modo mouse ───────────────────────────────
+        self.preferences["mouse_button"] = self._mouse_button_capture.captured_button()
+
+        mouse_vals = self._grid_mouse_numbers.values
+        self.preferences["mouse_interval"] = mouse_vals.get("intervalo", 0.04)
+        self.preferences["mouse_repeat"] = mouse_vals.get("repeticoes", 1)
+
     def _collect_config_data(self) -> dict:
         """Coleta todos os parâmetros atuais do plugin em um dicionário."""
-        vals = self._grid_hotkey_numbers.values
+        hotkey_vals = self._grid_hotkey_numbers.values
+        mouse_vals = self._grid_mouse_numbers.values
         return {
             "mode": self._combo_mode.current_value,
             "value": self._grid_text.get("valor"),
             "hotkey": self._edit_hotkey.captured_key(),
             "suppress": bool(self._grid_suppress.all.get("suppress", True)),
-            "atraso": vals.get("atraso", self.DEFAULT_STARTUP_DELAY),
-            "intervalo": vals.get("intervalo", self.DEFAULT_SEQUENCE_INTERVAL),
-            "aleatoriedade": vals.get("aleatoriedade", 0.0),
-            "repeticoes": int(vals.get("repeticoes", self.DEFAULT_SEQUENCE_REPEAT)),
+            "atraso": hotkey_vals.get("atraso", self.DEFAULT_STARTUP_DELAY),
+            "intervalo": hotkey_vals.get("intervalo", self.DEFAULT_SEQUENCE_INTERVAL),
+            "aleatoriedade": hotkey_vals.get("aleatoriedade", 0.0),
+            "repeticoes": int(hotkey_vals.get("repeticoes", self.DEFAULT_SEQUENCE_REPEAT)),
             "sequence": self._edit_sequence.captured_sequence(),
+            # ── Dados do modo mouse ──────────────────────────────────
+            "mouse_button": self._mouse_button_capture.captured_button(),
+            "mouse_interval": mouse_vals.get("intervalo", 0.04),
+            "mouse_repeat": mouse_vals.get("repeticoes", 1),
         }
 
     def _apply_config_data(self, data: dict):
@@ -585,6 +709,23 @@ class HotkeyPlugin(BasePlugin):
         sequence = data.get("sequence")
         if sequence is not None and isinstance(sequence, list):
             self._edit_sequence.set_captured_sequence(sequence)
+
+        # ── Config do modo mouse ─────────────────────────────────────
+        mouse_button = data.get("mouse_button")
+        if mouse_button is not None:
+            self._mouse_button_capture.set_captured_button(mouse_button)
+
+        mouse_interval = data.get("mouse_interval")
+        if mouse_interval is not None:
+            self._grid_mouse_numbers.set("intervalo", float(mouse_interval), block_signals=True)
+
+        mouse_repeat = data.get("mouse_repeat")
+        if mouse_repeat is not None:
+            self._grid_mouse_numbers.set("repeticoes", float(mouse_repeat), block_signals=True)
+
+        # Sincroniza atraso do modo mouse
+        if atraso is not None:
+            self._grid_mouse_numbers.set("atraso", float(atraso), block_signals=True)
 
     # ── Salvar / Ler Config ────────────────────────────────────────
 

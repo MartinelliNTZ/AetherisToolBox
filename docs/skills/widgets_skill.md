@@ -195,6 +195,37 @@ tab = WorkspaceTab(title="Console", tooltip="Console do sistema")
 
 ---
 
+### `MouseButtonCapture` — `MouseButtonCapture.py`
+Campo de captura de botão do mouse com label opcional encapsulado. Ao clicar, entra em modo de escuta e o próximo clique do mouse é capturado (Left, Right, Middle, X1, X2). Usa `pynput.mouse.Listener` internamente para capturar o clique fora do widget.
+
+Se ``label`` for informado, cria automaticamente um QFormLayout com o label + campo — eliminando a necessidade de criar layouts externos no plugin.
+
+```python
+from resources.widgets.MouseButtonCapture import MouseButtonCapture
+
+# Sem label
+capture = MouseButtonCapture(default_button="left")
+capture.buttonChanged.connect(self._on_button_changed)
+captured = capture.captured_button()  # "left", "right", "middle", "x1", "x2"
+capture.set_captured_button("right")  # define programaticamente
+
+# Com label encapsulado (elimina QFormLayout no plugin)
+capture = MouseButtonCapture(default_button="left", label="Botão do mouse:")
+```
+
+**Comportamento:**
+- Exibe nome amigável (Left (Esquerdo), Right (Direito), Middle (Meio), X1 (Botão lateral), X2 (Botão lateral))
+- Valor interno é compatível com `pyautogui.click(button=...)` e com o enum `MouseButton`
+- Ao clicar, entra em modo de escuta
+- Clique do mouse fora do widget → captura o botão
+- Perde o foco → sai do modo escuta
+- Tab → sai do modo escuta sem capturar
+
+**Parâmetros:**
+- `label: str | None` — se informado, encapsula o campo em um QFormLayout com o label
+
+---
+
 ### `HotkeyCaptureLine` — `HotkeyCaptureLine.py`
 Campo de captura de teclas com label opcional encapsulado. Ao clicar, entra em modo de escuta e a próxima tecla pressionada é capturada (F1, ESC, DEL, ENTER, etc.). Ideal para configuração de atalhos de teclado.
 
