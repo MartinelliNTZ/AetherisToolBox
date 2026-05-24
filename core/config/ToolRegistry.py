@@ -138,6 +138,19 @@ class ToolRegistry:
             show_in_toolbar=False,
             menu_category=MenuCategory.SYSTEM,
         ),
+        ToolKey.CONFIGURATION.value: Tool(
+            name=ToolKey.CONFIGURATION.value,
+            title="Configuração",
+            widget_factory=_make_factory(
+                "plugins.configuration_manager.ConfigurationPlugin",
+                "ConfigurationPlugin",
+            ),
+            tooltip="Configurações gerais do sistema",
+            tool_type=ToolType.SYSTEM,
+            category=CategoryTool.BOTH,
+            show_in_toolbar=False,
+            menu_category=MenuCategory.SYSTEM,
+        ),
         ToolKey.RENAMER.value: Tool(
             name=ToolKey.RENAMER.value,
             title="Renomeador",

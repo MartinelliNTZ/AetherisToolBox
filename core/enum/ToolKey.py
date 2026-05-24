@@ -22,6 +22,7 @@ class ToolKey(str, Enum):
     HOTKEY_PLUGIN = "HotkeyPlugin"
     PREFERENCES = "Preferences"
     RENAMER = "Renamer"
+    CONFIGURATION = "Configuration"
     SYSTEM = "System"
     SAVE_PROJECT = "SaveProject"
     UNTRACEABLE = "Untraceable"
