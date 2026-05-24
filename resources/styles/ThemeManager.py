@@ -68,14 +68,32 @@ THEMES: dict[str, dict] = {
 }
 
 # ═══════════════════════════════════════════════════════════════════
-# ALTERE AQUI O TEMA ATIVO
+# TEMA ATIVO — lido dinamicamente das system preferences
 # ═══════════════════════════════════════════════════════════════════
-# Basta mudar esta string para a chave desejada em THEMES.
-# Ex: CURRENT_THEME_KEY = "zero_graus"
+# O valor salvo em System > "theme" no preferences.json tem prioridade.
+# Se não existir, usa "dark_charcoal" como padrão.
 # ═══════════════════════════════════════════════════════════════════
 
-CURRENT_THEME_KEY: str = "zero_graus"
-CURRENT_THEME_KEY: str = "dark_charcoal"
+_DEFAULT_THEME_KEY: str = "dark_charcoal"
+__CURRENT_THEME_KEY: str | None = None
+
+
+def _get_current_theme_key() -> str:
+    """
+    Retorna a chave do tema ativo, lendo de System > "theme"
+    nas preferências do sistema.
+    """
+    global __CURRENT_THEME_KEY
+    if __CURRENT_THEME_KEY is not None:
+        return __CURRENT_THEME_KEY
+    try:
+        from utils.Preferences import Preferences
+        from core.enum.ToolKey import ToolKey
+        sys_prefs = Preferences.load_tool_prefs(ToolKey.SYSTEM)
+        __CURRENT_THEME_KEY = sys_prefs.get("theme", _DEFAULT_THEME_KEY)
+    except Exception:
+        __CURRENT_THEME_KEY = _DEFAULT_THEME_KEY
+    return __CURRENT_THEME_KEY
 
 
 class ThemeManager:
@@ -102,13 +120,14 @@ class ThemeManager:
 
     @property
     def current_key(self) -> str:
-        """Chave do tema ativo no momento."""
-        return CURRENT_THEME_KEY
+        """Chave do tema ativo no momento (lida das preferências)."""
+        return _get_current_theme_key()
 
     @property
     def current_info(self) -> dict:
         """Metadados completos do tema ativo."""
-        return THEMES[CURRENT_THEME_KEY]
+        key = _get_current_theme_key()
+        return THEMES[key]
 
     @classmethod
     def available_themes(cls) -> dict[str, dict]:
@@ -119,19 +138,22 @@ class ThemeManager:
         }
 
     def reload_theme(self) -> None:
-        """Recria a instância do tema a partir da chave configurada."""
+        """Recria a instância do tema a partir da chave nas preferências."""
+        global __CURRENT_THEME_KEY
+        __CURRENT_THEME_KEY = None  # força releitura
         self._theme = self._build_theme()
 
     # ── Internos ─────────────────────────────────────────────────
 
     @staticmethod
     def _build_theme() -> BaseTheme:
-        """Constrói e retorna a instância do tema apontado por CURRENT_THEME_KEY."""
-        entry = THEMES.get(CURRENT_THEME_KEY)
+        """Constrói e retorna a instância do tema apontado pelas preferências."""
+        key = _get_current_theme_key()
+        entry = THEMES.get(key)
         if entry is None:
             raise KeyError(
-                f"[ThemeManager] Chave de tema '{CURRENT_THEME_KEY}' "
-                f"no encontrada em THEMES. "
+                f"[ThemeManager] Chave de tema '{key}' "
+                f"não encontrada em THEMES. "
                 f"Disponíveis: {list(THEMES.keys())}"
             )
         theme_class: type[BaseTheme] = entry["class"]

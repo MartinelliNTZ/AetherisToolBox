@@ -3,7 +3,7 @@
 ConfigurationPlugin — Plugin de Configuração do Sistema
 =========================================================
 Ferramenta de sistema para configurações gerais do Aetheris ToolBox.
-Inicialmente em branco, pronto para receber opções de configuração.
+Exibe seletor de temas e salva/carrega via System Preferences.
 
 Tipo BOTH — pode ser exibido tanto no workspace central quanto no painel lateral.
 Acessível pelo menu Sistema > Configuração.
@@ -11,16 +11,16 @@ Acessível pelo menu Sistema > Configuração.
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QLabel, QVBoxLayout
-
 from plugins.BasePlugin import BasePlugin
+from resources.styles.ThemeManager import THEMES
+from resources.widgets.GroupPainel import GroupPainel
+from resources.widgets.SimpleComboBox import SimpleComboBox
 
 
 class ConfigurationPlugin(BasePlugin):
     """
     Plugin de configuração do sistema.
-    Placeholder — UI será construída conforme necessidade.
+    Gerencia temas e configurações globais.
     """
 
     def __init__(self, parent=None):
@@ -28,22 +28,55 @@ class ConfigurationPlugin(BasePlugin):
             tool_key="Configuration",
             parent=parent,
             title="Configuração",
+            sys_prefs=True,  # carrega self.sys_preferences
         )
 
     def _build_ui(self):
-        """Constrói a UI base com placeholder."""
+        """Constrói a UI com seletor de temas."""
         super()._build_ui()
 
-        # Placeholder inicial — será substituído por conteúdo real
-        label = QLabel("Configurações do sistema em breve...")
-        label.setStyleSheet("color: #888; font-size: 14px; padding: 20px;")
-        label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.main_layout.addWidget(label)
+        # ── Seletor de Tema ──
+        grupo_tema = GroupPainel("Tema Visual")
+
+        # Monta dict {key: label} dos temas disponíveis
+        theme_items = {
+            key: meta["label"]
+            for key, meta in THEMES.items()
+        }
+
+        self._theme_combo = SimpleComboBox(
+            items=theme_items,
+            on_item_changed=self._on_theme_changed,
+            label="Tema:",
+            parent=self,
+        )
+        grupo_tema.group_layout.addWidget(self._theme_combo)
+
+        self.main_layout.addWidget(grupo_tema)
+        self.main_layout.addStretch()
 
     def load_prefs(self):
-        """Carrega preferências salvas (placeholder)."""
-        pass
+        """Carrega o tema salvo nas system preferences."""
+        current = self.sys_preferences.get("theme", "dark_charcoal")
+        self._theme_combo.current_value = current
 
     def save_prefs(self):
-        """Salva preferências (placeholder)."""
-        pass
+        """Salva o tema selecionado nas system preferences."""
+        theme_key = self._theme_combo.current_value
+        if theme_key:
+            self.sys_preferences["theme"] = theme_key
+            from utils.Preferences import Preferences
+            from core.enum.ToolKey import ToolKey
+            Preferences.save_tool_prefs(ToolKey.SYSTEM, self.sys_preferences)
+
+    def _on_theme_changed(self, theme_key: str):
+        """Callback quando o tema é alterado no combo."""
+        self.sys_preferences["theme"] = theme_key
+        from utils.Preferences import Preferences
+        from core.enum.ToolKey import ToolKey
+        Preferences.save_tool_prefs(ToolKey.SYSTEM, self.sys_preferences)
+        self.logger.info(
+            "Tema alterado",
+            code="THEME_CHANGED",
+            theme=theme_key,
+        )
