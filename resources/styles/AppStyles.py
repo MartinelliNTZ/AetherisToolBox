@@ -363,13 +363,13 @@ class AppStyles(BaseStyle):
     @classmethod
     def theme_colors(cls) -> dict[str, str]:
         """Retorna um dicionário com TODAS as cores do tema atual.
-        Cacheado por performance (paintEvent é chamado a 60 fps)."""
+        Cacheado por performance (paintEvent é chamado a 60 fps).
+        Usa current_key como chave de cache (string estável)."""
         t = ct.theme
-        # Recria cache se o id do tema mudar (nunca muda em runtime normal)
-        cache_id = id(t)
-        if cls._THEME_COLORS_CACHE.get("_cache_id") != cache_id:
+        cache_key = ct.current_key
+        if cls._THEME_COLORS_CACHE.get("_cache_key") != cache_key:
             cls._THEME_COLORS_CACHE = {
-                "_cache_id": cache_id,
+                "_cache_key": cache_key,
                 # Aliases de compatibilidade para widgets legados
                 "BG_DEEPEST": t.BG_DEEPEST,
                 "BG_DARK": t.BG_DARK,

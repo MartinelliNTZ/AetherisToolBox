@@ -34,6 +34,12 @@ from typing import Any, Dict
 
 from PySide6.QtWidgets import QWidget, QVBoxLayout
 
+from core.config.LogUtils import LogUtils
+from core.enum.ToolKey import ToolKey
+from core.manager.SignalManager import SignalManager
+from resources.widgets.PluginPage import PluginPage
+from utils.Preferences import Preferences
+
 
 class BasePlugin(QWidget):
     """
@@ -65,23 +71,18 @@ class BasePlugin(QWidget):
         self.tool_key = tool_key
         self._title = title
 
-        from utils.Preferences import Preferences
-        from core.enum.ToolKey import ToolKey
-
         self.preferences: Dict[str,
                                Any] = Preferences.load_tool_prefs(tool_key)
         self.sys_preferences: Dict[str, Any] | None = None
         if sys_prefs:
             self.sys_preferences = Preferences.load_tool_prefs(ToolKey.SYSTEM)
 
-        from core.config.LogUtils import LogUtils
         self.logger = LogUtils(
             tool=tool_key, class_name=self.__class__.__name__)
 
         self._build_ui()
         self.load_prefs()
 
-        from core.manager.SignalManager import SignalManager
         SignalManager.instance().tool_opened.emit(tool_key)
 
     def _build_ui(self) -> None:
@@ -94,8 +95,6 @@ class BasePlugin(QWidget):
         Os filhos DEVEM chamar super()._build_ui() antes de adicionar
         widgets em self.main_layout.
         """
-        from resources.widgets.PluginPage import PluginPage
-
         # Layout externo sem margins para ancorar a PluginPage
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
@@ -118,7 +117,6 @@ class BasePlugin(QWidget):
             code="TOOL_CLOSE_DONE",
             tool_key=self.tool_key,
         )
-        from core.manager.SignalManager import SignalManager
         SignalManager.instance().tool_closed.emit(self.tool_key)
         super().closeEvent(event)
 
@@ -138,8 +136,6 @@ class BasePlugin(QWidget):
             code="TOOL_FORCE_SAVE",
             tool_key=self.tool_key,
         )
-        from utils.Preferences import Preferences
-
         Preferences.save_tool_prefs(self.tool_key, self.preferences)
         self.logger.info(
             "Preferências forçadas a salvar",
