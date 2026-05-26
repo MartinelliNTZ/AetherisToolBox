@@ -123,7 +123,14 @@ class BasePlugin(QWidget):
         super().closeEvent(event)
 
     def force_save_prefs(self, toolkey=None) -> None:
-        """Força a persistência imediata das preferências atuais."""
+        """
+        Força a persistência imediata das preferências atuais.
+        
+        ATENÇÃO: Salva no tool_key ou no toolkey passado.
+        Se o plugin usa sys_prefs=True, as system preferences (tema, etc.)
+        NÃO são salvas aqui. Use:
+            Preferences.save_tool_prefs(ToolKey.SYSTEM, self.sys_preferences)
+        """
         if toolkey is None:
             toolkey = self.tool_key
         self.logger.info(

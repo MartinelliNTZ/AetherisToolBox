@@ -19,55 +19,29 @@ mgr.tool_opened.connect(
 ```NAO PRECISA MECHER ISSO E PAENAS DEBUG INTERNO" MAS VC TA CORRETO E QUEBRA DE CONTRATO
 NA VERSAO FINAL SERA TIRADO'''
 
-### 2. Contrato 9 — Código Morto: chave `"module"` no ThemeManager.THEMES
+### 2. ✅ RESOLVIDO — Contrato 9: ThemeManager com lazy loading real
 
-**Arquivo:** `resources/styles/ThemeManager.py` (linhas 42–68)
+**Arquivo:** `resources/styles/ThemeManager.py`
 
-```python
-THEMES: dict[str, dict] = {
-    "dark_charcoal": {
-        "module": "resources.styles.DarkCharcoalTheme",  # ← NUNCA usado
-        "class":  DarkCharcoalTheme,                      # ← usado diretamente
-        "label":  "Dark Charcoal",
-        ...
-    },
-    ...
-}
-```
-
-**Problema:** A chave `"module"` nunca é usada em runtime. O carregamento é feito via `entry["class"]()` diretamente (linha 159). A documentação dentro do arquivo (linhas 20–22) instrui a adicionar `"module"`, mas este campo não tem função — é código morto.
-
-**Impacto:** Baixo (apenas poluição), mas viola Contrato 9.
-
-**Correção:** Remover a chave `"module"` de todas as entradas e atualizar a documentação interna do arquivo.
-
-#AQUI VC ENCONTROU UM PROBLRMA A IDEIA DO MODULO E FAZER CARREGAMENTO LAZY DAS CLASSES DE 
-STYLE SEM USAR O CARREMENTO DIRETO, OU SEJA SO CARREGA A STYLE QUE FOR USA USADA E NAO IMPORTA 
-AS DEMAIS, PODE IMPLEMENTAR PARA MIM?
+**O que foi feito:**
+- Removidos imports diretos de `DarkCharcoalTheme`, `ZeroGrausTheme`, `BlueTheme`
+- Adicionado método `_load_theme_class(module_path)` que faz `__import__` dinâmico + `issubclass` scan
+- `_build_theme()` agora carrega apenas a classe do tema ativo via `"module"` path
+- `available_themes()` simplificado (sem mais filtrar chave `"class"` que não existe)
+- Chave `"module"` agora tem função real de lazy loading
 
 ---
 
-### 3. Contrato 4 — Preferências: instância direta de `Preferences` no `ConfigurationPlugin`
+### 3. ✅ RESOLVIDO — Contrato 4 + 18: ConfigurationPlugin com ExecutionButtons + save em System
 
-**Arquivo:** `plugins/configuration_manager/ConfigurationPlugin.py` (linhas 68–70, 75–77)
+**Arquivo:** `plugins/configuration_manager/ConfigurationPlugin.py`
 
-```python
-def save_prefs(self):
-    ...
-    from utils.Preferences import Preferences          # import interno repetido
-    from core.enum.ToolKey import ToolKey
-    Preferences.save_tool_prefs(ToolKey.SYSTEM, self.sys_preferences)
-```
-
-O mesmo padrão se repete em `_on_theme_changed()` (linhas 75–77).
-
-**Problema:** O `BasePlugin` já fornece `self.sys_preferences`. O contrato 4 diz _"Não instancie Preferences manualmente. Use self.preferences"_, mas `Preferences.save_tool_prefs()` é chamada estaticamente. Embora o contrato permita uso direto para quem não herda de BasePlugin, este plugin **herda** de BasePlugin — deveria usar `self.preferences` / `self.sys_preferences` e delegar o save ao `BasePlugin.force_save_prefs()` ou ao fechamento automático.
-
-**Correção:** Remover as chamadas diretas a `Preferences.save_tool_prefs()` e sobrescrever `_on_theme_changed()` para apenas modificar `self.sys_preferences["theme"]`, deixando o `closeEvent` do BasePlugin salvar automaticamente. Ou usar `self.force_save_prefs(ToolKey.SYSTEM)`.
-
----
-CORRETAMENETE OBSERVADO. FILHOS DE BASE PLUGIN NAO PRECISAM CHAMAR A CLASSE Preferences
-retire as chamadas
+**O que foi feito:**
+- `_on_salvar()` agora salva **diretamente em `ToolKey.SYSTEM`** via `Preferences.save_tool_prefs()`, em vez de `force_save_prefs()` que salvava em `"Configuration"` (com `keys: []`)
+- `save_prefs()` só atualiza `self.sys_preferences["theme"]` (dict em memória)
+- `_on_theme_changed()` chama `self.save_prefs()` em vez de duplicar a lógica
+- `ExecutionButtons` movido para **primeiro na ordem** (logo após o título), antes do conteúdo
+- Removidos imports inúteis de dentro dos métodos
 
 ### 4. Contrato 9 — Código Morto: `ConfigCarregarDialog.py` e `ConfigSalvarDialog.py`
 
@@ -116,30 +90,16 @@ def _get_path(cls) -> Path:
 NAO IMPLEMENTAR NADA DEIXE COM ESTA 
 ---
 
-### 7. `SignalManager()` vs `SignalManager.instance()` — dupla porta de criação
+### 7. ✅ RESOLVIDO — SignalManager com singleton seguro via `__new__`
 
-**Arquivo:** `core/manager/SignalManager.py` (linhas 34–38)
+**Arquivo:** `core/manager/SignalManager.py`
 
-```python
-def __init__(self, parent=None):
-    if SignalManager._instance is not None:
-        raise RuntimeError("SignalManager é singleton. Use SignalManager.instance()")
-    super().__init__(parent)
-    SignalManager._instance = self
-```
-
-**Problema:** Qualquer código que acidentalmente chame `SignalManager()` (sem `.instance()`) vai **travara aplicação** com RuntimeError se o singleton já existir. Mas se chamar **antes** de `instance()`, cria uma segunda "porta de entrada" que não passa pelo controle central.
-
-**Impacto:** Médio — é frágil para um singleton crítico.
-
-**Correção:** Redirecionar `__init__` para `instance()`:
-```python
-def __new__(cls, parent=None):
-    if cls._instance is not None:
-        return cls._instance
-    return super().__new__(cls)
-```
-PODE IMPLEMENTAR ISSO
+**O que foi feito:**
+- `__new__` agora retorna instância existente se `_instance` já foi criada
+- `SignalManager()` e `SignalManager.instance()` convergem para o mesmo singleton
+- Não crasha mais com RuntimeError se chamar `SignalManager()` direto
+- Guard `_initialized` impede dupla inicialização do `__init__`
+- Compatibilidade retroativa total
 ---
 
 ### 8. `WorkspaceManager._build()` — BOTH tools só vão para side workspace
@@ -178,20 +138,14 @@ from utils.MessageBox import MessageBox
 PODE FAZER ESSA OTIMIZACAO DESDE QUE RESPEITE O FUNCIONAMENTO DO PLUGIN 
 ---
 
-### 10. `ConfigurationPlugin` — duplicação de save
+### 10. ✅ RESOLVIDO — ConfigurationPlugin duplicação de save removida
 
 **Arquivo:** `plugins/configuration_manager/ConfigurationPlugin.py`
 
-Dois métodos fazem exatamente a mesma coisa:
-- `save_prefs()` (linhas 63–70)
-- `_on_theme_changed()` (linhas 72–81)
-
-Ambos salvam `Preferences.save_tool_prefs(ToolKey.SYSTEM, self.sys_preferences)`. A única diferença é que `_on_theme_changed()` também dá logger.
-
-**Impacto:** Baixo (DRY violado), médio se um dia a lógica de save mudar e só um método for atualizado.
-
-**Correção:** `_on_theme_changed()` deveria apenas modificar `self.sys_preferences["theme"]` e chamar `self.save_prefs()`, que já faz o persist.
-CONCORDO, PODE IMPLEMENTAR ISSO 
+**O que foi feito:**
+- `_on_theme_changed()` agora chama `self.save_prefs()` em vez de duplicar a lógica de persistência
+- Removido `Preferences.save_tool_prefs()` duplicado em ambos os métodos
+- Save centralizado: `save_prefs()` é a única fonte de verdade para atualizar o dict
 ---
 
 ## ⚡ OPORTUNIDADES DE OTIMIZAÇÃO
@@ -274,6 +228,10 @@ NEGADO NAO PRECISA DESSA FUNCAO
 ---
 
 ### 15. BasePlugin.closeEvent — logger chamado mesmo sem logger
+
+> **Nota:** `force_save_prefs()` salva em `self.tool_key` (ex: "Configuration"), **não em System**.  
+> Plugins com `sys_prefs=True` que precisam persistir system preferences devem chamar `Preferences.save_tool_prefs(ToolKey.SYSTEM, self.sys_preferences)` diretamente no método de save manual.
+> O `closeEvent` do BasePlugin persiste `self.preferences` na tool_key correta, mas **não persiste** `self.sys_preferences`.
 
 **Arquivo:** `plugins/BasePlugin.py` (linhas 108–123)
 

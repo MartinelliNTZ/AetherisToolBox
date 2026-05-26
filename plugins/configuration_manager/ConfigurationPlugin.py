@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from plugins.BasePlugin import BasePlugin
 from resources.styles.ThemeManager import THEMES
+from resources.widgets.ExecutionButtons import ExecutionButtons
 from resources.widgets.GroupPainel import GroupPainel
 from resources.widgets.SimpleComboBox import SimpleComboBox
 
@@ -34,6 +35,17 @@ class ConfigurationPlugin(BasePlugin):
     def _build_ui(self):
         """Constrói a UI com seletor de temas."""
         super()._build_ui()
+
+        # ── ExecutionButtons (padrão do sistema) — logo após o título ──
+        self._btns = ExecutionButtons(self, {
+            "salvar": {
+                "text": "SALVAR CONFIG",
+                "callback": self._on_salvar,
+                "type": "primary",
+                "description": "Salva as configurações atuais em disco",
+            },
+        })
+        self.main_layout.addWidget(self._btns)
 
         # ── Seletor de Tema ──
         grupo_tema = GroupPainel("Tema Visual")
@@ -69,6 +81,18 @@ class ConfigurationPlugin(BasePlugin):
         theme_key = self._theme_combo.current_value
         if theme_key:
             self.sys_preferences["theme"] = theme_key
+
+    def _on_salvar(self):
+        """Callback do botão SALVAR CONFIG — persiste em System preferences."""
+        self.save_prefs()
+        # Salva sys_preferences em System (não em "Configuration")
+        from utils.Preferences import Preferences
+        from core.enum.ToolKey import ToolKey
+        Preferences.save_tool_prefs(ToolKey.SYSTEM, self.sys_preferences)
+        self.logger.info(
+            "Configurações salvas manualmente pelo usuário",
+            code="CONFIG_SAVED",
+        )
 
     def _on_theme_changed(self, theme_key: str):
         """Callback quando o tema é alterado no combo."""
