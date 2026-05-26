@@ -14,6 +14,7 @@ from plugins.BasePlugin import BasePlugin
 from core.manager.SignalManager import SignalManager
 from resources.widgets.ExecutionButtons import ExecutionButtons
 from resources.widgets.ReadOnlyTextBrowser import ReadOnlyTextBrowser
+from utils.ColorProvider import ColorProvider
 
 
 class ConsolePlugin(BasePlugin):
@@ -93,9 +94,11 @@ class ConsolePlugin(BasePlugin):
 
         timestamp = datetime.now().strftime("%H:%M:%S")
         safe = html_mod.escape(message)
+        text_color = ColorProvider.text_primary()
+        ts_color = ColorProvider.tool_color("System")
         self.append_log(
-            f'<span style="color:#E5E7EB;font-family:Consolas,monospace;">'
-            f'<span style="color:#78716C;">[{timestamp}]</span> '
+            f'<span style="color:{text_color};font-family:Consolas,monospace;">'
+            f'<span style="color:{ts_color};">[{timestamp}]</span> '
             f'{safe}</span>'
         )
 

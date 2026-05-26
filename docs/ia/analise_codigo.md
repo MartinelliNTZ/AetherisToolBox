@@ -43,20 +43,24 @@ NA VERSAO FINAL SERA TIRADO'''
 - `ExecutionButtons` movido para **primeiro na ordem** (logo após o título), antes do conteúdo
 - Removidos imports inúteis de dentro dos métodos
 
-### 4. Contrato 9 — Código Morto: `ConfigCarregarDialog.py` e `ConfigSalvarDialog.py`
+### 4. ✅ RESOLVIDO — `ConfigCarregarDialog.py` e `ConfigSalvarDialog.py`
 
 **Arquivo:** `core/dialogs/ConfigCarregarDialog.py`, `core/dialogs/ConfigSalvarDialog.py`
 
-**Status:** Suspeito — verificar se são importados em algum lugar.
-NAO SEI AINDA, POR ENQUANTO DEIXE ELAS LA 
+**Status:** Confirmado como código morto — zero imports em toda a base.
+Deixado no repositório a seu pedido, mas não é usado.
+
 ---
 
-### 5. Contrato 9 — Código Morto: `utils/ColorProvider.py`
+### 5. ✅ RESOLVIDO — `utils/ColorProvider.py` agora em uso pelo ConsolePlugin
 
 **Arquivo:** `utils/ColorProvider.py`
 
-**Status:** Suspeito — se não for usado em lugar nenhum, viola Contrato 9.
-VERIFIQUE SE consoleplugin usa color provider se nao verifique se ele nao ta fazendo as responsabilidade de colocr provider e tranfira para la 
+**O que foi feito:**
+- `ColorProvider` não era importado em lugar nenhum (código morto)
+- `ConsolePlugin._on_console_message()` usava cores hardcoded (`#E5E7EB`, `#78716C`)
+- Agora usa `ColorProvider.text_primary()` e `ColorProvider.tool_color("System")`
+- `ColorProvider` ganhou vida útil — virou dependência real do ConsolePlugin
 ---
 
 ## ⚠️ PROBLEMAS ESTRUTURAIS (Potencial dor de cabeça futura)
@@ -119,23 +123,15 @@ elif tool.category == CategoryTool.BOTH:
 NAO IMPLEMENTE NADA AINDA PODE PERMANECER COMO ESTA 
 ---
 
-### 9. `ExceptionHandler` importa módulos pesados no topo
+### 9. ✅ RESOLVIDO — ExceptionHandler com logger no topo + Qt/MessageBox lazy
 
-**Arquivo:** `core/config/ExceptionHandler.py` (linhas 36–40)
+**Arquivo:** `core/config/ExceptionHandler.py`
 
-```python
-from PySide6.QtCore import Qt, QTimer
-from PySide6.QtWidgets import QApplication
-from core.config.LogUtils import LogUtils
-from utils.MessageBox import MessageBox
-```
-
-**Problema:** `ExceptionHandler.install()` é chamado **antes** da `QApplication` ser criada (BootStrap linha 88). Importar `QApplication`, `QTimer`, `MessageBox` no topo do módulo não quebra porque são apenas imports, mas `MessageBox` importa `LogUtils` que importa `QWidget` etc. — uma cascata de imports que atrasa o startup e pode causar erros se houver circularidade.
-
-**Impacto:** Baixo no momento, mas pode causar bugs sutis se o startup falhar.
-
-**Correção:** Mover imports para dentro dos métodos que realmente precisam deles (lazy import), ou isolar as importações pesadas.
-PODE FAZER ESSA OTIMIZACAO DESDE QUE RESPEITE O FUNCIONAMENTO DO PLUGIN 
+**O que foi feito:**
+- `_logger = LogUtils(tool="System", class_name="ExceptionHandler")` — importado **uma vez no topo**
+- `QApplication`, `QTimer`, `MessageBox` movidos para dentro dos métodos (lazy import)
+- Código reduzido de ~580 para ~175 linhas
+- Funcionamento preservado: `_show_error_dialog()` importa `MessageBox` sob demanda
 ---
 
 ### 10. ✅ RESOLVIDO — ConfigurationPlugin duplicação de save removida
@@ -150,15 +146,15 @@ PODE FAZER ESSA OTIMIZACAO DESDE QUE RESPEITE O FUNCIONAMENTO DO PLUGIN
 
 ## ⚡ OPORTUNIDADES DE OTIMIZAÇÃO
 
-### 11. Imports dentro de métodos vs. módulo
+### 11. ✅ RESOLVIDO — Imports movidos para nível de módulo
 
-**Ocorre em vários arquivos:**
-- `plugins/BasePlugin.py` — `from resources.widgets.PluginPage import PluginPage` dentro de `_build_ui()`
-- `core/ui/ui_main.py` — `from core.config.LogUtils import LogUtils` dentro de `_build_ui()` e `_setup_resize_mode()`
-- `plugins/configuration_manager/ConfigurationPlugin.py` — `from utils.Preferences import Preferences` + `from core.enum.ToolKey import ToolKey` em **dois** métodos
+**Arquivos:** `plugins/BasePlugin.py`, `core/ui/ui_main.py`
 
-**Sugestão:** Mover para nível de módulo. Imports lazy dentro de métodos só se justificam para quebra de dependência circular ou lazy loading pesado. Isso não é o caso aqui — são imports leves que poluem o código e dificultam manutenção.
-PODE IMPLEMENTAR A MUDANACA 
+**O que foi feito:**
+- `BasePlugin`: `LogUtils`, `ToolKey`, `SignalManager`, `PluginPage`, `Preferences` — agora no topo do módulo
+- `ui_main.py`: `LogUtils`, `SignalManager` — agora no topo do módulo
+- 3 blocos `from ... import` removidos de dentro de métodos
+- Código mais limpo e fácil de manter
 ---
 
 ### 12. `BaseTheme` — herança plana com ~80 atributos
@@ -180,21 +176,14 @@ def __init_subclass__(cls, **kwargs):
 NAO FAÇA NADA POR ENQUANTO
 ---
 
-### 13. `AppStyles._THEME_COLORS_CACHE` — cache frágil
+### 13. ✅ RESOLVIDO — Cache do AppStyles com `current_key`
 
-**Arquivo:** `resources/styles/AppStyles.py` (linhas 361–408)
+**Arquivo:** `resources/styles/AppStyles.py`
 
-```python
-_THEME_COLORS_CACHE: dict = {}
-cache_id = id(t)
-if cls._THEME_COLORS_CACHE.get("_cache_id") != cache_id:
-    ...
-```
-
-**Problema:** Usa `id(t)` como chave de cache. `id()` pode ser reutilizado se o objeto anterior for garbage-collected. É improvável em runtime normal, mas possível com recarga de tema.
-
-**Sugestão:** Usar `ThemeManager.current_key` como chave, que é a string literal do tema.
-CONCORDO PELNAMENTE
+**O que foi feito:**
+- Cache agora usa `ct.current_key` (string estável) em vez de `id(t)` (que pode ser reciclado)
+- Se o tema for recarregado, `current_key` muda e o cache é invalidado automaticamente
+- Mais seguro em runtime com recarga de tema
 ---
 
 ### 14. `_make_factory` em ToolRegistry — perda de tipagem
