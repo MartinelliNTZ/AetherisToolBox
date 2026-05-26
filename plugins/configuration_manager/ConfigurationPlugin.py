@@ -61,20 +61,19 @@ class ConfigurationPlugin(BasePlugin):
         self._theme_combo.current_value = current
 
     def save_prefs(self):
-        """Salva o tema selecionado nas system preferences."""
+        """Salva o tema selecionado nas system preferences.
+        
+        Atualiza o dict sys_preferences — o closeEvent do BasePlugin
+        persiste automaticamente com force_save_prefs().
+        """
         theme_key = self._theme_combo.current_value
         if theme_key:
             self.sys_preferences["theme"] = theme_key
-            from utils.Preferences import Preferences
-            from core.enum.ToolKey import ToolKey
-            Preferences.save_tool_prefs(ToolKey.SYSTEM, self.sys_preferences)
 
     def _on_theme_changed(self, theme_key: str):
         """Callback quando o tema é alterado no combo."""
         self.sys_preferences["theme"] = theme_key
-        from utils.Preferences import Preferences
-        from core.enum.ToolKey import ToolKey
-        Preferences.save_tool_prefs(ToolKey.SYSTEM, self.sys_preferences)
+        self.save_prefs()
         self.logger.info(
             "Tema alterado",
             code="THEME_CHANGED",

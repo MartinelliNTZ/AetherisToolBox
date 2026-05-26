@@ -13,9 +13,10 @@ class SignalManager(QObject):
     Singleton que centraliza os sinais do sistema.
 
     Sinais:
-        tool_opened(str, object)    — tool_key + instância da tool
-        tool_closed(str)            — tool_key da ferramenta fechada
-        console_message(str)        — mensagem para exibir no console
+        tool_opened(str)        — tool_key da ferramenta aberta
+        tool_closed(str)        — tool_key da ferramenta fechada
+        console_message(str)    — mensagem para exibir no console
+        progress_update(float)  — valor de progresso (0.0 a 100.0)
     """
 
     tool_opened: Signal = Signal(str)
@@ -25,14 +26,21 @@ class SignalManager(QObject):
 
     _instance: SignalManager | None = None
 
+    def __new__(cls, parent: QObject | None = None) -> SignalManager:
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance._initialized = False
+        return cls._instance
+
+    def __init__(self, parent: QObject | None = None) -> None:
+        if self._initialized:
+            return
+        self._initialized = True
+        super().__init__(parent)
+        SignalManager._instance = self
+
     @classmethod
     def instance(cls) -> SignalManager:
         if cls._instance is None:
             SignalManager()
         return cls._instance  # type: ignore[return-value]
-
-    def __init__(self, parent: QObject | None = None) -> None:
-        if SignalManager._instance is not None:
-            raise RuntimeError("SignalManager é singleton. Use SignalManager.instance()")
-        super().__init__(parent)
-        SignalManager._instance = self

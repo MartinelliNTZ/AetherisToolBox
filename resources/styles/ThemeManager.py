@@ -34,15 +34,11 @@ Uso:
 from __future__ import annotations
 
 from resources.styles.BaseTheme import BaseTheme
-from resources.styles.DarkCharcoalTheme import DarkCharcoalTheme
-from resources.styles.ZeroGrausTheme import ZeroGrausTheme
-from resources.styles.BlueTheme import BlueTheme
 
 
 THEMES: dict[str, dict] = {
     "dark_charcoal": {
         "module":      "resources.styles.DarkCharcoalTheme",
-        "class":       DarkCharcoalTheme,
         "label":       "Dark Charcoal",
         "description": "Tema escuro minimalista com detalhes em dourado. "
                        "Profundidade via sombras, fundo preto-azulado e "
@@ -50,7 +46,6 @@ THEMES: dict[str, dict] = {
     },
     "zero_graus": {
         "module":      "resources.styles.ZeroGrausTheme",
-        "class":       ZeroGrausTheme,
         "label":       "Zero Graus",
         "description": "Tema cristalino Ice Glass. Tons azulados profundos, "
                        "brilho frio mbar-azulado e superfícies que "
@@ -58,7 +53,6 @@ THEMES: dict[str, dict] = {
     },
     "blue_theme": {
         "module":      "resources.styles.BlueTheme",
-        "class":       BlueTheme,
         "label":       "Blue Theme",
         "description": "Tema inspirado no design: "
                        "https://dribbble.com/shots/23707627-Modern-Dashboard-UI-Design. "
@@ -132,10 +126,25 @@ class ThemeManager:
     @classmethod
     def available_themes(cls) -> dict[str, dict]:
         """Retorna o dicionário completo de temas registrados (apenas metadados)."""
-        return {
-            key: {k: v for k, v in meta.items() if k != "class"}
-            for key, meta in THEMES.items()
-        }
+        return {key: dict(meta) for key, meta in THEMES.items()}
+
+    @staticmethod
+    def _load_theme_class(module_path: str) -> type[BaseTheme]:
+        """
+        Importa dinamicamente o módulo do tema e retorna sua classe.
+        Isso evita importar todos os temas no startup — só carrega o necessário.
+        """
+        mod_name = module_path.replace("/", ".").replace("\\", ".")
+        mod = __import__(mod_name, fromlist=["_trash"])
+        # Procura a única classe que herda de BaseTheme no módulo
+        for attr_name in dir(mod):
+            attr = getattr(mod, attr_name)
+            if isinstance(attr, type) and issubclass(attr, BaseTheme) and attr is not BaseTheme:
+                return attr
+        raise ImportError(
+            f"[ThemeManager] Nenhuma subclasse de BaseTheme encontrada "
+            f"em '{module_path}'"
+        )
 
     def reload_theme(self) -> None:
         """Recria a instância do tema a partir da chave nas preferências."""
@@ -156,7 +165,7 @@ class ThemeManager:
                 f"não encontrada em THEMES. "
                 f"Disponíveis: {list(THEMES.keys())}"
             )
-        theme_class: type[BaseTheme] = entry["class"]
+        theme_class = ThemeManager._load_theme_class(entry["module"])
         return theme_class()
 
 
