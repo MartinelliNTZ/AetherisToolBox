@@ -21,6 +21,7 @@ from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QVBoxLayout, QLabel
 
 from core.enum.ToolKey import ToolKey
+from core.manager.SignalManager import SignalManager
 from plugins.BasePlugin import BasePlugin
 from utils.ExplorerUtils import ExplorerUtils
 from utils.MessageBox import MessageBox
@@ -143,6 +144,7 @@ class SaveProjectPlugin(BasePlugin):
                 project_name=result.get("project_name", ""),
                 root_folder=self.sys_preferences["root_folder"],
             )
+            SignalManager.instance().project_changed.emit()
             MessageBox.show_info(
                 f"Projeto '{result.get('project_name', '')}' salvo com sucesso!",
                 title="Projeto Salvo",
@@ -219,6 +221,7 @@ class SaveProjectPlugin(BasePlugin):
             project_name=project_name,
             saved_in_prefs=True,
         )
+        SignalManager.instance().project_changed.emit()
         MessageBox.show_info(
             f"Projeto '{project_name}' criado com sucesso!\n\n"
             f"Localização: {result['file_path']}",

@@ -566,6 +566,36 @@ main_layout.addWidget(grid)
 
 ---
 
+### `FileTreeWidget` — `FileTreeWidget.py`
+Árvore de diretórios baseada em `QTreeView` + `QFileSystemModel`. Componente reutilizável para explorar, renomear, excluir, criar e mover arquivos via drag & drop.
+
+```python
+from resources.widgets.FileTreeWidget import FileTreeWidget
+
+tree = FileTreeWidget()
+tree.set_root_path("C:/meu_projeto")
+tree.file_renamed.connect(self._on_renamed)
+tree.file_deleted.connect(self._on_deleted)
+
+# API pública
+tree.selected_path()        # str | None
+tree.selected_paths()       # list[str]
+tree.delete_selected()      # bool
+tree.rename_selected()      # bool
+tree.create_text_file()     # bool
+tree.refresh()              # None
+```
+
+**Sinais:** `file_renamed(old, new)`, `file_deleted(path)`, `file_created(path)`, `file_moved(src, dst)`, `selection_changed(path | None)`
+
+**Funcionalidades:**
+- Suporte a arrastar arquivos para QGIS/Explorer (drag externo com `QMimeData` + `urls`)
+- Drop interno com `shutil.move()` e diálogo de conflito (Substituir/Manter ambos/Ignorar)
+- Multi-seleção (ExtendedSelection = Ctrl+clique, Shift+clique, Ctrl+A)
+- Context menu com Renomear (F2), Excluir (Del), Criar Arquivo (Ctrl+N), Atualizar (F5), Abrir Local no Explorer
+
+---
+
 ### `ItemTable` — `ItemTable.py`
 Tabela genérica configurável por especificação de colunas. Suporta colunas dos tipos: texto (QTableWidgetItem), spin (QSpinBox), line edit (QLineEdit) e botão remover (SimpleRemoveButton). Elimina formatação manual de QTableWidget.
 

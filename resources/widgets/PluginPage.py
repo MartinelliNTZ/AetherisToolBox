@@ -172,6 +172,18 @@ class PluginPage(QWidget):
 
         return self.badge
 
+    def set_title(self, title: str) -> None:
+        """
+        Altera ou define o título do header.
+
+        Se o header não existir (PluginPage foi criada sem title),
+        este método o constrói dinamicamente.
+        """
+        if not hasattr(self, '_header_layout'):
+            self._build_header(title)
+        else:
+            self._header_title.setText(title)
+
     def add_widget(self, widget: QWidget, stretch: int = 0) -> None:
         """Atalho para adicionar widget ao main_layout."""
         self.main_layout.addWidget(widget, stretch)
