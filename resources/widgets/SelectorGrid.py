@@ -9,8 +9,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QWidget, QGridLayout, QVBoxLayout, QPushButton, QHBoxLayout
+from PySide6.QtWidgets import QWidget, QGridLayout, QVBoxLayout
 from resources.widgets.SimpleSelector import SimpleSelector
 from resources.widgets.GroupPainel import GroupPainel
 
@@ -21,17 +20,12 @@ class SelectorGrid(QWidget):
 
     Cada entrada do dict vira uma linha (ou coluna) na grade.
 
-    Suporta suggested_paths: dict com label → caminho sugerido.
-    Se informado, um botão "→" aparece abaixo do QLineEdit que,
-    ao clicar, insere o caminho sugerido.
-
     Uso:
         grid = SelectorGrid({
             "Imagem Treino":   {"file_filter": "GeoTIFF (*.tif *.tiff)", "default_path": "dados/treino.tif"},
             "Imagem Classif.": {"file_filter": "GeoTIFF (*.tif *.tiff)", "default_path": "dados/classif.tif"},
             "Saída":           {"file_filter": "GeoTIFF (*.tif *.tiff)", "browse_mode": "save_file"},
-        }, title="Imagens & Saída",
-           suggested_paths={"Saída": "C:/projeto/ico/"})
+        }, title="Imagens & Saída")
         parent_layout.addWidget(grid)
 
     Para acessar os valores:
@@ -50,7 +44,6 @@ class SelectorGrid(QWidget):
         super().__init__(parent)
 
         self._selectors: dict[str, SimpleSelector] = {}
-        self._suggested_paths = suggested_paths or {}
         self._build(specs, title, columns)
 
     def _build(self, specs: dict[str, dict], title: Optional[str], columns: int):
@@ -71,22 +64,17 @@ class SelectorGrid(QWidget):
             inner.setSpacing(6)
             inner.setContentsMargins(6, 6, 6, 6)
             for label_text, kwargs in specs.items():
-                # Remove keys que já são passadas como argumentos
                 clean_kwargs = {k: v for k, v in kwargs.items() if k not in ("label_text", "parent")}
                 sel = SimpleSelector(label_text=label_text, parent=self, **clean_kwargs)
                 self._selectors[label_text] = sel
                 inner.addWidget(sel)
-                # Botão de sugestão
-                self._add_suggestion_button(inner, label_text)
         else:
             # Layout em grade com N colunas
             inner.setSpacing(6)
             inner.setContentsMargins(6, 6, 6, 6)
-            # Troca o layout para QGridLayout
             grid = QGridLayout()
             grid.setSpacing(6)
             grid.setContentsMargins(6, 6, 6, 6)
-            # Substitui o layout do container
             for i, (label_text, kwargs) in enumerate(specs.items()):
                 clean_kwargs = {k: v for k, v in kwargs.items() if k not in ("label_text", "parent")}
                 sel = SimpleSelector(label_text=label_text, parent=self, **clean_kwargs)
@@ -94,38 +82,9 @@ class SelectorGrid(QWidget):
                 row = i // columns
                 col = i % columns
                 grid.addWidget(sel, row, col)
-                # Botão de sugestão na linha abaixo
-                self._add_suggestion_button(grid, label_text, row + 1, col)
-            # Como GroupDiv tem QVBoxLayout, adicionamos um QWidget com grid
             grid_wrapper = QWidget()
             grid_wrapper.setLayout(grid)
             inner.addWidget(grid_wrapper)
-
-    # ── Botão de Sugestão ─────────────────────────────────────────
-
-    def _add_suggestion_button(self, layout, label_text: str, row: int = -1, col: int = -1) -> None:
-        """
-        Adiciona um botão "→" com o caminho sugerido, se houver.
-        O botão só aparece se o caminho sugerido não for vazio.
-        """
-        suggested = self._suggested_paths.get(label_text, "")
-        if not suggested:
-            return
-
-        btn = QPushButton(f"→ {suggested}")
-        btn.setObjectName("btn_ghost")
-        btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn.setToolTip(f"Usar: {suggested}")
-
-        # Conecta para inserir o caminho no QLineEdit
-        sel = self._selectors.get(label_text)
-        if sel is not None:
-            btn.clicked.connect(lambda checked=False, s=sel, p=suggested: s.set_path(p))
-
-        if row >= 0 and col >= 0 and isinstance(layout, QGridLayout):
-            layout.addWidget(btn, row, col, Qt.AlignmentFlag.AlignLeft)
-        elif isinstance(layout, QVBoxLayout):
-            layout.addWidget(btn)
 
     # ── Acesso aos selectores ─────────────────────────────────────────
 

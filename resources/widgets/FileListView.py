@@ -34,7 +34,7 @@ from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QListWidget, QListWidgetItem,
 )
 
-from resources.widgets.SimpleGhostButton import SimpleGhostButton
+from resources.widgets.SimpleSecondaryButton import SimpleSecondaryButton
 from utils.ExplorerUtils import ExplorerUtils
 
 
@@ -85,14 +85,14 @@ class FileListView(QWidget):
         self._list.setIconSize(QSize(self._icon_size[0], self._icon_size[1]))
         layout.addWidget(self._list, 1)
 
-        # Botões em UMA linha (reutilizando SimpleGhostButton)
+        # Botões em UMA linha (reutilizando SimpleSecondaryButton)
         row = QHBoxLayout()
         row.setSpacing(4)
 
-        self._btn_add_files = SimpleGhostButton("+ Arquivos")
-        self._btn_add_folder = SimpleGhostButton("+ Pastas")
-        self._btn_remove = SimpleGhostButton("- Remover")
-        self._btn_clear = SimpleGhostButton("✖ Limpar")
+        self._btn_add_files = SimpleSecondaryButton("+ Arquivos")
+        self._btn_add_folder = SimpleSecondaryButton("+ Pastas")
+        self._btn_remove = SimpleSecondaryButton("- Remover")
+        self._btn_clear = SimpleSecondaryButton("✖ Limpar")
 
         row.addWidget(self._btn_add_files)
         row.addWidget(self._btn_add_folder)
@@ -101,10 +101,10 @@ class FileListView(QWidget):
         row.addStretch()
 
         # Botões de mover com símbolo (compactos)
-        self._btn_up = SimpleGhostButton("▲")
+        self._btn_up = SimpleSecondaryButton("▲")
         self._btn_up.setToolTip("Mover para cima")
         self._btn_up.setFixedWidth(32)
-        self._btn_down = SimpleGhostButton("▼")
+        self._btn_down = SimpleSecondaryButton("▼")
         self._btn_down.setToolTip("Mover para baixo")
         self._btn_down.setFixedWidth(32)
 

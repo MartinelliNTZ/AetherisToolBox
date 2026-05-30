@@ -58,6 +58,8 @@ class SimpleSelector(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(4)
 
+        from resources.widgets.SimpleSecondaryButton import SimpleSecondaryButton
+
         # ── Label ──
         self.label = QLabel(label_text)
         self.label.setFixedWidth(label_width)
@@ -72,14 +74,6 @@ class SimpleSelector(QWidget):
             self.edit.setToolTip(tooltip)
         layout.addWidget(self.edit, 1)
 
-        # ── Botão de Sugestão (ao lado do "...") ──
-        if suggested_path:
-            self._btn_suggest = SimpleGhostButton("📂")
-            self._btn_suggest.setToolTip(f"Usar: {suggested_path}")
-            self._btn_suggest.setFixedWidth(30)
-            self._btn_suggest.clicked.connect(lambda: self.set_path(suggested_path))
-            layout.addWidget(self._btn_suggest)
-
         # ── Botão "..." ──
         self.btn = QPushButton("...")
         self.btn.setObjectName("btn_secondary")
@@ -89,6 +83,14 @@ class SimpleSelector(QWidget):
         if tooltip:
             self.btn.setToolTip(tooltip)
         layout.addWidget(self.btn)
+
+        # ── Botão de Caminho Padrão (depois do "...") ──
+        if suggested_path:
+            self._btn_suggest = SimpleSecondaryButton("▼")
+            self._btn_suggest.setToolTip(f"Usar pasta padrão: {suggested_path}")
+            self._btn_suggest.setFixedWidth(30)
+            self._btn_suggest.clicked.connect(lambda: self.set_path(suggested_path))
+            layout.addWidget(self._btn_suggest)
 
     # ── Lógica do seletor ─────────────────────────────────────────────
 

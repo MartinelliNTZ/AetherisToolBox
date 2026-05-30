@@ -8,6 +8,7 @@ com múltiplos tamanhos (16, 32, 48, 64, 128, 256 pixels).
 Usa:
 - PIL (Pillow) para processamento de imagens
 - SignalManager para progresso e console (Contrato 20)
+- HUD Loader para feedback visual durante carregamento/conversão
 - FileListView + PreviewPanel para gestão de arquivos
 - ExecutionButtons (Contrato 18) para botão CONVERTER
 """
@@ -17,11 +18,12 @@ from __future__ import annotations
 import os
 from typing import Dict, Any
 
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import QTimer
 
 from core.enum.ToolKey import ToolKey
 from core.enum.DefaultPathCategory import DefaultPathCategory
 from core.manager.SignalManager import SignalManager
+from core.ui.HudCircularRingsLoader import HudCircularRingsLoader
 from plugins.BasePlugin import BasePlugin
 from resources.widgets.ExecutionButtons import ExecutionButtons
 from resources.widgets.FileListView import FileListView
@@ -36,7 +38,6 @@ from utils.ExplorerUtils import ExplorerUtils
 from utils.MessageBox import MessageBox
 
 
-# ── Tamanhos de ícone disponíveis (específico do plugin) ────────────
 ICO_SIZES: Dict[str, Dict[str, Any]] = {
     "16":   {"label": "16 pixels",   "description": "16x16", "default": True},
     "32":   {"label": "32 pixels",   "description": "32x32", "default": True},
@@ -60,15 +61,17 @@ class IcoConverterPlugin(BasePlugin):
         self.logger.info("Conversor ICO inicializado", code="ICO_READY")
         self.page.set_badge(self.page.PRONTA)
 
-    # ── UI ──────────────────────────────────────────────────────────
-
     def _build_ui(self):
         super()._build_ui()
 
-        # ── Preview Panel ─────────────────────────────────────────────
+        # ── HUD Loader (overlay) ──────────────────────────────────────
+        self._loader = HudCircularRingsLoader(self)
+        self._loader.setGeometry(0, 0, self.width(), self.height())
+
+        # ── Preview ───────────────────────────────────────────────────
         self._preview = PreviewPanel(fixed_size=(480, 360))
 
-        # ── FileListView (conexão direta com preview) ─────────────────
+        # ── FileListView ──────────────────────────────────────────────
         self._file_list = FileListView(
             file_filter=IMAGE_EXTENSIONS,
             accept_dirs=True,
@@ -76,7 +79,7 @@ class IcoConverterPlugin(BasePlugin):
         )
         self._file_list.files_changed.connect(self._on_files_changed)
 
-        # ── ExecutionButtons (só CONVERTER) ───────────────────────────
+        # ── ExecutionButtons ──────────────────────────────────────────
         self._btns = ExecutionButtons(self)
         self._btns.setup({
             "convert": {
@@ -91,19 +94,15 @@ class IcoConverterPlugin(BasePlugin):
         # ── Grid: Arquivos + Preview ──────────────────────────────────
         grp_arquivos = GroupPainel("Arquivos")
         grp_arquivos.group_layout.addWidget(self._file_list)
-
         grp_preview = GroupPainel("Pré-Visualização")
         grp_preview.group_layout.addWidget(self._preview)
-
         self.main_layout.addWidget(GridGroupPainel(grp_arquivos, grp_preview))
 
-        # ── Grid lateral: Tamanhos + Opções ───────────────────────────
+        # ── Tamanhos + Opções lado a lado ─────────────────────────────
         self._grid_sizes = GridCheckBox(ICO_SIZES, num_columns=3)
         grp_tamanhos = GroupPainel("Tamanhos do Ícone")
         grp_tamanhos.group_layout.addWidget(self._grid_sizes)
-
-        lbl_bits = SimpleLabel("Profundidade: 32 bits (RGBA com alpha)")
-        grp_tamanhos.group_layout.addWidget(lbl_bits)
+        grp_tamanhos.group_layout.addWidget(SimpleLabel("Profundidade: 32 bits (RGBA com alpha)"))
 
         self._grid_opts = GridCheckBox(
             config={
@@ -114,7 +113,7 @@ class IcoConverterPlugin(BasePlugin):
                 },
                 "save_in_origin": {
                     "label": "Salvar ICOs na origem",
-                    "description": "Ignora pasta de saída, salva na mesma pasta da imagem",
+                    "description": "Ignora pasta de saída",
                     "default": False,
                 },
             },
@@ -122,10 +121,9 @@ class IcoConverterPlugin(BasePlugin):
         )
         grp_opts = GroupPainel("Opções")
         grp_opts.group_layout.addWidget(self._grid_opts)
-
         self.main_layout.addWidget(GridGroupPainel(grp_tamanhos, grp_opts))
 
-        # ── Pasta de Saída (SimpleSelector com suggested_path) ────────
+        # ── Pasta de Saída ────────────────────────────────────────────
         suggested_ico = ""
         if self.sys_preferences:
             root = self.sys_preferences.get("root_folder", "")
@@ -143,14 +141,27 @@ class IcoConverterPlugin(BasePlugin):
         grp_saida.group_layout.addWidget(self._sel_output)
         self.main_layout.addWidget(grp_saida)
 
-        # ── Carrega pasta do projeto se disponível ────────────────────
+        # ── Carrega pasta do projeto ──────────────────────────────────
         if self.sys_preferences:
             root = self.sys_preferences.get("root_folder", "")
             if root:
                 for folder in [os.path.join(root, d) for d in ("image", "images", "raster")] + [root]:
                     if os.path.isdir(folder):
-                        self._file_list.add_files([folder])
+                        self._loader.show_loader()
+                        self._loader.set_progress(30, "Carregando imagens do projeto...")
+                        QTimer.singleShot(50, lambda f=folder: self._load_project_folder(f))
                         break
+
+    def _load_project_folder(self, folder: str):
+        """Carrega imagens da pasta do projeto com loader."""
+        try:
+            self._file_list.add_files([folder])
+        finally:
+            self._loader.hide_loader()
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._loader.setGeometry(0, 0, self.width(), self.height())
 
     # ── Signals ─────────────────────────────────────────────────────
 
@@ -173,16 +184,14 @@ class IcoConverterPlugin(BasePlugin):
 
         sizes = sorted(int(k) for k in sizes_checked)
         save_in_origin = self._grid_opts.is_item_checked("save_in_origin")
+        output_dir = "" if save_in_origin else self._sel_output.path()
 
-        output_dir = ""
-        if not save_in_origin:
-            output_dir = self._sel_output.path()
-            if not output_dir:
-                MessageBox.show_warning(
-                    "Selecione pasta de saída ou marque 'Salvar ICOs na origem'.",
-                    title="Aviso",
-                )
-                return
+        if not save_in_origin and not output_dir:
+            MessageBox.show_warning(
+                "Selecione pasta de saída ou marque 'Salvar ICOs na origem'.",
+                title="Aviso",
+            )
+            return
 
         result = MessageBox.show_question(
             f"Converter {len(paths)} imagem(ns) para ICO?\n"
@@ -198,6 +207,8 @@ class IcoConverterPlugin(BasePlugin):
         SignalManager.instance().console_message.emit(f"Convertendo {len(paths)} imagem(ns)...")
         self.page.set_badge(self.page.RUNNING)
         self._btns.set_enabled("convert", False)
+        self._loader.set_progress(0, "Convertendo imagens...")
+        self._loader.show_loader()
         QTimer.singleShot(0, lambda: self._run_conversion(paths, sizes, output_dir, save_in_origin))
 
     def _run_conversion(self, paths, sizes, output_dir, save_in_origin):
@@ -211,7 +222,6 @@ class IcoConverterPlugin(BasePlugin):
             for idx, img_path in enumerate(paths, start=1):
                 try:
                     out_dir = os.path.dirname(img_path) if save_in_origin else output_dir
-                    # Garante que o diretório de saída existe
                     ExplorerUtils.ensure_directory(out_dir)
                     self._generate_ico(img_path, sizes, out_dir)
                     ok_count += 1
@@ -223,7 +233,9 @@ class IcoConverterPlugin(BasePlugin):
                         f"Erro: {os.path.basename(img_path)} — {e}"
                     )
 
-                SignalManager.instance().progress_update.emit((idx / total) * 100.0)
+                pct = (idx / total) * 100.0
+                SignalManager.instance().progress_update.emit(pct)
+                self._loader.set_progress(pct, f"Convertendo {idx}/{total}...")
 
             self.logger.info("Conversão finalizada", code="ICO_CONVERT_DONE", ok=ok_count, err=err_count)
             msg = f"Conversão finalizada! {ok_count} ícone(s) gerado(s)."
@@ -233,10 +245,7 @@ class IcoConverterPlugin(BasePlugin):
 
             if err_count == 0:
                 self.page.set_badge(self.page.PRONTA)
-                MessageBox.show_info(
-                    f"Sucesso! {ok_count} ícone(s) gerado(s).",
-                    title="Concluído",
-                )
+                MessageBox.show_info(f"Sucesso! {ok_count} ícone(s) gerado(s).", title="Concluído")
             else:
                 self.page.set_badge(self.page.ERROR)
         except Exception as e:
@@ -244,6 +253,7 @@ class IcoConverterPlugin(BasePlugin):
             SignalManager.instance().console_message.emit(f"Erro fatal: {e}")
             self.page.set_badge(self.page.ERROR)
         finally:
+            self._loader.hide_loader()
             self._btns.set_enabled("convert", True)
             SignalManager.instance().progress_update.emit(0.0)
             self.save_prefs()
@@ -252,10 +262,9 @@ class IcoConverterPlugin(BasePlugin):
     def _generate_ico(image_path: str, sizes: list[int], output_dir: str) -> str:
         from PIL import Image
         img = Image.open(image_path).convert("RGBA")
-        sizes_tuples = [(s, s) for s in sorted(sizes)]
         base_name = os.path.splitext(os.path.basename(image_path))[0]
         out_path = os.path.join(output_dir, f"{base_name}.ico")
-        img.save(out_path, format="ICO", sizes=sizes_tuples)
+        img.save(out_path, format="ICO", sizes=[(s, s) for s in sorted(sizes)])
         return out_path
 
     # ── Preferências ─────────────────────────────────────────────────
