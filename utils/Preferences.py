@@ -46,7 +46,7 @@ class Preferences:
     Não instancie esta classe.
     """
 
-    _DEFAULT_PATH: Path = Path("config") / "preferences.json"
+    _DEFAULT_PATH: Path = Path(__file__).resolve().parent.parent / "config" / "preferences.json"
     _logger_instance = None
 
     # ── API Pública ──────────────────────────────────────────────────
