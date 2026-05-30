@@ -1,29 +1,22 @@
 # -*- coding: utf-8 -*-
 """
 SignalManager — Orquestrador central de sinais do Aetheris ToolBox
+Herda do SignalCatalog para manter o catálogo como fonte única da verdade.
+Os sinais são definidos APENAS em SignalCatalog — não redeclarar aqui.
 """
 
 from __future__ import annotations
 
-from PySide6.QtCore import QObject, Signal
+from PySide6.QtCore import QObject
+
+from core.manager.SignalCatalog import SignalCatalog
 
 
-class SignalManager(QObject):
+class SignalManager(SignalCatalog):
     """
     Singleton que centraliza os sinais do sistema.
-
-    Sinais:
-        tool_opened(str)        — tool_key da ferramenta aberta
-        tool_closed(str)        — tool_key da ferramenta fechada
-        console_message(str)    — mensagem para exibir no console
-        progress_update(float)  — valor de progresso (0.0 a 100.0)
+    Herda todos os sinais do SignalCatalog (fonte única da verdade).
     """
-
-    tool_opened: Signal = Signal(str)
-    tool_closed: Signal = Signal(str)
-    console_message: Signal = Signal(str)
-    progress_update: Signal = Signal(float)
-    project_changed: Signal = Signal()
 
     _instance: SignalManager | None = None
 
