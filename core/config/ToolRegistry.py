@@ -175,6 +175,18 @@ class ToolRegistry:
             category=CategoryTool.INSTANT,
             show_in_toolbar=True,
         ),
+        ToolKey.FILE_MANAGER.value: Tool(
+            name=ToolKey.FILE_MANAGER.value,
+            title="Explorador",
+            widget_factory=_make_factory(
+                "plugins.file_manager.FileManagerPlugin",
+                "FileManagerPlugin",
+            ),
+            tooltip="Explorador de arquivos interno do projeto",
+            tool_type=ToolType.FOLDER,
+            category=CategoryTool.SIDE,
+            show_in_toolbar=True,
+        ),
     }
 
     def register_default_tools(self) -> None:

@@ -23,6 +23,7 @@ class SignalManager(QObject):
     tool_closed: Signal = Signal(str)
     console_message: Signal = Signal(str)
     progress_update: Signal = Signal(float)
+    project_changed: Signal = Signal()
 
     _instance: SignalManager | None = None
 

@@ -25,6 +25,7 @@ class ToolKey(str, Enum):
     CONFIGURATION = "Configuration"
     SYSTEM = "System"
     SAVE_PROJECT = "SaveProject"
+    FILE_MANAGER = "FileManager"
     UNTRACEABLE = "Untraceable"
 
     # ── Método utilitário ──────────────────────────────────────────────
