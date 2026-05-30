@@ -44,10 +44,12 @@ class FileTreeWidget(QWidget):
     Árvore de diretórios baseada em QFileSystemModel.
 
     Sinais:
+        file_double_clicked(path: str)
         file_deleted(path: str)
         file_moved(src: str, dst: str)
     """
 
+    file_double_clicked = Signal(str)
     file_deleted = Signal(str)
     file_moved = Signal(str, str)
 
@@ -82,6 +84,7 @@ class FileTreeWidget(QWidget):
         self._tree.setSelectionBehavior(QAbstractItemView.SelectRows)
 
         self._tree.customContextMenuRequested.connect(self._on_context_menu)
+        self._tree.doubleClicked.connect(self._on_double_click)
 
         # ── Layout ─────────────────────────────────────────────────
         layout = QHBoxLayout(self)
@@ -251,6 +254,12 @@ class FileTreeWidget(QWidget):
 
         menu = FileContextMenu(actions, callbacks, self)
         menu.exec(self._tree.viewport().mapToGlobal(pos))
+
+    def _on_double_click(self, index) -> None:
+        """Emite file_double_clicked com o path do item clicado."""
+        path = self._model.filePath(index)
+        if path:
+            self.file_double_clicked.emit(path)
 
     def _open_in_explorer(self) -> None:
         """Abre Windows Explorer no local do item selecionado."""

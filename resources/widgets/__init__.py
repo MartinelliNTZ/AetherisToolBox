@@ -3,8 +3,8 @@
 Widgets reutilizáveis do Aetheris ToolBox.
 """
 
-from resources.widgets.WorkspaceTab import WorkspaceTab
+from resources.widgets.HorizontalTab import HorizontalTab
 
 __all__ = [
-    "WorkspaceTab",
+    "HorizontalTab",
 ]

@@ -19,6 +19,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+from core.dialogs.FilePreviewDialog import FilePreviewDialog
 from core.enum.ToolKey import ToolKey
 from core.manager.SignalManager import SignalManager
 from plugins.BasePlugin import BasePlugin
@@ -69,6 +70,7 @@ class FileManagerPlugin(BasePlugin):
 
         # Árvore de arquivos
         self.file_tree = FileTreeWidget(self)
+        self.file_tree.file_double_clicked.connect(self._on_file_double_clicked)
         self.main_layout.addWidget(self.file_tree, 1)
 
     # ── Preferências ───────────────────────────────────────────────
@@ -108,6 +110,10 @@ class FileManagerPlugin(BasePlugin):
         self.load_prefs()
 
     # ── Handlers ───────────────────────────────────────────────────
+
+    def _on_file_double_clicked(self, path: str) -> None:
+        """Abre FilePreviewDialog com o path do arquivo clicado."""
+        FilePreviewDialog.exec_preview(file_path=path, parent=self)
 
     def _on_create_file(self) -> None:
         """Cria um arquivo de texto na pasta selecionada."""

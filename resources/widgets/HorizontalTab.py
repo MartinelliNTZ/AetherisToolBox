@@ -4,7 +4,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QWidget, QHBoxLayout, QLabel, QSizePolicy
 
 
-class WorkspaceTab(QWidget):
+class HorizontalTab(QWidget):
     """
     Aba customizada do Workspace.
     A formatação visual (fundo, bordas, fonte) é feita via QSS em styles.py,
