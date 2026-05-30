@@ -6,10 +6,11 @@ Ferramenta SIDE (painel lateral) que exibe o conteúdo da root_folder
 definida pelo SaveProjectPlugin.
 
 Funcionalidades:
-- Exibe árvore de diretórios com QFileSystemModel
-- Renomear, excluir, criar arquivos de texto
-- Drag & Drop interno e externo
-- Context menu com atalhos (F2, Del, Ctrl+N, F5)
+- Exibe árvore de diretórios com QFileSystemModel (ícones do Windows)
+- Renomear via F2 (nativo do QTreeView)
+- Excluir via Del com confirmação
+- Drag & Drop interno e externo (arrastar para QGIS/Explorer)
+- Context menu padrão do QTreeView + "Abrir Local no Explorer"
 - Reage ao sinal project_changed do SignalManager
 """
 
@@ -36,6 +37,7 @@ class FileManagerPlugin(BasePlugin):
             tool_key=ToolKey.FILE_MANAGER.value,
             parent=parent,
             sys_prefs=True,
+            title="Explorador",
         )
         self._current_root: str | None = None
         self._connect_signals()
@@ -45,7 +47,7 @@ class FileManagerPlugin(BasePlugin):
     # ── UI ─────────────────────────────────────────────────────────
 
     def _build_ui(self):
-        """Constrói a UI com header, ExecutionButtons e FileTreeWidget."""
+        """Constrói a UI com ExecutionButtons e FileTreeWidget."""
         super()._build_ui()
 
         # Botões de ação
@@ -79,12 +81,10 @@ class FileManagerPlugin(BasePlugin):
             resolved = str(Path(root).resolve())
             self._current_root = resolved
             self.file_tree.set_root_path(resolved)
-            self.page.set_title(f"Explorador: {resolved}")
             self.logger.info("Root folder carregada", code="FM_ROOT",
                              root_folder=resolved)
         else:
             self._current_root = None
-            self.page.set_title("Explorador: Nenhum projeto ativo")
             self.logger.info("Nenhuma root folder encontrada",
                              code="FM_NO_ROOT")
 
@@ -103,7 +103,6 @@ class FileManagerPlugin(BasePlugin):
         Chamado quando o projeto ativo muda (SaveProjectPlugin).
         Recarrega root_folder das sys_preferences.
         """
-        # Recarrega sys_preferences do disco para pegar valor atualizado
         from utils.Preferences import Preferences
         self.sys_preferences = Preferences.load_tool_prefs(ToolKey.SYSTEM)
         self.load_prefs()
