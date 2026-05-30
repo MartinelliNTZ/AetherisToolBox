@@ -164,17 +164,15 @@ class MenuManager(QObject):
     # ────────────────────────────────────────────────────────────────
 
     def _on_novo(self) -> None:
-        """Novo projeto: limpa as preferências e emite project_changed."""
+        """Novo projeto: zera current_project e root_folder nas prefs e emite project_changed."""
         try:
             self._logger.info("Criando novo projeto em branco", code="MENU_NOVO")
 
-            # Carrega preferências do sistema
-            sys_prefs = Preferences.load_tool_prefs(ToolKey.SYSTEM)
-
-            # Salva current_project e root_folder como None
-            sys_prefs["current_project"] = None
-            sys_prefs["root_folder"] = None
-            Preferences.save_tool_prefs(ToolKey.SYSTEM, sys_prefs)
+            # Salva current_project e root_folder como string vazia
+            Preferences.save_tool_prefs(ToolKey.SYSTEM, {
+                "current_project": "",
+                "root_folder": "",
+            })
 
             # Emite sinal para FileManager recarregar com estado vazio
             SignalManager.instance().project_changed.emit()
