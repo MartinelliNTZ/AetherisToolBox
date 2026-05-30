@@ -27,6 +27,7 @@ class ToolKey(str, Enum):
     SAVE_PROJECT = "SaveProject"
     FILE_MANAGER = "FileManager"
     UNTRACEABLE = "Untraceable"
+    ICO_CONVERTER = "IcoConverter"
 
     # ── Método utilitário ──────────────────────────────────────────────
 

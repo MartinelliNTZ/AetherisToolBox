@@ -187,6 +187,18 @@ class ToolRegistry:
             category=CategoryTool.SIDE,
             show_in_toolbar=True,
         ),
+        ToolKey.ICO_CONVERTER.value: Tool(
+            name=ToolKey.ICO_CONVERTER.value,
+            title="Conversor ICO",
+            widget_factory=_make_factory(
+                "plugins.ico_converter.IcoConverterPlugin",
+                "IcoConverterPlugin",
+            ),
+            tooltip="Converter imagens (PNG, JPG, etc.) para formato ICO do Windows",
+            tool_type=ToolType.IMAGE,
+            category=CategoryTool.CENTRAL,
+            show_in_toolbar=True,
+        ),
     }
 
     def register_default_tools(self) -> None:

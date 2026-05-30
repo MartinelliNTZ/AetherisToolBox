@@ -66,7 +66,9 @@ class BasePlugin(QWidget):
         parent: QWidget | None = None,
         sys_prefs: bool = False,
         title: str | None = None,
+        show_project_path: bool = False,
     ) -> None:
+        self._show_project_path = show_project_path
         super().__init__(parent)
         self.tool_key = tool_key
         self._title = title
@@ -103,6 +105,15 @@ class BasePlugin(QWidget):
         self.page = PluginPage(self, title=self._title)
         self.main_layout = self.page.main_layout
         outer.addWidget(self.page)
+
+        # Exibe caminho do projeto no header se solicitado
+        if self._show_project_path:
+            try:
+                root = self.sys_preferences.get("root_folder", "") if self.sys_preferences else ""
+                if root:
+                    self.page.set_project_path(root)
+            except Exception:
+                pass
 
     def closeEvent(self, event) -> None:  # type: ignore[override]
         self.logger.info(

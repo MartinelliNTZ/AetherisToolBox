@@ -142,6 +142,29 @@ class ExplorerUtils:
         config_dir.mkdir(parents=True, exist_ok=True)
         return config_dir
 
+    # ── Default Paths ──────────────────────────────────────────────
+
+    @staticmethod
+    def get_default_path(category: str, root_folder: str = "") -> str:
+        """
+        Retorna caminho padrão para uma categoria baseado na root_folder.
+
+        Categorias: "vector", "raster", "ico", "image", "documents"
+
+        Se root_folder vazio, retorna "" (botão de sugestão não aparece).
+        """
+        paths = {
+            "vector":    "vector",
+            "raster":    "raster",
+            "ico":       "ico",
+            "image":     "image",
+            "documents": "documents",
+        }
+        sub = paths.get(category, "")
+        if not sub or not root_folder:
+            return ""
+        return os.path.join(root_folder, sub)
+
     # ── Utilitário ──────────────────────────────────────────────────
 
     @staticmethod

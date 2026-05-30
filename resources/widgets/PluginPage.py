@@ -102,6 +102,7 @@ class PluginPage(QWidget):
 
         self.header: QWidget | None = None
         self.badge: Badge | None = None
+        self._project_path_label: QLabel | None = None
 
         if title:
             self._build_header(title)
@@ -115,7 +116,11 @@ class PluginPage(QWidget):
 
         header_title = QLabel(title)
         header_title.setObjectName("header_title")
-        header_layout.addWidget(header_title, 1)
+        header_layout.addWidget(header_title, 0)
+        header_layout.setStretchFactor(header_title, 0)
+
+        # Espaço elástico entre título e project_path
+        header_layout.addStretch(1)
 
         self._header_layout = header_layout
         self._header_title = header_title
@@ -129,6 +134,29 @@ class PluginPage(QWidget):
         self.main_layout.addWidget(sep)
 
         self.header = header
+
+    def set_project_path(self, path: str) -> None:
+        """
+        Exibe o caminho do projeto ao lado do título, alinhado à direita.
+        Se path for vazio ou None, o label fica oculto.
+        """
+        if not path:
+            if self._project_path_label is not None:
+                self._project_path_label.setVisible(False)
+            return
+
+        if self._project_path_label is None:
+            self._project_path_label = QLabel(path)
+            self._project_path_label.setObjectName("header_project_path")
+            self._project_path_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            # Insere antes do badge se existir
+            if self.badge is not None:
+                self._header_layout.insertWidget(self._header_layout.indexOf(self.badge), self._project_path_label, 0)
+            else:
+                self._header_layout.addWidget(self._project_path_label, 0)
+        else:
+            self._project_path_label.setText(path)
+            self._project_path_label.setVisible(True)
 
     def set_badge(self, state: _BadgeState) -> Badge:
         """

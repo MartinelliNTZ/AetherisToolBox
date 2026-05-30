@@ -336,3 +336,29 @@ Nunca importe BaseTheme, ThemeManager, temas concretos ou ct diretamente.
 Widgets que precisam de cores para `paintEvent()` devem usar os métodos específicos
 do AppStyles (ex: `AppStyles.vertical_tab_colors()`, `AppStyles.theme_colors()`).
 Nunca importe `ct` ou `BaseTheme` fora de `resources/styles/`.
+
+## 🔴 Contrato 20 — Progress Bar e Console
+
+```
+Plugins DEVEM usar SignalManager para progresso e mensagens ao usuário:
+- SignalManager.progress_update(float) — atualiza barra da MainWindow
+- SignalManager.console_message(str) — exibe mensagem no ConsolePlugin
+
+Nunca crie QProgressBar ou QTextBrowser para logs/progresso no plugin.
+```
+
+**Regras:**
+- Use `SignalManager.instance().progress_update.emit(valor)` para progresso (0.0 a 100.0).
+- Use `SignalManager.instance().console_message.emit("texto")` para mensagens ao usuário.
+- Use `self.logger.info/warning/error(...)` para logs do desenvolvedor.
+- A ProgressBar já existe na MainWindow — não crie outra.
+
+```python
+# ✅ Correto
+SignalManager.instance().progress_update.emit(50.0)
+SignalManager.instance().console_message.emit("Processando arquivo X...")
+
+# ❌ Proibido — criar ProgressBar no plugin
+self.progress = QProgressBar()
+self.main_layout.addWidget(self.progress)
+```

@@ -420,6 +420,66 @@ capture.clear()
 
 ---
 
+### `PreviewPanel` — `PreviewPanel.py`
+Painel de pré-visualização genérico. Exibe preview de imagens (PIL → QImage) com KeepAspectRatio. Genérico: parâmetro `preview_type` para futura extensão com vetores.
+
+```python
+from resources.widgets.PreviewPanel import PreviewPanel
+
+preview = PreviewPanel(
+    fixed_size=(480, 360),
+    preview_type="image",  # Future: "vector", "shp", etc.
+)
+preview.show_preview("c:/foto.png")
+preview.clear_preview()
+preview.set_preview_data(qpixmap)  # aceita QPixmap/QImage pré-processado
+```
+
+**Parâmetros:**
+- `fixed_size: tuple[int, int] = (480, 360)` — tamanho fixo do preview
+- `preview_type: str = "image"` — tipo de preview (para extensão futura)
+
+**API:**
+- `show_preview(path)` — carrega e exibe imagem do caminho
+- `set_preview_data(data)` — aceita QPixmap/QImage pré-processado
+- `clear_preview()` — limpa e restaura placeholder
+
+---
+
+### `FileListView` — `FileListView.py`
+Widget de lista com thumbnails, reordenação e drag & drop. Encapsula botões internos (Adicionar Arquivos, Adicionar Pasta, Remover Selecionados, Limpar Tudo, Mover Cima/Baixo). Aceita filtro por extensões (DictManager-style). Conexão automática com PreviewPanel via parâmetro `preview_widget`.
+
+```python
+from resources.widgets.FileListView import FileListView
+from resources.widgets.PreviewPanel import PreviewPanel
+from utils.DictManager import DictManager
+
+preview = PreviewPanel()
+view = FileListView(
+    file_filter=DictManager.IMAGE_EXTENSIONS,
+    accept_dirs=True,
+    preview_widget=preview,  # conexão automática
+)
+
+# API pública
+view.add_files(["c:/foto.png", "c:/pasta_com_fotos/"])
+paths = view.get_ordered_paths()
+view.remove_selected()
+view.clear()
+view.move_up()
+view.move_down()
+count = view.count()
+selected = view.selected_path()
+
+# Sinais
+view.files_changed.connect(self._on_files_changed)
+view.selection_changed.connect(self._on_selection_changed)
+```
+
+**Sinais:** `files_changed(int)`, `selection_changed(str)`
+
+---
+
 ### `PreferenceItemGrid` — `PreferenceItemGrid.py`
 Grade rolável de itens de preferência editáveis. Cada linha contém: título | valor (checkbox para bool, spin para float/int, line edit para texto) | botão lixeira.
 
