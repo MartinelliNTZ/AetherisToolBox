@@ -12,6 +12,7 @@ from __future__ import annotations
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QWidget, QHBoxLayout, QLabel, QLineEdit, QPushButton
 
+from resources.widgets.SimpleGhostButton import SimpleGhostButton
 from utils.ExplorerUtils import ExplorerUtils
 
 
@@ -25,6 +26,9 @@ class SimpleSelector(QWidget):
         "save_file"    — 1 arquivo (salvar)
         "directory"    — 1 pasta
         "directories"  — múltiplas pastas
+
+    Suporta suggested_path: str opcional. Se informado, um botão "📂" é
+    adicionado ao lado do "..." que insere o caminho sugerido no QLineEdit.
 
     Uso:
         sel = SimpleSelector("Imagem:", file_filter="GeoTIFF (*.tif *.tiff)",
@@ -42,6 +46,7 @@ class SimpleSelector(QWidget):
         file_filter: str = "Todos (*.*)",
         browse_mode: str = "open_file",
         label_width: int = 130,
+        suggested_path: str = "",
         parent=None,
     ):
         super().__init__(parent)
@@ -51,7 +56,7 @@ class SimpleSelector(QWidget):
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(6)
+        layout.setSpacing(4)
 
         # ── Label ──
         self.label = QLabel(label_text)
@@ -66,6 +71,14 @@ class SimpleSelector(QWidget):
         if tooltip:
             self.edit.setToolTip(tooltip)
         layout.addWidget(self.edit, 1)
+
+        # ── Botão de Sugestão (ao lado do "...") ──
+        if suggested_path:
+            self._btn_suggest = SimpleGhostButton("📂")
+            self._btn_suggest.setToolTip(f"Usar: {suggested_path}")
+            self._btn_suggest.setFixedWidth(30)
+            self._btn_suggest.clicked.connect(lambda: self.set_path(suggested_path))
+            layout.addWidget(self._btn_suggest)
 
         # ── Botão "..." ──
         self.btn = QPushButton("...")

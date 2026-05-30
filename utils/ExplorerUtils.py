@@ -148,22 +148,41 @@ class ExplorerUtils:
     def get_default_path(category: str, root_folder: str = "") -> str:
         """
         Retorna caminho padrão para uma categoria baseado na root_folder.
+        Use DefaultPathCategory enum para evitar strings soltas.
 
         Categorias: "vector", "raster", "ico", "image", "documents"
 
         Se root_folder vazio, retorna "" (botão de sugestão não aparece).
         """
+        from core.enum.DefaultPathCategory import DefaultPathCategory
         paths = {
-            "vector":    "vector",
-            "raster":    "raster",
-            "ico":       "ico",
-            "image":     "image",
-            "documents": "documents",
+            DefaultPathCategory.VECTOR:    "vector",
+            DefaultPathCategory.RASTER:    "raster",
+            DefaultPathCategory.ICO:       "ico",
+            DefaultPathCategory.IMAGE:     "image",
+            DefaultPathCategory.DOCUMENTS: "documents",
         }
         sub = paths.get(category, "")
         if not sub or not root_folder:
             return ""
         return os.path.join(root_folder, sub)
+
+    @staticmethod
+    def ensure_directory(path: str) -> str:
+        """
+        Garante que um diretório existe. Se não existir, cria.
+        Se path for vazio, retorna vazio.
+
+        Args:
+            path: Caminho do diretório.
+
+        Returns:
+            O mesmo path, ou vazio se vazio.
+        """
+        if not path:
+            return ""
+        os.makedirs(path, exist_ok=True)
+        return path
 
     # ── Utilitário ──────────────────────────────────────────────────
 

@@ -112,8 +112,8 @@ class BasePlugin(QWidget):
                 root = self.sys_preferences.get("root_folder", "") if self.sys_preferences else ""
                 if root:
                     self.page.set_project_path(root)
-            except Exception:
-                pass
+            except Exception as e:
+                self.logger.warning("Não foi possível exibir caminho do projeto", code="SHOW_PATH_ERR", error=str(e))
 
     def closeEvent(self, event) -> None:  # type: ignore[override]
         self.logger.info(
