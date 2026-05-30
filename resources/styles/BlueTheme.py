@@ -210,12 +210,12 @@ class BlueTheme(BaseTheme):# Ajustes principais em relação à versão anterior
     BADGE_PADDING_H = "8px"
     BADGE_LETTER_SPACING = "0.3px"
 
-    BUTTON_PADDING_V = "6px"
-    BUTTON_PADDING_H = "14px"
-    BUTTON_PADDING_V_SMALL = "4px"
-    BUTTON_PADDING_H_SMALL = "8px"
-    BUTTON_PADDING_V_PRIMARY = "8px"
-    BUTTON_PADDING_H_PRIMARY = "18px"
+    BUTTON_PADDING_V = "2px"
+    BUTTON_PADDING_H = "2px"
+    BUTTON_PADDING_V_SMALL = "2px"
+    BUTTON_PADDING_H_SMALL = "2px"
+    BUTTON_PADDING_V_PRIMARY = "2px"
+    BUTTON_PADDING_H_PRIMARY = "2px"
 
     BUTTON_LETTER_SPACING_NORMAL = "0.2px"
     BUTTON_LETTER_SPACING_PRIMARY = "0.4px"

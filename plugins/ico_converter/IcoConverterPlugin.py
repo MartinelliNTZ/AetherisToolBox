@@ -125,17 +125,23 @@ class IcoConverterPlugin(BasePlugin):
 
         # ── Pasta de Saída ────────────────────────────────────────────
         suggested_ico = ""
+        default_output = ""
         if self.sys_preferences:
             root = self.sys_preferences.get("root_folder", "")
             if root:
                 suggested_ico = ExplorerUtils.get_default_path(DefaultPathCategory.ICO, root)
+                default_output = ExplorerUtils.ensure_directory(suggested_ico)
+
+        # Se já tem output salvo nas preferências, usa ele. Senão, usa o default.
+        saved_output = self.preferences.get("output_dir", default_output)
 
         self._sel_output = SimpleSelector(
             label_text="Pasta de Saída:",
             placeholder="Onde salvar os .ICO...",
+            default_path=saved_output,
             browse_mode="directory",
             label_width=120,
-            suggested_path=suggested_ico,
+            suggested_path=suggested_ico if suggested_ico != saved_output else "",
         )
         grp_saida = GroupPainel("Pasta de Saída")
         grp_saida.group_layout.addWidget(self._sel_output)

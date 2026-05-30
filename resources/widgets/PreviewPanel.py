@@ -53,10 +53,6 @@ class PreviewPanel(QWidget):
         self._label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._label.setMinimumSize(fixed_size[0], fixed_size[1])
         self._label.setMaximumSize(fixed_size[0], fixed_size[1])
-        self._label.setStyleSheet(
-            "background-color: #1e1e1e; border: 1px solid #333; color: #666;"
-            "font-size: 12px;"
-        )
         self._label.setWordWrap(True)
         layout.addWidget(self._label)
 

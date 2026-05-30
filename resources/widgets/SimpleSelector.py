@@ -10,9 +10,9 @@ SimpleSelector usa ExplorerUtils para todas as operações de seleção.
 from __future__ import annotations
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QWidget, QHBoxLayout, QLabel, QLineEdit, QPushButton
+from PySide6.QtWidgets import QWidget, QHBoxLayout, QLabel, QLineEdit
 
-from resources.widgets.SimpleGhostButton import SimpleGhostButton
+from resources.widgets.SimpleSecondaryButton import SimpleSecondaryButton
 from utils.ExplorerUtils import ExplorerUtils
 
 
@@ -58,8 +58,6 @@ class SimpleSelector(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(4)
 
-        from resources.widgets.SimpleSecondaryButton import SimpleSecondaryButton
-
         # ── Label ──
         self.label = QLabel(label_text)
         self.label.setFixedWidth(label_width)
@@ -74,19 +72,16 @@ class SimpleSelector(QWidget):
             self.edit.setToolTip(tooltip)
         layout.addWidget(self.edit, 1)
 
-        # ── Botão "..." ──
-        self.btn = QPushButton("...")
-        self.btn.setObjectName("btn_secondary")
+        # ── Botão "..." (selecionar) ──
+        self.btn = SimpleSecondaryButton("...")
         self.btn.setFixedWidth(30)
-        self.btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn.setToolTip("Selecionar pasta manualmente")
         self.btn.clicked.connect(self._browse)
-        if tooltip:
-            self.btn.setToolTip(tooltip)
         layout.addWidget(self.btn)
 
         # ── Botão de Caminho Padrão (depois do "...") ──
         if suggested_path:
-            self._btn_suggest = SimpleSecondaryButton("▼")
+            self._btn_suggest = SimpleSecondaryButton("📂")
             self._btn_suggest.setToolTip(f"Usar pasta padrão: {suggested_path}")
             self._btn_suggest.setFixedWidth(30)
             self._btn_suggest.clicked.connect(lambda: self.set_path(suggested_path))
