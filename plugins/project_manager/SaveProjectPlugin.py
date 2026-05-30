@@ -134,7 +134,7 @@ class SaveProjectPlugin(BasePlugin):
         if result is not None:
             # Salva root_folder nas preferências do sistema
             from utils.Preferences import Preferences
-            self.sys_preferences["root_folder"] = os.getcwd()
+            self.sys_preferences["root_folder"] = os.path.dirname(self._current_project)
             Preferences.save_tool_prefs(ToolKey.SYSTEM, self.sys_preferences)
 
             self.logger.info(
@@ -209,10 +209,10 @@ class SaveProjectPlugin(BasePlugin):
         # 4. Salva current_project e root_folder nas preferências do sistema
         from utils.Preferences import Preferences
         self.sys_preferences["current_project"] = result["file_path"]
-        self.sys_preferences["root_folder"] = os.getcwd()
+        self.sys_preferences["root_folder"] = folder
         Preferences.save_tool_prefs(ToolKey.SYSTEM, self.sys_preferences)
         self._current_project = result["file_path"]
-        self._current_root_folder = os.getcwd()
+        self._current_root_folder = folder
 
         self.logger.info(
             "Projeto criado com sucesso",
