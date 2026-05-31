@@ -73,7 +73,7 @@ class HorizontalTab(QTabBar):
     def _tab_rect(self, index: int) -> QRect:
         """Retorna o retângulo da aba sem margem inferior."""
         r = self.tabRect(index)
-        return QRect(r.x() + 1, r.y(), r.width() - 2, r.height())
+        return QRect(r.x() + 1, r.y(), r.width() -2, r.height())
 
     def tabSizeHint(self, index: int) -> QSize:
         """Retorna tamanho mínimo baseado no texto + padding."""
@@ -84,7 +84,8 @@ class HorizontalTab(QTabBar):
             display = str(data) if data else f"Tab {index}"
         font = QFont("Segoe UI", 10)
         fm = QFontMetrics(font)
-        text_w = fm.horizontalAdvance(display) + 40  # padding
+        close_margin = 8 if self._closable else 0  # margem após o botão
+        text_w = fm.horizontalAdvance(display) + 30+ close_margin # padding
         return QSize(max(text_w, 80), 28)
 
     # ── Pintura ─────────────────────────────────────────────────────

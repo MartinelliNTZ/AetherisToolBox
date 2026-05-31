@@ -218,6 +218,7 @@ class BaseStyle:
             width: {t.TAB_CLOSE_BUTTON_SIZE}px;
             height: {t.TAB_CLOSE_BUTTON_SIZE}px;
             subcontrol-position: right;
+            margin-right: 4px;
             opacity: 0;
         }}
         QTabBar::tab:hover > QTabBar::close-button,
