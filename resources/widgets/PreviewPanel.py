@@ -2,265 +2,156 @@
 """
 PreviewPanel — Widget de pré-visualização genérico
 ====================================================
-Exibe preview de imagens (ou futuramente vetores) selecionadas.
-Usa PIL para carregar e redimensionar com KeepAspectRatio.
+Exibe preview de arquivos com detecção automática de tipo.
 
-Suporta zoom (roda do mouse) e arrasto lateral (botão esquerdo).
+Utiliza GroupPainel como container externo e delega o conteúdo
+para o widget apropriado conforme a extensão do arquivo:
+
+- Imagens → ImagePreviewPanel (zoom, pan, mouse/key 7)
+- Texto  → TextPreviewWidget (editor com Copiar/Salvar)
+
+Novos tipos podem ser registrados via register_handler().
 
 Uso:
-    preview = PreviewPanel(fixed_size=(480, 360))
+    preview = PreviewPanel(title="Pré-Visualização")
     preview.show_preview("c:/foto.png")
     preview.clear_preview()
+
+    # Registrar handler customizado
+    from resources.widgets.PreviewPanel import register_handler
+    register_handler(frozenset({".xyz"}), factory_fn)
 """
 
 from __future__ import annotations
 
-from typing import Optional
+import os
+from typing import Callable, Optional
 
-from PySide6.QtCore import Qt, QPoint, QPointF
-from PySide6.QtGui import QPixmap, QImage, QPainter
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel
+
+from resources.widgets.GroupPainel import GroupPainel
+from resources.widgets.ImagePreviewPanel import ImagePreviewPanel
+from resources.widgets.TextPreviewWidget import TextPreviewWidget
+from utils.DictManager import IMAGE_EXTENSIONS, TEXT_EXTENSIONS
+
+
+# ── Registry de Handlers ─────────────────────────────────────────────
+_HANDLERS: list[tuple[frozenset[str], Callable[[str], QWidget]]] = []
+
+
+def _image_factory(path: str) -> QWidget:
+    """Cria ImagePreviewPanel carregado com a imagem."""
+    panel = ImagePreviewPanel(fixed_size=None)
+    panel.show_preview(path)
+    return panel
+
+
+def _text_factory(path: str) -> QWidget:
+    """Cria TextPreviewWidget carregado com o arquivo."""
+    widget = TextPreviewWidget()
+    widget.load_file(path)
+    return widget
+
+
+def register_handler(
+    extensions: frozenset[str],
+    factory: Callable[[str], QWidget],
+) -> None:
+    """
+    Registra um handler para um conjunto de extensões.
+
+    Args:
+        extensions: Conjunto de extensões (ex: frozenset({".png", ".jpg"}))
+        factory: Função que recebe (path: str) e retorna um QWidget
+    """
+    _HANDLERS.append((extensions, factory))
+
+
+def _detect_handler(path: str) -> Callable[[str], QWidget] | None:
+    """Retorna a factory do handler para a extensão do arquivo."""
+    _, ext = os.path.splitext(path)
+    ext = ext.lower()
+    for extensions, factory in _HANDLERS:
+        if ext in extensions:
+            return factory
+    return None
+
+
+# ── Registro dos handlers padrão ─────────────────────────────────────
+register_handler(frozenset(IMAGE_EXTENSIONS.keys()), _image_factory)
+register_handler(frozenset(TEXT_EXTENSIONS.keys()), _text_factory)
 
 
 class PreviewPanel(QWidget):
     """
     Painel de pré-visualização genérico.
 
+    Detecta automaticamente o tipo do arquivo pela extensão
+    e delega para o handler apropriado dentro de um GroupPainel.
+
     Parâmetros:
-        fixed_size: tuple (largura, altura) — tamanho fixo do preview.
-                    Padrão (480, 360). Passar None para expandir
-                    automaticamente ao espaço disponível.
-        preview_type: str — tipo de preview ("image" para fotos,
-                     futuro "vector", "shp", etc.)
+        title: Título exibido no GroupPainel.
+               Padrão "Pré-Visualização".
     """
 
-    def __init__(
-        self,
-        fixed_size: tuple[int, int] | None = (480, 360),
-        preview_type: str = "image",
-        parent=None,
-    ):
+    def __init__(self, title: str = "Pré-Visualização", parent=None):
         super().__init__(parent)
-        self._preview_type = preview_type
-        self._fixed_size = fixed_size
-
-        # ── Zoom/Pan state ──────────────────────────────────────────
-        self._base_pixmap: QPixmap | None = None
-        self._zoom_factor: float = 1.0
-        self._pan_offset: QPoint = QPoint(0, 0)
-        self._is_dragging: bool = False
-        self._drag_start: QPointF = QPointF(0, 0)
-        self._drag_start_pan: QPoint = QPoint(0, 0)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-        self._label = QLabel("Nenhuma imagem selecionada")
-        self._label.setObjectName("preview_label")
-        self._label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._label.setWordWrap(True)
-        if fixed_size is not None:
-            self._label.setMinimumSize(fixed_size[0], fixed_size[1])
-            self._label.setMaximumSize(fixed_size[0], fixed_size[1])
-        # Permite que os eventos do mouse passem pelo label até o PreviewPanel
-        self._label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
-        layout.addWidget(self._label)
+        self._group = GroupPainel(title)
+        layout.addWidget(self._group)
 
-        self.setMouseTracking(True)
-        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
-
-    # ── Zoom/Pan Interno ────────────────────────────────────────────
-
-    def _viewport_size(self) -> tuple[int, int]:
-        """Retorna (largura, altura) do viewport, seja fixo ou dinâmico."""
-        if self._fixed_size is not None:
-            return self._fixed_size
-        # Usa tamanho real do label (que ocupa todo o espaço disponível)
-        w = max(1, self._label.width())
-        h = max(1, self._label.height())
-        return (w, h)
-
-    def _update_preview(self) -> None:
-        """Re-render preview with current zoom and pan."""
-        if self._base_pixmap is None or self._base_pixmap.isNull():
-            return
-
-        w, h = self._viewport_size()
-
-        zoomed = self._base_pixmap.scaled(
-            int(w * self._zoom_factor),
-            int(h * self._zoom_factor),
-            Qt.AspectRatioMode.KeepAspectRatio,
-            Qt.TransformationMode.SmoothTransformation,
+        # Placeholder
+        self._placeholder = QLabel("Nenhum arquivo selecionado")
+        self._placeholder.setObjectName("preview_placeholder")
+        self._placeholder.setAlignment(
+            self._placeholder.alignment() | Qt.AlignmentFlag.AlignCenter
         )
+        self._placeholder.setWordWrap(True)
+        self._group.group_layout.addWidget(self._placeholder, 1)
 
-        zw, zh = zoomed.width(), zoomed.height()
-        result = QPixmap(w, h)
-        result.fill(Qt.GlobalColor.transparent)
-
-        painter = QPainter(result)
-        painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
-
-        if zw <= w and zh <= h:
-            # Zoomed out — center image in viewport
-            off_x = (w - zw) // 2
-            off_y = (h - zh) // 2
-            painter.drawPixmap(off_x, off_y, zoomed)
-        else:
-            # Zoomed in — show portion based on pan offset
-            max_sx = max(0, zw - w)
-            max_sy = max(0, zh - h)
-            sx = max_sx // 2 + self._pan_offset.x()
-            sy = max_sy // 2 + self._pan_offset.y()
-            sx = max(0, min(sx, max_sx))
-            sy = max(0, min(sy, max_sy))
-            painter.drawPixmap(0, 0, w, h, zoomed, sx, sy, w, h)
-
-        painter.end()
-        self._label.setPixmap(result)
-
-    # ── Eventos ─────────────────────────────────────────────────────
-
-    def wheelEvent(self, event):
-        """Zoom in/out with mouse wheel."""
-        if self._base_pixmap is None or self._base_pixmap.isNull():
-            super().wheelEvent(event)
-            return
-
-        delta = event.angleDelta().y()
-        if delta > 0:
-            self._zoom_factor *= 1.15
-        else:
-            self._zoom_factor /= 1.15
-
-        self._zoom_factor = max(0.1, min(10.0, self._zoom_factor))
-        self._update_preview()
-        event.accept()
-
-    def mousePressEvent(self, event):
-        """Start drag with left button."""
-        if (
-            event.button() == Qt.MouseButton.LeftButton
-            and self._base_pixmap is not None
-            and not self._base_pixmap.isNull()
-        ):
-            self._is_dragging = True
-            self._drag_start = event.position()
-            self._drag_start_pan = QPoint(self._pan_offset)
-            self.setCursor(Qt.CursorShape.ClosedHandCursor)
-            event.accept()
-            return
-        super().mousePressEvent(event)
-
-    def mouseMoveEvent(self, event):
-        """Update pan offset while dragging."""
-        if self._is_dragging:
-            delta = event.position() - self._drag_start
-            self._pan_offset = QPoint(
-                int(self._drag_start_pan.x() - delta.x()),
-                int(self._drag_start_pan.y() - delta.y()),
-            )
-            self._update_preview()
-            event.accept()
-            return
-        super().mouseMoveEvent(event)
-
-    def mouseReleaseEvent(self, event):
-        """End drag."""
-        if event.button() == Qt.MouseButton.LeftButton and self._is_dragging:
-            self._is_dragging = False
-            self.setCursor(Qt.CursorShape.ArrowCursor)
-            event.accept()
-            return
-        super().mouseReleaseEvent(event)
-
-    def mouseDoubleClickEvent(self, event):
-        """Reset zoom and pan on double-click."""
-        if event.button() == Qt.MouseButton.LeftButton:
-            self._reset_zoom_pan()
-            event.accept()
-            return
-        super().mouseDoubleClickEvent(event)
-
-    def keyPressEvent(self, event):
-        """Reset zoom and pan on '7' key."""
-        if event.key() == Qt.Key.Key_7:
-            self._reset_zoom_pan()
-            event.accept()
-            return
-        super().keyPressEvent(event)
-
-    def _reset_zoom_pan(self) -> None:
-        """Reset zoom to 1.0 and pan to (0, 0)."""
-        self._zoom_factor = 1.0
-        self._pan_offset = QPoint(0, 0)
-        self._update_preview()
+        # Widget interno gerenciado pelo handler
+        self._handler_widget: QWidget | None = None
 
     # ── API Pública ─────────────────────────────────────────────────
 
     def show_preview(self, path: str) -> None:
         """
-        Carrega e exibe preview de uma imagem do caminho informado.
-
-        Args:
-            path: Caminho completo do arquivo de imagem.
+        Carrega e exibe preview do arquivo.
+        Detecta automaticamente o tipo pela extensão.
         """
+        self.clear_preview()
         if not path:
-            self.clear_preview()
+            return
+
+        factory = _detect_handler(path)
+        if factory is None:
+            self._placeholder.setText(
+                f"Tipo de arquivo não suportado:\n{path}"
+            )
             return
 
         try:
-            from PIL import Image as PILImage
-            from io import BytesIO
-
-            img = PILImage.open(path)
-            w, h = self._viewport_size()
-            img.thumbnail((w, h), PILImage.LANCZOS)
-            bio = BytesIO()
-            img.convert("RGBA").save(bio, format="PNG")
-            qimg = QImage.fromData(bio.getvalue())
-            self._base_pixmap = QPixmap.fromImage(qimg)
-            self._zoom_factor = 1.0
-            self._pan_offset = QPoint(0, 0)
-            self._update_preview()
+            widget = factory(path)
+            self._handler_widget = widget
+            # Substitui placeholder pelo widget do handler
+            self._group.group_layout.removeWidget(self._placeholder)
+            self._placeholder.setParent(None)
+            self._group.group_layout.addWidget(widget, 1)
         except Exception as e:
-            self._label.setText(f"Erro ao carregar:\n{path}\n{e}")
-            self._base_pixmap = None
-
-    def set_preview_data(self, data) -> None:
-        """
-        Aceita dados de preview pré-processados (QPixmap ou QImage).
-        Útil para tipos não-imagem (vetores, etc.) no futuro.
-
-        Args:
-            data: QPixmap ou QImage com o conteúdo a exibir.
-        """
-        if isinstance(data, QImage):
-            data = QPixmap.fromImage(data)
-        if isinstance(data, QPixmap):
-            self._base_pixmap = data
-            self._zoom_factor = 1.0
-            self._pan_offset = QPoint(0, 0)
-            self._update_preview()
-        else:
-            self._label.setText("Formato de preview não suportado")
-            self._base_pixmap = None
+            self._placeholder.setText(f"Erro ao carregar:\n{path}\n{e}")
 
     def clear_preview(self) -> None:
         """Limpa o preview e restaura o texto placeholder."""
-        self._base_pixmap = None
-        self._zoom_factor = 1.0
-        self._pan_offset = QPoint(0, 0)
-        self._label.setText("Nenhuma imagem selecionada")
-        self._label.setPixmap(QPixmap())
+        if self._handler_widget:
+            self._group.group_layout.removeWidget(self._handler_widget)
+            self._handler_widget.setParent(None)
+            self._handler_widget.deleteLater()
+            self._handler_widget = None
 
-    @property
-    def preview_type(self) -> str:
-        """Retorna o tipo de preview configurado."""
-        return self._preview_type
-
-    @preview_type.setter
-    def preview_type(self, value: str) -> None:
-        """Altera o tipo de preview em runtime."""
-        self._preview_type = value
+        self._placeholder.setText("Nenhum arquivo selecionado")
+        self._group.group_layout.addWidget(self._placeholder, 1)

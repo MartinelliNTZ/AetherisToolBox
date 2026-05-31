@@ -420,36 +420,91 @@ capture.clear()
 
 ---
 
-### `PreviewPanel` — `PreviewPanel.py`
-Painel de pré-visualização genérico. Exibe preview de imagens (PIL → QImage) com KeepAspectRatio. Genérico: parâmetro `preview_type` para futura extensão com vetores.
-
-Suporta **zoom** (roda do mouse) e **arrasto lateral** (botão esquerdo do mouse). Duplo clique reseta zoom e posição.
+### `ImagePreviewPanel` — `ImagePreviewPanel.py`
+Widget standalone de pré-visualização de imagem com **zoom** (roda do mouse), **arrasto lateral** (botão esquerdo), **reset** (duplo clique ou tecla `7`). Usa PIL para carregar e redimensionar com KeepAspectRatio.
 
 ```python
-from resources.widgets.PreviewPanel import PreviewPanel
+from resources.widgets.ImagePreviewPanel import ImagePreviewPanel
 
-preview = PreviewPanel(
-    fixed_size=(480, 360),
-    preview_type="image",  # Future: "vector", "shp", etc.
-)
+preview = ImagePreviewPanel(fixed_size=(480, 360))
 preview.show_preview("c:/foto.png")
 preview.clear_preview()
-preview.set_preview_data(qpixmap)  # aceita QPixmap/QImage pré-processado
 ```
 
 **Interação do mouse:**
 - **Roda do mouse** — zoom in/out (fator 1.15x, limite 0.1x a 10x)
 - **Botão esquerdo arrastar** — pan lateral quando zoom > 1x
 - **Duplo clique esquerdo** — reseta zoom para 1.0 e pan para (0, 0)
+- **Tecla `7`** — reseta zoom para 1.0 e pan para (0, 0)
 
 **Parâmetros:**
-- `fixed_size: tuple[int, int] = (480, 360)` — tamanho fixo do preview
-- `preview_type: str = "image"` — tipo de preview (para extensão futura)
+- `fixed_size: tuple[int, int] | None = (480, 360)` — tamanho fixo; `None` expande ao espaço disponível
 
 **API:**
-- `show_preview(path)` — carrega e exibe imagem do caminho
-- `set_preview_data(data)` — aceita QPixmap/QImage pré-processado
+- `show_preview(path)` — carrega e exibe imagem
 - `clear_preview()` — limpa e restaura placeholder
+
+---
+
+### `TextPreviewWidget` — `TextPreviewWidget.py`
+Widget de pré-visualização e edição de texto com suporte a múltiplos encodings. Possui botões **Copiar** e **Salvar** na barra superior. Usa `QPlainTextEdit` com fonte monospace (Consolas 10pt) e sem quebra de linha.
+
+```python
+from resources.widgets.TextPreviewWidget import TextPreviewWidget
+
+text_widget = TextPreviewWidget()
+text_widget.load_file("c:/arquivo.txt")
+text_widget.load_text("conteúdo manual")
+text_widget.clear()
+text_widget.text          # str — conteúdo atual
+text_widget.is_dirty      # bool — modificado desde último salvamento
+```
+
+**Métodos:**
+- `load_file(path)` — carrega arquivo com detecção automática de encoding
+- `load_text(text)` — carrega texto sem arquivo associado
+- `clear()` — limpa conteúdo e reseta estado
+
+**Propriedades:**
+- `text` — retorna o texto atual
+- `is_dirty` — True se houver modificações não salvas
+
+---
+
+### `PreviewPanel` — `PreviewPanel.py`
+Painel de pré-visualização genérico. Envolve o conteúdo em um **`GroupPainel`** com título e delega o preview interno para o widget apropriado conforme a extensão do arquivo:
+
+- **Imagens** → `ImagePreviewPanel` (zoom/pan)
+- **Texto** → `TextPreviewWidget` (editor com Copiar/Salvar)
+- Novos tipos podem ser adicionados via `register_handler()`
+
+```python
+from resources.widgets.PreviewPanel import PreviewPanel
+from resources.widgets.PreviewPanel import register_handler
+
+# Uso padrão — auto-detecta tipo
+preview = PreviewPanel(title="Pré-Visualização")
+preview.show_preview("c:/foto.png")
+preview.clear_preview()
+
+# Registrar handler customizado
+register_handler(frozenset({".xyz"}), factory_fn)
+```
+
+**Parâmetros:**
+- `title: str = "Pré-Visualização"` — título do `GroupPainel` container
+
+**API:**
+- `show_preview(path)` — carrega preview detectando tipo automaticamente
+- `clear_preview()` — limpa e restaura placeholder
+
+**Registro de handlers:**
+```python
+register_handler(
+    extensions: frozenset[str],
+    factory: Callable[[str], QWidget],
+)
+```
 
 ---
 

@@ -17,8 +17,6 @@ Uso:
 
 from __future__ import annotations
 
-import os
-
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QStackedWidget, QWidget)
@@ -26,17 +24,6 @@ from PySide6.QtWidgets import (
 from resources.widgets.DialogPage import DialogPage
 from resources.widgets.HorizontalTab import HorizontalTab
 from resources.widgets.PreviewPanel import PreviewPanel
-from utils.DictManager import IMAGE_EXTENSIONS
-
-
-# ── Conjunto de extensões de imagem ──────────────────────────────────
-_IMAGE_EXTS: set[str] = set(IMAGE_EXTENSIONS.keys())
-
-
-def _is_image(file_path: str) -> bool:
-    """Retorna True se a extensão do arquivo é de imagem conhecida."""
-    _, ext = os.path.splitext(file_path)
-    return ext.lower() in _IMAGE_EXTS
 
 
 class FilePreviewDialog(QDialog):
@@ -73,7 +60,7 @@ class FilePreviewDialog(QDialog):
         layout.addWidget(self._stack, 1)
 
         # ── Conteúdo das abas ───────────────────────────────────────
-        self._add_tab("Preview", file_path, is_image=_is_image(file_path))
+        self._add_tab("Preview", file_path)
         self._add_tab("Propriedades", None)
 
         # Conecta sinal de troca de aba
@@ -95,7 +82,7 @@ class FilePreviewDialog(QDialog):
         btn_layout.addWidget(btn)
         layout.addLayout(btn_layout)
 
-    def _add_tab(self, title: str, file_path: str | None, is_image: bool = False) -> None:
+    def _add_tab(self, title: str, file_path: str | None) -> None:
         """Adiciona uma aba + sua DialogPage no stack."""
         tab_index = self.tab_bar.addTab("")
         self.tab_bar.setTabData(tab_index, title)
@@ -105,17 +92,9 @@ class FilePreviewDialog(QDialog):
         page = DialogPage(self)
         self._stack.addWidget(page)
 
-        if file_path is not None and not is_image:
-            label = QLabel(file_path)
-            label.setObjectName(f"file_preview_{title.lower()}")
-            label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            label.setWordWrap(True)
-            page.add_widget(label, 1)
-        elif is_image:
-            # Preview com zoom/pan para imagens
-            # Não chama show_preview aqui — será feito em _on_tab_changed
-            # após o layout estar resolvido (via QTimer no __init__).
-            preview = PreviewPanel(fixed_size=None, parent=self)
+        if file_path is not None:
+            # PreviewPanel auto-detecta o tipo (imagem, texto, etc.)
+            preview = PreviewPanel(title="Pré-Visualização", parent=self)
             preview.setProperty("file_path", file_path)
             page.add_widget(preview, 1)
 
@@ -125,7 +104,7 @@ class FilePreviewDialog(QDialog):
         if page:
             self._stack.setCurrentWidget(page)
 
-        # Carrega preview da imagem se for PreviewPanel com file_path pendente
+        # Carrega preview se for PreviewPanel com file_path pendente
         if page:
             preview = page.findChild(PreviewPanel)
             if preview:

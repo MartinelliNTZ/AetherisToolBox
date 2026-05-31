@@ -113,6 +113,33 @@ SPREADSHEET_EXTENSIONS: Dict[str, Dict[str, Any]] = {
     ".xlsx":  {"label": ".xlsx",  "description": "Microsoft Excel (moderno)", "default": True},
 }
 
+# ── Texto editável (abre como bloco de notas) ─────────────────────────
+TEXT_EXTENSIONS: Dict[str, Dict[str, Any]] = {
+    ".bat":   {"label": ".bat",   "description": "Windows batch script", "default": True},
+    ".cfg":   {"label": ".cfg",   "description": "Arquivo de configuração genérico", "default": True},
+    ".cpp":   {"label": ".cpp",   "description": "C++ source", "default": True},
+    ".css":   {"label": ".css",   "description": "Cascading Style Sheets", "default": True},
+    ".csv":   {"label": ".csv",   "description": "Valores separados por vírgula", "default": True},
+    ".env":   {"label": ".env",   "description": "Variáveis de ambiente", "default": True},
+    ".h":     {"label": ".h",     "description": "C/C++ header", "default": True},
+    ".html":  {"label": ".html",  "description": "HyperText Markup Language", "default": True},
+    ".ini":   {"label": ".ini",   "description": "Arquivo de configuração", "default": True},
+    ".js":    {"label": ".js",    "description": "JavaScript source", "default": True},
+    ".json":  {"label": ".json",  "description": "JavaScript Object Notation", "default": True},
+    ".log":   {"label": ".log",   "description": "Arquivo de log", "default": True},
+    ".md":    {"label": ".md",    "description": "Markdown", "default": True},
+    ".ps1":   {"label": ".ps1",   "description": "PowerShell script", "default": True},
+    ".py":    {"label": ".py",    "description": "Python source", "default": True},
+    ".qss":   {"label": ".qss",   "description": "Qt Style Sheet", "default": True},
+    ".rtf":   {"label": ".rtf",   "description": "Rich Text Format", "default": True},
+    ".toml":  {"label": ".toml",  "description": "TOML (config moderno)", "default": True},
+    ".ts":    {"label": ".ts",    "description": "TypeScript source", "default": True},
+    ".txt":   {"label": ".txt",   "description": "Arquivo de texto puro", "default": True},
+    ".xml":   {"label": ".xml",   "description": "eXtensible Markup Language", "default": True},
+    ".yaml":  {"label": ".yaml",  "description": "YAML alternativo", "default": True},
+    ".yml":   {"label": ".yml",   "description": "YAML (recursos, config)", "default": True},
+}
+
 
 class DictManager:
     """
