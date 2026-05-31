@@ -17,12 +17,26 @@ Uso:
 
 from __future__ import annotations
 
+import os
+
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QStackedWidget, QWidget)
 
 from resources.widgets.DialogPage import DialogPage
 from resources.widgets.HorizontalTab import HorizontalTab
+from resources.widgets.PreviewPanel import PreviewPanel
+from utils.DictManager import IMAGE_EXTENSIONS
+
+
+# ── Conjunto de extensões de imagem ──────────────────────────────────
+_IMAGE_EXTS: set[str] = set(IMAGE_EXTENSIONS.keys())
+
+
+def _is_image(file_path: str) -> bool:
+    """Retorna True se a extensão do arquivo é de imagem conhecida."""
+    _, ext = os.path.splitext(file_path)
+    return ext.lower() in _IMAGE_EXTS
 
 
 class FilePreviewDialog(QDialog):
@@ -59,7 +73,7 @@ class FilePreviewDialog(QDialog):
         layout.addWidget(self._stack, 1)
 
         # ── Conteúdo das abas ───────────────────────────────────────
-        self._add_tab("Preview", file_path)
+        self._add_tab("Preview", file_path, is_image=_is_image(file_path))
         self._add_tab("Propriedades", None)
 
         # Conecta sinal de troca de aba
@@ -79,7 +93,7 @@ class FilePreviewDialog(QDialog):
         btn_layout.addWidget(btn)
         layout.addLayout(btn_layout)
 
-    def _add_tab(self, title: str, file_path: str | None) -> None:
+    def _add_tab(self, title: str, file_path: str | None, is_image: bool = False) -> None:
         """Adiciona uma aba + sua DialogPage no stack."""
         tab_index = self.tab_bar.addTab("")
         self.tab_bar.setTabData(tab_index, title)
@@ -90,11 +104,19 @@ class FilePreviewDialog(QDialog):
         self._stack.addWidget(page)
 
         if file_path is not None:
-            label = QLabel(file_path)
-            label.setObjectName(f"file_preview_{title.lower()}")
-            label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            label.setWordWrap(True)
-            page.add_widget(label, 1)
+            if is_image:
+                # Preview com zoom/pan para imagens
+                preview = PreviewPanel(fixed_size=None, parent=self)
+                preview.show_preview(file_path)
+                page.add_widget(preview, 1)
+                # Permite foco para atalho de teclado
+                preview.setFocus()
+            else:
+                label = QLabel(file_path)
+                label.setObjectName(f"file_preview_{title.lower()}")
+                label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                label.setWordWrap(True)
+                page.add_widget(label, 1)
 
         page.setVisible(False)
 

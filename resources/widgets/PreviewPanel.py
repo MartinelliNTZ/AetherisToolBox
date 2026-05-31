@@ -28,14 +28,15 @@ class PreviewPanel(QWidget):
 
     Parâmetros:
         fixed_size: tuple (largura, altura) — tamanho fixo do preview.
-                    Padrão (480, 360).
+                    Padrão (480, 360). Passar None para expandir
+                    automaticamente ao espaço disponível.
         preview_type: str — tipo de preview ("image" para fotos,
                      futuro "vector", "shp", etc.)
     """
 
     def __init__(
         self,
-        fixed_size: tuple[int, int] = (480, 360),
+        fixed_size: tuple[int, int] | None = (480, 360),
         preview_type: str = "image",
         parent=None,
     ):
@@ -58,9 +59,10 @@ class PreviewPanel(QWidget):
         self._label = QLabel("Nenhuma imagem selecionada")
         self._label.setObjectName("preview_label")
         self._label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._label.setMinimumSize(fixed_size[0], fixed_size[1])
-        self._label.setMaximumSize(fixed_size[0], fixed_size[1])
         self._label.setWordWrap(True)
+        if fixed_size is not None:
+            self._label.setMinimumSize(fixed_size[0], fixed_size[1])
+            self._label.setMaximumSize(fixed_size[0], fixed_size[1])
         # Permite que os eventos do mouse passem pelo label até o PreviewPanel
         self._label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         layout.addWidget(self._label)
@@ -70,12 +72,21 @@ class PreviewPanel(QWidget):
 
     # ── Zoom/Pan Interno ────────────────────────────────────────────
 
+    def _viewport_size(self) -> tuple[int, int]:
+        """Retorna (largura, altura) do viewport, seja fixo ou dinâmico."""
+        if self._fixed_size is not None:
+            return self._fixed_size
+        # Usa tamanho real do label (que ocupa todo o espaço disponível)
+        w = max(1, self._label.width())
+        h = max(1, self._label.height())
+        return (w, h)
+
     def _update_preview(self) -> None:
         """Re-render preview with current zoom and pan."""
         if self._base_pixmap is None or self._base_pixmap.isNull():
             return
 
-        w, h = self._fixed_size
+        w, h = self._viewport_size()
 
         zoomed = self._base_pixmap.scaled(
             int(w * self._zoom_factor),
@@ -204,7 +215,7 @@ class PreviewPanel(QWidget):
             from io import BytesIO
 
             img = PILImage.open(path)
-            w, h = self._fixed_size
+            w, h = self._viewport_size()
             img.thumbnail((w, h), PILImage.LANCZOS)
             bio = BytesIO()
             img.convert("RGBA").save(bio, format="PNG")
