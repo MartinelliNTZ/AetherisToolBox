@@ -146,8 +146,8 @@ class PreviewPanel(QWidget):
         if self._is_dragging:
             delta = event.position() - self._drag_start
             self._pan_offset = QPoint(
-                int(self._drag_start_pan.x() + delta.x()),
-                int(self._drag_start_pan.y() + delta.y()),
+                int(self._drag_start_pan.x() - delta.x()),
+                int(self._drag_start_pan.y() - delta.y()),
             )
             self._update_preview()
             event.accept()
