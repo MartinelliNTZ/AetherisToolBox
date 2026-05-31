@@ -589,6 +589,33 @@ page.add_widgets(QLabel("A"), QLabel("B"))
 
 ---
 
+### `DialogPage` — `DialogPage.py`
+Página de conteúdo para diálogos com abas. Herda de `BasePage` — é o **container** que exibe o conteúdo de cada aba quando selecionada.
+
+A **dialog** que usa este widget gerencia as `HorizontalTab` por conta própria, empilhando `DialogPage`s via `QStackedWidget` e alternando a visibilidade conforme a aba clicada.
+
+```python
+from resources.widgets.DialogPage import DialogPage
+from resources.widgets.HorizontalTab import HorizontalTab
+
+# Dentro de uma QDialog:
+self._tabs: list[HorizontalTab] = []
+self._pages: list[DialogPage] = []
+
+tab = HorizontalTab("Preview", closable=False)
+tab.mousePressEvent = lambda e: self._on_tab_clicked(0)
+tab_layout.addWidget(tab)
+
+page = DialogPage(self)
+page.add_widget(QLabel("conteúdo"))
+stack.addWidget(page)
+```
+
+**Atributos herdados de BasePage:**
+- `main_layout` — QVBoxLayout com margins e spacing padrão
+
+---
+
 ### `PluginPage` — `PluginPage.py`
 Container base padrão para todos os plugins. Fornece:
 - QVBoxLayout com margins (18, 10, 18, 10) e spacing 8

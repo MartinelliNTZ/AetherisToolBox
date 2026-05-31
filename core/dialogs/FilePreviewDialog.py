@@ -2,9 +2,11 @@
 """
 FilePreviewDialog — Diálogo de pré-visualização de arquivo
 ============================================================
-Exibe um QTabWidget com duas abas não fecháveis:
-- Preview: área para futura visualização do conteúdo
-- Propriedades: área para futuras informações do arquivo
+Exibe abas (HorizontalTab) no topo e um DialogPage que troca
+de conteúdo conforme a aba selecionada.
+
+- Aba "Preview": exibe o path do arquivo
+- Aba "Propriedades": vazia (futuro)
 
 Uso:
     FilePreviewDialog.exec_preview(
@@ -17,15 +19,15 @@ from __future__ import annotations
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QDialog, QVBoxLayout, QTabWidget, QLabel, QPushButton, QHBoxLayout,
-)
+    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QStackedWidget,QWidget)
 
-from resources.widgets.BasePage import BasePage
+from resources.widgets.DialogPage import DialogPage
+from resources.widgets.HorizontalTab import HorizontalTab
 
 
 class FilePreviewDialog(QDialog):
     """
-    Diálogo modal com QTabWidget de duas abas (Preview e Propriedades).
+    Diálogo modal com abas HorizontalTab + DialogPage.
 
     Args:
         file_path: Caminho completo do arquivo a exibir.
@@ -43,28 +45,35 @@ class FilePreviewDialog(QDialog):
         self.setWindowTitle(title)
         self.resize(700, 500)
 
+        self._tabs: list[HorizontalTab] = []
+        self._pages: list[DialogPage] = []
+
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-        # QTabWidget com as duas abas
-        self.tab_widget = QTabWidget()
-        self.tab_widget.setObjectName("file_preview_tabs")
-        self.tab_widget.setTabsClosable(False)  # abas não fecháveis
-        layout.addWidget(self.tab_widget, 1)
+        # ── Barra de abas ──────────────────────────────────────────
+        self._tab_bar = QWidget()        
+        self._tab_layout = QHBoxLayout(self._tab_bar)
+        self._tab_layout.setContentsMargins(4, 4, 4, 0)
+        self._tab_layout.setSpacing(2)
+        self._tab_layout.addStretch(1)
+        layout.addWidget(self._tab_bar)
 
-        # Aba Preview
-        self._preview_page = BasePage()
-        self._preview_page.setObjectName("file_preview_page")
-        self._build_preview_tab(file_path)
-        self.tab_widget.addTab(self._preview_page, "Preview")
+        # ── Stack de páginas ───────────────────────────────────────
+        self._stack = QStackedWidget()
+        self._stack.setObjectName("file_preview_stack")
+        layout.addWidget(self._stack, 1)
 
-        # Aba Propriedades
-        self._properties_page = BasePage()
-        self._properties_page.setObjectName("file_properties_page")
-        self.tab_widget.addTab(self._properties_page, "Propriedades")
+        # ── Conteúdo das abas ──────────────────────────────────────
+        self._add_tab("Preview", file_path, closable=False)
+        self._add_tab("Propriedades", None, closable=False)
 
-        # Botão fechar
+        # Ativa primeira aba
+        if self._tabs:
+            self._select_tab(0)
+
+        # ── Botão fechar ───────────────────────────────────────────
         btn_layout = QHBoxLayout()
         btn_layout.setContentsMargins(12, 8, 12, 8)
         btn_layout.addStretch()
@@ -73,13 +82,44 @@ class FilePreviewDialog(QDialog):
         btn_layout.addWidget(btn)
         layout.addLayout(btn_layout)
 
-    def _build_preview_tab(self, file_path: str) -> None:
-        """Constrói o conteúdo inicial da aba Preview exibindo o path."""
-        label = QLabel(file_path)
-        label.setObjectName("file_preview_path")
-        label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        label.setWordWrap(True)
-        self._preview_page.add_widget(label, 1)
+    def _add_tab(self, title: str, file_path: str | None, closable: bool = True) -> None:
+        """Adiciona uma aba HorizontalTab + sua DialogPage."""
+        tab = HorizontalTab(title, closable=closable, parent=self)
+        tab.setCursor(Qt.CursorShape.PointingHandCursor)
+        tab.mousePressEvent = lambda e, t=tab: self._on_tab_clicked(t)
+        # Insere antes do stretch
+        self._tab_layout.insertWidget(len(self._tabs), tab)
+        self._tabs.append(tab)
+
+        page = DialogPage(self)
+        self._stack.addWidget(page)
+        self._pages.append(page)
+
+        if file_path is not None:
+            label = QLabel(file_path)
+            label.setObjectName(f"file_preview_{title.lower()}")
+            label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            label.setWordWrap(True)
+            page.add_widget(label, 1)
+
+        page.setVisible(False)
+
+    def _select_tab(self, index: int) -> None:
+        """Ativa a aba no índice."""
+        for i, (tab, page) in enumerate(zip(self._tabs, self._pages)):
+            active = (i == index)
+            # Visual: marcar/desmarcar aba ativa (opcional, QSS pode tratar)
+            # Conteúdo
+            page.setVisible(active)
+            if active:
+                self._stack.setCurrentWidget(page)
+
+    def _on_tab_clicked(self, clicked_tab: HorizontalTab) -> None:
+        """Manipula clique em uma aba."""
+        for i, tab in enumerate(self._tabs):
+            if tab is clicked_tab:
+                self._select_tab(i)
+                break
 
     @staticmethod
     def exec_preview(
