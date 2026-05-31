@@ -29,9 +29,11 @@ Uso standalone:
 from __future__ import annotations
 
 from enum import Enum
-
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QFrame, QHBoxLayout
 from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QLabel, QFrame, QHBoxLayout
+
+from resources.widgets.BasePage import BasePage
 
 
 class _BadgeState(Enum):
@@ -55,7 +57,7 @@ class Badge(QLabel):
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
 
-class PluginPage(QWidget):
+class PluginPage(BasePage):
     """
     Container base que aplica o layout padrão do sistema.
 
@@ -96,9 +98,6 @@ class PluginPage(QWidget):
 
     def __init__(self, parent: QWidget | None = None, title: str | None = None) -> None:
         super().__init__(parent)
-        self.main_layout = QVBoxLayout(self)
-        self.main_layout.setContentsMargins(18, 10, 18, 10)
-        self.main_layout.setSpacing(8)
 
         self.header: QWidget | None = None
         self.badge: Badge | None = None
@@ -199,21 +198,3 @@ class PluginPage(QWidget):
         )
 
         return self.badge
-
-    def add_widget(self, widget: QWidget, stretch: int = 0) -> None:
-        """Atalho para adicionar widget ao main_layout."""
-        self.main_layout.addWidget(widget, stretch)
-
-    def add_widgets(self, *widgets: QWidget, stretch: int = 0) -> None:
-        """
-        Adiciona múltiplos widgets ao main_layout de uma só vez.
-
-        Args:
-            *widgets: Widgets a serem adicionados (ordem sequencial)
-            stretch: Fator de esticamento aplicado a todos
-
-        Exemplo:
-            page.add_widgets(QLabel("A"), QLineEdit(), QPushButton("OK"))
-        """
-        for widget in widgets:
-            self.main_layout.addWidget(widget, stretch)

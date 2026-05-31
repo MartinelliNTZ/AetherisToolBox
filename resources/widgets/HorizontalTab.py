@@ -9,11 +9,18 @@ class HorizontalTab(QWidget):
     Aba customizada do Workspace.
     A formatação visual (fundo, bordas, fonte) é feita via QSS em styles.py,
     aplicada diretamente no QTabBar::tab.
+
+    Args:
+        title: Texto exibido na aba.
+        tooltip: Tooltip opcional.
+        closable: Se True (padrão), exibe botão de fechar na aba.
+        parent: Widget pai.
     """
 
-    def __init__(self, title: str, tooltip: str = "", parent=None):
+    def __init__(self, title: str, tooltip: str = "", closable: bool = True, parent=None):
         super().__init__(parent)
         self._title = title
+        self._closable = closable
         self.setObjectName("workspace_tab")
         if tooltip:
             self.setToolTip(tooltip)

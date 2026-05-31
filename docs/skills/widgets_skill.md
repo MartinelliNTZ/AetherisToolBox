@@ -568,6 +568,27 @@ panel = SectionPanel(object_name="stack_hotkey", spacing=6)
 
 ---
 
+### `BasePage` — `BasePage.py`
+Classe base para páginas com QVBoxLayout padronizado (margins 18, 10, 18, 10 e spacing 8). Serve como base para `PluginPage` e demais páginas do sistema.
+
+```python
+from resources.widgets.BasePage import BasePage
+
+page = BasePage()
+page.main_layout.addWidget(QLabel("conteúdo"))
+page.add_widget(QLabel("atalho"))
+page.add_widgets(QLabel("A"), QLabel("B"))
+```
+
+**Atributos:**
+- `main_layout` — QVBoxLayout com margins e spacing padrão
+
+**Métodos:**
+- `add_widget(widget, stretch=0)` — adiciona widget ao main_layout
+- `add_widgets(*widgets, stretch=0)` — adiciona múltiplos widgets
+
+---
+
 ### `PluginPage` — `PluginPage.py`
 Container base padrão para todos os plugins. Fornece:
 - QVBoxLayout com margins (18, 10, 18, 10) e spacing 8
