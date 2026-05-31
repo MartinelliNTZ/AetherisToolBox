@@ -115,10 +115,10 @@ class HorizontalTab(QTabBar):
             painter.setRenderHint(QPainter.RenderHint.Antialiasing)
             painter.setRenderHint(QPainter.RenderHint.TextAntialiasing)
 
-            P = AppStyles.theme_colors()
-
             # Fundo do tab bar (área vazia à direita)
-            painter.fillRect(event.rect(), QColor(P["TITLE_BAR_BG"]))
+            painter.fillRect(event.rect(), QColor(AppStyles.theme_colors()["TITLE_BAR_BG"]))
+
+            P = AppStyles.tab_common_colors()
 
             for i in range(self.count()):
                 rect = self._tab_rect(i)
@@ -129,17 +129,17 @@ class HorizontalTab(QTabBar):
                 hovered  = (i == self._hovered_tab)
 
                 if selected:
-                    bg     = QColor(P["GOLD"])
-                    fg     = QColor(P["BG_DEEPEST"])
-                    border = QColor(P["GOLD_DIM"])
+                    bg     = QColor(P["bg_selected"])
+                    fg     = QColor(P["fg_selected"])
+                    border = QColor(P["border_selected"])
                 elif hovered:
-                    bg     = QColor(P["GOLD"])
-                    fg     = QColor(P["BG_DEEPEST"])
-                    border = QColor(P["BORDER_HOVER"])
+                    bg     = QColor(P["bg_hovered"])
+                    fg     = QColor(P["fg_hovered"])
+                    border = QColor(P["border_hovered"])
                 else:
-                    bg     = QColor(P["BG_DEEPEST"])
-                    fg     = QColor(P["TEXT_BRIGHT"])
-                    border = QColor(P["BORDER"])
+                    bg     = QColor(P["bg_default"])
+                    fg     = QColor(P["fg_default"])
+                    border = QColor(P["border_default"])
 
                 path = self._draw_rounded_rect(painter, rect, tl=2, tr=8, br=2, bl=2)
                 painter.setClipPath(path)
@@ -147,7 +147,7 @@ class HorizontalTab(QTabBar):
 
                 # Indicador de seleção (barra no topo)
                 if selected:
-                    painter.fillRect(rect.x(), rect.y(), rect.width(), 3, QColor(P["GOLD_HOVER"]))
+                    painter.fillRect(rect.x(), rect.y(), rect.width(), 3, QColor(P["indicator"]))
 
                 painter.setPen(QPen(border, 1))
                 painter.drawPath(path)

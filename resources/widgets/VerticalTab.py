@@ -88,20 +88,20 @@ class VerticalTab(QWidget):
         painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
 
         w, h = self.width(), self.height()
-        P    = AppStyles.theme_colors()
+        P    = AppStyles.tab_common_colors()
 
         if self._selected:
-            bg     = QColor(P["GOLD"])
-            fg     = QColor(P["TEXT_BRIGHT"])
-            border = QColor(P["GOLD_DIM"])
+            bg     = QColor(P["bg_selected"])
+            fg     = QColor(P["fg_selected"])
+            border = QColor(P["border_selected"])
         elif self._hovered:
-            bg     = QColor(P["BG_PANEL"])
-            fg     = QColor(P["TEXT_PRIMARY"])
-            border = QColor(P["BORDER_HOVER"])
+            bg     = QColor(P["bg_hovered"])
+            fg     = QColor(P["fg_hovered"])
+            border = QColor(P["border_hovered"])
         else:
-            bg     = QColor(P["BG_DEEPEST"])
-            fg     = QColor(P["TEXT_SECONDARY"])
-            border = QColor(P["BORDER"])
+            bg     = QColor(P["bg_default"])
+            fg     = QColor(P["fg_default"])
+            border = QColor(P["border_default"])
 
         # Desenhar background arredondado
         rect = QRect(0, 0, w, h)
@@ -115,7 +115,7 @@ class VerticalTab(QWidget):
 
         # Indicador de seleção (barra na esquerda)
         if self._selected:
-            painter.fillRect(0, 0, 3, h, QColor(P["GOLD_HOVER"]))
+            painter.fillRect(0, 0, 3, h, QColor(P["indicator"]))
 
         # Desenhar borda (com clip já ativo, fica segura dentro dos limites)
         painter.setPen(QPen(border, 1))

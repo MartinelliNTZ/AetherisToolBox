@@ -351,6 +351,42 @@ class AppStyles(BaseStyle):
         }
 
     # ────────────────────────────────────────────────────────────────────
+    # TAB COLORS — cores centralizadas para QUALQUER tab (vertical/horizontal)
+    #              Tanto VerticalTab quanto HorizontalTab usam o mesmo
+    #              dicionário, garantindo consistência.
+    #              Uso: P = AppStyles.tab_common_colors()
+    #              painter.fillRect(..., QColor(P["bg_selected"]))
+    # ────────────────────────────────────────────────────────────────────
+
+    _TAB_COLORS_CACHE: dict = {}
+
+    @classmethod
+    def tab_common_colors(cls) -> dict[str, str]:
+        """Retorna cores padronizadas para tabs (vertical e horizontal).
+        Todas as tabs usam o mesmo schema de cores:
+          - selected: fundo GOLD, texto BG_DEEPEST, border GOLD_DIM, indicator GOLD_HOVER
+          - hovered:  fundo GOLD, texto BG_DEEPEST, border BORDER_HOVER
+          - default:  fundo BG_DEEPEST, texto TEXT_BRIGHT, border BORDER
+        Cacheado por performance."""
+        t = ct.theme
+        cache_key = ct.current_key
+        if cls._TAB_COLORS_CACHE.get("_cache_key") != cache_key:
+            cls._TAB_COLORS_CACHE = {
+                "_cache_key": cache_key,
+                "bg_selected":    t.GOLD,
+                "fg_selected":    t.BG_DEEPEST,
+                "border_selected": t.GOLD_DIM,
+                "indicator":       t.GOLD_HOVER,
+                "bg_hovered":     t.GOLD,
+                "fg_hovered":     t.BG_DEEPEST,
+                "border_hovered": t.BORDER_HOVER,
+                "bg_default":     t.BG_DEEPEST,
+                "fg_default":     t.TEXT_BRIGHT,
+                "border_default": t.BORDER,
+            }
+        return cls._TAB_COLORS_CACHE
+
+    # ────────────────────────────────────────────────────────────────────
     # THEME COLORS — cores avulsas para widgets que usam paintEvent
     #                (VerticalTab, WorkspaceTabBar, etc.)
     #                Uso: from AppStyles import theme_colors
