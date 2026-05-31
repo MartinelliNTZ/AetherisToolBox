@@ -66,6 +66,7 @@ class PreviewPanel(QWidget):
         layout.addWidget(self._label)
 
         self.setMouseTracking(True)
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
     # ── Zoom/Pan Interno ────────────────────────────────────────────
 
@@ -166,12 +167,24 @@ class PreviewPanel(QWidget):
     def mouseDoubleClickEvent(self, event):
         """Reset zoom and pan on double-click."""
         if event.button() == Qt.MouseButton.LeftButton:
-            self._zoom_factor = 1.0
-            self._pan_offset = QPoint(0, 0)
-            self._update_preview()
+            self._reset_zoom_pan()
             event.accept()
             return
         super().mouseDoubleClickEvent(event)
+
+    def keyPressEvent(self, event):
+        """Reset zoom and pan on '7' key."""
+        if event.key() == Qt.Key.Key_7:
+            self._reset_zoom_pan()
+            event.accept()
+            return
+        super().keyPressEvent(event)
+
+    def _reset_zoom_pan(self) -> None:
+        """Reset zoom to 1.0 and pan to (0, 0)."""
+        self._zoom_factor = 1.0
+        self._pan_offset = QPoint(0, 0)
+        self._update_preview()
 
     # ── API Pública ─────────────────────────────────────────────────
 
