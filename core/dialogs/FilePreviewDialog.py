@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import os
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QStackedWidget, QWidget)
 
@@ -79,10 +79,12 @@ class FilePreviewDialog(QDialog):
         # Conecta sinal de troca de aba
         self.tab_bar.currentChanged.connect(self._on_tab_changed)
 
-        # Ativa primeira aba
+        # Ativa primeira aba — usa QTimer para garantir que o layout
+        # já esteja resolvido antes de exibir o preview (necessário
+        # para PreviewPanel com fixed_size=None).
         if self.tab_bar.count() > 0:
             self.tab_bar.setCurrentIndex(0)
-            self._on_tab_changed(0)
+            QTimer.singleShot(0, lambda: self._on_tab_changed(0))
 
         # ── Botão fechar ────────────────────────────────────────────
         btn_layout = QHBoxLayout()
@@ -103,28 +105,35 @@ class FilePreviewDialog(QDialog):
         page = DialogPage(self)
         self._stack.addWidget(page)
 
-        if file_path is not None:
-            if is_image:
-                # Preview com zoom/pan para imagens
-                preview = PreviewPanel(fixed_size=None, parent=self)
-                preview.show_preview(file_path)
-                page.add_widget(preview, 1)
-                # Permite foco para atalho de teclado
-                preview.setFocus()
-            else:
-                label = QLabel(file_path)
-                label.setObjectName(f"file_preview_{title.lower()}")
-                label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-                label.setWordWrap(True)
-                page.add_widget(label, 1)
-
-        page.setVisible(False)
+        if file_path is not None and not is_image:
+            label = QLabel(file_path)
+            label.setObjectName(f"file_preview_{title.lower()}")
+            label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            label.setWordWrap(True)
+            page.add_widget(label, 1)
+        elif is_image:
+            # Preview com zoom/pan para imagens
+            # Não chama show_preview aqui — será feito em _on_tab_changed
+            # após o layout estar resolvido (via QTimer no __init__).
+            preview = PreviewPanel(fixed_size=None, parent=self)
+            preview.setProperty("file_path", file_path)
+            page.add_widget(preview, 1)
 
     def _on_tab_changed(self, index: int) -> None:
         """Atualiza a página visível quando a aba muda."""
         page = self._stack.widget(index)
         if page:
             self._stack.setCurrentWidget(page)
+
+        # Carrega preview da imagem se for PreviewPanel com file_path pendente
+        if page:
+            preview = page.findChild(PreviewPanel)
+            if preview:
+                path = preview.property("file_path")
+                if path:
+                    preview.show_preview(str(path))
+                    preview.setProperty("file_path", None)
+                    preview.setFocus()
 
     @staticmethod
     def exec_preview(
