@@ -423,6 +423,8 @@ capture.clear()
 ### `PreviewPanel` — `PreviewPanel.py`
 Painel de pré-visualização genérico. Exibe preview de imagens (PIL → QImage) com KeepAspectRatio. Genérico: parâmetro `preview_type` para futura extensão com vetores.
 
+Suporta **zoom** (roda do mouse) e **arrasto lateral** (botão esquerdo do mouse). Duplo clique reseta zoom e posição.
+
 ```python
 from resources.widgets.PreviewPanel import PreviewPanel
 
@@ -434,6 +436,11 @@ preview.show_preview("c:/foto.png")
 preview.clear_preview()
 preview.set_preview_data(qpixmap)  # aceita QPixmap/QImage pré-processado
 ```
+
+**Interação do mouse:**
+- **Roda do mouse** — zoom in/out (fator 1.15x, limite 0.1x a 10x)
+- **Botão esquerdo arrastar** — pan lateral quando zoom > 1x
+- **Duplo clique esquerdo** — reseta zoom para 1.0 e pan para (0, 0)
 
 **Parâmetros:**
 - `fixed_size: tuple[int, int] = (480, 360)` — tamanho fixo do preview
