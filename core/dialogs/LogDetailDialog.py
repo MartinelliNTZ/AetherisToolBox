@@ -12,7 +12,6 @@ from __future__ import annotations
 
 from typing import List
 
-from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication, QHBoxLayout, QTextEdit
 
 from core.dialogs.BaseDialog import BaseDialog
@@ -31,12 +30,6 @@ class LogDetailDialog(BaseDialog):
             title="Detalhes do Evento",
             min_size=(600, 400),
             modal=False,
-            has_appbar=False,
-        )
-        self.setWindowFlags(
-            Qt.WindowType.Dialog |
-            Qt.WindowType.WindowCloseButtonHint |
-            Qt.WindowType.WindowStaysOnTopHint
         )
     def _build_ui(self) -> None:
         from utils.ColorProvider import ColorProvider
