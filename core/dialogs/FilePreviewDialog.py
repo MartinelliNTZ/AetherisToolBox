@@ -24,6 +24,8 @@ from core.dialogs.BaseDialog import BaseDialog
 from resources.widgets.DialogPage import DialogPage
 from resources.widgets.HorizontalTab import HorizontalTab
 from resources.widgets.PreviewPanel import PreviewPanel
+from utils.basic_extractor import BasicExtractor
+from utils.JsonUtil import JsonUtil
 
 
 class FilePreviewDialog(BaseDialog):
@@ -61,9 +63,9 @@ class FilePreviewDialog(BaseDialog):
         self._stack.setObjectName("file_preview_stack")
         self.main_layout.addWidget(self._stack, 1)
 
-        # ── Conteúdo das abas ───────────────────────────────────────
+    # ── Conteúdo das abas ───────────────────────────────────────
         self._add_tab("Preview", self._file_path)
-        self._add_tab("Propriedades", None)
+        self._add_properties_tab()
 
         # Conecta sinal de troca de aba
         self.tab_bar.currentChanged.connect(self._on_tab_changed)
@@ -96,6 +98,35 @@ class FilePreviewDialog(BaseDialog):
             preview = PreviewPanel(fixed_size=None, parent=self)
             preview.setProperty("file_path", file_path)
             page.add_widget(preview, 1)
+
+    def _add_properties_tab(self) -> None:
+        """
+        Adiciona aba 'Propriedades' com PropertyInfoWidget.
+
+        Fluxo JSON:
+            1. Cria JSON temporário via JsonUtil
+            2. Enriquece o JSON com metadados via BasicExtractor.enrich_json
+            3. Extrai os campos que precisa do dict retornado
+            4. Exibe via PropertyInfoWidget.load_data()
+            5. Remove o JSON temporário (cleanup)
+        """
+        from resources.widgets.PropertyInfoWidget import PropertyInfoWidget
+
+        tab_index = self.tab_bar.addTab("")
+        self.tab_bar.setTabData(tab_index, "Propriedades")
+
+        page = DialogPage(self)
+        self._stack.addWidget(page)
+
+        self._prop_widget = PropertyInfoWidget(parent=self)
+        page.add_widget(self._prop_widget, 1)
+
+        # ── JSON Pipeline ───────────────────────────────────────
+        json_path = JsonUtil.create_temp_json()
+        enriched = BasicExtractor.enrich_json(json_path, self._file_path)
+        if enriched:
+            self._prop_widget.load_data(enriched)
+        JsonUtil.cleanup_temp_json(json_path)
 
     def _on_tab_changed(self, index: int) -> None:
         """Atualiza a página visível quando a aba muda."""

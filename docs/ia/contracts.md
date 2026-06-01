@@ -362,3 +362,38 @@ SignalManager.instance().console_message.emit("Processando arquivo X...")
 self.progress = QProgressBar()
 self.main_layout.addWidget(self.progress)
 ```
+
+## 🔴 Contrato 21 — JsonUtil para Criação de JSONs Temporários
+
+```
+Todo JSON temporário DEVE ser criado via JsonUtil.
+Nunca crie arquivos JSON temporários manualmente com open()/json.dump().
+```
+
+**Regras:**
+- `JsonUtil._get_temp_dir()` usa `ExplorerUtils.get_plugin_config_dir()` para diretório padronizado em `config/data/file_preview/temp/`
+- `JsonUtil.create_temp_json(data)` → cria JSON com UUID único, retorna path
+- `JsonUtil.read_json(path)` → lê JSON com tratamento de erros
+- `JsonUtil.write_json(path, data)` → escreve JSON com indent=2
+- `JsonUtil.update_json(path, updates)` → lê, mescla, salva
+- `JsonUtil.cleanup_temp_json(path)` → remove arquivo com segurança
+
+**Fluxo padrão:**
+```python
+json_path = JsonUtil.create_temp_json()
+enriched = BasicExtractor.enrich_json(json_path, file_path)
+# extrair campos de 'enriched'...
+JsonUtil.cleanup_temp_json(json_path)
+```
+
+## 🔴 Contrato 22 — FormatUtils para Formatação de Dados
+
+```
+Toda formatação de data e tamanho DEVE usar FormatUtils.
+Nunca formate datas ou tamanhos manualmente com strftime() ou aritmética.
+```
+
+**Regras:**
+- `FormatUtils.format_size(bytes)` → string legível (B, KB, MB, GB)
+- `FormatUtils.format_date(timestamp)` → `dd/mm/AAAA HH:MM:SS`
+- BasicExtractor delega formatação para FormatUtils

@@ -799,6 +799,36 @@ table.clear_rows()
 
 ---
 
+### `PropertyInfoWidget` — `PropertyInfoWidget.py`
+Widget que exibe propriedades básicas de um arquivo em layout de formulário (QFormLayout). Mostra nome, tamanho formatado, tipo, caminho (clicável como link azul para abrir no Explorer), diretório, datas de criação e modificação.
+
+Recebe dados via `load_data(data)` — o dicionário é tipicamente enriquecido via `BasicExtractor.enrich_json()` (fluxo JSON).
+
+```python
+from resources.widgets.PropertyInfoWidget import PropertyInfoWidget
+
+widget = PropertyInfoWidget(parent=self)
+widget.load_data({
+    "name": "arquivo.txt",
+    "size_formatted": "1.2 KB",
+    "extension_name": "TXT",
+    "path": "c:/pasta/arquivo.txt",
+    "directory": "c:/pasta",
+    "created": "01/06/2026 12:00:00",
+    "modified": "01/06/2026 14:30:00",
+})
+```
+
+**Métodos:**
+- `load_data(data)` — recebe dict com chaves: name, size_formatted, extension_name, path, directory, created, modified
+
+**Notas:**
+- O caminho do arquivo é exibido como link HTML azul (#3B82F6) sublinhado
+- Ao clicar no link, abre o diretório pai no Windows Explorer via `QDesktopServices.openUrl`
+- Layout sem margins (0,0,0,0) com spacing 6
+
+---
+
 ### `SimpleComboBox` — `SimpleComboBox.py`
 QComboBox genérico com label opcional. Aceita `Dict[str, str]` (recomendado) ou `List[str]`. Prefira **sempre** Dict — a chave é o valor interno estável, o texto é o display. Isso evita perda de índice e permite maior semântica.
 
