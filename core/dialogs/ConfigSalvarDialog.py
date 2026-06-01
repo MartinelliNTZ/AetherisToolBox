@@ -2,8 +2,6 @@
 """
 ConfigSalvarDialog — Diálogo genérico para salvar configurações em JSON.
 Uso: qualquer plugin que precise persistir configurações nomeadas.
-
-Retorna o nome do arquivo (sem .json) se salvo, ou None se cancelado.
 """
 
 from __future__ import annotations
@@ -13,29 +11,15 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, Optional
 
-from PySide6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
-    QPushButton,
-)
+from PySide6.QtWidgets import QDialog, QLabel, QLineEdit
 
+from core.dialogs.BaseDialog import BaseDialog
 from utils.MessageBox import MessageBox
 
 
-class ConfigSalvarDialog(QDialog):
+class ConfigSalvarDialog(BaseDialog):
     """
     Diálogo para salvar dados JSON em um diretório.
-
-    Uso:
-        result = ConfigSalvarDialog.exec_save(
-            parent=self,
-            config_dir=Path("config/data/meu_plugin"),
-            data={"chave": "valor"},
-            logger=self.logger,  # opcional
-            console_message_fn=SignalManager.instance().console_message.emit,  # opcional
-        )
-        if result:
-            nome, filepath = result
-            print(f"Salvo como {nome}.json")
     """
 
     def __init__(
@@ -44,29 +28,20 @@ class ConfigSalvarDialog(QDialog):
         title: str = "Salvar Configuração",
         placeholder: str = "Ex: config_padrao",
     ):
-        super().__init__(parent)
-        self.setWindowTitle(title)
-        self.setFixedSize(400, 140)
+        self._placeholder = placeholder
+        super().__init__(parent=parent, title=title, fixed_size=(400, 140), modal=True)
 
-        layout = QVBoxLayout(self)
-        layout.setSpacing(12)
-
-        label = QLabel("Nome da configuração:")
-        layout.addWidget(label)
+    def _build_ui(self):
+        self.main_layout.addWidget(QLabel("Nome da configuração:"))
 
         self._edit_nome = QLineEdit()
-        self._edit_nome.setPlaceholderText(placeholder)
-        layout.addWidget(self._edit_nome)
+        self._edit_nome.setPlaceholderText(self._placeholder)
+        self.main_layout.addWidget(self._edit_nome)
 
-        btn_layout = QHBoxLayout()
-        btn_layout.addStretch()
-        btn_cancelar = QPushButton("Cancelar")
-        btn_cancelar.clicked.connect(self.reject)
-        btn_layout.addWidget(btn_cancelar)
-        btn_salvar = QPushButton("Salvar")
-        btn_salvar.clicked.connect(self.accept)
-        btn_layout.addWidget(btn_salvar)
-        layout.addLayout(btn_layout)
+        self._add_button_bar({
+            "cancel": {"text": "Cancelar", "callback": self.reject},
+            "save": {"text": "Salvar", "callback": self.accept},
+        })
 
     @property
     def nome(self) -> str:
@@ -86,19 +61,6 @@ class ConfigSalvarDialog(QDialog):
     ) -> Optional[str]:
         """
         Abre o diálogo e salva os dados se confirmado.
-
-        Args:
-            config_dir: Diretório onde salvar (criado automaticamente).
-            data: Dicionário com os dados a persistir.
-            parent: Widget pai do diálogo.
-            title: Título da janela.
-            placeholder: Placeholder do campo de nome.
-            logger: Objeto com método .info/.error (ex: self.logger).
-            console_message_fn: Função para emitir mensagens no console (ex: SignalManager).
-            plugin_tag: Tag exibida nas mensagens (ex: "HotkeyPlugin").
-
-        Returns:
-            Nome do arquivo (sem .json) se salvo, None se cancelado/erro.
         """
         config_dir.mkdir(parents=True, exist_ok=True)
 

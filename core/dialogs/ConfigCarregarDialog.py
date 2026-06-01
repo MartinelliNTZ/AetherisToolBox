@@ -11,28 +11,15 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
-from PySide6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QLabel,
-    QListWidget, QPushButton,
-)
+from PySide6.QtWidgets import QDialog, QLabel, QListWidget
 
+from core.dialogs.BaseDialog import BaseDialog
 from utils.MessageBox import MessageBox
 
 
-class ConfigCarregarDialog(QDialog):
+class ConfigCarregarDialog(BaseDialog):
     """
     Diálogo para selecionar e carregar um arquivo JSON de configuração.
-
-    Uso:
-        data = ConfigCarregarDialog.exec_load(
-            parent=self,
-            config_dir=Path("config/data/meu_plugin"),
-            logger=self.logger,
-            console_message_fn=SignalManager.instance().console_message.emit,
-            plugin_tag="MeuPlugin",
-        )
-        if data:
-            print(f"Carregado: {data}")
     """
 
     def __init__(
@@ -42,35 +29,25 @@ class ConfigCarregarDialog(QDialog):
         title: str = "Carregar Configuração",
         prompt: str = "Selecione uma configuração para carregar:",
     ):
-        super().__init__(parent)
-        self.setWindowTitle(title)
-        self.resize(500, 400)
+        self._json_files = json_files
+        self._prompt = prompt
+        super().__init__(parent=parent, title=title, min_size=(500, 400), modal=True)
 
-        layout = QVBoxLayout(self)
-        layout.setSpacing(8)
-
-        label = QLabel(prompt)
-        layout.addWidget(label)
+    def _build_ui(self):
+        self.main_layout.addWidget(QLabel(self._prompt))
 
         self._list = QListWidget()
-        for fp in json_files:
+        for fp in self._json_files:
             nome = fp.stem
             mtime = datetime.fromtimestamp(fp.stat().st_mtime)
             data_str = mtime.strftime("%d/%m/%Y %H:%M:%S")
             self._list.addItem(f"{nome}  [{data_str}]")
-        layout.addWidget(self._list)
+        self.main_layout.addWidget(self._list)
 
-        btn_layout = QHBoxLayout()
-        btn_layout.addStretch()
-        btn_cancelar = QPushButton("Cancelar")
-        btn_cancelar.clicked.connect(self.reject)
-        btn_layout.addWidget(btn_cancelar)
-        btn_carregar = QPushButton("Carregar")
-        btn_carregar.clicked.connect(self.accept)
-        btn_layout.addWidget(btn_carregar)
-        layout.addLayout(btn_layout)
-
-        self._json_files = json_files
+        self._add_button_bar({
+            "cancel": {"text": "Cancelar", "callback": self.reject},
+            "carregar": {"text": "Carregar", "callback": self.accept},
+        })
 
     @property
     def selected_path(self) -> Optional[Path]:
@@ -92,18 +69,6 @@ class ConfigCarregarDialog(QDialog):
     ) -> Optional[Dict[str, Any]]:
         """
         Abre o diálogo e carrega os dados se confirmado.
-
-        Args:
-            config_dir: Diretório onde buscar arquivos .json.
-            parent: Widget pai do diálogo.
-            title: Título da janela.
-            prompt: Texto do label.
-            logger: Objeto com método .info/.error.
-            console_message_fn: Função para emitir mensagens no console.
-            plugin_tag: Tag para mensagens.
-
-        Returns:
-            Dicionário com os dados carregados, ou None se cancelado/erro.
         """
         config_dir.mkdir(parents=True, exist_ok=True)
         json_files = sorted(config_dir.glob("*.json"))

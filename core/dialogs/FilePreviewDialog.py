@@ -18,15 +18,15 @@ Uso:
 from __future__ import annotations
 
 from PySide6.QtCore import Qt, QTimer
-from PySide6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QStackedWidget)
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QStackedWidget
 
+from core.dialogs.BaseDialog import BaseDialog
 from resources.widgets.DialogPage import DialogPage
 from resources.widgets.HorizontalTab import HorizontalTab
 from resources.widgets.PreviewPanel import PreviewPanel
 
 
-class FilePreviewDialog(QDialog):
+class FilePreviewDialog(BaseDialog):
     """
     Diálogo modal com HorizontalTab + QStackedWidget + PreviewPanel.
 
@@ -42,25 +42,26 @@ class FilePreviewDialog(QDialog):
         title: str = "Pré-Visualização do Arquivo",
         parent=None,
     ):
-        super().__init__(parent)
-        self.setWindowTitle(title)
+        self._file_path = file_path
+        super().__init__(
+            parent=parent,
+            title=title,
+            modal=True,
+            margins=(0, 0, 0, 0),
+            spacing=0,
+        )
         self.resize(700, 500)
 
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
-
-        # ── Barra de abas (HorizontalTab) ───────────────────────────
+    def _build_ui(self):
         self.tab_bar = HorizontalTab(closable=False, parent=self)
-        layout.addWidget(self.tab_bar)
+        self.main_layout.addWidget(self.tab_bar)
 
-        # ── Stack de páginas ────────────────────────────────────────
         self._stack = QStackedWidget()
         self._stack.setObjectName("file_preview_stack")
-        layout.addWidget(self._stack, 1)
+        self.main_layout.addWidget(self._stack, 1)
 
         # ── Conteúdo das abas ───────────────────────────────────────
-        self._add_tab("Preview", file_path)
+        self._add_tab("Preview", self._file_path)
         self._add_tab("Propriedades", None)
 
         # Conecta sinal de troca de aba
@@ -78,7 +79,7 @@ class FilePreviewDialog(QDialog):
         btn = QPushButton("Fechar")
         btn.clicked.connect(self.accept)
         btn_layout.addWidget(btn)
-        layout.addLayout(btn_layout)
+        self.main_layout.addLayout(btn_layout)
 
     def _add_tab(self, title: str, file_path: str | None) -> None:
         """Adiciona uma aba + sua DialogPage no stack."""
@@ -101,7 +102,6 @@ class FilePreviewDialog(QDialog):
         if page:
             self._stack.setCurrentWidget(page)
 
-        # Carrega preview se for PreviewPanel com file_path pendente
         if page:
             preview = page.findChild(PreviewPanel)
             if preview:
