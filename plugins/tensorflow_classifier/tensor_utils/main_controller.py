@@ -95,7 +95,7 @@ class MainController:
         self._connect_signals()
         print("> Sinais conectados no MainController")
         print(f"{self.view.btn_add_shp}")
-        self._init_defaults()
+        self._init_defaults()#
         self.loadpreferences()
         self._update_resumo()
 
