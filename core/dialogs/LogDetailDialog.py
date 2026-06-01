@@ -31,6 +31,7 @@ class LogDetailDialog(BaseDialog):
             title="Detalhes do Evento",
             min_size=(600, 400),
             modal=False,
+            has_appbar=False,
         )
         self.setWindowFlags(
             Qt.WindowType.Dialog |

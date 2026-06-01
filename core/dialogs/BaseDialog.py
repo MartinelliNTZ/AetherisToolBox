@@ -2,10 +2,13 @@
 """
 BaseDialog — Classe base para todos os diálogos do Aetheris ToolBox
 ====================================================================
-Fornece main_layout pronto, helpers de UI e hook _build_ui().
-
-NÃO contém estilização — toda estilização fica em resources/styles/
-via AppStyles e BaseStyle.
+Fornece:
+  - AppBar no topo (mesmo padrão do MainWindow)
+  - main_layout pronto com margins e spacing padronizados
+  - Helper _add_button_bar() para botões no final do diálogo
+  - Helper _add_title() para títulos centralizados
+  - Helper _add_centered_text() para textos centralizados
+  - Hook _build_ui() chamado automaticamente no final do __init__
 
 Uso:
     class MyDialog(BaseDialog):
@@ -20,10 +23,13 @@ from __future__ import annotations
 from typing import Callable, Dict, List, Optional, Tuple, Union
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QDialog, QHBoxLayout, QLabel, QPushButton, QVBoxLayout
+from PySide6.QtWidgets import QDialog, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
+
+from resources.styles.AppStyles import AppStyles
+from resources.widgets.app_bar import AppBar
 
 
-# Margens e espaçamento padrão para todos os diálogos
+# Margens e espaçamento padrão para o conteúdo do diálogo
 _DEFAULT_MARGINS: Tuple[int, int, int, int] = (16, 16, 16, 16)
 _DEFAULT_SPACING: int = 8
 
@@ -33,6 +39,7 @@ class BaseDialog(QDialog):
     Classe base para diálogos do Aetheris ToolBox.
 
     Fornece:
+    - AppBar no topo (mesmo padrão do MainWindow) com min/max/close
     - main_layout (QVBoxLayout) pronto com margins e spacing padronizados
     - Helper _add_button_bar() para botões no final do diálogo
     - Helper _add_title() para títulos centralizados
@@ -41,11 +48,12 @@ class BaseDialog(QDialog):
 
     Args:
         parent: Widget pai.
-        title: Título da janela.
+        title: Título da janela e da AppBar.
         object_name: Nome do objeto (para estilização via QSS).
         fixed_size: Tupla (largura, altura) para tamanho fixo.
         min_size: Tupla (largura, altura) para tamanho mínimo.
         modal: Se True, setModal(True).
+        has_appbar: Se True, exibe AppBar no topo (frameless). Default True.
     """
 
     def __init__(
@@ -56,8 +64,13 @@ class BaseDialog(QDialog):
         fixed_size: Optional[Tuple[int, int]] = None,
         min_size: Optional[Tuple[int, int]] = None,
         modal: bool = True,
+        has_appbar: bool = True,
     ):
         super().__init__(parent)
+
+        # Deve ser definido ANTES de setWindowTitle (a override usa _has_appbar)
+        self._has_appbar = has_appbar
+
         if title:
             self.setWindowTitle(title)
         if object_name:
@@ -69,9 +82,31 @@ class BaseDialog(QDialog):
         if modal:
             self.setModal(True)
 
-        self.main_layout = QVBoxLayout(self)
+        # Aplica stylesheet genérico do diálogo (background, border, border-radius)
+        self.setStyleSheet(AppStyles.dialog_stylesheet())
+
+        # ── Root layout (sem margins, igual MainWindow) ──
+        root_layout = QVBoxLayout(self)
+        root_layout.setContentsMargins(0, 0, 0, 0)
+        root_layout.setSpacing(0)
+
+        # ── AppBar no topo (edge-to-edge, igual MainWindow) ──
+        if has_appbar:
+            self.setWindowFlags(self.windowFlags() | Qt.WindowType.FramelessWindowHint)
+
+            self.appbar = AppBar()
+            self.appbar.set_title(title)
+            self.appbar.minimize_clicked.connect(self.showMinimized)
+            self.appbar.maximize_restore_clicked.connect(self._toggle_maximize_restore)
+            self.appbar.close_clicked.connect(self.reject)
+            root_layout.addWidget(self.appbar)
+
+        # ── Container de conteúdo com margins padronizadas ──
+        content = QWidget()
+        self.main_layout = QVBoxLayout(content)
         self.main_layout.setContentsMargins(*_DEFAULT_MARGINS)
         self.main_layout.setSpacing(_DEFAULT_SPACING)
+        root_layout.addWidget(content, 1)
 
         self._build_ui()
 
@@ -88,7 +123,7 @@ class BaseDialog(QDialog):
     # ────────────────────────────────────────────────────────────
 
     def _add_title(self, text: str, object_name: str = "") -> QLabel:
-        """Adiciona um título centralizado ao layout."""
+        """Adiciona um título centralizado ao layout (abaixo da AppBar)."""
         label = QLabel(text)
         if object_name:
             label.setObjectName(object_name)
@@ -190,3 +225,24 @@ class BaseDialog(QDialog):
         btn.setCursor(Qt.CursorShape.PointingHandCursor)
         btn.clicked.connect(callback)
         return btn
+
+    # ────────────────────────────────────────────────────────────
+    # CONTROLE DE JANELA (AppBar)
+    # ────────────────────────────────────────────────────────────
+
+    def _toggle_maximize_restore(self) -> None:
+        """Alterna entre maximizado e normal (chamado pelo AppBar)."""
+        if self.isMaximized():
+            self.showNormal()
+        else:
+            self.showMaximized()
+
+    # ────────────────────────────────────────────────────────────
+    # OVERRIDE setWindowTitle — sincroniza com AppBar
+    # ────────────────────────────────────────────────────────────
+
+    def setWindowTitle(self, title: str) -> None:
+        """Sobrescreve para manter AppBar sincronizada com o título."""
+        super().setWindowTitle(title)
+        if self._has_appbar and hasattr(self, "appbar"):
+            self.appbar.set_title(title)
