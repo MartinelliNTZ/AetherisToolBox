@@ -2,13 +2,15 @@
 """
 BaseDialog — Classe base para todos os diálogos do Aetheris ToolBox
 ====================================================================
-Fornece tema consistente (background SURFACE_1, borda BORDER_DEFAULT,
-border-radius BORDER_RADIUS_DIALOG), main_layout pronto e helpers.
+Fornece main_layout pronto, helpers de UI e hook _build_ui().
+
+NÃO contém estilização — toda estilização fica em resources/styles/
+via AppStyles e BaseStyle.
 
 Uso:
     class MyDialog(BaseDialog):
         def _build_ui(self):
-            self._add_title("Título", object_name="my_title")
+            self._add_title("Título")
             self.main_layout.addWidget(QLabel("conteúdo específico"))
             self._add_button_bar(["cancel", "ok"])
 """
@@ -19,8 +21,6 @@ from typing import Callable, Dict, List, Optional, Tuple, Union
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QDialog, QHBoxLayout, QLabel, QPushButton, QVBoxLayout
-
-from resources.styles.ThemeManager import ct
 
 
 # Margens e espaçamento padrão para todos os diálogos
@@ -33,7 +33,6 @@ class BaseDialog(QDialog):
     Classe base para diálogos do Aetheris ToolBox.
 
     Fornece:
-    - Tema escuro consistente via ThemeManager
     - main_layout (QVBoxLayout) pronto com margins e spacing padronizados
     - Helper _add_button_bar() para botões no final do diálogo
     - Helper _add_title() para títulos centralizados
@@ -70,29 +69,11 @@ class BaseDialog(QDialog):
         if modal:
             self.setModal(True)
 
-        self._apply_dialog_style()
-
         self.main_layout = QVBoxLayout(self)
         self.main_layout.setContentsMargins(*_DEFAULT_MARGINS)
         self.main_layout.setSpacing(_DEFAULT_SPACING)
 
         self._build_ui()
-
-    # ────────────────────────────────────────────────────────────
-    # ESTILO
-    # ────────────────────────────────────────────────────────────
-
-    def _apply_dialog_style(self) -> None:
-        """Aplica estilo padronizado de fundo no diálogo."""
-        t = ct.theme
-        obj_name = self.objectName() or "BaseDialog"
-        self.setStyleSheet(
-            f"QDialog#{obj_name} {{"
-            f"  background-color: {t.SURFACE_1};"
-            f"  border: 1px solid {t.BORDER_DEFAULT};"
-            f"  border-radius: {t.BORDER_RADIUS_DIALOG}px;"
-            f"}}"
-        )
 
     # ────────────────────────────────────────────────────────────
     # HOOK DE CONSTRUÇÃO

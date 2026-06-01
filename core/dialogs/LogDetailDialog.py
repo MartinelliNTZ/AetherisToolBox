@@ -37,7 +37,6 @@ class LogDetailDialog(BaseDialog):
             Qt.WindowType.WindowCloseButtonHint |
             Qt.WindowType.WindowStaysOnTopHint
         )
-
     def _build_ui(self) -> None:
         from utils.ColorProvider import ColorProvider
 

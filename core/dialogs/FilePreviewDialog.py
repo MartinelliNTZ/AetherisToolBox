@@ -47,9 +47,10 @@ class FilePreviewDialog(BaseDialog):
             parent=parent,
             title=title,
             modal=True,
-            margins=(0, 0, 0, 0),
-            spacing=0,
         )
+        # Layout full-bleed (sem margins) para abas horizontais
+        self.main_layout.setContentsMargins(0, 0, 0, 0)
+        self.main_layout.setSpacing(0)
         self.resize(700, 500)
 
     def _build_ui(self):

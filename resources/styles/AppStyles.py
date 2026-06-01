@@ -277,6 +277,22 @@ class AppStyles(BaseStyle):
         return cls.badge_style(ct.theme.COLOR_INFO)
 
     # ────────────────────────────────────────────────────────────────────
+    # DIALOG — Estilo base para QDialog
+    # ────────────────────────────────────────────────────────────────────
+
+    @classmethod
+    def dialog_stylesheet(cls) -> str:
+        """QSS genérico para QDialog. Nenhum hardcoded."""
+        t = ct.theme
+        return (
+            f"QDialog {{"
+            f"  background-color: {t.SURFACE_1};"
+            f"  border: 1px solid {t.BORDER_DEFAULT};"
+            f"  border-radius: {t.BORDER_RADIUS_DIALOG}px;"
+            f"}}"
+        )
+
+    # ────────────────────────────────────────────────────────────────────
     # ABOUT DIALOG — QSS completo para AboutDialog
     # ────────────────────────────────────────────────────────────────────
 
@@ -284,12 +300,7 @@ class AppStyles(BaseStyle):
     def about_dialog_stylesheet(cls) -> str:
         """QSS completo para o AboutDialog. Nenhum hardcoded."""
         t = ct.theme
-        return (
-            f"QDialog#about_dialog {{"
-            f"  background-color: {t.SURFACE_1};"
-            f"  border: 1px solid {t.BORDER_DEFAULT};"
-            f"  border-radius: {t.BORDER_RADIUS_DIALOG}px;"
-            f"}}"
+        return cls.dialog_stylesheet() + (
             f"QLabel#about_title {{"
             f"  color: {t.ACCENT_TEXT};"
             f"  font-size: {t.FONT_SIZE_BIG}px;"
