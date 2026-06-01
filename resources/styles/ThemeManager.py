@@ -34,15 +34,11 @@ Uso:
 from __future__ import annotations
 
 from resources.styles.BaseTheme import BaseTheme
-from resources.styles.DarkCharcoalTheme import DarkCharcoalTheme
-from resources.styles.ZeroGrausTheme import ZeroGrausTheme
-from resources.styles.BlueTheme import BlueTheme
 
 
 THEMES: dict[str, dict] = {
     "dark_charcoal": {
         "module":      "resources.styles.DarkCharcoalTheme",
-        "class":       DarkCharcoalTheme,
         "label":       "Dark Charcoal",
         "description": "Tema escuro minimalista com detalhes em dourado. "
                        "Profundidade via sombras, fundo preto-azulado e "
@@ -50,7 +46,6 @@ THEMES: dict[str, dict] = {
     },
     "zero_graus": {
         "module":      "resources.styles.ZeroGrausTheme",
-        "class":       ZeroGrausTheme,
         "label":       "Zero Graus",
         "description": "Tema cristalino Ice Glass. Tons azulados profundos, "
                        "brilho frio mbar-azulado e superfícies que "
@@ -58,7 +53,6 @@ THEMES: dict[str, dict] = {
     },
     "blue_theme": {
         "module":      "resources.styles.BlueTheme",
-        "class":       BlueTheme,
         "label":       "Blue Theme",
         "description": "Tema inspirado no design: "
                        "https://dribbble.com/shots/23707627-Modern-Dashboard-UI-Design. "
@@ -68,14 +62,32 @@ THEMES: dict[str, dict] = {
 }
 
 # ═══════════════════════════════════════════════════════════════════
-# ALTERE AQUI O TEMA ATIVO
+# TEMA ATIVO — lido dinamicamente das system preferences
 # ═══════════════════════════════════════════════════════════════════
-# Basta mudar esta string para a chave desejada em THEMES.
-# Ex: CURRENT_THEME_KEY = "zero_graus"
+# O valor salvo em System > "theme" no preferences.json tem prioridade.
+# Se não existir, usa "dark_charcoal" como padrão.
 # ═══════════════════════════════════════════════════════════════════
 
-CURRENT_THEME_KEY: str = "zero_graus"
-CURRENT_THEME_KEY: str = "dark_charcoal"
+_DEFAULT_THEME_KEY: str = "dark_charcoal"
+__CURRENT_THEME_KEY: str | None = None
+
+
+def _get_current_theme_key() -> str:
+    """
+    Retorna a chave do tema ativo, lendo de System > "theme"
+    nas preferências do sistema.
+    """
+    global __CURRENT_THEME_KEY
+    if __CURRENT_THEME_KEY is not None:
+        return __CURRENT_THEME_KEY
+    try:
+        from utils.Preferences import Preferences
+        from core.enum.ToolKey import ToolKey
+        sys_prefs = Preferences.load_tool_prefs(ToolKey.SYSTEM)
+        __CURRENT_THEME_KEY = sys_prefs.get("theme", _DEFAULT_THEME_KEY)
+    except Exception:
+        __CURRENT_THEME_KEY = _DEFAULT_THEME_KEY
+    return __CURRENT_THEME_KEY
 
 
 class ThemeManager:
@@ -102,39 +114,58 @@ class ThemeManager:
 
     @property
     def current_key(self) -> str:
-        """Chave do tema ativo no momento."""
-        return CURRENT_THEME_KEY
+        """Chave do tema ativo no momento (lida das preferências)."""
+        return _get_current_theme_key()
 
     @property
     def current_info(self) -> dict:
         """Metadados completos do tema ativo."""
-        return THEMES[CURRENT_THEME_KEY]
+        key = _get_current_theme_key()
+        return THEMES[key]
 
     @classmethod
     def available_themes(cls) -> dict[str, dict]:
         """Retorna o dicionário completo de temas registrados (apenas metadados)."""
-        return {
-            key: {k: v for k, v in meta.items() if k != "class"}
-            for key, meta in THEMES.items()
-        }
+        return {key: dict(meta) for key, meta in THEMES.items()}
+
+    @staticmethod
+    def _load_theme_class(module_path: str) -> type[BaseTheme]:
+        """
+        Importa dinamicamente o módulo do tema e retorna sua classe.
+        Isso evita importar todos os temas no startup — só carrega o necessário.
+        """
+        mod_name = module_path.replace("/", ".").replace("\\", ".")
+        mod = __import__(mod_name, fromlist=["_trash"])
+        # Procura a única classe que herda de BaseTheme no módulo
+        for attr_name in dir(mod):
+            attr = getattr(mod, attr_name)
+            if isinstance(attr, type) and issubclass(attr, BaseTheme) and attr is not BaseTheme:
+                return attr
+        raise ImportError(
+            f"[ThemeManager] Nenhuma subclasse de BaseTheme encontrada "
+            f"em '{module_path}'"
+        )
 
     def reload_theme(self) -> None:
-        """Recria a instância do tema a partir da chave configurada."""
+        """Recria a instância do tema a partir da chave nas preferências."""
+        global __CURRENT_THEME_KEY
+        __CURRENT_THEME_KEY = None  # força releitura
         self._theme = self._build_theme()
 
     # ── Internos ─────────────────────────────────────────────────
 
     @staticmethod
     def _build_theme() -> BaseTheme:
-        """Constrói e retorna a instância do tema apontado por CURRENT_THEME_KEY."""
-        entry = THEMES.get(CURRENT_THEME_KEY)
+        """Constrói e retorna a instância do tema apontado pelas preferências."""
+        key = _get_current_theme_key()
+        entry = THEMES.get(key)
         if entry is None:
             raise KeyError(
-                f"[ThemeManager] Chave de tema '{CURRENT_THEME_KEY}' "
-                f"no encontrada em THEMES. "
+                f"[ThemeManager] Chave de tema '{key}' "
+                f"não encontrada em THEMES. "
                 f"Disponíveis: {list(THEMES.keys())}"
             )
-        theme_class: type[BaseTheme] = entry["class"]
+        theme_class = ThemeManager._load_theme_class(entry["module"])
         return theme_class()
 
 

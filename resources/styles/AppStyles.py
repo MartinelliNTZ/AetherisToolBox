@@ -277,6 +277,37 @@ class AppStyles(BaseStyle):
         return cls.badge_style(ct.theme.COLOR_INFO)
 
     # ────────────────────────────────────────────────────────────────────
+    # DIALOG — Estilo base para QDialog
+    # ────────────────────────────────────────────────────────────────────
+
+    @classmethod
+    def dialog_stylesheet(cls) -> str:
+        """QSS genérico para QDialog. Nenhum hardcoded."""
+        t = ct.theme
+        return (
+            f"QDialog {{"
+            f"  background-color: {t.SURFACE_1};"
+            f"  border: 1px solid {t.BORDER_DEFAULT};"
+            f"  border-radius: {t.BORDER_RADIUS_DIALOG}px;"
+            f"}}"
+        )
+
+    # ────────────────────────────────────────────────────────────────────
+    # DIALOG CONTENT — borda fina para o content widget do BaseDialog
+    # ────────────────────────────────────────────────────────────────────
+
+    @classmethod
+    def dialog_content_border_style(cls) -> str:
+        """Borda sutil para o QWidget de conteúdo dentro do BaseDialog."""
+        t = ct.theme
+        return (
+            f"QWidget#dialog_content {{"
+            f"  border: 1px solid {t.BORDER_DEFAULT};"
+            f"  border-radius: {t.RADIUS_SM}px;"
+            f"}}"
+        )
+
+    # ────────────────────────────────────────────────────────────────────
     # ABOUT DIALOG — QSS completo para AboutDialog
     # ────────────────────────────────────────────────────────────────────
 
@@ -284,12 +315,7 @@ class AppStyles(BaseStyle):
     def about_dialog_stylesheet(cls) -> str:
         """QSS completo para o AboutDialog. Nenhum hardcoded."""
         t = ct.theme
-        return (
-            f"QDialog#about_dialog {{"
-            f"  background-color: {t.SURFACE_1};"
-            f"  border: 1px solid {t.BORDER_DEFAULT};"
-            f"  border-radius: {t.BORDER_RADIUS_DIALOG}px;"
-            f"}}"
+        return cls.dialog_stylesheet() + (
             f"QLabel#about_title {{"
             f"  color: {t.ACCENT_TEXT};"
             f"  font-size: {t.FONT_SIZE_BIG}px;"
@@ -351,6 +377,42 @@ class AppStyles(BaseStyle):
         }
 
     # ────────────────────────────────────────────────────────────────────
+    # TAB COLORS — cores centralizadas para QUALQUER tab (vertical/horizontal)
+    #              Tanto VerticalTab quanto HorizontalTab usam o mesmo
+    #              dicionário, garantindo consistência.
+    #              Uso: P = AppStyles.tab_common_colors()
+    #              painter.fillRect(..., QColor(P["bg_selected"]))
+    # ────────────────────────────────────────────────────────────────────
+
+    _TAB_COLORS_CACHE: dict = {}
+
+    @classmethod
+    def tab_common_colors(cls) -> dict[str, str]:
+        """Retorna cores padronizadas para tabs (vertical e horizontal).
+        Todas as tabs usam o mesmo schema de cores:
+          - selected: fundo GOLD, texto BG_DEEPEST, border GOLD_DIM, indicator GOLD_HOVER
+          - hovered:  fundo GOLD, texto BG_DEEPEST, border BORDER_HOVER
+          - default:  fundo BG_DEEPEST, texto TEXT_BRIGHT, border BORDER
+        Cacheado por performance."""
+        t = ct.theme
+        cache_key = ct.current_key
+        if cls._TAB_COLORS_CACHE.get("_cache_key") != cache_key:
+            cls._TAB_COLORS_CACHE = {
+                "_cache_key": cache_key,
+                "bg_selected":    t.GOLD,
+                "fg_selected":    t.BG_DEEPEST,
+                "border_selected": t.GOLD_DIM,
+                "indicator":       t.GOLD_HOVER,
+                "bg_hovered":     t.GOLD,
+                "fg_hovered":     t.BG_DEEPEST,
+                "border_hovered": t.BORDER_HOVER,
+                "bg_default":     t.BG_DEEPEST,
+                "fg_default":     t.TEXT_BRIGHT,
+                "border_default": t.BORDER,
+            }
+        return cls._TAB_COLORS_CACHE
+
+    # ────────────────────────────────────────────────────────────────────
     # THEME COLORS — cores avulsas para widgets que usam paintEvent
     #                (VerticalTab, WorkspaceTabBar, etc.)
     #                Uso: from AppStyles import theme_colors
@@ -363,13 +425,13 @@ class AppStyles(BaseStyle):
     @classmethod
     def theme_colors(cls) -> dict[str, str]:
         """Retorna um dicionário com TODAS as cores do tema atual.
-        Cacheado por performance (paintEvent é chamado a 60 fps)."""
+        Cacheado por performance (paintEvent é chamado a 60 fps).
+        Usa current_key como chave de cache (string estável)."""
         t = ct.theme
-        # Recria cache se o id do tema mudar (nunca muda em runtime normal)
-        cache_id = id(t)
-        if cls._THEME_COLORS_CACHE.get("_cache_id") != cache_id:
+        cache_key = ct.current_key
+        if cls._THEME_COLORS_CACHE.get("_cache_key") != cache_key:
             cls._THEME_COLORS_CACHE = {
-                "_cache_id": cache_id,
+                "_cache_key": cache_key,
                 # Aliases de compatibilidade para widgets legados
                 "BG_DEEPEST": t.BG_DEEPEST,
                 "BG_DARK": t.BG_DARK,

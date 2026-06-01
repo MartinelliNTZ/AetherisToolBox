@@ -38,6 +38,7 @@ class SelectorGrid(QWidget):
         specs: dict[str, dict],
         title: Optional[str] = None,
         columns: int = 1,
+        suggested_paths: Optional[dict[str, str]] = None,
         parent=None,
     ):
         super().__init__(parent)
@@ -63,25 +64,24 @@ class SelectorGrid(QWidget):
             inner.setSpacing(6)
             inner.setContentsMargins(6, 6, 6, 6)
             for label_text, kwargs in specs.items():
-                sel = SimpleSelector(label_text=label_text, parent=self, **kwargs)
+                clean_kwargs = {k: v for k, v in kwargs.items() if k not in ("label_text", "parent")}
+                sel = SimpleSelector(label_text=label_text, parent=self, **clean_kwargs)
                 self._selectors[label_text] = sel
                 inner.addWidget(sel)
         else:
             # Layout em grade com N colunas
             inner.setSpacing(6)
             inner.setContentsMargins(6, 6, 6, 6)
-            # Troca o layout para QGridLayout
             grid = QGridLayout()
             grid.setSpacing(6)
             grid.setContentsMargins(6, 6, 6, 6)
-            # Substitui o layout do container
             for i, (label_text, kwargs) in enumerate(specs.items()):
-                sel = SimpleSelector(label_text=label_text, parent=self, **kwargs)
+                clean_kwargs = {k: v for k, v in kwargs.items() if k not in ("label_text", "parent")}
+                sel = SimpleSelector(label_text=label_text, parent=self, **clean_kwargs)
                 self._selectors[label_text] = sel
                 row = i // columns
                 col = i % columns
                 grid.addWidget(sel, row, col)
-            # Como GroupDiv tem QVBoxLayout, adicionamos um QWidget com grid
             grid_wrapper = QWidget()
             grid_wrapper.setLayout(grid)
             inner.addWidget(grid_wrapper)

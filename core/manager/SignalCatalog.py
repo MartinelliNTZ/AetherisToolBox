@@ -36,3 +36,4 @@ class SignalCatalog(QObject):
     app_shutdown:     Signal = Signal()      # emitido quando a aplicação encerra
     console_message:  Signal = Signal(str)   # emitido para exibir mensagem no console
     progress_update:  Signal = Signal(float) # emitido para atualizar a barra de progresso (0-100)
+    project_changed:  Signal = Signal()      # emitido quando o projeto ativo é salvo/criado

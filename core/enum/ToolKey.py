@@ -22,9 +22,12 @@ class ToolKey(str, Enum):
     HOTKEY_PLUGIN = "HotkeyPlugin"
     PREFERENCES = "Preferences"
     RENAMER = "Renamer"
+    CONFIGURATION = "Configuration"
     SYSTEM = "System"
     SAVE_PROJECT = "SaveProject"
+    FILE_MANAGER = "FileManager"
     UNTRACEABLE = "Untraceable"
+    ICO_CONVERTER = "IcoConverter"
 
     # ── Método utilitário ──────────────────────────────────────────────
 

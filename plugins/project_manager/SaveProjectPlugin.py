@@ -21,6 +21,7 @@ from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QVBoxLayout, QLabel
 
 from core.enum.ToolKey import ToolKey
+from core.manager.SignalManager import SignalManager
 from plugins.BasePlugin import BasePlugin
 from utils.ExplorerUtils import ExplorerUtils
 from utils.MessageBox import MessageBox
@@ -57,12 +58,14 @@ class SaveProjectPlugin(BasePlugin):
         QTimer.singleShot(0, self._run_project_flow)
 
     def _load_prefs(self) -> None:
-        """Carreva current_project das preferências do sistema."""
+        """Carreva current_project e root_folder das preferências do sistema."""
         self._current_project = self.sys_preferences.get("current_project", None)
+        self._current_root_folder = self.sys_preferences.get("root_folder", None)
         self.logger.info(
             "Prefs carregadas no init",
             code="PROJ_LOAD_INIT",
             current_project_raw=self._current_project,
+            root_folder_raw=self._current_root_folder,
         )
 
     # ── Fluxo principal ────────────────────────────────────────────
@@ -129,12 +132,19 @@ class SaveProjectPlugin(BasePlugin):
         )
         result = ProjectUtil.update_last_modified(self._current_project)
         if result is not None:
+            # Salva root_folder nas preferências do sistema
+            from utils.Preferences import Preferences
+            self.sys_preferences["root_folder"] = os.path.dirname(self._current_project)
+            Preferences.save_tool_prefs(ToolKey.SYSTEM, self.sys_preferences)
+
             self.logger.info(
                 "Projeto atualizado",
                 code="PROJ_SAVE",
                 file_path=self._current_project,
                 project_name=result.get("project_name", ""),
+                root_folder=self.sys_preferences["root_folder"],
             )
+            SignalManager.instance().project_changed.emit()
             MessageBox.show_info(
                 f"Projeto '{result.get('project_name', '')}' salvo com sucesso!",
                 title="Projeto Salvo",
@@ -196,11 +206,13 @@ class SaveProjectPlugin(BasePlugin):
             )
             return
 
-        # 4. Salva current_project nas preferências do sistema
+        # 4. Salva current_project e root_folder nas preferências do sistema
         from utils.Preferences import Preferences
         self.sys_preferences["current_project"] = result["file_path"]
+        self.sys_preferences["root_folder"] = folder
         Preferences.save_tool_prefs(ToolKey.SYSTEM, self.sys_preferences)
         self._current_project = result["file_path"]
+        self._current_root_folder = folder
 
         self.logger.info(
             "Projeto criado com sucesso",
@@ -209,6 +221,7 @@ class SaveProjectPlugin(BasePlugin):
             project_name=project_name,
             saved_in_prefs=True,
         )
+        SignalManager.instance().project_changed.emit()
         MessageBox.show_info(
             f"Projeto '{project_name}' criado com sucesso!\n\n"
             f"Localização: {result['file_path']}",

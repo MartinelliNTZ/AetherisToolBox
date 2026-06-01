@@ -9,18 +9,26 @@ Responsabilidades:
   4. Montar a MenuBar com os items e conectar sinais
   5. Encapsular MenuBar, Toolbar e seus sinais em um único lugar
 
-A MainWindow apenas posiciona os widgets prontos.
+  A MainWindow apenas posiciona os widgets prontos.
+
+  O MenuManager também gerencia a lógica de "Novo", "Abrir" e "Salvar como"
+  do menu Arquivo, pois essas ações pertencem ao fluxo de projeto global
+  (não a um plugin específico).
 """
 
 from __future__ import annotations
 
+import os
 from typing import Dict, List, Optional
 
 from PySide6.QtCore import Signal, QObject
 from PySide6.QtWidgets import QWidget, QHBoxLayout
 
+from core.config.LogUtils import LogUtils
 from core.config.ToolRegistry import ToolRegistry
+from core.enum.ToolKey import ToolKey
 from core.enum.ToolType import ToolType
+from core.manager.SignalManager import SignalManager
 from core.menus.FileMenuItem import FileMenuItem
 from core.menus.SystemMenuItem import SystemMenuItem
 from core.menus.HelpMenuItem import HelpMenuItem
@@ -28,6 +36,10 @@ from core.model.Tool import Tool
 from resources.widgets.MenuBar import MenuBar
 from resources.widgets.ToolGroup import ToolGroup
 from resources.widgets.ToolBar import ToolBar
+from utils.ExplorerUtils import ExplorerUtils
+from utils.MessageBox import MessageBox
+from utils.Preferences import Preferences
+from utils.ProjectUtil import ProjectUtil
 
 
 class MenuManager(QObject):
@@ -47,11 +59,14 @@ class MenuManager(QObject):
 
     tool_activated = Signal(str)  # nome da ferramenta selecionada
 
+    _MTL_FILTER = "Projeto Aetheris (*.mtl)"
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self._groups: list[ToolGroup] = []
         self._menu_bar: Optional[MenuBar] = None
         self._toolbar_widget: Optional[QWidget] = None
+        self._logger = LogUtils(tool=ToolKey.SYSTEM.value, class_name="MenuManager")
 
     # ────────────────────────────────────────────────────────────────
     # API pública
@@ -70,6 +85,9 @@ class MenuManager(QObject):
 
         # ── 2. Criar e registrar FileMenuItem ──
         self._file_item = FileMenuItem()
+        self._file_item.novo_clicked.connect(self._on_novo)
+        self._file_item.abrir_clicked.connect(self._on_abrir)
+        self._file_item.salvar_como_clicked.connect(self._on_salvar_como)
         self._file_item.sair_clicked.connect(self._on_sair)
         self._menu_bar.add_menu_item(self._file_item)
 
@@ -140,6 +158,140 @@ class MenuManager(QObject):
 
     sair_clicked = Signal()
     sobre_clicked = Signal()
+
+    # ────────────────────────────────────────────────────────────────
+    # Lógica do menu Arquivo
+    # ────────────────────────────────────────────────────────────────
+
+    def _on_novo(self) -> None:
+        """Novo projeto: zera current_project e root_folder nas prefs e emite project_changed."""
+        try:
+            self._logger.info("Criando novo projeto em branco", code="MENU_NOVO")
+
+            # Salva current_project e root_folder como string vazia
+            Preferences.save_tool_prefs(ToolKey.SYSTEM, {
+                "current_project": "",
+                "root_folder": "",
+            })
+
+            # Emite sinal para FileManager recarregar com estado vazio
+            SignalManager.instance().project_changed.emit()
+            MessageBox.show_info(
+                "Projeto em branco criado.\n"
+                "Use 'Salvar como' para definir local e nome.",
+                title="Novo Projeto",
+            )
+        except Exception as e:
+            self._logger.error(
+                "Erro ao criar novo projeto", code="MENU_NOVO_ERR", error=str(e),
+            )
+            MessageBox.show_error(
+                "Erro ao criar novo projeto", title="Novo Projeto", detail=str(e),
+            )
+
+    def _on_abrir(self) -> None:
+        """Abrir projeto: seleciona .mtl, carrega prefs e emite project_changed."""
+        try:
+            self._logger.info("Abrindo projeto existente", code="MENU_ABRIR")
+
+            file_path = ExplorerUtils.open_file(
+                title="Abrir projeto",
+                file_filter=self._MTL_FILTER,
+                parent=self.parent(),
+            )
+            if not file_path:
+                return  # usuário cancelou
+
+            # Carrega o .mtl para validar
+            project_data = ProjectUtil.load_project(file_path)
+            if project_data is None:
+                self._logger.warning(
+                    "Arquivo .mtl inválido", code="MENU_ABRIR_INVALIDO",
+                    file_path=file_path,
+                )
+                MessageBox.show_error(
+                    f"O arquivo '{file_path}' não é um projeto válido.",
+                    title="Abrir Projeto",
+                )
+                return
+
+            # Salva nas preferências do sistema
+            sys_prefs = Preferences.load_tool_prefs(ToolKey.SYSTEM)
+            sys_prefs["current_project"] = file_path
+            sys_prefs["root_folder"] = os.path.dirname(file_path)
+            Preferences.save_tool_prefs(ToolKey.SYSTEM, sys_prefs)
+
+            # Atualiza last_modified
+            ProjectUtil.update_last_modified(file_path)
+
+            # Emite sinal para FileManager recarregar
+            SignalManager.instance().project_changed.emit()
+
+            self._logger.info(
+                "Projeto aberto com sucesso", code="MENU_ABRIR_OK",
+                file_path=file_path,
+                project_name=project_data.get("project_name", ""),
+            )
+            MessageBox.show_info(
+                f"Projeto '{project_data.get('project_name', '')}' aberto com sucesso!",
+                title="Projeto Aberto",
+            )
+        except Exception as e:
+            self._logger.error(
+                "Erro ao abrir projeto", code="MENU_ABRIR_ERR", error=str(e),
+            )
+            MessageBox.show_error(
+                "Erro ao abrir projeto", title="Abrir Projeto", detail=str(e),
+            )
+
+    def _on_salvar_como(self) -> None:
+        """Salvar como: cria novo .mtl, salva prefs e emite project_changed."""
+        try:
+            self._logger.info("Salvando projeto como...", code="MENU_SALVAR_COMO")
+
+            file_path = ExplorerUtils.save_file(
+                title="Salvar projeto como",
+                file_filter=self._MTL_FILTER,
+                parent=self.parent(),
+            )
+            if not file_path:
+                return  # usuário cancelou
+
+            # Extrai pasta e nome
+            folder = os.path.dirname(file_path)
+            project_name = os.path.splitext(os.path.basename(file_path))[0]
+
+            # ProjectUtil cuida de verificar se já existe
+            result = ProjectUtil.create_project_safe(folder, project_name)
+            if result is None:
+                return  # usuário cancelou a substituição
+
+            # Salva nas preferências do sistema
+            sys_prefs = Preferences.load_tool_prefs(ToolKey.SYSTEM)
+            sys_prefs["current_project"] = result["file_path"]
+            sys_prefs["root_folder"] = folder
+            Preferences.save_tool_prefs(ToolKey.SYSTEM, sys_prefs)
+
+            # Emite sinal para FileManager recarregar
+            SignalManager.instance().project_changed.emit()
+
+            self._logger.info(
+                "Projeto salvo como", code="MENU_SALVAR_COMO_OK",
+                file_path=result["file_path"],
+                project_name=project_name,
+            )
+            MessageBox.show_info(
+                f"Projeto '{project_name}' salvo com sucesso!",
+                title="Projeto Salvo",
+            )
+        except Exception as e:
+            self._logger.error(
+                "Erro ao salvar projeto como", code="MENU_SALVAR_COMO_ERR",
+                error=str(e),
+            )
+            MessageBox.show_error(
+                "Erro ao salvar projeto", title="Salvar como", detail=str(e),
+            )
 
     # ────────────────────────────────────────────────────────────────
     # Métodos privados

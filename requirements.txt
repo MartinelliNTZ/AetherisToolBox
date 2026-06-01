@@ -1,1 +1,1 @@
-numpy pandas geopandas rasterio scikit-learn tensorflow matplotlib seaborn opencv-python shapely PySide6 psutil 
+numpy pandas geopandas rasterio scikit-learn tensorflow matplotlib seaborn opencv-python shapely PySide6 psutil pynput Pillow

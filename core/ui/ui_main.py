@@ -23,6 +23,8 @@ if sys.platform == "win32":
     import ctypes
     import ctypes.wintypes
 
+from core.config.LogUtils import LogUtils
+from core.manager.SignalManager import SignalManager
 from core.model.Tool import Tool
 from core.enum.ResizeMode import ResizeMode
 from resources.widgets.app_bar import AppBar
@@ -90,7 +92,6 @@ class MainWindow(QMainWindow):
 
     def _setup_resize_mode(self) -> None:
         """(Re)configura o modo de resize atual."""
-        from core.config.LogUtils import LogUtils
         logger = LogUtils(tool="System", class_name="MainWindow")
         logger.info(
             "Modo de resize alterado",
@@ -342,8 +343,6 @@ class MainWindow(QMainWindow):
     # ────────────────────────────────────────────────────────────────
 
     def _build_ui(self, tools: List[Tool]) -> None:
-        from core.config.LogUtils import LogUtils
-
         logger = LogUtils(tool="System", class_name="MainWindow")
         logger.info("Construindo interface", code="UI_BUILD", num_tools=len(tools))
 
@@ -384,7 +383,6 @@ class MainWindow(QMainWindow):
         root_layout.addWidget(self.progress)
 
         # Conecta sinal de progresso
-        from core.manager.SignalManager import SignalManager
         SignalManager.instance().progress_update.connect(self._on_progress_update)
 
     # ────────────────────────────────────────────────────────────────

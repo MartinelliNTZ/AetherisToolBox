@@ -195,6 +195,37 @@ tab = WorkspaceTab(title="Console", tooltip="Console do sistema")
 
 ---
 
+### `MouseButtonCapture` — `MouseButtonCapture.py`
+Campo de captura de botão do mouse com label opcional encapsulado. Ao clicar, entra em modo de escuta e o próximo clique do mouse é capturado (Left, Right, Middle, X1, X2). Usa `pynput.mouse.Listener` internamente para capturar o clique fora do widget.
+
+Se ``label`` for informado, cria automaticamente um QFormLayout com o label + campo — eliminando a necessidade de criar layouts externos no plugin.
+
+```python
+from resources.widgets.MouseButtonCapture import MouseButtonCapture
+
+# Sem label
+capture = MouseButtonCapture(default_button="left")
+capture.buttonChanged.connect(self._on_button_changed)
+captured = capture.captured_button()  # "left", "right", "middle", "x1", "x2"
+capture.set_captured_button("right")  # define programaticamente
+
+# Com label encapsulado (elimina QFormLayout no plugin)
+capture = MouseButtonCapture(default_button="left", label="Botão do mouse:")
+```
+
+**Comportamento:**
+- Exibe nome amigável (Left (Esquerdo), Right (Direito), Middle (Meio), X1 (Botão lateral), X2 (Botão lateral))
+- Valor interno é compatível com `pyautogui.click(button=...)` e com o enum `MouseButton`
+- Ao clicar, entra em modo de escuta
+- Clique do mouse fora do widget → captura o botão
+- Perde o foco → sai do modo escuta
+- Tab → sai do modo escuta sem capturar
+
+**Parâmetros:**
+- `label: str | None` — se informado, encapsula o campo em um QFormLayout com o label
+
+---
+
 ### `HotkeyCaptureLine` — `HotkeyCaptureLine.py`
 Campo de captura de teclas com label opcional encapsulado. Ao clicar, entra em modo de escuta e a próxima tecla pressionada é capturada (F1, ESC, DEL, ENTER, etc.). Ideal para configuração de atalhos de teclado.
 
@@ -389,6 +420,128 @@ capture.clear()
 
 ---
 
+### `ImagePreviewPanel` — `ImagePreviewPanel.py`
+Widget standalone de pré-visualização de imagem com **zoom** (roda do mouse), **arrasto lateral** (botão esquerdo), **reset** (duplo clique ou tecla `7`). Usa PIL para carregar e redimensionar com KeepAspectRatio.
+
+```python
+from resources.widgets.ImagePreviewPanel import ImagePreviewPanel
+
+preview = ImagePreviewPanel(fixed_size=(480, 360))
+preview.show_preview("c:/foto.png")
+preview.clear_preview()
+```
+
+**Interação do mouse:**
+- **Roda do mouse** — zoom in/out (fator 1.15x, limite 0.1x a 10x)
+- **Botão esquerdo arrastar** — pan lateral quando zoom > 1x
+- **Duplo clique esquerdo** — reseta zoom para 1.0 e pan para (0, 0)
+- **Tecla `7`** — reseta zoom para 1.0 e pan para (0, 0)
+
+**Parâmetros:**
+- `fixed_size: tuple[int, int] | None = (480, 360)` — tamanho fixo; `None` expande ao espaço disponível
+
+**API:**
+- `show_preview(path)` — carrega e exibe imagem
+- `clear_preview()` — limpa e restaura placeholder
+
+---
+
+### `TextPreviewWidget` — `TextPreviewWidget.py`
+Widget de pré-visualização e edição de texto com suporte a múltiplos encodings. Possui botões **Copiar** e **Salvar** na barra superior. Usa `QPlainTextEdit` com fonte monospace (Consolas 10pt) e sem quebra de linha.
+
+```python
+from resources.widgets.TextPreviewWidget import TextPreviewWidget
+
+text_widget = TextPreviewWidget()
+text_widget.load_file("c:/arquivo.txt")
+text_widget.load_text("conteúdo manual")
+text_widget.clear()
+text_widget.text          # str — conteúdo atual
+text_widget.is_dirty      # bool — modificado desde último salvamento
+```
+
+**Métodos:**
+- `load_file(path)` — carrega arquivo com detecção automática de encoding
+- `load_text(text)` — carrega texto sem arquivo associado
+- `clear()` — limpa conteúdo e reseta estado
+
+**Propriedades:**
+- `text` — retorna o texto atual
+- `is_dirty` — True se houver modificações não salvas
+
+---
+
+### `PreviewPanel` — `PreviewPanel.py`
+Painel de pré-visualização genérico. Envolve o conteúdo em um **`GroupPainel`** com título e delega o preview interno para o widget apropriado conforme a extensão do arquivo:
+
+- **Imagens** → `ImagePreviewPanel` (zoom/pan)
+- **Texto** → `TextPreviewWidget` (editor com Copiar/Salvar)
+- Novos tipos podem ser adicionados via `register_handler()`
+
+```python
+from resources.widgets.PreviewPanel import PreviewPanel
+from resources.widgets.PreviewPanel import register_handler
+
+# Uso padrão — auto-detecta tipo
+preview = PreviewPanel(title="Pré-Visualização")
+preview.show_preview("c:/foto.png")
+preview.clear_preview()
+
+# Registrar handler customizado
+register_handler(frozenset({".xyz"}), factory_fn)
+```
+
+**Parâmetros:**
+- `title: str = "Pré-Visualização"` — título do `GroupPainel` container
+
+**API:**
+- `show_preview(path)` — carrega preview detectando tipo automaticamente
+- `clear_preview()` — limpa e restaura placeholder
+
+**Registro de handlers:**
+```python
+register_handler(
+    extensions: frozenset[str],
+    factory: Callable[[str], QWidget],
+)
+```
+
+---
+
+### `FileListView` — `FileListView.py`
+Widget de lista com thumbnails, reordenação e drag & drop. Encapsula botões internos (Adicionar Arquivos, Adicionar Pasta, Remover Selecionados, Limpar Tudo, Mover Cima/Baixo). Aceita filtro por extensões (DictManager-style). Conexão automática com PreviewPanel via parâmetro `preview_widget`.
+
+```python
+from resources.widgets.FileListView import FileListView
+from resources.widgets.PreviewPanel import PreviewPanel
+from utils.DictManager import DictManager
+
+preview = PreviewPanel()
+view = FileListView(
+    file_filter=DictManager.IMAGE_EXTENSIONS,
+    accept_dirs=True,
+    preview_widget=preview,  # conexão automática
+)
+
+# API pública
+view.add_files(["c:/foto.png", "c:/pasta_com_fotos/"])
+paths = view.get_ordered_paths()
+view.remove_selected()
+view.clear()
+view.move_up()
+view.move_down()
+count = view.count()
+selected = view.selected_path()
+
+# Sinais
+view.files_changed.connect(self._on_files_changed)
+view.selection_changed.connect(self._on_selection_changed)
+```
+
+**Sinais:** `files_changed(int)`, `selection_changed(str)`
+
+---
+
 ### `PreferenceItemGrid` — `PreferenceItemGrid.py`
 Grade rolável de itens de preferência editáveis. Cada linha contém: título | valor (checkbox para bool, spin para float/int, line edit para texto) | botão lixeira.
 
@@ -477,6 +630,54 @@ panel = SectionPanel(object_name="stack_hotkey", spacing=6)
 
 ---
 
+### `BasePage` — `BasePage.py`
+Classe base para páginas com QVBoxLayout padronizado (margins 18, 10, 18, 10 e spacing 8). Serve como base para `PluginPage` e demais páginas do sistema.
+
+```python
+from resources.widgets.BasePage import BasePage
+
+page = BasePage()
+page.main_layout.addWidget(QLabel("conteúdo"))
+page.add_widget(QLabel("atalho"))
+page.add_widgets(QLabel("A"), QLabel("B"))
+```
+
+**Atributos:**
+- `main_layout` — QVBoxLayout com margins e spacing padrão
+
+**Métodos:**
+- `add_widget(widget, stretch=0)` — adiciona widget ao main_layout
+- `add_widgets(*widgets, stretch=0)` — adiciona múltiplos widgets
+
+---
+
+### `DialogPage` — `DialogPage.py`
+Página de conteúdo para diálogos com abas. Herda de `BasePage` — é o **container** que exibe o conteúdo de cada aba quando selecionada.
+
+A **dialog** que usa este widget gerencia as `HorizontalTab` por conta própria, empilhando `DialogPage`s via `QStackedWidget` e alternando a visibilidade conforme a aba clicada.
+
+```python
+from resources.widgets.DialogPage import DialogPage
+from resources.widgets.HorizontalTab import HorizontalTab
+
+# Dentro de uma QDialog:
+self._tabs: list[HorizontalTab] = []
+self._pages: list[DialogPage] = []
+
+tab = HorizontalTab("Preview", closable=False)
+tab.mousePressEvent = lambda e: self._on_tab_clicked(0)
+tab_layout.addWidget(tab)
+
+page = DialogPage(self)
+page.add_widget(QLabel("conteúdo"))
+stack.addWidget(page)
+```
+
+**Atributos herdados de BasePage:**
+- `main_layout` — QVBoxLayout com margins e spacing padrão
+
+---
+
 ### `PluginPage` — `PluginPage.py`
 Container base padrão para todos os plugins. Fornece:
 - QVBoxLayout com margins (18, 10, 18, 10) e spacing 8
@@ -532,6 +733,36 @@ main_layout.addWidget(grid)
 **Propriedades:**
 - `painels` → lista de GroupPainel
 - `painel(index)` → retorna o GroupPainel do índice
+
+---
+
+### `FileTreeWidget` — `FileTreeWidget.py`
+Árvore de diretórios baseada em `QTreeView` + `QFileSystemModel`. Componente reutilizável para explorar, renomear, excluir, criar e mover arquivos via drag & drop.
+
+```python
+from resources.widgets.FileTreeWidget import FileTreeWidget
+
+tree = FileTreeWidget()
+tree.set_root_path("C:/meu_projeto")
+tree.file_renamed.connect(self._on_renamed)
+tree.file_deleted.connect(self._on_deleted)
+
+# API pública
+tree.selected_path()        # str | None
+tree.selected_paths()       # list[str]
+tree.delete_selected()      # bool
+tree.rename_selected()      # bool
+tree.create_text_file()     # bool
+tree.refresh()              # None
+```
+
+**Sinais:** `file_renamed(old, new)`, `file_deleted(path)`, `file_created(path)`, `file_moved(src, dst)`, `selection_changed(path | None)`
+
+**Funcionalidades:**
+- Suporte a arrastar arquivos para QGIS/Explorer (drag externo com `QMimeData` + `urls`)
+- Drop interno com `shutil.move()` e diálogo de conflito (Substituir/Manter ambos/Ignorar)
+- Multi-seleção (ExtendedSelection = Ctrl+clique, Shift+clique, Ctrl+A)
+- Context menu com Renomear (F2), Excluir (Del), Criar Arquivo (Ctrl+N), Atualizar (F5), Abrir Local no Explorer
 
 ---
 

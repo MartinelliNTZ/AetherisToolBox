@@ -336,12 +336,17 @@ class RenamerPlugin(BasePlugin):
     # ── Execução ─────────────────────────────────────────────────────
 
     def _on_executar(self):
+        self.logger.info("Executando renomeio em lote", code="RENAMER_EXEC_START")
         preview = self._generate_preview()
         if not preview:
+            self.logger.warning("Preview vazio — nada a renomear", code="RENAMER_PREVIEW_EMPTY")
             MessageBox.show_warning("Nada a renomear. Verifique a pasta e o filtro.", title="Aviso")
             return
-        if not MessageBox.show_question(text=f"Confirmar renomeio de {len(preview)} arquivo(s)?", title="Confirmar"):
+        result = MessageBox.show_question(text=f"Confirmar renomeio de {len(preview)} arquivo(s)?", title="Confirmar")
+        if result != MessageBox.YES:
+            self.logger.info("Renomeio cancelado pelo usuário", code="RENAMER_CANCELLED")
             return
+        self.logger.info(f"Renomeio confirmado para {len(preview)} arquivo(s)", code="RENAMER_CONFIRMED")
         origem_base = Path(self._sel_origem.path())
         destino_base = Path(self._sel_destino.path()) if self._sel_destino.path() else None
         errors = 0

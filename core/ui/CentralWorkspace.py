@@ -12,165 +12,16 @@ apenas foca a aba. Caso contrário, abre uma nova aba.
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt, Signal, Slot, QPoint, QRect, QSize
-from PySide6.QtGui import QPainter, QPen, QColor, QFont, QFontMetrics, QPainterPath
+from PySide6.QtCore import Qt, Signal, Slot, QPoint
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QStackedWidget,
-    QTabBar, QScrollArea, QFrame, QMenu
+    QScrollArea, QFrame, QMenu
 )
 
 from core.config.LogUtils import LogUtils
 from core.enum.CategoryTool import CategoryTool
 from core.model.Tool import Tool
-from resources.styles.AppStyles import AppStyles
-
-
-class _WorkspaceTabBar(QTabBar):
-    """
-    QTabBar customizado que desenha as abas com paintEvent próprio.
-    Corner-radius: 2 8 2 2 (similar ao VerticalTab mas invertido).
-    Hover: fundo GOLD + texto BG_DEEPEST.
-    Selected: fundo GOLD + texto BG_DEEPEST com barra indicadora no topo.
-    """
-
-    _paint_error_logged: bool = False
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setObjectName("workspace_tabs")
-        self._hovered_tab = -1
-        self.logger = LogUtils(tool="System", class_name="WorkspaceTabBar")
-
-        self.setMouseTracking(True)
-        self.setDrawBase(True)
-        self.setExpanding(False)
-        self.setMovable(True)
-        self.setTabsClosable(True)
-
-    def _tab_rect(self, index: int) -> QRect:
-        """Retorna o retângulo da aba sem margem inferior."""
-        r = self.tabRect(index)
-        return QRect(r.x() + 1, r.y(), r.width() - 2, r.height())
-
-    def tabSizeHint(self, index: int) -> QSize:
-        """Retorna um tamanho minimo para a aba baseado no texto."""
-        data = self.tabData(index)
-        if data and isinstance(data, tuple):
-            display = str(data[1])
-        else:
-            display = str(data) if data else f"Tab {index}"
-        font = QFont("Segoe UI", 10)
-        fm = QFontMetrics(font)
-        text_w = fm.horizontalAdvance(display) + 40  # padding
-        return QSize(max(text_w, 80), 28)
-
-    def _draw_rounded_rect(self, painter, rect, tl=2, tr=8, br=2, bl=2):
-        path = QPainterPath()
-        path.moveTo(rect.left() + tl, rect.top())
-        path.lineTo(rect.right() - tr, rect.top())
-        path.arcTo(rect.right() - 2*tr, rect.top(), 2*tr, 2*tr, 90, -90)
-        path.lineTo(rect.right(), rect.bottom() - br)
-        path.arcTo(rect.right() - 2*br, rect.bottom() - 2*br, 2*br, 2*br, 0, -90)
-        path.lineTo(rect.left() + bl, rect.bottom())
-        path.arcTo(rect.left(), rect.bottom() - 2*bl, 2*bl, 2*bl, 270, -90)
-        path.lineTo(rect.left(), rect.top() + tl)
-        path.arcTo(rect.left(), rect.top(), 2*tl, 2*tl, 180, -90)
-        path.closeSubpath()
-        return path
-
-    def paintEvent(self, event):
-        try:
-            # Verifica se o widget ainda é válido (evita paint após destruição)
-            if not self.isVisible() or not self.isEnabled():
-                return
-            painter = QPainter()
-            if not painter.begin(self):
-                return
-            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-            painter.setRenderHint(QPainter.RenderHint.TextAntialiasing)
-
-            P = AppStyles.theme_colors()
-
-            # Fundo do tab bar (a area vazia a direita)
-            painter.fillRect(event.rect(), QColor(P["TITLE_BAR_BG"]))
-
-            for i in range(self.count()):
-                rect = self._tab_rect(i)
-                if not rect.isValid() or rect.width() < 4:
-                    continue
-
-                selected = (i == self.currentIndex())
-                hovered = (i == self._hovered_tab)
-
-                if selected:
-                    bg     = QColor(P["GOLD"])
-                    fg     = QColor(P["BG_DEEPEST"])
-                    border = QColor(P["GOLD_DIM"])
-                elif hovered:
-                    bg     = QColor(P["GOLD"])
-                    fg     = QColor(P["BG_DEEPEST"])
-                    border = QColor(P["BORDER_HOVER"])
-                else:
-                    bg     = QColor(P["BG_DEEPEST"])
-                    fg     = QColor(P["TEXT_BRIGHT"])
-                    border = QColor(P["BORDER"])
-
-                path = self._draw_rounded_rect(painter, rect, tl=2, tr=8, br=2, bl=2)
-                painter.setClipPath(path)
-                painter.fillPath(path, bg)
-
-                # Indicador de selecao (barra no topo)
-                if selected:
-                    painter.fillRect(rect.x(), rect.y(), rect.width(), 3, QColor(P["GOLD_HOVER"]))
-
-                painter.setPen(QPen(border, 1))
-                painter.drawPath(path)
-                painter.setClipping(False)
-
-                # Texto da aba — usa o title (segundo elemento do tuple)
-                data = self.tabData(i)
-                if data and isinstance(data, tuple):
-                    display = str(data[1])
-                else:
-                    display = str(data) if data else f"Tab {i}"
-                font = QFont("Segoe UI", 10)
-                font.setWeight(QFont.Weight.Medium if selected else QFont.Weight.Normal)
-                painter.setFont(font)
-                painter.setPen(QPen(fg))
-
-                fm = QFontMetrics(font)
-                text = fm.elidedText(display, Qt.TextElideMode.ElideRight, rect.width() - 16)
-                painter.drawText(
-                    rect.adjusted(8, 0, -8, 0),
-                    Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
-                    text,
-                )
-
-            painter.end()
-        except SystemError as e:
-            # PySide6 dispara SystemError no QPainter quando o tab bar tem
-            # abas removidas durante o ciclo de repaint. Loga apenas a
-            # primeira ocorrência para evitar poluição do log.
-            if not _WorkspaceTabBar._paint_error_logged:
-                _WorkspaceTabBar._paint_error_logged = True
-                self.logger.warning(
-                    "PaintEvent suprimido (tab bar em transição)",
-                    code="PAINT_SYS_ERR",
-                    error=str(e),
-                )
-
-    def mouseMoveEvent(self, event):
-        tab = self.tabAt(event.pos())
-        old = self._hovered_tab
-        self._hovered_tab = tab if tab >= 0 else -1
-        if old != self._hovered_tab:
-            self.update()
-        super().mouseMoveEvent(event)
-
-    def leaveEvent(self, event):
-        self._hovered_tab = -1
-        self.update()
-        super().leaveEvent(event)
+from resources.widgets.HorizontalTab import HorizontalTab
 
 
 class CentralWorkspace(QWidget):
@@ -188,7 +39,7 @@ class CentralWorkspace(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-        self.tab_bar = _WorkspaceTabBar()
+        self.tab_bar = HorizontalTab(closable=True, parent=self)
         self.tab_bar.tabCloseRequested.connect(self._on_tab_close_requested)
         self.tab_bar.currentChanged.connect(self._on_tab_changed)
         self.tab_bar.tabMoved.connect(self._on_tab_moved)

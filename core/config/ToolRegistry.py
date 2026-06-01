@@ -138,6 +138,19 @@ class ToolRegistry:
             show_in_toolbar=False,
             menu_category=MenuCategory.SYSTEM,
         ),
+        ToolKey.CONFIGURATION.value: Tool(
+            name=ToolKey.CONFIGURATION.value,
+            title="Configuração",
+            widget_factory=_make_factory(
+                "plugins.configuration_manager.ConfigurationPlugin",
+                "ConfigurationPlugin",
+            ),
+            tooltip="Configurações gerais do sistema",
+            tool_type=ToolType.SYSTEM,
+            category=CategoryTool.BOTH,
+            show_in_toolbar=False,
+            menu_category=MenuCategory.SYSTEM,
+        ),
         ToolKey.RENAMER.value: Tool(
             name=ToolKey.RENAMER.value,
             title="Renomeador",
@@ -160,6 +173,30 @@ class ToolRegistry:
             tooltip="Criar ou salvar projeto atual (.mtl)",
             tool_type=ToolType.SYSTEM,
             category=CategoryTool.INSTANT,
+            show_in_toolbar=True,
+        ),
+        ToolKey.FILE_MANAGER.value: Tool(
+            name=ToolKey.FILE_MANAGER.value,
+            title="Explorador",
+            widget_factory=_make_factory(
+                "plugins.file_manager.FileManagerPlugin",
+                "FileManagerPlugin",
+            ),
+            tooltip="Explorador de arquivos interno do projeto",
+            tool_type=ToolType.FOLDER,
+            category=CategoryTool.SIDE,
+            show_in_toolbar=True,
+        ),
+        ToolKey.ICO_CONVERTER.value: Tool(
+            name=ToolKey.ICO_CONVERTER.value,
+            title="Conversor ICO",
+            widget_factory=_make_factory(
+                "plugins.ico_converter.IcoConverterPlugin",
+                "IcoConverterPlugin",
+            ),
+            tooltip="Converter imagens (PNG, JPG, etc.) para formato ICO do Windows",
+            tool_type=ToolType.IMAGE,
+            category=CategoryTool.CENTRAL,
             show_in_toolbar=True,
         ),
     }
