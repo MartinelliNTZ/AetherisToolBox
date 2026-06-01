@@ -1,9 +1,12 @@
 # -*- coding: utf-8 -*-
 """
-FilePreviewDialog — Diálogo simples de pré-visualização de arquivo
-===================================================================
-Diálogo modal contendo apenas um PreviewPanel que auto-detecta
-o tipo do arquivo (imagem, texto, etc.) e exibe o preview.
+FilePreviewDialog — Diálogo de pré-visualização de arquivo
+============================================================
+Exibe abas horizontais customizadas no topo (HorizontalTab) e
+um QStackedWidget que troca de conteúdo conforme a aba selecionada.
+
+- Aba "Preview": PreviewPanel que auto-detecta o tipo do arquivo
+- Aba "Propriedades": vazia (futuro)
 
 Uso:
     FilePreviewDialog.exec_preview(
@@ -14,16 +17,18 @@ Uso:
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QPushButton)
+    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QStackedWidget)
 
+from resources.widgets.DialogPage import DialogPage
+from resources.widgets.HorizontalTab import HorizontalTab
 from resources.widgets.PreviewPanel import PreviewPanel
 
 
 class FilePreviewDialog(QDialog):
     """
-    Diálogo modal com PreviewPanel que auto-detecta o tipo do arquivo.
+    Diálogo modal com HorizontalTab + QStackedWidget + PreviewPanel.
 
     Args:
         file_path: Caminho completo do arquivo a exibir.
@@ -34,35 +39,82 @@ class FilePreviewDialog(QDialog):
     def __init__(
         self,
         file_path: str,
-        title: str = "Pré-Visualização",
+        title: str = "Pré-Visualização do Arquivo",
         parent=None,
     ):
         super().__init__(parent)
         self.setWindowTitle(title)
-        self.resize(800, 600)
+        self.resize(700, 500)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-        # PreviewPanel — carrega imediatamente para evitar placeholder
-        self._preview = PreviewPanel(fixed_size=None, parent=self)
-        self._preview.show_preview(file_path)
-        layout.addWidget(self._preview, 1)
+        # ── Barra de abas (HorizontalTab) ───────────────────────────
+        self.tab_bar = HorizontalTab(closable=False, parent=self)
+        layout.addWidget(self.tab_bar)
+
+        # ── Stack de páginas ────────────────────────────────────────
+        self._stack = QStackedWidget()
+        self._stack.setObjectName("file_preview_stack")
+        layout.addWidget(self._stack, 1)
+
+        # ── Conteúdo das abas ───────────────────────────────────────
+        self._add_tab("Preview", file_path)
+        self._add_tab("Propriedades", None)
+
+        # Conecta sinal de troca de aba
+        self.tab_bar.currentChanged.connect(self._on_tab_changed)
+
+        # Ativa primeira aba
+        if self.tab_bar.count() > 0:
+            self.tab_bar.setCurrentIndex(0)
+            QTimer.singleShot(0, lambda: self._on_tab_changed(0))
 
         # ── Botão fechar ────────────────────────────────────────────
         btn_layout = QHBoxLayout()
-        btn_layout.setContentsMargins(8, 6, 8, 6)
+        btn_layout.setContentsMargins(12, 8, 12, 8)
         btn_layout.addStretch()
         btn = QPushButton("Fechar")
         btn.clicked.connect(self.accept)
         btn_layout.addWidget(btn)
         layout.addLayout(btn_layout)
 
+    def _add_tab(self, title: str, file_path: str | None) -> None:
+        """Adiciona uma aba + sua DialogPage no stack."""
+        tab_index = self.tab_bar.addTab("")
+        self.tab_bar.setTabData(tab_index, title)
+        if file_path is not None:
+            self.tab_bar.setTabToolTip(tab_index, file_path)
+
+        page = DialogPage(self)
+        self._stack.addWidget(page)
+
+        if file_path is not None:
+            preview = PreviewPanel(fixed_size=None, parent=self)
+            preview.setProperty("file_path", file_path)
+            page.add_widget(preview, 1)
+
+    def _on_tab_changed(self, index: int) -> None:
+        """Atualiza a página visível quando a aba muda."""
+        page = self._stack.widget(index)
+        if page:
+            self._stack.setCurrentWidget(page)
+
+        # Carrega preview se for PreviewPanel com file_path pendente
+        if page:
+            preview = page.findChild(PreviewPanel)
+            if preview:
+                path = preview.property("file_path")
+                if path:
+                    preview.show_preview(str(path))
+                    preview.setProperty("file_path", None)
+                    preview.setFocus()
+
     @staticmethod
     def exec_preview(
         file_path: str,
-        title: str = "Pré-Visualização",
+        title: str = "Pré-Visualização do Arquivo",
         parent=None,
     ) -> None:
         """
