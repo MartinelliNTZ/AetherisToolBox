@@ -112,7 +112,8 @@ class FileManagerPlugin(BasePlugin):
     # ── Handlers ───────────────────────────────────────────────────
 
     def _on_file_double_clicked(self, path: str) -> None:
-        """Abre FilePreviewDialog com o path do arquivo clicado."""
+        """Abre diálogo de preview do arquivo."""
+        from core.dialogs.FilePreviewDialog import FilePreviewDialog
         FilePreviewDialog.exec_preview(file_path=path, parent=self)
 
     def _on_create_file(self) -> None:

@@ -69,7 +69,7 @@ class IcoConverterPlugin(BasePlugin):
         self._loader.setGeometry(0, 0, self.width(), self.height())
 
         # ── Preview ───────────────────────────────────────────────────
-        self._preview = PreviewPanel(fixed_size=(480, 360))
+        self._preview = PreviewPanel(fixed_size=None)
 
         # ── FileListView ──────────────────────────────────────────────
         self._file_list = FileListView(
