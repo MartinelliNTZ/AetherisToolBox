@@ -103,6 +103,8 @@ class BaseDialog(QDialog):
 
         # ── Container de conteúdo com margins padronizadas ──
         content = QWidget()
+        content.setObjectName("dialog_content")
+        content.setStyleSheet(AppStyles.dialog_content_border_style())
         self.main_layout = QVBoxLayout(content)
         self.main_layout.setContentsMargins(*_DEFAULT_MARGINS)
         self.main_layout.setSpacing(_DEFAULT_SPACING)

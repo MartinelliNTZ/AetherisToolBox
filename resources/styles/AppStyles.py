@@ -293,6 +293,21 @@ class AppStyles(BaseStyle):
         )
 
     # ────────────────────────────────────────────────────────────────────
+    # DIALOG CONTENT — borda fina para o content widget do BaseDialog
+    # ────────────────────────────────────────────────────────────────────
+
+    @classmethod
+    def dialog_content_border_style(cls) -> str:
+        """Borda sutil para o QWidget de conteúdo dentro do BaseDialog."""
+        t = ct.theme
+        return (
+            f"QWidget#dialog_content {{"
+            f"  border: 1px solid {t.BORDER_DEFAULT};"
+            f"  border-radius: {t.RADIUS_SM}px;"
+            f"}}"
+        )
+
+    # ────────────────────────────────────────────────────────────────────
     # ABOUT DIALOG — QSS completo para AboutDialog
     # ────────────────────────────────────────────────────────────────────
 
