@@ -4,7 +4,7 @@ ConfigCarregarDialog — Diálogo genérico para carregar configurações JSON.
 Uso: qualquer plugin que precise carregar configurações nomeadas de um diretório.
 """
 
-from __future__ import annotations
+from __future__ import annotations#
 
 import json
 from datetime import datetime

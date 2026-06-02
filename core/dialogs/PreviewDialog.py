@@ -19,7 +19,13 @@ from typing import List, Tuple
 
 from PySide6.QtWidgets import QTextEdit
 
+from core.config.LogUtils import LogUtils
 from core.dialogs.BaseDialog import BaseDialog
+from core.enum.ToolKey import ToolKey
+from resources.widgets.CollapsibleParams import CollapsibleParams
+from resources.widgets.SimpleLabel import SimpleLabel
+
+_logger = LogUtils(tool=ToolKey.SYSTEM.value, class_name="PreviewDialog")
 
 
 class PreviewDialog(BaseDialog):
@@ -50,9 +56,30 @@ class PreviewDialog(BaseDialog):
 
         te = QTextEdit("\n".join(lines))
         te.setReadOnly(True)
-        self.main_layout.addWidget(te)
+        self.main_layout.addWidget(te, 1)
+
+        # ── Seção colapsável de exemplo ─────────────────────────
+        col = CollapsibleParams(
+            title="Informações da Operação",
+            collapsed=True,
+            parent=self,
+        )
+        col.content_layout.addWidget(
+            SimpleLabel(f"Total de itens: {len(self._items)}")
+        )
+        col.content_layout.addWidget(
+            SimpleLabel(f"Máx. exibidos: {self._max_preview}")
+        )
+        self.main_layout.addWidget(col)
 
         self._add_button_bar(["close"])
+
+        _logger.info(
+            "PreviewDialog construído",
+            code="PREVIEW_BUILD",
+            total_items=len(self._items),
+            max_preview=self._max_preview,
+        )
 
     @staticmethod
     def exec_preview(

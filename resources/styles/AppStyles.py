@@ -504,3 +504,43 @@ class AppStyles(BaseStyle):
             f"font-family:{mono};"
             f"font-size:12px;font-weight:700;'>{text}</span>"
         )
+
+    # ────────────────────────────────────────────────────────────────────
+    # COLLAPSIBLE — estilo para CollapsibleParams
+    # ────────────────────────────────────────────────────────────────────
+
+    @classmethod
+    def collapsible_header_height(cls) -> str:
+        """Altura do header do CollapsibleParams."""
+        return str(ct.theme.INPUT_HEIGHT+2)
+
+    @classmethod
+    def collapsible_header_style(cls) -> str:
+        """Estilo do header clicável do CollapsibleParams."""
+        t = ct.theme
+        return (
+            f"QLabel#collapsible_header {{"
+            f"  background-color: {t.SURFACE_3};"
+            f"  color: {t.ACCENT_TEXT};"
+            f"  padding: 6px 12px;"
+            f"  border-radius: {t.RADIUS_SM}px;"
+            f"  font-weight: {t.FONT_WEIGHT_BOLD};"
+            f"  font-size: {t.FONT_SIZE_SMALL}px;"
+            f"}}"
+            f"QLabel#collapsible_header:hover {{"
+            f"  background-color: {t.SURFACE_4};"
+            f"}}"
+        )
+
+    @classmethod
+    def collapsible_content_style(cls) -> str:
+        """Estilo do container de conteúdo do CollapsibleParams."""
+        t = ct.theme
+        return (
+            f"QWidget#collapsible_content {{"
+            f"  background-color: {t.SURFACE_1};"
+            f"  border: 1px solid {t.BORDER};"
+            f"  border-top: none;"
+            f"  border-radius: 0px 0px {t.RADIUS_SM}px {t.RADIUS_SM}px;"
+            f"}}"
+        )

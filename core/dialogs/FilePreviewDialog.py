@@ -20,10 +20,16 @@ from __future__ import annotations
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QStackedWidget
 
+from core.config.LogUtils import LogUtils
 from core.dialogs.BaseDialog import BaseDialog
+from core.enum.ToolKey import ToolKey
 from resources.widgets.DialogPage import DialogPage
 from resources.widgets.HorizontalTab import HorizontalTab
 from resources.widgets.PreviewPanel import PreviewPanel
+from utils.basic_extractor import BasicExtractor
+from utils.JsonUtil import JsonUtil
+
+_logger = LogUtils(tool=ToolKey.SYSTEM.value, class_name="FilePreviewDialog")
 
 
 class FilePreviewDialog(BaseDialog):
@@ -61,9 +67,9 @@ class FilePreviewDialog(BaseDialog):
         self._stack.setObjectName("file_preview_stack")
         self.main_layout.addWidget(self._stack, 1)
 
-        # ── Conteúdo das abas ───────────────────────────────────────
+    # ── Conteúdo das abas ───────────────────────────────────────
         self._add_tab("Preview", self._file_path)
-        self._add_tab("Propriedades", None)
+        self._add_properties_tab()
 
         # Conecta sinal de troca de aba
         self.tab_bar.currentChanged.connect(self._on_tab_changed)
@@ -97,6 +103,47 @@ class FilePreviewDialog(BaseDialog):
             preview.setProperty("file_path", file_path)
             page.add_widget(preview, 1)
 
+    def _add_properties_tab(self) -> None:
+        """
+        Adiciona aba 'Propriedades' com PropertyInfoWidget.
+
+        Fluxo JSON:
+            1. Cria JSON temporário via JsonUtil
+            2. Enriquece o JSON com metadados via BasicExtractor.enrich_json
+            3. Extrai os campos que precisa do dict retornado
+            4. Exibe via PropertyInfoWidget.load_data()
+            5. Remove o JSON temporário (cleanup)
+        """
+        from resources.widgets.PropertyInfoWidget import PropertyInfoWidget
+
+        tab_index = self.tab_bar.addTab("")
+        self.tab_bar.setTabData(tab_index, "Propriedades")
+
+        page = DialogPage(self)
+        self._stack.addWidget(page)
+
+        self._prop_widget = PropertyInfoWidget(parent=self)
+        page.add_widget(self._prop_widget, 1)
+
+        # ── JSON Pipeline ───────────────────────────────────────
+        json_path = JsonUtil.create_temp_json()
+        enriched = BasicExtractor.enrich_json(json_path, self._file_path)
+        if enriched:
+            self._prop_widget.load_data(enriched)
+            _logger.info(
+                "Propriedades carregadas",
+                code="PROP_LOADED",
+                file=self._file_path,
+                fields=list(enriched.keys()),
+            )
+        else:
+            _logger.warning(
+                "Arquivo não encontrado para propriedades",
+                code="PROP_NO_FILE",
+                file=self._file_path,
+            )
+        JsonUtil.cleanup_temp_json(json_path)
+
     def _on_tab_changed(self, index: int) -> None:
         """Atualiza a página visível quando a aba muda."""
         page = self._stack.widget(index)
@@ -126,5 +173,16 @@ class FilePreviewDialog(BaseDialog):
             title: Título opcional da janela.
             parent: Widget pai.
         """
+        _logger.info(
+            "Abrindo preview",
+            code="PREVIEW_OPEN",
+            file=file_path,
+            title=title,
+        )
         dlg = FilePreviewDialog(file_path=file_path, title=title, parent=parent)
         dlg.exec()
+        _logger.info(
+            "Preview finalizado",
+            code="PREVIEW_DONE",
+            file=file_path,
+        )

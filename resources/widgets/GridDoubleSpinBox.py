@@ -220,6 +220,18 @@ class GridDoubleSpinBox(QWidget):
         else:
             raise KeyError(f"Campo '{key}' não encontrado no GridDoubleSpinBox")
 
+    def set_enabled(self, key: str, enabled: bool) -> None:
+        """
+        Habilita/desabilita o spin box de uma chave específica.
+
+        Args:
+            key: Chave do campo.
+            enabled: True para habilitar, False para desabilitar.
+        """
+        spin = self._spinboxes.get(key)
+        if spin is not None:
+            spin.setEnabled(enabled)
+
     def set_values(self, values: Dict[str, float], block_signals: bool = True):
         """
         Define múltiplos valores de uma vez.

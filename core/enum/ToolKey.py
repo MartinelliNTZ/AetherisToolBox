@@ -28,6 +28,7 @@ class ToolKey(str, Enum):
     FILE_MANAGER = "FileManager"
     UNTRACEABLE = "Untraceable"
     ICO_CONVERTER = "IcoConverter"
+    DOCLING = "Docling"
 
     # ── Método utilitário ──────────────────────────────────────────────
 

@@ -374,6 +374,54 @@ grid.changed.connect(self._on_value_changed)
 - `decimal=0` → cria `QSpinBox` (inteiro)
 - `decimal>0` → cria `QDoubleSpinBox` com N casas decimais
 
+**Métodos:**
+- `set_enabled(key, enabled)` — habilita/desabilita um campo específico
+
+---
+
+### `GridLabel` — `GridLabel.py`
+Grade de labels informativos exibindo pares "label: valor" com estilo monospace. Suporta múltiplas colunas e valores clicáveis (links). Ideal para exibir metadados e propriedades.
+
+```python
+from resources.widgets.GridLabel import GridLabel
+
+config = {
+    "name": {
+        "label": "Nome",
+        "value": "—",
+        "description": "Nome do arquivo",      # opcional
+    },
+    "size": {
+        "label": "Tamanho",
+        "value": "—",
+    },
+    "path": {
+        "label": "Caminho",
+        "value": "—",
+        "link": True,                           # link clicável
+    },
+}
+
+grid = GridLabel(config, columns=1)
+grid.values              # {"name": "—", "size": "—", "path": "—"}
+grid.get("name")         # "—"
+grid.set("name", "arquivo.txt")
+grid.set("path", "arquivo.txt", url="c:/pasta/arquivo.txt")
+grid.set_values({
+    "name": "arquivo.txt",
+    "size": "1.2 KB",
+    "path": ("arquivo.txt", "c:/pasta/arquivo.txt"),  # (texto, url)
+})
+grid.link_clicked.connect(self._on_link_clicked)
+```
+
+**Sinais:**
+- `link_clicked(key, value)` — emitido quando um link é clicado
+
+**Parâmetros:**
+- `config: Dict[str, Dict]` — cada chave tem: `label`, `value`, `description` (opcional), `link` (opcional, bool)
+- `columns: int = 1` — número de colunas
+
 ---
 
 ### `GridLineEdit` — `GridLineEdit.py`
@@ -796,6 +844,63 @@ table.clear_rows()
 - `"type": "remove"` — SimpleRemoveButton. Opcional: `remove_text` (str)
 - `"stretch": True` — coluna expande
 - `"width": N` — largura fixa (se stretch=False)
+
+---
+
+### `CollapsibleParams` — `CollapsibleParams.py`
+Container colapsável com header clicável estilo acordeão. Ao clicar no header, a seção expande/recolhe mostrando ou escondendo o conteúdo interno. Usa `AppStyles.theme_colors()` para estilização consistente com o tema.
+
+```python
+from resources.widgets.CollapsibleParams import CollapsibleParams
+
+section = CollapsibleParams("Opções Avançadas", parent=self)
+section.content_layout.addWidget(QLabel("conteúdo interno"))
+main_layout.addWidget(section)
+
+# Controlar programaticamente
+section.collapsed = True   # recolher
+section.collapsed = False  # expandir
+```
+
+**Atributos:**
+- `header_label` — SimpleLabel do header (pode customizar texto/estilo)
+- `content_layout` — QVBoxLayout interno para adicionar widgets filhos
+- `collapsed` — property bool (True = recolhido, False = expandido)
+
+**Parâmetros do construtor:**
+- `title: str = "Parâmetros"` — texto do header
+- `collapsed: bool = False` — estado inicial
+- `parent: QWidget | None = None`
+
+---
+
+### `PropertyInfoWidget` — `PropertyInfoWidget.py`
+Widget que exibe propriedades básicas de um arquivo. Internamente usa **`GridLabel`** para exibir pares label: valor. Mostra nome, tamanho formatado, tipo, caminho (clicável como link azul para abrir no Explorer), diretório, datas de criação e modificação.
+
+Recebe dados via `load_data(data)` — o dicionário é tipicamente enriquecido via `BasicExtractor.enrich_json()` (fluxo JSON).
+
+```python
+from resources.widgets.PropertyInfoWidget import PropertyInfoWidget
+
+widget = PropertyInfoWidget(parent=self)
+widget.load_data({
+    "name": "arquivo.txt",
+    "size_formatted": "1.2 KB",
+    "extension_name": "TXT",
+    "path": "c:/pasta/arquivo.txt",
+    "directory": "c:/pasta",
+    "created": "01/06/2026 12:00:00",
+    "modified": "01/06/2026 14:30:00",
+})
+```
+
+**Métodos:**
+- `load_data(data)` — recebe dict com chaves: name, size_formatted, extension_name, path, directory, created, modified
+
+**Notas:**
+- O caminho do arquivo é exibido como link azul sublinhado via GridLabel
+- Ao clicar no link, abre o diretório pai no Windows Explorer via `QDesktopServices.openUrl`
+- Layout sem margins (0,0,0,0) com spacing 8
 
 ---
 
