@@ -374,6 +374,9 @@ grid.changed.connect(self._on_value_changed)
 - `decimal=0` → cria `QSpinBox` (inteiro)
 - `decimal>0` → cria `QDoubleSpinBox` com N casas decimais
 
+**Métodos:**
+- `set_enabled(key, enabled)` — habilita/desabilita um campo específico
+
 ---
 
 ### `GridLabel` — `GridLabel.py`
