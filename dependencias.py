@@ -13,10 +13,11 @@ from PySide6.QtWidgets import (
     QRadioButton, QButtonGroup, QPushButton, QTextEdit,
     QLabel, QScrollArea, QCheckBox, QFrame, QLineEdit,
     QSplitter, QProgressBar, QMessageBox, QStackedWidget,
-    QSizePolicy, QComboBox
+    QSizePolicy, QComboBox, QFileDialog
 )
 from PySide6.QtCore import Qt, QThread, Signal, QTimer
-from PySide6.QtGui import QFont, QColor, QPalette, QIcon, QTextCursor
+from PySide6.QtGui import QFont, QColor, QPalette, QIcon, QTextCursor, QDesktopServices
+from PySide6.QtCore import QUrl
 
 # ── Importa o detector do dep2.py ─────────────────────────────────────────────
 from dep2 import QGISPythonDetector
@@ -145,12 +146,12 @@ class QGISPkgManager(QWidget):
     @python_exe.setter
     def python_exe(self, value: str):
         self._current_python_exe = value
-        # Atualiza o label de info
+        # Atualiza o label de info com caminho clicável
         version_str = self._get_python_version(value) or "?"
-        short_path = value.replace("\\", "/").split("/")[-1] if "/" in value or "\\" in value else value
         self.py_info_label.setText(
-            f"Python  {version_str}   ·   {short_path}"
+            f"Python {version_str}  ·  📎 {value}"
         )
+        self.py_info_label.setToolTip(f"Clique para abrir o local\n{value}")
 
     @staticmethod
     def _get_python_version(exe: str) -> str | None:
@@ -211,11 +212,19 @@ class QGISPkgManager(QWidget):
         self.py_selector.currentIndexChanged.connect(self._on_python_changed)
         sel_lay.addWidget(self.py_selector, stretch=1)
 
+        # ── Botão "Procurar..." ─────────────────────────────────────────
+        self.btn_browse = QPushButton("📂  Procurar…")
+        self.btn_browse.setObjectName("btnSecondary")
+        self.btn_browse.clicked.connect(self._on_browse_python)
+        sel_lay.addWidget(self.btn_browse)
+
         h_lay.addWidget(selector_frame)
 
-        # ── Info do Python selecionado ────────────────────────────────────
+        # ── Info do Python selecionado (caminho clicável) ─────────────────
         self.py_info_label = QLabel()
         self.py_info_label.setObjectName("pyinfo")
+        self.py_info_label.setCursor(Qt.PointingHandCursor)
+        self.py_info_label.mousePressEvent = lambda e: self._open_python_path()
         h_lay.addWidget(self.py_info_label)
 
         # Inicializa com o Python atual
@@ -399,6 +408,48 @@ class QGISPkgManager(QWidget):
             if not self._checkboxes:
                 self._load_installed()
 
+    # ── Buscar Python em uma pasta ─────────────────────────────────────────
+    def _on_browse_python(self):
+        """Abre diálogo para selecionar um executável Python (python.exe) de qualquer pasta."""
+        exe_name = "python.exe" if sys.platform == "win32" else "python"
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Selecionar executável Python",
+            "",
+            f"Python ({exe_name});;Todos (*)"
+        )
+        if not file_path:
+            return
+
+        # Verifica se é um Python válido
+        version = self._get_python_version(file_path)
+        if not version:
+            QMessageBox.warning(
+                self, "Python inválido",
+                f"O arquivo selecionado não parece ser um Python válido:\n{file_path}"
+            )
+            return
+
+        # Adiciona ao combo (se já não existe) e seleciona
+        for i in range(self.py_selector.count()):
+            if self.py_selector.itemData(i) == file_path:
+                self.py_selector.setCurrentIndex(i)
+                return
+
+        label = f"Python {version} (personalizado)"
+        self.py_selector.addItem(label, file_path)
+        self.py_selector.setCurrentIndex(self.py_selector.count() - 1)
+        self._log(f"[INFO] Python personalizado adicionado: {file_path}", "#6ee7b7")
+
+    # ── Abrir local do Python no explorador ────────────────────────────────
+    def _open_python_path(self):
+        """Abre a pasta do executável Python no explorador de arquivos."""
+        import pathlib
+        p = pathlib.Path(self.python_exe)
+        folder = str(p.parent)
+        QDesktopServices.openUrl(QUrl.fromLocalFile(folder))
+        self._log(f"[INFO] Abrindo pasta: {folder}", "#93c5fd")
+
     # ── Troca de Python selecionado ───────────────────────────────────────────
     def _on_python_changed(self, index: int):
         exe = self.py_selector.itemData(index)
@@ -566,6 +617,14 @@ class QGISPkgManager(QWidget):
                 font-size: 11px;
                 color: #64748b;
                 margin-left: 12px;
+                padding: 4px 8px;
+                border-radius: 4px;
+                border: 1px solid transparent;
+            }
+            QLabel#pyinfo:hover {
+                color: #38bdf8;
+                background: #1e293b;
+                border: 1px solid #334155;
             }
 
             /* ── Seletor de Python ── */
