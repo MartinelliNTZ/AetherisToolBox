@@ -199,6 +199,17 @@ class ToolRegistry:
             category=CategoryTool.CENTRAL,
             show_in_toolbar=True,
         ),
+        ToolKey.DOCLING.value: Tool(
+            name=ToolKey.DOCLING.value,
+            title="Docling",
+            widget_factory=_make_factory(
+                "plugins.docling.DoclingPlugin", "DoclingPlugin"
+            ),
+            tooltip="Converte documentos (PDF, imagens, Office) para Markdown via Docling",
+            tool_type=ToolType.FOLDER,
+            category=CategoryTool.CENTRAL,
+            show_in_toolbar=True,
+        ),
     }
 
     def register_default_tools(self) -> None:
