@@ -17,8 +17,6 @@ Usa:
 from __future__ import annotations
 
 import os
-from typing import Any
-
 from core.enum.ToolKey import ToolKey
 from core.manager.SignalManager import SignalManager
 from core.ui.HudCircularRingsLoader import HudCircularRingsLoader
@@ -145,11 +143,10 @@ class DoclingPlugin(BasePlugin):
 
     # ── Slots ───────────────────────────────────────────────────────
 
-    def _on_columnar_changed(self, key: str, value: Any):
+    def _on_columnar_changed(self):
         """Habilita/desabilita o spin de colunas conforme checkbox."""
-        if key == "columnar":
-            enabled = bool(value)
-            self._grid_cols.set_enabled("num_cols", enabled)
+        enabled = bool(self._grid_col_opts.all.get("columnar", False))
+        self._grid_cols.set_enabled("num_cols", enabled)
 
     def _on_converter(self):
         """Valida e dispara a conversão."""
