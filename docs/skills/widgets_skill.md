@@ -376,6 +376,51 @@ grid.changed.connect(self._on_value_changed)
 
 ---
 
+### `GridLabel` — `GridLabel.py`
+Grade de labels informativos exibindo pares "label: valor" com estilo monospace. Suporta múltiplas colunas e valores clicáveis (links). Ideal para exibir metadados e propriedades.
+
+```python
+from resources.widgets.GridLabel import GridLabel
+
+config = {
+    "name": {
+        "label": "Nome",
+        "value": "—",
+        "description": "Nome do arquivo",      # opcional
+    },
+    "size": {
+        "label": "Tamanho",
+        "value": "—",
+    },
+    "path": {
+        "label": "Caminho",
+        "value": "—",
+        "link": True,                           # link clicável
+    },
+}
+
+grid = GridLabel(config, columns=1)
+grid.values              # {"name": "—", "size": "—", "path": "—"}
+grid.get("name")         # "—"
+grid.set("name", "arquivo.txt")
+grid.set("path", "arquivo.txt", url="c:/pasta/arquivo.txt")
+grid.set_values({
+    "name": "arquivo.txt",
+    "size": "1.2 KB",
+    "path": ("arquivo.txt", "c:/pasta/arquivo.txt"),  # (texto, url)
+})
+grid.link_clicked.connect(self._on_link_clicked)
+```
+
+**Sinais:**
+- `link_clicked(key, value)` — emitido quando um link é clicado
+
+**Parâmetros:**
+- `config: Dict[str, Dict]` — cada chave tem: `label`, `value`, `description` (opcional), `link` (opcional, bool)
+- `columns: int = 1` — número de colunas
+
+---
+
 ### `GridLineEdit` — `GridLineEdit.py`
 Grade rolável de campos de texto (QLineEdit) configurados por dicionário. Suporta placeholder, valor padrão, tooltip e callback.
 
@@ -827,7 +872,7 @@ section.collapsed = False  # expandir
 ---
 
 ### `PropertyInfoWidget` — `PropertyInfoWidget.py`
-Widget que exibe propriedades básicas de um arquivo em layout de formulário (QFormLayout). Mostra nome, tamanho formatado, tipo, caminho (clicável como link azul para abrir no Explorer), diretório, datas de criação e modificação.
+Widget que exibe propriedades básicas de um arquivo. Internamente usa **`GridLabel`** para exibir pares label: valor. Mostra nome, tamanho formatado, tipo, caminho (clicável como link azul para abrir no Explorer), diretório, datas de criação e modificação.
 
 Recebe dados via `load_data(data)` — o dicionário é tipicamente enriquecido via `BasicExtractor.enrich_json()` (fluxo JSON).
 
@@ -850,9 +895,9 @@ widget.load_data({
 - `load_data(data)` — recebe dict com chaves: name, size_formatted, extension_name, path, directory, created, modified
 
 **Notas:**
-- O caminho do arquivo é exibido como link HTML azul (#3B82F6) sublinhado
+- O caminho do arquivo é exibido como link azul sublinhado via GridLabel
 - Ao clicar no link, abre o diretório pai no Windows Explorer via `QDesktopServices.openUrl`
-- Layout sem margins (0,0,0,0) com spacing 6
+- Layout sem margins (0,0,0,0) com spacing 8
 
 ---
 

@@ -5,8 +5,7 @@ PropertyInfoWidget — Exibe propriedades básicas de um arquivo
 Mostra nome, tamanho, caminho (clicável), diretório, extensão,
 datas de criação e modificação.
 
-O widget recebe um dicionário de dados (enriquecido via
-BasicExtractor.enrich_json) e exibe os campos selecionados.
+Usa GridLabel internamente para exibir os pares label: valor.
 
 Uso:
     widget = PropertyInfoWidget(parent=self)
@@ -25,23 +24,55 @@ from __future__ import annotations
 
 import os
 from typing import Any, Dict, Optional
-from urllib.parse import quote
 
-from PySide6.QtCore import Qt
 from PySide6.QtGui import QDesktopServices
-from PySide6.QtWidgets import QFormLayout, QLabel, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget
 
 from core.config.LogUtils import LogUtils
 from core.enum.ToolKey import ToolKey
+from resources.widgets.GridLabel import GridLabel
 
 _logger = LogUtils(tool=ToolKey.UNTRACEABLE.value, class_name="PropertyInfoWidget")
 
 
 class PropertyInfoWidget(QWidget):
     """
-    Exibe metadados básicos de um arquivo em layout de formulário.
+    Exibe metadados básicos de um arquivo em formato label: valor.
     O caminho do arquivo aparece como link clicável.
     """
+
+    _LABEL_CONFIG = {
+        "name": {
+            "label": "Nome",
+            "value": "—",
+            "description": "Nome do arquivo",
+        },
+        "size": {
+            "label": "Tamanho",
+            "value": "—",
+        },
+        "type": {
+            "label": "Tipo",
+            "value": "—",
+        },
+        "path": {
+            "label": "Caminho",
+            "value": "—",
+            "link": True,
+        },
+        "dir": {
+            "label": "Diretório",
+            "value": "—",
+        },
+        "created": {
+            "label": "Criado em",
+            "value": "—",
+        },
+        "modified": {
+            "label": "Modificado em",
+            "value": "—",
+        },
+    }
 
     def __init__(self, parent: Optional[QWidget] = None):
         super().__init__(parent)
@@ -51,29 +82,21 @@ class PropertyInfoWidget(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(8)
 
-        # ── Formulário de propriedades ──────────────────────────
-        form = QWidget()
-        form_layout = QFormLayout(form)
-        form_layout.setContentsMargins(0, 0, 0, 0)
-        form_layout.setSpacing(6)
-        form_layout.setLabelAlignment(Qt.AlignmentFlag.AlignLeft)
+        # ── Grid de propriedades ─────────────────────────────────────
+        self._grid = GridLabel(
+            config=self._LABEL_CONFIG,
+            columns=1,
+            parent=self,
+        )
+        self._grid.link_clicked.connect(self._on_path_clicked)
+        layout.addWidget(self._grid)
 
-        self._name_label = self._add_row("Nome:", form_layout)
-        self._size_label = self._add_row("Tamanho:", form_layout)
-        self._type_label = self._add_row("Tipo:", form_layout)
-        self._path_label = self._add_clickable_path_row("Caminho:", form_layout)
-        self._dir_label = self._add_row("Diretório:", form_layout)
-        self._created_label = self._add_row("Criado em:", form_layout)
-        self._modified_label = self._add_row("Modificado em:", form_layout)
-
-        layout.addWidget(form)
         _logger.info(
-            "Formulário de propriedades criado",
-            code="PROP_FORM_OK",
-            has_parent=parent is not None,
+            "GridLabel de propriedades criado",
+            code="PROP_GRID_OK",
         )
 
-        # ── Seção colapsável ────────────────────────────────────
+        # ── Seção colapsável ─────────────────────────────────────────
         from resources.widgets.CollapsibleParams import CollapsibleParams
 
         self._extra_section = CollapsibleParams(
@@ -89,7 +112,6 @@ class PropertyInfoWidget(QWidget):
         _logger.info(
             "Seção colapsável adicionada ao layout",
             code="COLLAPSE_ADDED",
-            layout_count=layout.count(),
         )
 
     def load_data(self, data: Dict[str, Any]) -> None:
@@ -107,20 +129,18 @@ class PropertyInfoWidget(QWidget):
             has_path="path" in data,
         )
 
-        self._name_label.setText(data.get("name", "—"))
-        self._size_label.setText(data.get("size_formatted", "—"))
-        self._type_label.setText(data.get("extension_name", "—"))
-
         file_path = data.get("path", "")
         self._file_path = file_path
-        if file_path:
-            self._set_clickable_path(file_path)
-        else:
-            self._path_label.setText("—")
 
-        self._dir_label.setText(data.get("directory", "—"))
-        self._created_label.setText(data.get("created", "—"))
-        self._modified_label.setText(data.get("modified", "—"))
+        self._grid.set_values({
+            "name": data.get("name", "—"),
+            "size": data.get("size_formatted", "—"),
+            "type": data.get("extension_name", "—"),
+            "path": (data.get("name", "—"), file_path) if file_path else "—",
+            "dir": data.get("directory", "—"),
+            "created": data.get("created", "—"),
+            "modified": data.get("modified", "—"),
+        })
 
         _logger.info(
             "Dados carregados no PropertyInfoWidget",
@@ -128,43 +148,14 @@ class PropertyInfoWidget(QWidget):
             file_path=file_path,
         )
 
-    def _add_row(self, label: str, layout: QFormLayout) -> QLabel:
-        """Adiciona uma linha label + valor ao layout."""
-        value = QLabel("—")
-        value.setTextInteractionFlags(
-            Qt.TextInteractionFlag.TextSelectableByMouse
-        )
-        value.setStyleSheet("color: #E5E7EB; font-size: 12px;")
-        layout.addRow(f'<span style="color:#A1A1AA;font-size:12px;">{label}</span>', value)
-        return value
-
-    def _add_clickable_path_row(self, label: str, layout: QFormLayout) -> QLabel:
-        """Adiciona linha de caminho com link clicável."""
-        value = QLabel("—")
-        value.setTextInteractionFlags(
-            Qt.TextInteractionFlag.LinksAccessibleByMouse
-        )
-        value.setOpenExternalLinks(False)
-        value.linkActivated.connect(self._on_path_clicked)
-        layout.addRow(f'<span style="color:#A1A1AA;font-size:12px;">{label}</span>', value)
-        return value
-
-    def _set_clickable_path(self, file_path: str) -> None:
-        """Define o texto HTML do caminho como link clicável."""
-        normalized = file_path.replace("\\", "/")
-        file_uri = f"file:///{quote(normalized, safe='/:@!$&()*+,;=')}"
-        html = (
-            f'<a href="{file_uri}" '
-            f'style="color:#3B82F6;text-decoration:underline;font-size:12px;">'
-            f"{normalized}</a>"
-        )
-        self._path_label.setText(html)
-
-    def _on_path_clicked(self, url: str) -> None:
+    def _on_path_clicked(self, key: str, url: str) -> None:
         """
         Abre o local do arquivo no Explorer.
         Se for arquivo, seleciona-o (abre a pasta pai com o arquivo selecionado).
         """
+        if key != "path":
+            return
+
         file_path = self._file_path
         if not file_path:
             return
