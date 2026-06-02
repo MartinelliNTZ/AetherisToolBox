@@ -7,18 +7,50 @@ Uso: rode com o Python interno do QGIS ou qualquer Python com PySide6 instalado.
 import sys
 import subprocess
 import importlib.metadata
+import re as _re
 from PySide6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout,
     QRadioButton, QButtonGroup, QPushButton, QTextEdit,
     QLabel, QScrollArea, QCheckBox, QFrame, QLineEdit,
     QSplitter, QProgressBar, QMessageBox, QStackedWidget,
-    QSizePolicy
+    QSizePolicy, QComboBox
 )
 from PySide6.QtCore import Qt, QThread, Signal, QTimer
 from PySide6.QtGui import QFont, QColor, QPalette, QIcon, QTextCursor
 
-# ── Detecta o executável Python do QGIS ──────────────────────────────────────
-PYTHON_EXE = sys.executable  # usa o mesmo Python que está rodando o script
+# ── Importa o detector do dep2.py ─────────────────────────────────────────────
+from dep2 import QGISPythonDetector
+
+# ── Detecta todos os Pythons disponíveis (standalone + QGIS embutidos) ────────
+_PYTHON_OPTIONS: list[tuple[str, str]] = []  # (rótulo, executável)
+def _load_python_options() -> list[tuple[str, str]]:
+    """Retorna lista de (label, executable) para todos os Pythons detectados."""
+    detector = QGISPythonDetector()
+    result = detector.detect()
+    options: list[tuple[str, str]] = []
+
+    # Pythons standalone
+    for py in result.system_pythons:
+        label = py.name
+        if py.source == "current_process":
+            label += " (atual)"
+        elif py.source == "conda":
+            label += " (conda)"
+        options.append((label, py.executable))
+
+    # Pythons embutidos no QGIS
+    for qgis in result.qgis_installations:
+        if qgis.python and qgis.python.executable:
+            label = f"{qgis.python.name} [embutido: {qgis.name}]"
+            options.append((label, qgis.python.executable))
+
+    return options
+
+# Carrega cache de opções (executado apenas uma vez na importação)
+_ALL_PYTHON_OPTIONS = _load_python_options()
+
+# ── Python atualmente selecionado ─────────────────────────────────────────────
+_CURRENT_PYTHON_EXE: str = sys.executable  # fallback: o que está rodando
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Worker thread – roda pip sem travar a UI
@@ -51,16 +83,88 @@ class PipWorker(QThread):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Worker thread – lista pacotes instalados de um Python específico
+# ─────────────────────────────────────────────────────────────────────────────
+class ListPackagesWorker(QThread):
+    packages_loaded = Signal(list)  # list[tuple[nome, versão]]
+    log_line        = Signal(str)
+
+    def __init__(self, python_exe: str):
+        super().__init__()
+        self.python_exe = python_exe
+
+    def run(self):
+        try:
+            # Usa importlib.metadata via subprocess para pegar os pacotes do Python alvo
+            code = """
+import importlib.metadata, json
+pkgs = sorted(importlib.metadata.distributions(), key=lambda d: d.metadata.get('Name', '').lower())
+out = [(d.metadata.get('Name', '?'), d.metadata.get('Version', '?')) for d in pkgs]
+print(json.dumps(out))
+"""
+            proc = subprocess.Popen(
+                [self.python_exe, "-c", code],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+            )
+            stdout, _ = proc.communicate(timeout=30)
+            if proc.returncode == 0:
+                import json
+                data = json.loads(stdout.strip())
+                self.packages_loaded.emit(data)
+            else:
+                self.log_line.emit(f"[ERRO] Falha ao listar pacotes: {stdout.strip()}")
+                self.packages_loaded.emit([])
+        except Exception as e:
+            self.log_line.emit(f"[ERRO] {e}")
+            self.packages_loaded.emit([])
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Janela principal
 # ─────────────────────────────────────────────────────────────────────────────
 class QGISPkgManager(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("QGIS · Gerenciador de Pacotes Python")
-        self.setMinimumSize(820, 620)
+        self.setMinimumSize(920, 680)
         self._worker = None
+        self._list_worker = None
+        self._current_python_exe: str = sys.executable
         self._build_ui()
         self._apply_style()
+
+    # ── Propriedade para o executável Python atual ────────────────────────────
+    @property
+    def python_exe(self) -> str:
+        return self._current_python_exe
+
+    @python_exe.setter
+    def python_exe(self, value: str):
+        self._current_python_exe = value
+        # Atualiza o label de info
+        version_str = self._get_python_version(value) or "?"
+        short_path = value.replace("\\", "/").split("/")[-1] if "/" in value or "\\" in value else value
+        self.py_info_label.setText(
+            f"Python  {version_str}   ·   {short_path}"
+        )
+
+    @staticmethod
+    def _get_python_version(exe: str) -> str | None:
+        try:
+            result = subprocess.run(
+                [exe, "--version"],
+                capture_output=True, text=True, timeout=5
+            )
+            out = result.stdout.strip() or result.stderr.strip()
+            if out.lower().startswith("python"):
+                return out.split()[1]
+        except Exception:
+            pass
+        return None
 
     # ── UI ───────────────────────────────────────────────────────────────────
     def _build_ui(self):
@@ -71,7 +175,7 @@ class QGISPkgManager(QWidget):
         # ── Cabeçalho ─────────────────────────────────────────────────────
         header = QFrame()
         header.setObjectName("header")
-        header.setFixedHeight(64)
+        header.setFixedHeight(72)
         h_lay = QHBoxLayout(header)
         h_lay.setContentsMargins(24, 0, 24, 0)
 
@@ -80,9 +184,43 @@ class QGISPkgManager(QWidget):
         h_lay.addWidget(title)
         h_lay.addStretch()
 
-        py_label = QLabel(f"Python  {sys.version.split()[0]}   ·   {PYTHON_EXE}")
-        py_label.setObjectName("pyinfo")
-        h_lay.addWidget(py_label)
+        # ── Seletor de Python ─────────────────────────────────────────────
+        selector_frame = QFrame()
+        selector_frame.setObjectName("selectorFrame")
+        sel_lay = QHBoxLayout(selector_frame)
+        sel_lay.setContentsMargins(0, 0, 0, 0)
+        sel_lay.setSpacing(8)
+
+        sel_lay.addWidget(QLabel("Python:"))
+
+        self.py_selector = QComboBox()
+        self.py_selector.setObjectName("pySelector")
+        self.py_selector.setMinimumWidth(320)
+        self.py_selector.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+
+        # Preenche o combo com as opções detectadas
+        current_exe_lower = sys.executable.lower().replace("\\", "/")
+        selected_index = 0
+        for i, (label, exe) in enumerate(_ALL_PYTHON_OPTIONS):
+            self.py_selector.addItem(label, exe)
+            # Marca o Python atual como selecionado por padrão
+            if exe.lower().replace("\\", "/") == current_exe_lower:
+                selected_index = i
+
+        self.py_selector.setCurrentIndex(selected_index)
+        self.py_selector.currentIndexChanged.connect(self._on_python_changed)
+        sel_lay.addWidget(self.py_selector, stretch=1)
+
+        h_lay.addWidget(selector_frame)
+
+        # ── Info do Python selecionado ────────────────────────────────────
+        self.py_info_label = QLabel()
+        self.py_info_label.setObjectName("pyinfo")
+        h_lay.addWidget(self.py_info_label)
+
+        # Inicializa com o Python atual
+        self.python_exe = self.py_selector.currentData() or sys.executable
+
         root.addWidget(header)
 
         # ── Seletor de modo ───────────────────────────────────────────────
@@ -261,22 +399,46 @@ class QGISPkgManager(QWidget):
             if not self._checkboxes:
                 self._load_installed()
 
-    # ── Carrega pacotes instalados ─────────────────────────────────────────────
+    # ── Troca de Python selecionado ───────────────────────────────────────────
+    def _on_python_changed(self, index: int):
+        exe = self.py_selector.itemData(index)
+        if not exe:
+            return
+        self.python_exe = exe
+        self._log(
+            f"[INFO] Python alterado para: {exe}",
+            "#93c5fd"
+        )
+        # Recarrega a lista de pacotes se estiver no modo desinstalar
+        if hasattr(self, '_checkboxes') and self.rb_uninstall.isChecked():
+            self._load_installed()
+
+    # ── Carrega pacotes instalados (agora via subprocess para o Python alvo) ──
     def _load_installed(self):
         # limpa lista anterior
         for cb in self._checkboxes:
             cb.setParent(None)
         self._checkboxes.clear()
 
-        pkgs = sorted(
-            importlib.metadata.distributions(),
-            key=lambda d: d.metadata["Name"].lower()
-        )
+        self._log(f"[INFO] Carregando pacotes de: {self.python_exe}", "#93c5fd")
+        self._set_busy(True)
 
-        stretch = self.pkg_layout.takeAt(self.pkg_layout.count() - 1)
-        for dist in pkgs:
-            name    = dist.metadata["Name"]
-            version = dist.metadata["Version"]
+        self._list_worker = ListPackagesWorker(self.python_exe)
+        self._list_worker.packages_loaded.connect(self._on_packages_loaded)
+        self._list_worker.log_line.connect(lambda l: self._log(l))
+        self._list_worker.start()
+
+    def _on_packages_loaded(self, packages: list):
+        self._set_busy(False)
+
+        # Remove o stretch antigo e os checkboxes
+        # O layout já foi limpo em _load_installed, mas vamos garantir
+        while self.pkg_layout.count() > 0:
+            item = self.pkg_layout.takeAt(0)
+            if item.widget():
+                item.widget().setParent(None)
+
+        for name, version in packages:
             cb = QCheckBox(f"{name}  ({version})")
             cb.setObjectName("pkgCheck")
             cb.stateChanged.connect(self._update_selected_count)
@@ -284,7 +446,11 @@ class QGISPkgManager(QWidget):
             self._checkboxes.append(cb)
         self.pkg_layout.addStretch()
         self._update_selected_count()
-        self._log(f"[INFO] {len(self._checkboxes)} pacotes encontrados.", "#6ee7b7")
+        self._log(f"[INFO] {len(self._checkboxes)} pacotes encontrados em {self.python_exe}.", "#6ee7b7")
+
+        # Reaplica o filtro se houver texto na busca
+        if hasattr(self, 'search') and self.search.text():
+            self._filter_packages(self.search.text())
 
     def _filter_packages(self, text: str):
         for cb in self._checkboxes:
@@ -303,20 +469,24 @@ class QGISPkgManager(QWidget):
     def _run_install(self):
         raw = self.txt_pkgs.toPlainText()
         # separa por vírgula, espaço ou nova linha
-        import re
-        pkgs = [p.strip() for p in re.split(r"[\s,]+", raw) if p.strip()]
+        pkgs = [p.strip() for p in _re.split(r"[\s,]+", raw) if p.strip()]
         if not pkgs:
             self._log("[AVISO] Nenhum pacote informado.", "#fbbf24")
             return
 
-        cmd = [PYTHON_EXE, "-m", "pip", "install"] + pkgs
+        cmd = [self.python_exe, "-m", "pip", "install"] + pkgs
         if self.chk_upgrade.isChecked():
             cmd.append("--upgrade")
         if self.chk_no_deps.isChecked():
             cmd.append("--no-deps")
 
         self._log(f"[CMD] {' '.join(cmd)}", "#93c5fd")
-        self._run_cmd(cmd)
+        self._run_cmd(cmd, post_action=self._on_install_done)
+
+    def _on_install_done(self):
+        """Após instalar, se estiver no modo desinstalar, recarrega a lista."""
+        if self.rb_uninstall.isChecked():
+            self._load_installed()
 
     # ── Desinstalar ───────────────────────────────────────────────────────────
     def _run_uninstall(self):
@@ -336,7 +506,7 @@ class QGISPkgManager(QWidget):
         if confirm != QMessageBox.Yes:
             return
 
-        cmd = [PYTHON_EXE, "-m", "pip", "uninstall", "-y"] + selected
+        cmd = [self.python_exe, "-m", "pip", "uninstall", "-y"] + selected
         self._log(f"[CMD] {' '.join(cmd)}", "#93c5fd")
         self._run_cmd(cmd, post_action=self._load_installed)
 
@@ -361,6 +531,8 @@ class QGISPkgManager(QWidget):
         self.btn_uninstall.setEnabled(not busy)
         self.rb_install.setEnabled(not busy)
         self.rb_uninstall.setEnabled(not busy)
+        self.py_selector.setEnabled(not busy)
+        self.btn_refresh.setEnabled(not busy)
 
     def _log(self, text: str, color: str = "#e2e8f0"):
         self.log.setTextColor(QColor(color))
@@ -382,6 +554,7 @@ class QGISPkgManager(QWidget):
             QFrame#header {
                 background: #1e293b;
                 border-bottom: 2px solid #334155;
+                min-height: 72px;
             }
             QLabel#title {
                 font-size: 17px;
@@ -392,6 +565,47 @@ class QGISPkgManager(QWidget):
             QLabel#pyinfo {
                 font-size: 11px;
                 color: #64748b;
+                margin-left: 12px;
+            }
+
+            /* ── Seletor de Python ── */
+            QFrame#selectorFrame {
+                background: transparent;
+            }
+            QComboBox#pySelector {
+                background: #0f172a;
+                border: 1px solid #475569;
+                border-radius: 6px;
+                padding: 6px 12px;
+                color: #e2e8f0;
+                font-size: 12px;
+                min-width: 280px;
+                max-width: 480px;
+            }
+            QComboBox#pySelector:hover {
+                border-color: #38bdf8;
+            }
+            QComboBox#pySelector::drop-down {
+                border: none;
+                width: 24px;
+            }
+            QComboBox#pySelector::down-arrow {
+                image: none;
+                border-left: 5px solid transparent;
+                border-right: 5px solid transparent;
+                border-top: 6px solid #64748b;
+                margin-right: 6px;
+            }
+            QComboBox#pySelector QAbstractItemView {
+                background: #1e293b;
+                border: 1px solid #334155;
+                border-radius: 4px;
+                selection-background-color: #0ea5e9;
+                selection-color: #fff;
+                color: #e2e8f0;
+                font-size: 12px;
+                padding: 4px;
+                outline: none;
             }
 
             /* ── Barra de modo ── */
