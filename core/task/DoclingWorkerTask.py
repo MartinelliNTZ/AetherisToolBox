@@ -19,7 +19,7 @@ from PySide6.QtCore import QThread, Signal
 from core.enum.ToolKey import ToolKey
 
 
-class DoclingWorker(QThread):
+class DoclingWorkerTask(QThread):
     """
     Worker thread para conversão de documentos via Docling.
 

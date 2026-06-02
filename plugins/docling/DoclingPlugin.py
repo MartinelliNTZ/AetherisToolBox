@@ -23,7 +23,7 @@ from core.enum.ToolKey import ToolKey
 from core.manager.SignalManager import SignalManager
 from core.ui.HudCircularRingsLoader import HudCircularRingsLoader
 from plugins.BasePlugin import BasePlugin
-from plugins.docling.DoclingWorker import DoclingWorker
+from core.task.DoclingWorkerTask import DoclingWorkerTask
 from resources.widgets.ExecutionButtons import ExecutionButtons
 from resources.widgets.GridCheckBox import GridCheckBox
 from resources.widgets.GridDoubleSpinBox import GridDoubleSpinBox
@@ -52,7 +52,7 @@ class DoclingPlugin(BasePlugin):
             parent=parent,
             title="Docling → Markdown",
         )
-        self._worker: DoclingWorker | None = None
+        self._worker: DoclingWorkerTask | None = None
         self._current_markdown: str = ""
         self.logger.info("DoclingPlugin inicializado", code="DOCLING_READY")
         self.page.set_badge(self.page.PRONTA)
@@ -189,7 +189,7 @@ class DoclingPlugin(BasePlugin):
             cols=manual_cols,
         )
 
-        self._worker = DoclingWorker(
+        self._worker = DoclingWorkerTask(
             file_path,
             columnar=columnar,
             manual_columns=manual_cols,

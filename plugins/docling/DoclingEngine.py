@@ -79,7 +79,7 @@ class DoclingEngine:
             # Tenta layout multi-coluna se solicitado
             if columnar:
                 try:
-                    from plugins.docling.MdManager import MdManager
+                    from utils.MdManager import MdManager
 
                     col_md = MdManager.export_by_columns(
                         doc,
