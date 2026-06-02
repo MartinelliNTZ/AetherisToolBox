@@ -29,7 +29,12 @@ from urllib.parse import quote
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QDesktopServices
-from PySide6.QtWidgets import QFormLayout, QLabel, QWidget
+from PySide6.QtWidgets import QFormLayout, QLabel, QVBoxLayout, QWidget
+
+from core.config.LogUtils import LogUtils
+from core.enum.ToolKey import ToolKey
+
+_logger = LogUtils(tool=ToolKey.UNTRACEABLE.value, class_name="PropertyInfoWidget")
 
 
 class PropertyInfoWidget(QWidget):
@@ -42,18 +47,50 @@ class PropertyInfoWidget(QWidget):
         super().__init__(parent)
         self._file_path = ""
 
-        layout = QFormLayout(self)
+        layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(6)
-        layout.setLabelAlignment(Qt.AlignmentFlag.AlignLeft)
+        layout.setSpacing(8)
 
-        self._name_label = self._add_row("Nome:", layout)
-        self._size_label = self._add_row("Tamanho:", layout)
-        self._type_label = self._add_row("Tipo:", layout)
-        self._path_label = self._add_clickable_path_row("Caminho:", layout)
-        self._dir_label = self._add_row("Diretório:", layout)
-        self._created_label = self._add_row("Criado em:", layout)
-        self._modified_label = self._add_row("Modificado em:", layout)
+        # ── Formulário de propriedades ──────────────────────────
+        form = QWidget()
+        form_layout = QFormLayout(form)
+        form_layout.setContentsMargins(0, 0, 0, 0)
+        form_layout.setSpacing(6)
+        form_layout.setLabelAlignment(Qt.AlignmentFlag.AlignLeft)
+
+        self._name_label = self._add_row("Nome:", form_layout)
+        self._size_label = self._add_row("Tamanho:", form_layout)
+        self._type_label = self._add_row("Tipo:", form_layout)
+        self._path_label = self._add_clickable_path_row("Caminho:", form_layout)
+        self._dir_label = self._add_row("Diretório:", form_layout)
+        self._created_label = self._add_row("Criado em:", form_layout)
+        self._modified_label = self._add_row("Modificado em:", form_layout)
+
+        layout.addWidget(form)
+        _logger.info(
+            "Formulário de propriedades criado",
+            code="PROP_FORM_OK",
+            has_parent=parent is not None,
+        )
+
+        # ── Seção colapsável ────────────────────────────────────
+        from resources.widgets.CollapsibleParams import CollapsibleParams
+
+        self._extra_section = CollapsibleParams(
+            title="Informações Avançadas",
+            collapsed=True,
+            parent=self,
+        )
+        self._extra_section.content_layout.addWidget(
+            QLabel("Configurações adicionais em breve.")
+        )
+        layout.addWidget(self._extra_section)
+
+        _logger.info(
+            "Seção colapsável adicionada ao layout",
+            code="COLLAPSE_ADDED",
+            layout_count=layout.count(),
+        )
 
     def load_data(self, data: Dict[str, Any]) -> None:
         """
@@ -63,6 +100,13 @@ class PropertyInfoWidget(QWidget):
             data: Dicionário com chaves name, size_formatted, extension_name,
                   path, directory, created, modified.
         """
+        _logger.info(
+            "Carregando dados no PropertyInfoWidget",
+            code="PROP_LOAD_DATA",
+            has_name="name" in data,
+            has_path="path" in data,
+        )
+
         self._name_label.setText(data.get("name", "—"))
         self._size_label.setText(data.get("size_formatted", "—"))
         self._type_label.setText(data.get("extension_name", "—"))
@@ -77,6 +121,12 @@ class PropertyInfoWidget(QWidget):
         self._dir_label.setText(data.get("directory", "—"))
         self._created_label.setText(data.get("created", "—"))
         self._modified_label.setText(data.get("modified", "—"))
+
+        _logger.info(
+            "Dados carregados no PropertyInfoWidget",
+            code="PROP_DATA_DONE",
+            file_path=file_path,
+        )
 
     def _add_row(self, label: str, layout: QFormLayout) -> QLabel:
         """Adiciona uma linha label + valor ao layout."""

@@ -799,6 +799,33 @@ table.clear_rows()
 
 ---
 
+### `CollapsibleParams` — `CollapsibleParams.py`
+Container colapsável com header clicável estilo acordeão. Ao clicar no header, a seção expande/recolhe mostrando ou escondendo o conteúdo interno. Usa `AppStyles.theme_colors()` para estilização consistente com o tema.
+
+```python
+from resources.widgets.CollapsibleParams import CollapsibleParams
+
+section = CollapsibleParams("Opções Avançadas", parent=self)
+section.content_layout.addWidget(QLabel("conteúdo interno"))
+main_layout.addWidget(section)
+
+# Controlar programaticamente
+section.collapsed = True   # recolher
+section.collapsed = False  # expandir
+```
+
+**Atributos:**
+- `header_label` — SimpleLabel do header (pode customizar texto/estilo)
+- `content_layout` — QVBoxLayout interno para adicionar widgets filhos
+- `collapsed` — property bool (True = recolhido, False = expandido)
+
+**Parâmetros do construtor:**
+- `title: str = "Parâmetros"` — texto do header
+- `collapsed: bool = False` — estado inicial
+- `parent: QWidget | None = None`
+
+---
+
 ### `PropertyInfoWidget` — `PropertyInfoWidget.py`
 Widget que exibe propriedades básicas de um arquivo em layout de formulário (QFormLayout). Mostra nome, tamanho formatado, tipo, caminho (clicável como link azul para abrir no Explorer), diretório, datas de criação e modificação.
 

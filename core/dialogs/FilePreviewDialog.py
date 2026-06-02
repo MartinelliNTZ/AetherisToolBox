@@ -20,12 +20,16 @@ from __future__ import annotations
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QStackedWidget
 
+from core.config.LogUtils import LogUtils
 from core.dialogs.BaseDialog import BaseDialog
+from core.enum.ToolKey import ToolKey
 from resources.widgets.DialogPage import DialogPage
 from resources.widgets.HorizontalTab import HorizontalTab
 from resources.widgets.PreviewPanel import PreviewPanel
 from utils.basic_extractor import BasicExtractor
 from utils.JsonUtil import JsonUtil
+
+_logger = LogUtils(tool=ToolKey.SYSTEM.value, class_name="FilePreviewDialog")
 
 
 class FilePreviewDialog(BaseDialog):
@@ -126,6 +130,18 @@ class FilePreviewDialog(BaseDialog):
         enriched = BasicExtractor.enrich_json(json_path, self._file_path)
         if enriched:
             self._prop_widget.load_data(enriched)
+            _logger.info(
+                "Propriedades carregadas",
+                code="PROP_LOADED",
+                file=self._file_path,
+                fields=list(enriched.keys()),
+            )
+        else:
+            _logger.warning(
+                "Arquivo não encontrado para propriedades",
+                code="PROP_NO_FILE",
+                file=self._file_path,
+            )
         JsonUtil.cleanup_temp_json(json_path)
 
     def _on_tab_changed(self, index: int) -> None:
@@ -157,5 +173,16 @@ class FilePreviewDialog(BaseDialog):
             title: Título opcional da janela.
             parent: Widget pai.
         """
+        _logger.info(
+            "Abrindo preview",
+            code="PREVIEW_OPEN",
+            file=file_path,
+            title=title,
+        )
         dlg = FilePreviewDialog(file_path=file_path, title=title, parent=parent)
         dlg.exec()
+        _logger.info(
+            "Preview finalizado",
+            code="PREVIEW_DONE",
+            file=file_path,
+        )

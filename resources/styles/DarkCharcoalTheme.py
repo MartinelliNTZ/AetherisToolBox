@@ -210,7 +210,7 @@ class DarkCharcoalTheme(BaseTheme):
     # 17. DIMENSIONS
     # ═══════════════════════════════════════════════════════════════════
 
-    INPUT_HEIGHT = 0
+    INPUT_HEIGHT = 24
     BUTTON_HEIGHT = 0
     BUTTON_HEIGHT_PRIMARY = 0
     ITEM_HEIGHT = 0
