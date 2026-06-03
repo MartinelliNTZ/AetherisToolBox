@@ -14,7 +14,7 @@ Integracoes Obrigatorias:
   - SignalManager para progresso e console
   - Preferences para persistencia
   - MessageBox para dialogos com usuario
-  - ExplorerUtils para selecao de arquivos (Contrato 17)
+  - ExplorerUtils para selecao de arquivos (Contrato 17) e busca generica (find_files)
   - ExecutionButtons para botoes de acao (Contrato 18)
   - VectorLayerSource para leitura de dados (Contrato 25)
   - ToolKey.XXX.value para log (Contrato 26)
@@ -22,7 +22,6 @@ Integracoes Obrigatorias:
 
 from __future__ import annotations
 
-import os
 import re
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -34,7 +33,6 @@ from resources.widgets.ExecutionButtons import ExecutionButtons
 from resources.widgets.GridCheckBox import GridCheckBox
 from resources.widgets.GridFieldMapping import GridFieldMapping
 from resources.widgets.GridRadio import GridRadio
-from resources.widgets.GridLabel import GridLabel
 from resources.widgets.GroupPainel import GroupPainel
 from resources.widgets.GridGroupPainel import GridGroupPainel
 from resources.widgets.SimpleSelector import SimpleSelector
@@ -47,6 +45,9 @@ from utils.vector.VectorLayerSource import VectorLayerSource
 
 MODE_SINGLE = "single"
 MODE_BATCH = "batch"
+
+MRK_EXTENSIONS = frozenset({".mrk"})
+DATA_EXTENSIONS = frozenset({".gpkg", ".shp", ".csv"})
 
 SCENARIO_CONFIG = {
     MODE_SINGLE: {
@@ -144,7 +145,7 @@ class MrkSubstitutorPlugin(BasePlugin):
         })
         self.main_layout.addWidget(self._btns)
 
-        # ── Grid Radio: Cenario ──────────────────────────────────────
+        # ── Grid Radio: Cenario (full width, sozinho) ────────────────
         self._grid_scenario = GridRadio(
             SCENARIO_CONFIG,
             num_columns=2,
@@ -153,6 +154,7 @@ class MrkSubstitutorPlugin(BasePlugin):
 
         grp_scenario = GroupPainel("Modo de Processamento")
         grp_scenario.group_layout.addWidget(self._grid_scenario)
+        self.main_layout.addWidget(grp_scenario)
 
         # ── Painel Pastas (coluna 0) ─────────────────────────────────
         self._sel_mrk_file = SimpleSelector(
@@ -211,38 +213,8 @@ class MrkSubstitutorPlugin(BasePlugin):
         grp_map = GroupPainel("Mapeamento de Campos")
         grp_map.group_layout.addWidget(self._mapping)
 
-        # ── Status ───────────────────────────────────────────────────
-        self._grid_info = GridLabel(
-            config={
-                "status": {
-                    "label": "Status",
-                    "value": "Pronto",
-                    "description": "Status atual do processamento",
-                },
-                "mrk_count": {
-                    "label": "MRKs",
-                    "value": "0 encontrados",
-                },
-                "data_records": {
-                    "label": "Registros",
-                    "value": "0",
-                },
-            },
-            columns=1,
-        )
-
-        grp_status = GroupPainel("Status")
-        grp_status.group_layout.addWidget(self._grid_info)
-
-        # ── Grid: colunas 0 e 1 ──────────────────────────────────────
-        left_painel = GroupPainel("Configuracao")
-        left_painel.group_layout.addWidget(grp_files)
-        left_painel.group_layout.addWidget(grp_status)
-
-        right_painel = GroupPainel("Mapeamento")
-        right_painel.group_layout.addWidget(grp_map)
-
-        grid_painels = GridGroupPainel(grp_scenario, left_painel, right_painel)
+        # ── Grid: colunas 0 e 1 (sem status) ─────────────────────────
+        grid_painels = GridGroupPainel(grp_files, grp_map)
         self.main_layout.addWidget(grid_painels)
 
     # ══════════════════════════════════════════════════════════════════
@@ -268,8 +240,12 @@ class MrkSubstitutorPlugin(BasePlugin):
     # Navegacao / Busca de Arquivos
     # ══════════════════════════════════════════════════════════════════
 
-    def _get_active_mapping(self) -> Dict[str, Dict[str, str]]:
-        """Retorna mapeamento ativo: {mrk_field: data_column}."""
+    def _get_active_mapping(self) -> Dict[str, str]:
+        """
+        Retorna mapeamento ativo: {mrk_field: data_column}.
+
+        Exemplo: {"Ellh": "AbsZ", "Lat": "Latitude"}
+        """
         mapping = {}
         values = self._mapping.values
         for key, data in values.items():
@@ -280,42 +256,32 @@ class MrkSubstitutorPlugin(BasePlugin):
                     mapping[mrk_field] = data_col
         return mapping
 
-    def _find_mrk_files(self, root_path: str) -> List[Path]:
+    def _find_files(self, root_path: str, extensions: frozenset[str]) -> List[Path]:
         """
-        Encontra arquivos .MRK (case insensitive) no diretorio.
+        Encontra arquivos por extensao em um diretorio.
+        Delega a busca generica para ExplorerUtils.find_files().
 
         Args:
             root_path: Caminho do diretorio.
+            extensions: Conjunto de extensoes (ex: frozenset({".mrk"})).
 
         Returns:
-            Lista de Paths dos arquivos .MRK encontrados.
+            Lista de Paths dos arquivos encontrados.
         """
-        mrk_files: List[Path] = []
-        root = Path(root_path)
-        if not root.is_dir():
-            return mrk_files
-
         recursive = bool(self._grid_opts.all.get(RECURSIVE_KEY, False))
-        pattern = "**/*" if recursive else "*"
-
-        for f in root.glob(pattern):
-            if f.is_file() and f.suffix.lower() == ".mrk":
-                mrk_files.append(f)
-
-        mrk_files.sort()
-        return mrk_files
+        paths = ExplorerUtils.find_files(root_path, extensions, recursive=recursive)
+        return [Path(p) for p in paths]
 
     def _find_data_file_for_mrk(self, mrk_path: Path, search_dir: str | None = None) -> Optional[str]:
         """
         Busca arquivo de dados correspondente a um MRK.
 
-        Logica:
+        Logica especifica do dominio MRK:
         1. Extrai base_name do MRK (sem extensao).
-        2. Se search_dir for informado, busca la.
-        3. Senao, busca no mesmo diretorio do MRK.
-        4. Procura por: base_name.gpkg > base_name.shp > base_name.csv
-        5. Se nao achar, busca qualquer arquivo contendo base_name como substring.
-        6. Prioriza .gpkg > .shp > .csv.
+        2. Se search_dir for informado, busca la; senao no mesmo diretorio do MRK.
+        3. Procura por: base_name.gpkg > base_name.shp > base_name.csv (exato).
+        4. Se nao achar, busca qualquer arquivo contendo base_name como substring.
+        5. Prioriza .gpkg > .shp > .csv.
 
         Args:
             mrk_path: Path do arquivo MRK.
@@ -330,7 +296,7 @@ class MrkSubstitutorPlugin(BasePlugin):
         if not directory.is_dir():
             return None
 
-        # Busca exata primeiro
+        # Busca exata primeiro: base_name.gpkg > base_name.shp > base_name.csv
         for ext in [".gpkg", ".shp", ".csv"]:
             candidate = directory / f"{base_name}{ext}"
             if candidate.is_file():
@@ -347,7 +313,8 @@ class MrkSubstitutorPlugin(BasePlugin):
         # Busca flexivel: contem base_name como substring
         candidates: List[Path] = []
         for ext in [".gpkg", ".shp", ".csv"]:
-            for f in directory.glob(f"*{ext}"):
+            pattern = f"*{ext}"
+            for f in directory.glob(pattern):
                 if f.is_file() and base_name.lower() in f.stem.lower():
                     candidates.append(f)
 
@@ -597,18 +564,12 @@ class MrkSubstitutorPlugin(BasePlugin):
         output_dir.mkdir(parents=True, exist_ok=True)
 
         mode = self._grid_scenario.selected
-        total_replacements = 0
-        total_mrks = 0
 
         try:
             if mode == MODE_SINGLE:
                 total_replacements = self._exec_single(mapping, output_dir)
             else:
                 total_replacements = self._exec_batch(mapping, output_dir)
-
-            # Atualiza status
-            self._grid_info.set("status", "Concluido")
-            self._grid_info.set("mrk_count", f"{total_mrks} processados")
 
             msg = f"Processamento concluido! Total de substituicoes: {total_replacements}"
             self.logger.info(msg, code="MRK_EXEC_DONE")
@@ -642,18 +603,14 @@ class MrkSubstitutorPlugin(BasePlugin):
             MessageBox.show_warning(f"Arquivo MRK nao encontrado: {mrk_path_str}", title="Erro")
             return 0
 
-        self._grid_info.set("mrk_count", "1 encontrado")
-        self._grid_info.set("status", "Carregando dados...")
         SignalManager.instance().console_message.emit(f"[MrkSubst] Carregando: {data_path_str}")
 
         data = VectorLayerSource.read(data_path_str, tool_key=self.tool_key)
-        self._grid_info.set("data_records", str(len(data)))
 
-        self._grid_info.set("status", "Processando...")
         SignalManager.instance().progress_update.emit(10.0)
-
         total = self._process_mrk(mrk_path, data, mapping, output_dir)
         SignalManager.instance().progress_update.emit(100.0)
+
         return total
 
     def _exec_batch(self, mapping: Dict[str, str], output_dir: Path) -> int:
@@ -664,7 +621,7 @@ class MrkSubstitutorPlugin(BasePlugin):
             MessageBox.show_warning("Selecione a pasta com arquivos MRK.", title="Aviso")
             return 0
 
-        mrk_files = self._find_mrk_files(mrk_dir_str)
+        mrk_files = self._find_files(mrk_dir_str, MRK_EXTENSIONS)
         if not mrk_files:
             MessageBox.show_warning(
                 "Nenhum arquivo .MRK encontrado na pasta especificada.",
@@ -672,8 +629,6 @@ class MrkSubstitutorPlugin(BasePlugin):
             )
             return 0
 
-        self._grid_info.set("mrk_count", f"{len(mrk_files)} encontrados")
-        self._grid_info.set("status", "Processando lote...")
         SignalManager.instance().console_message.emit(
             f"[MrkSubst] {len(mrk_files)} MRKs encontrados"
         )
@@ -686,7 +641,7 @@ class MrkSubstitutorPlugin(BasePlugin):
             pct = (idx / total_mrks) * 90.0 + 10.0
             SignalManager.instance().progress_update.emit(pct)
 
-            # Busca dados correspondentes
+            # Busca dados correspondentes (logica especifica do MRK)
             data_path = self._find_data_file_for_mrk(mrk_path)
             if data_path is None:
                 continue

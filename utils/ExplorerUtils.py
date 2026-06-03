@@ -142,6 +142,41 @@ class ExplorerUtils:
         config_dir.mkdir(parents=True, exist_ok=True)
         return config_dir
 
+    # ── Busca de Arquivos ───────────────────────────────────────────
+
+    @staticmethod
+    def find_files(
+        root_path: str,
+        extensions: frozenset[str],
+        recursive: bool = False,
+    ) -> List[str]:
+        """
+        Busca arquivos por extensao em um diretorio (generico).
+
+        Args:
+            root_path: Caminho do diretorio raiz.
+            extensions: Conjunto de extensoes (ex: frozenset({".mrk", ".MRK"})).
+            recursive: Se True, vasculha subpastas recursivamente.
+
+        Returns:
+            Lista de caminhos absolutos dos arquivos encontrados, ordenados.
+            Vazia se diretorio invalido ou nenhum arquivo encontrado.
+        """
+        if not root_path:
+            return []
+        root = Path(root_path)
+        if not root.is_dir():
+            return []
+
+        results: List[str] = []
+        pattern = "**/*" if recursive else "*"
+        for f in root.glob(pattern):
+            if f.is_file() and f.suffix.lower() in extensions:
+                results.append(str(f.resolve()))
+
+        results.sort()
+        return results
+
     # ── Default Paths ──────────────────────────────────────────────
 
     @staticmethod
