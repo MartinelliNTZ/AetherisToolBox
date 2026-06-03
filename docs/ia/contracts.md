@@ -397,3 +397,20 @@ Nunca formate datas ou tamanhos manualmente com strftime() ou aritmética.
 - `FormatUtils.format_size(bytes)` → string legível (B, KB, MB, GB)
 - `FormatUtils.format_date(timestamp)` → `dd/mm/AAAA HH:MM:SS`
 - BasicExtractor delega formatação para FormatUtils
+
+## 🔴 Contrato 23 — Utilitários Compartilhados
+
+```
+Use as classes do pacote utils/ para funcionalidades transversais.
+Não duplique lógica de diálogos, seleção de arquivos, JSON temporários, paths ou formatação em plugins.
+```
+
+**Regras:**
+- `ExplorerUtils` é a única fonte de `QFileDialog`.
+- `MessageBox` é a única fonte de `QMessageBox`.
+- `JsonUtil` gerencia JSONs temporários; não use `open()`/`json.dump()` manualmente para esse propósito.
+- `FormatUtils` formata datas e tamanhos; não crie utilitários de formatação separados.
+- `ProjectUtil` gerencia arquivos `.mtl` e metadata de projeto.
+- `DictManager` fornece catálogos padronizados de extensões e valores.
+- `ColorProvider` fornece cores consistentes por nível, ferramenta e classe.
+- Se precisar de nova funcionalidade compartilhada, crie o utilitário em `utils/` e documente a nova API.

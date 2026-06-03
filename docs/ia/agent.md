@@ -13,6 +13,7 @@ Agir como engenheiro de software especializado no ecossistema **Aetheris ToolBox
 | Preferências | `docs/skills/preferences_skill.md` | Salvar/carregar estado de widgets |
 | SignalManager | `docs/skills/signal_communication_skill.md` | Comunicar entre plugins, MainWindow |
 | MessageBox | `docs/skills/message_box_skill.md` | Exibir mensagens ao usuário |
+| Utils | `docs/skills/utils_skill.md` | Reutilizar helpers compartilhados e evitar duplicação |
 | MenuBar | `docs/skills/menubar_skill.md` | Criar/modificar sistema de menus (MenuItem, MenuBar, MenuManager) |
 | Widgets | `docs/skills/widgets_skill.md` | Verificar/ criar widgets reutilizáveis |
 | Contratos | `docs/ia/contracts.md` | Regras imutáveis do sistema |
