@@ -337,21 +337,23 @@ Widgets que precisam de cores para `paintEvent()` devem usar os métodos especí
 do AppStyles (ex: `AppStyles.vertical_tab_colors()`, `AppStyles.theme_colors()`).
 Nunca importe `ct` ou `BaseTheme` fora de `resources/styles/`.
 
-## 🔴 Contrato 20 — Progress Bar e Console
+## 🔴 Contrato 20 — Progress Bar, HUD e Console
 
 ```
 Plugins DEVEM usar SignalManager para progresso e mensagens ao usuário:
-- SignalManager.progress_update(float) — atualiza barra da MainWindow
-- SignalManager.console_message(str) — exibe mensagem no ConsolePlugin
-
-Nunca crie QProgressBar ou QTextBrowser para logs/progresso no plugin.
+- `SignalManager.progress_update(float)` — atualiza a ProgressBar da `MainWindow` (0.0–100.0)
+- `SignalManager.console_message(str)` — exibe mensagem no `ConsolePlugin`
 ```
 
-**Regras:**
-- Use `SignalManager.instance().progress_update.emit(valor)` para progresso (0.0 a 100.0).
-- Use `SignalManager.instance().console_message.emit("texto")` para mensagens ao usuário.
-- Use `self.logger.info/warning/error(...)` para logs do desenvolvedor.
-- A ProgressBar já existe na MainWindow — não crie outra.
+Regras obrigatórias:
+- **Nenhuma ferramenta deve criar uma barra de progresso interna** (`QProgressBar`) ou um visualizador de logs próprio; use os componentes centrais via sinais.
+- Use `SignalManager.instance().progress_update.emit(valor)` para progresso e `SignalManager.instance().console_message.emit(texto)` para mensagens ao usuário.
+- Use `self.logger.info/warning/error(...)` para logs estruturados (LogUtils).
+- A `ProgressBar` existe na `MainWindow` e é a única barra oficial para percentuais.
+
+HUDLoader:
+- O `HUDLoader` é recomendado para operações longas e mais visíveis; controle-o via sinais (`hud_show`, `hud_update`, `hud_hide`).
+- Diferentemente da ProgressBar, o uso do HUD é opcional quando apropriado, mas prefira o HUD central em vez de implementar indicadores locais.
 
 ```python
 # ✅ Correto
@@ -414,3 +416,70 @@ Não duplique lógica de diálogos, seleção de arquivos, JSON temporários, pa
 - `DictManager` fornece catálogos padronizados de extensões e valores.
 - `ColorProvider` fornece cores consistentes por nível, ferramenta e classe.
 - Se precisar de nova funcionalidade compartilhada, crie o utilitário em `utils/` e documente a nova API.
+
+## 🔴 Contrato 24 — SignalManager Exclusivo para Comunicação Entre Componentes
+
+```
+SignalManager é EXCLUSIVO para comunicação entre plugins, ferramentas e componentes do sistema.
+NUNCA use SignalManager para mudanças internas de widgets (ex: checkbox state, line edit text).
+```
+
+**Regras:**
+- Widgets reutilizáveis em `resources/widgets/` DEVEM usar `QObject.Signal` (PySide6 Signals) para notificar mudanças internas.
+- `SignalManager` é para eventos de sistema: tool_opened, tool_closed, progress_update, console_message, app_startup, etc.
+- Um widget não deve conhecer `SignalManager` — ele emite seus próprios `Signal()` e o plugin/ferramenta que o consome conecta ao `SignalManager` se necessário.
+- Violação: widget que importa `SignalManager` para emitir mudanças locais.
+
+```python
+# ✅ Correto — widget usa Signal próprio
+class MeuWidget(QWidget):
+    changed = Signal(str)  # Signal PySide6, não SignalManager
+    def _on_internal_change(self):
+        self.changed.emit("novo valor")
+
+# ❌ Proibido — widget usando SignalManager
+from core.manager.SignalManager import SignalManager
+class MeuWidget(QWidget):
+    def _on_internal_change(self):
+        SignalManager.instance().console_message.emit("mudou")  # errado aqui
+```
+
+## 🔴 Contrato 25 — I/O Vetorial/Raster via Utils Especializados
+
+```
+Toda leitura de dados vetoriais (.shp, .gpkg, .csv) DEVE usar VectorLayerSource.
+Toda leitura de dados raster (.tif, .tiff) DEVE usar RasterLayerSource.
+NUNCA implemente leitura de shapefile/geopackage/csv diretamente no plugin.
+```
+
+**Regras:**
+- `utils/vector/VectorLayerSource` é a única classe que lê vetores.
+- `utils/raster/RasterLayerSource` é a única classe que lê rasters.
+- Ambas usam `LogUtils` e aceitam `tool_key: str = ToolKey.UNTRACEABLE.value`.
+- Ambas convertem tipos numpy para tipos nativos Python.
+- Plugins delegam a leitura para estas classes, nunca importam `geopandas` ou `rasterio` diretamente.
+
+```python
+# ✅ Correto
+from utils.vector.VectorLayerSource import VectorLayerSource
+data = VectorLayerSource.read(path, tool_key=self.tool_key)
+
+# ❌ Proibido
+import geopandas as gpd
+gdf = gpd.read_file(path)
+```
+
+## 🔴 Contrato 26 — ToolKey no lugar de Strings Soltas para Logger
+
+```
+Ao passar tool_key para LogUtils ou classes de I/O, SEMPRE use ToolKey.XXX.value.
+NUNCA use strings literais em logs.
+```
+
+```python
+# ✅ Correto
+VectorLayerSource.read(path, tool_key=ToolKey.MRK_SUBSTITUTOR.value)
+
+# ❌ Proibido
+VectorLayerSource.read(path, tool_key="MrkSubstitutor")
+VectorLayerSource.read(path, tool_key="Untraceable")

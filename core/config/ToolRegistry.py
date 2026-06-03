@@ -210,6 +210,18 @@ class ToolRegistry:
             category=CategoryTool.CENTRAL,
             show_in_toolbar=True,
         ),
+        ToolKey.MRK_SUBSTITUTOR.value: Tool(
+            name=ToolKey.MRK_SUBSTITUTOR.value,
+            title="Mrk Substituidor",
+            widget_factory=_make_factory(
+                "plugins.mrk_substitutor.MrkSubstitutorPlugin",
+                "MrkSubstitutorPlugin",
+            ),
+            tooltip="Substitui valores de altitude (Ellh) em arquivos MRK a partir de CSV/SHP/GPKG",
+            tool_type=ToolType.FOLDER,
+            category=CategoryTool.CENTRAL,
+            show_in_toolbar=True,
+        ),
     }
 
     def register_default_tools(self) -> None:
