@@ -36,4 +36,8 @@ class SignalCatalog(QObject):
     app_shutdown:     Signal = Signal()      # emitido quando a aplicação encerra
     console_message:  Signal = Signal(str)   # emitido para exibir mensagem no console
     progress_update:  Signal = Signal(float) # emitido para atualizar a barra de progresso (0-100)
+    progress_reset:   Signal = Signal()      # emitido para resetar a barra de progresso
     project_changed:  Signal = Signal()      # emitido quando o projeto ativo é salvo/criado
+    hud_show:         Signal = Signal(dict)  # emitido para exibir HUD loader: {"message": str}
+    hud_update:       Signal = Signal(dict)  # emitido para atualizar HUD: {"message": str}
+    hud_hide:         Signal = Signal()      # emitido para esconder HUD loader

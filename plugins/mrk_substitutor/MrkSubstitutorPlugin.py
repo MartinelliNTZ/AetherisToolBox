@@ -1,30 +1,19 @@
 # -*- coding: utf-8 -*-
 """
-MrkSubstitutorPlugin — Substitui valores de altitude (Ellh / Lat / Lon) em arquivos MRK
-==========================================================================================
-Plugin que converte o script legado substituir_mrk.py em uma ferramenta Aetheris ToolBox.
-
-Cenarios de uso:
-  - Cenario 1 (Arquivo Unico): Usuario informa 1 CSV/SHP + 1 MRK especifico.
-  - Cenario 2 (Lote por Pasta): Usuario informa pasta com MRKs. O nome do MRK
-    (sem extensao) e a chave para buscar dados correspondentes (.gpkg > .shp > .csv).
-
-Integracoes Obrigatorias:
-  - LogUtils (self.logger) em todos os pontos criticos
-  - SignalManager para progresso e console
-  - Preferences para persistencia
-  - MessageBox para dialogos com usuario
-  - ExplorerUtils para selecao de arquivos (Contrato 17) e busca generica (find_files)
-  - ExecutionButtons para botoes de acao (Contrato 18)
-  - VectorLayerSource para leitura de dados (Contrato 25)
-  - ToolKey.XXX.value para log (Contrato 26)
+MrkSubstitutorPlugin — Substitui valores em arquivos MRK
+==========================================================
+Usa MrkWorkerTask (QThread) para nao travar a UI.
+Exibe HUDLoader durante processamento.
+Batch sequencial sem recursao (loop).
+A leitura de dados tambem vai para thread (worker interno).
 """
 
 from __future__ import annotations
 
-import re
 from pathlib import Path
 from typing import Dict, List, Optional
+
+from PySide6.QtCore import QThread, Signal
 
 from core.enum.ToolKey import ToolKey
 from core.manager.SignalManager import SignalManager
@@ -38,7 +27,6 @@ from resources.widgets.GridGroupPainel import GridGroupPainel
 from resources.widgets.SimpleSelector import SimpleSelector
 from utils.ExplorerUtils import ExplorerUtils
 from utils.MessageBox import MessageBox
-from utils.vector.VectorLayerSource import VectorLayerSource
 
 
 # ── Constantes ─────────────────────────────────────────────────────
@@ -52,48 +40,34 @@ DATA_EXTENSIONS = frozenset({".gpkg", ".shp", ".csv"})
 SCENARIO_CONFIG = {
     MODE_SINGLE: {
         "label": "Arquivo Unico",
-        "description": "Processa 1 MRK com 1 arquivo de dados especifico",
+        "description": "Processa 1 MRK com 1 arquivo de dados",
         "default": True,
-        "tooltip": "Informe o arquivo MRK e o arquivo de dados manualmente",
     },
     MODE_BATCH: {
         "label": "Lote por Pasta",
-        "description": "Busca MRKs e dados correspondentes por chave no nome",
+        "description": "Busca MRKs e dados por chave no nome",
         "default": False,
-        "tooltip": "Selecione a pasta com MRKs. O nome do MRK e a chave para buscar dados",
     },
 }
 
 MAPPING_CONFIG = {
     "altitude": {
-        "from_label": "Campo Origem:",
-        "from_placeholder": "Ex: AbsZ",
-        "to_label": "Campo MRK:",
-        "to_placeholder": "Ex: Ellh",
-        "default_from": "AbsZ",
-        "default_to": "Ellh",
-        "default_enabled": True,
-        "tooltip": "Mapeamento de altitude - campo de origem para campo Ellh no MRK",
+        "from_label": "Campo Origem:", "from_placeholder": "Ex: AbsZ",
+        "to_label": "Campo MRK:", "to_placeholder": "Ex: Ellh",
+        "default_from": "AbsZ", "default_to": "Ellh", "default_enabled": True,
+        "tooltip": "Mapeamento de altitude",
     },
     "latitude": {
-        "from_label": "Campo Origem:",
-        "from_placeholder": "Ex: Latitude",
-        "to_label": "Campo MRK:",
-        "to_placeholder": "Ex: Lat",
-        "default_from": "Latitude",
-        "default_to": "Lat",
-        "default_enabled": False,
-        "tooltip": "Mapeamento de latitude - campo de origem para campo Lat no MRK",
+        "from_label": "Campo Origem:", "from_placeholder": "Ex: Latitude",
+        "to_label": "Campo MRK:", "to_placeholder": "Ex: Lat",
+        "default_from": "Latitude", "default_to": "Lat", "default_enabled": False,
+        "tooltip": "Mapeamento de latitude",
     },
     "longitude": {
-        "from_label": "Campo Origem:",
-        "from_placeholder": "Ex: Longitude",
-        "to_label": "Campo MRK:",
-        "to_placeholder": "Ex: Lon",
-        "default_from": "Longitude",
-        "default_to": "Lon",
-        "default_enabled": False,
-        "tooltip": "Mapeamento de longitude - campo de origem para campo Lon no MRK",
+        "from_label": "Campo Origem:", "from_placeholder": "Ex: Longitude",
+        "to_label": "Campo MRK:", "to_placeholder": "Ex: Lon",
+        "default_from": "Longitude", "default_to": "Lon", "default_enabled": False,
+        "tooltip": "Mapeamento de longitude",
     },
 }
 
@@ -117,6 +91,7 @@ class MrkSubstitutorPlugin(BasePlugin):
             parent=parent,
             title="Mrk Substituidor",
         )
+        self._worker: Optional[QThread] = None
         self._update_ui_for_mode()
         self.logger.info("MrkSubstitutorPlugin inicializado", code="MRK_READY")
 
@@ -125,80 +100,24 @@ class MrkSubstitutorPlugin(BasePlugin):
     # ══════════════════════════════════════════════════════════════════
 
     def _build_ui(self):
-        """Constroi a interface do plugin."""
         super()._build_ui()
-
-        # ── Execution Buttons ─────────────────────────────────────────
         self._btns = ExecutionButtons(self, {
-            "save_config": {
-                "text": "SALVAR CONFIG",
-                "callback": self._on_save_config,
-                "type": "secondary",
-                "description": "Salva configuracao atual nas preferencias",
-            },
-            "executar": {
-                "text": "EXECUTAR",
-                "callback": self._on_executar,
-                "type": "primary",
-                "description": "Executa a substituicao nos MRKs",
-            },
+            "save_config": {"text": "SALVAR CONFIG", "callback": self._on_save_config, "type": "secondary"},
+            "executar": {"text": "EXECUTAR", "callback": self._on_executar, "type": "primary"},
         })
         self.main_layout.addWidget(self._btns)
 
-        # ── Grid Radio: Cenario (full width, sozinho) ────────────────
-        self._grid_scenario = GridRadio(
-            SCENARIO_CONFIG,
-            num_columns=2,
-        )
+        self._grid_scenario = GridRadio(SCENARIO_CONFIG, num_columns=2)
         self._grid_scenario.changed.connect(self._on_scenario_changed)
-
         grp_scenario = GroupPainel("Modo de Processamento")
         grp_scenario.group_layout.addWidget(self._grid_scenario)
         self.main_layout.addWidget(grp_scenario)
 
-        # ── Painel Pastas (coluna 0) ─────────────────────────────────
-        self._sel_mrk_file = SimpleSelector(
-            "Arquivo MRK:",
-            "",
-            placeholder="Caminho do arquivo .MRK...",
-            browse_mode="open_file",
-            file_filter="MRK (*.MRK *.mrk);;Todos (*.*)",
-            label_width=140,
-        )
-        self._sel_mrk_dir = SimpleSelector(
-            "Pasta MRK:",
-            "",
-            placeholder="Caminho da pasta com arquivos .MRK...",
-            browse_mode="directory",
-            label_width=140,
-        )
-        self._sel_data = SimpleSelector(
-            "Dados Origem:",
-            "",
-            placeholder="Caminho do CSV/SHP/GPKG...",
-            browse_mode="open_file",
-            file_filter="Dados (*.csv *.shp *.gpkg);;CSV (*.csv);;Shapefile (*.shp);;GeoPackage (*.gpkg);;Todos (*.*)",
-            label_width=140,
-        )
-        self._sel_output = SimpleSelector(
-            "Pasta Saida:",
-            "",
-            placeholder="Pasta onde os MRKs processados serao salvos...",
-            browse_mode="directory",
-            label_width=140,
-        )
-
-        # Opcoes
-        self._grid_opts = GridCheckBox(
-            config={
-                RECURSIVE_KEY: {
-                    "label": "Vasculhar subpastas",
-                    "description": "Inclui arquivos de subpastas recursivamente (modo lote)",
-                    "default": False,
-                },
-            },
-            num_columns=1,
-        )
+        self._sel_mrk_file = SimpleSelector("Arquivo MRK:", "", placeholder="Caminho do arquivo .MRK...", browse_mode="open_file", file_filter="MRK (*.MRK *.mrk);;Todos (*.*)", label_width=140)
+        self._sel_mrk_dir = SimpleSelector("Pasta MRK:", "", placeholder="Caminho da pasta com arquivos .MRK...", browse_mode="directory", label_width=140)
+        self._sel_data = SimpleSelector("Dados Origem:", "", placeholder="Caminho do CSV/SHP/GPKG...", browse_mode="open_file", file_filter="Dados (*.csv *.shp *.gpkg);;CSV (*.csv);;Shapefile (*.shp);;GeoPackage (*.gpkg);;Todos (*.*)", label_width=140)
+        self._sel_output = SimpleSelector("Pasta Saida:", "", placeholder="Pasta onde os MRKs serao salvos...", browse_mode="directory", label_width=140)
+        self._grid_opts = GridCheckBox(config={RECURSIVE_KEY: {"label": "Vasculhar subpastas", "description": "Inclui subpastas recursivamente (modo lote)", "default": False}}, num_columns=1)
 
         grp_files = GroupPainel("Arquivos")
         grp_files.group_layout.addWidget(self._sel_mrk_file)
@@ -207,491 +126,79 @@ class MrkSubstitutorPlugin(BasePlugin):
         grp_files.group_layout.addWidget(self._sel_output)
         grp_files.group_layout.addWidget(self._grid_opts)
 
-        # ── Painel Mapeamento (coluna 1) ─────────────────────────────
         self._mapping = GridFieldMapping(MAPPING_CONFIG)
-
         grp_map = GroupPainel("Mapeamento de Campos")
         grp_map.group_layout.addWidget(self._mapping)
 
-        # ── Grid: colunas 0 e 1 (sem status) ─────────────────────────
-        grid_painels = GridGroupPainel(grp_files, grp_map)
-        self.main_layout.addWidget(grid_painels)
+        self.main_layout.addWidget(GridGroupPainel(grp_files, grp_map))
 
     # ══════════════════════════════════════════════════════════════════
-    # Cenario / Visibilidade
+    # Cenario
     # ══════════════════════════════════════════════════════════════════
 
     def _on_scenario_changed(self, mode: str):
-        """Cenario mudou — atualiza visibilidade dos campos."""
-        self.logger.info(f"Modo alterado: {mode}", code="MRK_MODE_CHANGE")
         self._update_ui_for_mode()
 
     def _update_ui_for_mode(self):
-        """Atualiza visibilidade dos SimpleSelectors conforme o cenario."""
         mode = self._grid_scenario.selected
-        is_batch = (mode == MODE_BATCH)
-        is_single = (mode == MODE_SINGLE)
-
-        self._sel_mrk_file.setVisible(is_single)
-        self._sel_mrk_dir.setVisible(is_batch)
-        self._sel_data.setVisible(is_single)
+        self._sel_mrk_file.setVisible(mode == MODE_SINGLE)
+        self._sel_mrk_dir.setVisible(mode == MODE_BATCH)
+        self._sel_data.setVisible(mode == MODE_SINGLE)
 
     # ══════════════════════════════════════════════════════════════════
-    # Navegacao / Busca de Arquivos
+    # Mapping
     # ══════════════════════════════════════════════════════════════════
 
     def _get_active_mapping(self) -> Dict[str, str]:
-        """
-        Retorna mapeamento ativo: {mrk_field: data_column}.
-
-        Exemplo: {"Ellh": "AbsZ", "Lat": "Latitude"}
-        """
         mapping = {}
-        values = self._mapping.values
-        for key, data in values.items():
+        for key, data in self._mapping.values.items():
             if data["enabled"]:
-                data_col = data["from"].strip()
-                mrk_field = data["to"].strip()
-                if data_col and mrk_field:
-                    mapping[mrk_field] = data_col
+                dc = data["from"].strip()
+                mf = data["to"].strip()
+                if dc and mf:
+                    mapping[mf] = dc
         return mapping
 
-    def _find_files(self, root_path: str, extensions: frozenset[str]) -> List[Path]:
-        """
-        Encontra arquivos por extensao em um diretorio.
-        Delega a busca generica para ExplorerUtils.find_files().
-
-        Args:
-            root_path: Caminho do diretorio.
-            extensions: Conjunto de extensoes (ex: frozenset({".mrk"})).
-
-        Returns:
-            Lista de Paths dos arquivos encontrados.
-        """
-        recursive = bool(self._grid_opts.all.get(RECURSIVE_KEY, False))
-        paths = ExplorerUtils.find_files(root_path, extensions, recursive=recursive)
-        return [Path(p) for p in paths]
-
-    def _find_data_file_for_mrk(self, mrk_path: Path, search_dir: str | None = None) -> Optional[str]:
-        """
-        Busca arquivo de dados correspondente a um MRK.
-
-        Logica especifica do dominio MRK:
-        1. Extrai base_name do MRK (sem extensao).
-        2. Se search_dir for informado, busca la; senao no mesmo diretorio do MRK.
-        3. Procura por: base_name.gpkg > base_name.shp > base_name.csv (exato).
-        4. Se nao achar, busca qualquer arquivo contendo base_name como substring.
-        5. Prioriza .gpkg > .shp > .csv.
-
-        Args:
-            mrk_path: Path do arquivo MRK.
-            search_dir: Diretorio de busca (opcional).
-
-        Returns:
-            Caminho do arquivo de dados encontrado, ou None.
-        """
-        base_name = mrk_path.stem  # sem extensao
-        directory = Path(search_dir) if search_dir else mrk_path.parent
-
+    def _find_data_file(self, mrk_path: Path) -> Optional[str]:
+        """Busca arquivo de dados correspondente ao MRK (mesmo diretorio)."""
+        base_name = mrk_path.stem
+        directory = mrk_path.parent
         if not directory.is_dir():
             return None
-
-        # Busca exata primeiro: base_name.gpkg > base_name.shp > base_name.csv
         for ext in [".gpkg", ".shp", ".csv"]:
             candidate = directory / f"{base_name}{ext}"
             if candidate.is_file():
-                self.logger.info(
-                    f"Arquivo de dados encontrado para {mrk_path.name}",
-                    code="MRK_DATA_FOUND",
-                    data_path=str(candidate),
-                )
-                SignalManager.instance().console_message.emit(
-                    f"[MrkSubst] Dados encontrados: {candidate.name}"
-                )
                 return str(candidate)
-
-        # Busca flexivel: contem base_name como substring
-        candidates: List[Path] = []
+        candidates = []
         for ext in [".gpkg", ".shp", ".csv"]:
-            pattern = f"*{ext}"
-            for f in directory.glob(pattern):
+            for f in directory.glob(f"*{ext}"):
                 if f.is_file() and base_name.lower() in f.stem.lower():
                     candidates.append(f)
-
         if candidates:
-            # Prioriza .gpkg > .shp > .csv
-            def _priority(p: Path) -> int:
-                ext = p.suffix.lower()
-                if ext == ".gpkg":
-                    return 0
-                if ext == ".shp":
-                    return 1
-                return 2
-
-            best = min(candidates, key=_priority)
-            self.logger.info(
-                f"Arquivo de dados encontrado (flex) para {mrk_path.name}",
-                code="MRK_DATA_FOUND_FLEX",
-                data_path=str(best),
-            )
-            SignalManager.instance().console_message.emit(
-                f"[MrkSubst] Dados encontrados: {best.name}"
-            )
+            best = min(candidates, key=lambda p: 0 if p.suffix.lower() == ".gpkg" else 1 if p.suffix.lower() == ".shp" else 2)
             return str(best)
-
-        self.logger.warning(
-            f"Nenhum arquivo de dados encontrado para {mrk_path.name}",
-            code="MRK_DATA_NOT_FOUND",
-        )
-        SignalManager.instance().console_message.emit(
-            f"[MrkSubst] AVISO: Nenhum dado para {mrk_path.name}"
-        )
         return None
-
-    # ══════════════════════════════════════════════════════════════════
-    # Logica Central (extraida do substituir_mrk.py)
-    # ══════════════════════════════════════════════════════════════════
-
-    @staticmethod
-    def _parse_mrk_line(line: str) -> Dict:
-        """
-        Analisa uma linha do MRK (formato TSV) e retorna:
-          - parts: lista das colunas
-          - replacements: dict {campo: {value_str, len, idx}}
-        """
-        parts = line.split("\t")
-        replacements: Dict[str, Dict] = {}
-        indices: Dict[str, int] = {}
-
-        for i, col in enumerate(parts):
-            col_stripped = col.strip()
-            for field in ["Lat", "Lon", "Ellh"]:
-                pattern = rf"^(.+),{re.escape(field)}$"
-                match = re.match(pattern, col_stripped)
-                if match:
-                    value_str = match.group(1).strip()
-                    replacements[field] = {
-                        "value_str": value_str,
-                        "length": len(value_str),
-                        "idx": i,
-                    }
-                    indices[field] = i
-                    break
-
-        return {
-            "parts": parts,
-            "replacements": replacements,
-            "indices": indices,
-        }
-
-    @staticmethod
-    def _pad_value(original_value: str, new_value: str) -> str:
-        """
-        Ajusta o novo valor para ter o MESMO comprimento do valor original,
-        preservando a posicao decimal.
-        """
-        original_length = len(original_value)
-        result = new_value
-
-        if len(result) == original_length:
-            return result
-
-        if "." in original_value:
-            if "." in result:
-                original_parts = original_value.split(".")
-                new_parts = result.split(".")
-                original_decimals = len(original_parts[1]) if len(original_parts) > 1 else 0
-                new_decimals = len(new_parts[1]) if len(new_parts) > 1 else 0
-
-                if new_decimals < original_decimals:
-                    result = result + "0" * (original_decimals - new_decimals)
-                elif new_decimals > original_decimals:
-                    result = new_parts[0] + "." + new_parts[1][:original_decimals]
-
-                if len(result) < original_length:
-                    diff = original_length - len(result)
-                    result = result + "0" * diff
-            else:
-                original_parts = original_value.split(".")
-                original_decimals = len(original_parts[1]) if len(original_parts) > 1 else 0
-                result = result + "." + "0" * original_decimals
-                if len(result) < original_length:
-                    diff = original_length - len(result)
-                    result = result + "0" * diff
-
-            if len(result) > original_length:
-                result = result[:original_length]
-
-            return result
-
-        if len(result) < original_length:
-            result = result + "0" * (original_length - len(result))
-        elif len(result) > original_length:
-            result = result[:original_length]
-
-        return result
-
-    @staticmethod
-    def _build_mrk_line(parts: List[str], indices: Dict, new_values: Dict,
-                        original_replacements: Dict) -> str:
-        """Reconstroi a linha do MRK preservando a tabulacao."""
-        for field, new_value in new_values.items():
-            if field in indices:
-                idx = indices[field]
-                col_original = parts[idx].strip()
-                original_value = original_replacements[field]["value_str"]
-                padded = MrkSubstitutorPlugin._pad_value(original_value, new_value)
-
-                match = re.match(r"^.*(," + re.escape(field) + r")$", col_original)
-                if match:
-                    suffix = match.group(1)
-                    parts[idx] = f"{padded}{suffix}"
-
-        return "\t".join(parts)
-
-    def _process_mrk(self, mrk_path: Path, data: List[dict],
-                     mapping: Dict[str, str], output_dir: Path) -> int:
-        """
-        Processa um arquivo MRK com os dados fornecidos.
-
-        Args:
-            mrk_path: Path do arquivo MRK.
-            data: Lista de dicts com os dados (do VectorLayerSource).
-            mapping: Dict {mrk_field: data_column} (ex: {"Ellh": "AbsZ"}).
-            output_dir: Diretorio de saida.
-
-        Returns:
-            Numero de substituicoes realizadas.
-        """
-        # Le MRK
-        with open(mrk_path, "r", encoding="utf-8") as f:
-            mrk_lines = f.readlines()
-
-        output_lines: List[str] = []
-        total_replacements = 0
-        total_mrk_lines = len(mrk_lines)
-        total_data_lines = len(data)
-        process_count = min(total_mrk_lines, total_data_lines)
-
-        for idx in range(process_count):
-            raw_line = mrk_lines[idx]
-            line_no_nl = raw_line.rstrip("\n").rstrip("\r")
-            row_data = data[idx]
-
-            parsed = self._parse_mrk_line(line_no_nl)
-            parts = parsed["parts"]
-            replacements = parsed["replacements"]
-            indices = parsed["indices"]
-
-            new_values: Dict[str, str] = {}
-            for mrk_field, data_column in mapping.items():
-                if mrk_field in indices and data_column in row_data:
-                    new_val = row_data[data_column].strip()
-                    old_val = replacements[mrk_field]["value_str"]
-                    if new_val and new_val != old_val:
-                        new_values[mrk_field] = new_val
-                        total_replacements += 1
-                        self.logger.info(
-                            f"[{mrk_path.name}] Linha {idx + 1}: "
-                            f"{mrk_field}: '{old_val}' (len={len(old_val)}) -> "
-                            f"'{new_val}' (len={len(new_val)})",
-                            code="MRK_REPLACE",
-                        )
-                        SignalManager.instance().console_message.emit(
-                            f"[MrkSubst] {mrk_path.name} L{idx+1}: {mrk_field} {old_val} -> {new_val}"
-                        )
-
-            if new_values:
-                modified = self._build_mrk_line(parts, indices, new_values, replacements)
-                if raw_line.endswith("\r\n"):
-                    output_lines.append(modified + "\r\n")
-                else:
-                    output_lines.append(modified + "\n")
-            else:
-                output_lines.append(raw_line)
-
-        # Copia linhas restantes se MRK tem mais linhas que dados
-        if total_mrk_lines > process_count:
-            for idx in range(process_count, total_mrk_lines):
-                output_lines.append(mrk_lines[idx])
-
-        # Garante diretorio de saida
-        output_dir.mkdir(parents=True, exist_ok=True)
-        output_path = output_dir / mrk_path.name
-
-        with open(output_path, "w", encoding="utf-8") as f:
-            f.writelines(output_lines)
-
-        self.logger.info(
-            f"Arquivo gerado: {output_path.name} | Substituicoes: {total_replacements}",
-            code="MRK_DONE",
-        )
-        SignalManager.instance().console_message.emit(
-            f"[MrkSubst] {output_path.name} -> {total_replacements} substituicoes"
-        )
-
-        return total_replacements
-
-    # ══════════════════════════════════════════════════════════════════
-    # Execucao
-    # ══════════════════════════════════════════════════════════════════
-
-    def _on_save_config(self):
-        """Salva configuracao atual nas preferencias."""
-        self.save_prefs()
-        MessageBox.show_info("Configuracao salva com sucesso!", title="Salvo")
-
-    def _on_executar(self):
-        """Executa a substituicao nos MRKs."""
-        self.logger.info("Iniciando execucao", code="MRK_EXEC_START")
-        SignalManager.instance().console_message.emit("[MrkSubst] Iniciando processamento...")
-
-        # Valida mapeamento
-        mapping = self._get_active_mapping()
-        if not mapping:
-            MessageBox.show_warning(
-                "Nenhum mapeamento ativo. Habilite pelo menos um campo no Mapeamento de Campos.",
-                title="Aviso",
-            )
-            return
-
-        # Valida pasta de saida
-        output_dir_str = self._sel_output.path()
-        if not output_dir_str:
-            MessageBox.show_warning("Selecione uma pasta de saida.", title="Aviso")
-            return
-        output_dir = Path(output_dir_str)
-        output_dir.mkdir(parents=True, exist_ok=True)
-
-        mode = self._grid_scenario.selected
-
-        try:
-            if mode == MODE_SINGLE:
-                total_replacements = self._exec_single(mapping, output_dir)
-            else:
-                total_replacements = self._exec_batch(mapping, output_dir)
-
-            msg = f"Processamento concluido! Total de substituicoes: {total_replacements}"
-            self.logger.info(msg, code="MRK_EXEC_DONE")
-            SignalManager.instance().console_message.emit(f"[MrkSubst] {msg}")
-            SignalManager.instance().progress_update.emit(100.0)
-            MessageBox.show_info(msg, title="Concluido")
-
-        except Exception as e:
-            self.logger.error("Erro durante execucao", code="MRK_EXEC_ERR", error=str(e))
-            SignalManager.instance().console_message.emit(
-                f"[MrkSubst] ERRO: {str(e)}"
-            )
-            MessageBox.show_error(f"Erro durante execucao: {str(e)}", title="Erro")
-
-        self.save_prefs()
-
-    def _exec_single(self, mapping: Dict[str, str], output_dir: Path) -> int:
-        """Executa no modo arquivo unico (Cenario 1)."""
-        mrk_path_str = self._sel_mrk_file.path()
-        data_path_str = self._sel_data.path()
-
-        if not mrk_path_str:
-            MessageBox.show_warning("Selecione o arquivo MRK.", title="Aviso")
-            return 0
-        if not data_path_str:
-            MessageBox.show_warning("Selecione o arquivo de dados.", title="Aviso")
-            return 0
-
-        mrk_path = Path(mrk_path_str)
-        if not mrk_path.is_file():
-            MessageBox.show_warning(f"Arquivo MRK nao encontrado: {mrk_path_str}", title="Erro")
-            return 0
-
-        SignalManager.instance().console_message.emit(f"[MrkSubst] Carregando: {data_path_str}")
-
-        data = VectorLayerSource.read(data_path_str, tool_key=self.tool_key)
-
-        SignalManager.instance().progress_update.emit(10.0)
-        total = self._process_mrk(mrk_path, data, mapping, output_dir)
-        SignalManager.instance().progress_update.emit(100.0)
-
-        return total
-
-    def _exec_batch(self, mapping: Dict[str, str], output_dir: Path) -> int:
-        """Executa no modo lote por pasta (Cenario 2)."""
-        mrk_dir_str = self._sel_mrk_dir.path()
-
-        if not mrk_dir_str:
-            MessageBox.show_warning("Selecione a pasta com arquivos MRK.", title="Aviso")
-            return 0
-
-        mrk_files = self._find_files(mrk_dir_str, MRK_EXTENSIONS)
-        if not mrk_files:
-            MessageBox.show_warning(
-                "Nenhum arquivo .MRK encontrado na pasta especificada.",
-                title="Aviso",
-            )
-            return 0
-
-        SignalManager.instance().console_message.emit(
-            f"[MrkSubst] {len(mrk_files)} MRKs encontrados"
-        )
-
-        total_replacements = 0
-        total_mrks = len(mrk_files)
-
-        for idx, mrk_path in enumerate(mrk_files):
-            # Progresso
-            pct = (idx / total_mrks) * 90.0 + 10.0
-            SignalManager.instance().progress_update.emit(pct)
-
-            # Busca dados correspondentes (logica especifica do MRK)
-            data_path = self._find_data_file_for_mrk(mrk_path)
-            if data_path is None:
-                continue
-
-            SignalManager.instance().console_message.emit(
-                f"[MrkSubst] Processando {mrk_path.name}..."
-            )
-
-            try:
-                data = VectorLayerSource.read(data_path, tool_key=self.tool_key)
-                total = self._process_mrk(mrk_path, data, mapping, output_dir)
-                total_replacements += total
-            except Exception as e:
-                self.logger.error(
-                    f"Erro ao processar {mrk_path.name}",
-                    code="MRK_BATCH_ERR",
-                    error=str(e),
-                )
-                SignalManager.instance().console_message.emit(
-                    f"[MrkSubst] ERRO em {mrk_path.name}: {str(e)}"
-                )
-
-        return total_replacements
 
     # ══════════════════════════════════════════════════════════════════
     # Preferences
     # ══════════════════════════════════════════════════════════════════
 
     def load_prefs(self):
-        """Carrega preferencias salvas."""
         self._sel_mrk_file.set_path(self.preferences.get(MRK_FILE_KEY, ""))
         self._sel_mrk_dir.set_path(self.preferences.get(MRK_DIR_KEY, ""))
         self._sel_data.set_path(self.preferences.get(DATA_FILE_KEY, ""))
         self._sel_output.set_path(self.preferences.get(OUTPUT_DIR_KEY, ""))
-
         mode = self.preferences.get(MODE_KEY, MODE_SINGLE)
         self._grid_scenario.set_selected(mode)
-
         mapping_prefs = self.preferences.get(MAPPING_KEY, {})
         if mapping_prefs:
             self._mapping.set_values(mapping_prefs, block_signals=True)
-
         opts = self.preferences.get("options", {})
         if opts:
             self._grid_opts.set_all(opts)
-
         self._update_ui_for_mode()
 
     def save_prefs(self):
-        """Salva preferencias atuais."""
         self.preferences[MRK_FILE_KEY] = self._sel_mrk_file.path()
         self.preferences[MRK_DIR_KEY] = self._sel_mrk_dir.path()
         self.preferences[DATA_FILE_KEY] = self._sel_data.path()
@@ -699,3 +206,142 @@ class MrkSubstitutorPlugin(BasePlugin):
         self.preferences[MODE_KEY] = self._grid_scenario.selected or MODE_SINGLE
         self.preferences[MAPPING_KEY] = self._mapping.all
         self.preferences["options"] = self._grid_opts.all
+
+    # ══════════════════════════════════════════════════════════════════
+    # Execucao
+    # ══════════════════════════════════════════════════════════════════
+
+    def _on_save_config(self):
+        self.save_prefs()
+        self.force_save_prefs()
+        MessageBox.show_info("Configuracao salva!", title="Salvo")
+
+    def _on_executar(self):
+        mapping = self._get_active_mapping()
+        if not mapping:
+            MessageBox.show_warning("Habilite pelo menos um campo no Mapeamento.", title="Aviso")
+            return
+        output_dir_str = self._sel_output.path()
+        if not output_dir_str:
+            MessageBox.show_warning("Selecione uma pasta de saida.", title="Aviso")
+            return
+
+        self._btns.set_all_enabled(False)
+        SignalManager.instance().hud_show.emit({"message": "Preparando..."})
+        SignalManager.instance().progress_update.emit(0.0)
+
+        from core.task.MrkBatchWorker import MrkBatchWorker
+
+        output_dir = Path(output_dir_str)
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        if self._grid_scenario.selected == MODE_SINGLE:
+            self._worker = self._create_single_worker(mapping, output_dir)
+        else:
+            self._worker = self._create_batch_worker(mapping, output_dir)
+
+        if self._worker:
+            self._worker.start()
+
+    def _cleanup_worker(self):
+        if self._worker:
+            try:
+                self._worker.quit()
+                self._worker.wait(500)
+            except Exception:
+                pass
+            self._worker = None
+        self._btns.set_all_enabled(True)
+        SignalManager.instance().hud_hide.emit()
+
+    # ══════════════════════════════════════════════════════════════════
+    # Single Worker
+    # ══════════════════════════════════════════════════════════════════
+
+    def _create_single_worker(self, mapping: Dict[str, str], output_dir: Path):
+        mrk_path_str = self._sel_mrk_file.path()
+        data_path_str = self._sel_data.path()
+        if not mrk_path_str or not data_path_str:
+            self._cleanup_worker()
+            MessageBox.show_warning("Selecione o arquivo MRK e de dados.", title="Aviso")
+            return None
+
+        from core.task.MrkBatchWorker import MrkSingleTask
+
+        task = MrkSingleTask(
+            mrk_path=mrk_path_str,
+            data_path=data_path_str,
+            mapping=mapping,
+            output_dir=str(output_dir),
+            tool_key=self.tool_key,
+        )
+        task.finished_ok.connect(self._on_single_done)
+        task.failed.connect(self._on_worker_failed)
+        task.progress_updated.connect(lambda p: SignalManager.instance().progress_update.emit(p))
+        task.console_msg.connect(lambda m: SignalManager.instance().console_message.emit(f"[MrkSubst] {m}"))
+        return task
+
+    def _on_single_done(self, total: int):
+        self._cleanup_worker()
+        SignalManager.instance().progress_update.emit(100.0)
+        msg = f"Concluido! {total} substituicoes."
+        self.logger.info(msg, code="MRK_SINGLE_DONE")
+        SignalManager.instance().console_message.emit(f"[MrkSubst] {msg}")
+        MessageBox.show_info(msg, title="Concluido")
+        self.save_prefs()
+        self.force_save_prefs()
+
+    def _on_worker_failed(self, error: str):
+        self._cleanup_worker()
+        self.logger.error("Erro no worker", code="MRK_WORKER_ERR", error=error)
+        SignalManager.instance().console_message.emit(f"[MrkSubst] ERRO: {error}")
+        MessageBox.show_error(f"Erro: {error}", title="Erro")
+
+    # ══════════════════════════════════════════════════════════════════
+    # Batch Worker
+    # ══════════════════════════════════════════════════════════════════
+
+    def _create_batch_worker(self, mapping: Dict[str, str], output_dir: Path):
+        mrk_dir_str = self._sel_mrk_dir.path()
+        if not mrk_dir_str:
+            self._cleanup_worker()
+            MessageBox.show_warning("Selecione a pasta com MRKs.", title="Aviso")
+            return None
+
+        recursive = bool(self._grid_opts.all.get(RECURSIVE_KEY, False))
+        mrk_paths = [str(p) for p in ExplorerUtils.find_files(mrk_dir_str, MRK_EXTENSIONS, recursive=recursive)]
+        mrk_paths = [p for p in mrk_paths if Path(p).suffix.lower() == ".mrk"]
+
+        if not mrk_paths:
+            self._cleanup_worker()
+            MessageBox.show_warning("Nenhum arquivo .MRK encontrado.", title="Aviso")
+            return None
+
+        SignalManager.instance().console_message.emit(f"[MrkSubst] {len(mrk_paths)} MRKs encontrados")
+
+        from core.task.MrkBatchWorker import MrkBatchWorker
+
+        worker = MrkBatchWorker(
+            mrk_paths=mrk_paths,
+            mapping=mapping,
+            output_dir=str(output_dir),
+            tool_key=self.tool_key,
+        )
+        worker.finished_ok.connect(self._on_batch_done)
+        worker.failed.connect(self._on_worker_failed)
+        worker.progress_updated.connect(lambda p: SignalManager.instance().progress_update.emit(p))
+        worker.console_msg.connect(lambda m: SignalManager.instance().console_message.emit(f"[MrkSubst] {m}"))
+        worker.hud_update_msg.connect(lambda m: SignalManager.instance().hud_update.emit({"message": m}))
+        return worker
+
+    def _on_batch_done(self, total: int, processed: int, failed: int):
+        self._cleanup_worker()
+        SignalManager.instance().progress_update.emit(100.0)
+        msg = f"Lote concluido! {total} substituicoes em {processed} MRKs."
+        if failed:
+            msg += f" {failed} falhas."
+        self.logger.info(msg, code="MRK_BATCH_DONE")
+        SignalManager.instance().console_message.emit(f"[MrkSubst] {msg}")
+        MessageBox.show_info(msg, title="Concluido")
+        self.save_prefs()
+        self.force_save_prefs()
