@@ -345,10 +345,11 @@ class MainWindow(QMainWindow):
         self._on_progress_reset()
 
     def _on_execution_finished(self, tool_name: str):
-        """Fim de execução: esconde HUD e marca 100% na progress."""
+        """Fim de execução: esconde HUD e reseta progress para 0%."""
+        logger = LogUtils(tool="System", class_name="MainWindow")
+        logger.info("Execucao finalizada, resetando progress", code="EXEC_DONE_RESET", tool=tool_name)
         self._hud.hide_loader()
-        self.progress.setValue(10000)
-        self.progress.setFormat(" 100% - concluído! ")
+        self._on_progress_reset()
 
     def _on_execution_cancelled(self, tool_name: str):
         """Cancelamento: esconde HUD e reseta progresso."""
