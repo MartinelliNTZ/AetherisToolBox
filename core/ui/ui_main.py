@@ -260,6 +260,7 @@ class MainWindow(QMainWindow):
         self.progress.setFixedHeight(20)
         root_layout.addWidget(self.progress)
         SignalManager.instance().progress_update.connect(self._on_progress_update)
+        SignalManager.instance().progress_reset.connect(self._on_progress_reset)
 
         # HUD Loader (overlay)
         self._hud = HudCircularRingsLoader(self)
@@ -267,6 +268,11 @@ class MainWindow(QMainWindow):
         SignalManager.instance().hud_show.connect(self._on_hud_show)
         SignalManager.instance().hud_update.connect(self._on_hud_update)
         SignalManager.instance().hud_hide.connect(self._on_hud_hide)
+
+        # Ciclo de vida de execução
+        SignalManager.instance().execution_started.connect(self._on_execution_started)
+        SignalManager.instance().execution_finished.connect(self._on_execution_finished)
+        SignalManager.instance().execution_cancelled.connect(self._on_execution_cancelled)
 
     # ── Handlers ───────────────────────────────────────────────────
 
@@ -326,6 +332,28 @@ class MainWindow(QMainWindow):
 
     def _on_hud_hide(self):
         self._hud.hide_loader()
+
+    def _on_progress_reset(self):
+        """Reseta a barra de progresso para 0%."""
+        self.progress.setValue(0)
+        self.progress.setFormat(" %p% - aguardando... ")
+
+    def _on_execution_started(self, tool_name: str):
+        """Início de execução: mostra HUD e reseta progresso."""
+        self._hud.set_progress(0.0, f"Iniciando {tool_name}...")
+        self._hud.show_loader()
+        self._on_progress_reset()
+
+    def _on_execution_finished(self, tool_name: str):
+        """Fim de execução: esconde HUD e marca 100% na progress."""
+        self._hud.hide_loader()
+        self.progress.setValue(10000)
+        self.progress.setFormat(" 100% - concluído! ")
+
+    def _on_execution_cancelled(self, tool_name: str):
+        """Cancelamento: esconde HUD e reseta progresso."""
+        self._hud.hide_loader()
+        self._on_progress_reset()
 
     def _toggle_maximize_restore(self) -> None:
         if self.isMaximized():

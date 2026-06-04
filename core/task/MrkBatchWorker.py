@@ -180,7 +180,7 @@ class MrkBatchWorker(QThread):
     failed = Signal(str)
     progress_updated = Signal(float)
     console_msg = Signal(str)
-    hud_update_msg = Signal(str)
+    hud_update_msg = Signal(str, float)  # message, progress
 
     def __init__(
         self,
@@ -205,12 +205,12 @@ class MrkBatchWorker(QThread):
             total = len(self._mrk_paths)
 
             for idx, mrk_path_str in enumerate(self._mrk_paths):
-                if total > 0:
-                    self.progress_updated.emit((idx / total) * 100.0)
+                pct = (idx / total) * 100.0 if total > 0 else 0.0
+                self.progress_updated.emit(pct)
 
                 mrk_path = Path(mrk_path_str)
                 self.hud_update_msg.emit(
-                    f"Processando {idx+1}/{total}: {mrk_path.name}"
+                    f"Processando {idx+1}/{total}: {mrk_path.name}", pct
                 )
 
                 # Busca dados correspondentes

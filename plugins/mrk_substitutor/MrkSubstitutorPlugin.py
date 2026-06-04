@@ -227,8 +227,12 @@ class MrkSubstitutorPlugin(BasePlugin):
             return
 
         self._btns.set_all_enabled(False)
-        SignalManager.instance().hud_show.emit({"message": "Preparando..."})
+
+        # Sinaliza inicio de execucao (ativa HUD + reseta progress)
+        SignalManager.instance().execution_started.emit(self.tool_key)
+        SignalManager.instance().console_message.emit(f"[{self.tool_key}] Iniciando execucao...")
         SignalManager.instance().progress_update.emit(0.0)
+        SignalManager.instance().hud_show.emit({"message": "Preparando..."})
 
         from core.task.MrkBatchWorker import MrkBatchWorker
 
@@ -252,7 +256,14 @@ class MrkSubstitutorPlugin(BasePlugin):
                 pass
             self._worker = None
         self._btns.set_all_enabled(True)
-        SignalManager.instance().hud_hide.emit()
+
+    def _on_progress_both(self, progress: float):
+        """Propaga progresso para ProgressBar e HUD simultaneamente."""
+        SignalManager.instance().progress_update.emit(progress)
+        SignalManager.instance().hud_update.emit({
+            "message": f"Processando... {progress:.1f}%",
+            "progress": progress,
+        })
 
     # ══════════════════════════════════════════════════════════════════
     # Single Worker
@@ -277,15 +288,15 @@ class MrkSubstitutorPlugin(BasePlugin):
         )
         task.finished_ok.connect(self._on_single_done)
         task.failed.connect(self._on_worker_failed)
-        task.progress_updated.connect(lambda p: SignalManager.instance().progress_update.emit(p))
+        task.progress_updated.connect(lambda p: self._on_progress_both(p))
         task.console_msg.connect(lambda m: SignalManager.instance().console_message.emit(f"[MrkSubst] {m}"))
         return task
 
     def _on_single_done(self, total: int):
         self._cleanup_worker()
-        SignalManager.instance().progress_update.emit(100.0)
         msg = f"Concluido! {total} substituicoes."
         self.logger.info(msg, code="MRK_SINGLE_DONE")
+        SignalManager.instance().execution_finished.emit(self.tool_key)
         SignalManager.instance().console_message.emit(f"[MrkSubst] {msg}")
         MessageBox.show_info(msg, title="Concluido")
         self.save_prefs()
@@ -294,6 +305,7 @@ class MrkSubstitutorPlugin(BasePlugin):
     def _on_worker_failed(self, error: str):
         self._cleanup_worker()
         self.logger.error("Erro no worker", code="MRK_WORKER_ERR", error=error)
+        SignalManager.instance().execution_cancelled.emit(self.tool_key)
         SignalManager.instance().console_message.emit(f"[MrkSubst] ERRO: {error}")
         MessageBox.show_error(f"Erro: {error}", title="Erro")
 
@@ -329,18 +341,18 @@ class MrkSubstitutorPlugin(BasePlugin):
         )
         worker.finished_ok.connect(self._on_batch_done)
         worker.failed.connect(self._on_worker_failed)
-        worker.progress_updated.connect(lambda p: SignalManager.instance().progress_update.emit(p))
+        worker.progress_updated.connect(lambda p: self._on_progress_both(p))
         worker.console_msg.connect(lambda m: SignalManager.instance().console_message.emit(f"[MrkSubst] {m}"))
-        worker.hud_update_msg.connect(lambda m: SignalManager.instance().hud_update.emit({"message": m}))
+        worker.hud_update_msg.connect(lambda m, p: SignalManager.instance().hud_update.emit({"message": m, "progress": p}))
         return worker
 
     def _on_batch_done(self, total: int, processed: int, failed: int):
         self._cleanup_worker()
-        SignalManager.instance().progress_update.emit(100.0)
         msg = f"Lote concluido! {total} substituicoes em {processed} MRKs."
         if failed:
             msg += f" {failed} falhas."
         self.logger.info(msg, code="MRK_BATCH_DONE")
+        SignalManager.instance().execution_finished.emit(self.tool_key)
         SignalManager.instance().console_message.emit(f"[MrkSubst] {msg}")
         MessageBox.show_info(msg, title="Concluido")
         self.save_prefs()
