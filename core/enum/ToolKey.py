@@ -29,6 +29,7 @@ class ToolKey(str, Enum):
     UNTRACEABLE = "Untraceable"
     ICO_CONVERTER = "IcoConverter"
     DOCLING = "Docling"
+    MRK_SUBSTITUTOR = "MrkSubstitutor"
 
     # ── Método utilitário ──────────────────────────────────────────────
 

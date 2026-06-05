@@ -30,7 +30,9 @@ import argparse
 # CONFIGURAÇÃO: dicionário de mapeamento coluna_dados -> MRK
 # ============================================================
 MAPPING = {
-    'AbsZ': 'Ellh',  # Coluna no dado -> campo no MRK (altitude)
+    'Latitude': 'Lat',    # descomente se quiser
+    'Longitude': 'Lon',   # descomente se quiser
+    'AbsZ': 'Ellh',       # Coluna no dado -> campo no MRK (altitude)
 }
 
 # Pasta de saída

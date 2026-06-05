@@ -928,6 +928,93 @@ combo = SimpleComboBox(items=["Opção A", "Opção B"])
 
 ---
 
+### `GridFieldMapping` — `GridFieldMapping.py`
+Grade rolável de mapeamento de campos com checkbox + label + lineedit + label + lineedit por linha. Widget genérico — não contém lógica de negócios.
+
+Checkbox unchecked → linha inteira desabilitada visualmente.
+Checkbox checked → campos editáveis.
+
+Configurado por dicionário com suporte a `tooltip` que propaga para todos sub-widgets.
+
+```python
+from resources.widgets.GridFieldMapping import GridFieldMapping
+
+config = {
+    "altitude": {
+        "from_label": "Campo Origem:",
+        "from_placeholder": "Ex: AbsZ",
+        "to_label": "Campo MRK:",
+        "to_placeholder": "Ex: Ellh",
+        "default_from": "AbsZ",
+        "default_to": "Ellh",
+        "default_enabled": True,
+        "tooltip": "Mapeamento de altitude",
+    },
+}
+
+grid = GridFieldMapping(config)
+grid.values           # dict apenas itens ativos
+grid.all              # dict completo (inclusive inativos)
+grid.get("altitude")  # {"from": "AbsZ", "to": "Ellh", "enabled": True}
+grid.set_values({"altitude": {"from": "Novo", "to": "Ellh", "enabled": False}})
+grid.set_enabled("altitude", True)
+grid.changed.connect(self._on_mapping_changed)
+```
+
+**Sinais:** `changed(key, values)` — emitido quando qualquer campo ou checkbox muda
+
+**Parâmetros do config:**
+- `from_label`: str — label do campo de origem
+- `from_placeholder`: str — placeholder do lineedit de origem
+- `to_label`: str — label do campo destino
+- `to_placeholder`: str — placeholder do lineedit destino
+- `default_from`: str — valor padrão do campo origem
+- `default_to`: str — valor padrão do campo destino
+- `default_enabled`: bool — checkbox inicia checked?
+- `tooltip`: str — tooltip propagado para todos sub-widgets
+
+---
+
+### `GridRadio` — `GridRadio.py`
+Grade de radio buttons organizados em colunas configuráveis, similar a `GridCheckBox`. Cada radio button tem label, description e tooltip definidos por dicionário.
+
+`num_columns=3` padrão. Se receber menos itens que colunas, distribui igualmente.
+
+```python
+from resources.widgets.GridRadio import GridRadio
+
+config = {
+    "single": {
+        "label": "Arquivo Unico",
+        "description": "Processa 1 arquivo",
+        "default": True,
+        "tooltip": "Modo de arquivo unico",
+    },
+    "batch": {
+        "label": "Lote por Pasta",
+        "description": "Processa varios",
+        "default": False,
+        "tooltip": "Modo de lote",
+    },
+}
+
+grid = GridRadio(config, num_columns=3)
+selected = grid.selected       # "single"
+selected_text = grid.selected_text  # "Arquivo Unico"
+grid.set_selected("batch")
+grid.changed.connect(self._on_radio_changed)
+```
+
+**Sinais:** `changed(key)` — emitido quando a seleção muda
+
+**Parâmetros do config:**
+- `label`: str — texto do radio button
+- `description`: str — descrição/tooltip (se `tooltip` não for informado)
+- `default`: bool — se True, inicia selecionado
+- `tooltip`: str — tooltip do radio button
+
+---
+
 ## 🆕 Como criar um Novo Widget
 
 1. Crie o arquivo em `resources/widgets/MeuWidget.py`
