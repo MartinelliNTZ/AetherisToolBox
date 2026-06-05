@@ -342,7 +342,7 @@ class MainWindow(QMainWindow):
         """Início de execução: mostra HUD e reseta progresso."""
         self._hud.set_progress(0.0, f"Iniciando {tool_name}...")
         self._hud.show_loader()
-        self._on_progress_reset()
+        self._on_progress_reset()#
 
     def _on_execution_finished(self, tool_name: str):
         """Fim de execução: esconde HUD e reseta progress para 0%."""
