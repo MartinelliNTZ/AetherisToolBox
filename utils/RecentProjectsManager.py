@@ -49,6 +49,8 @@ class RecentProjectsManager:
         """
         Adiciona um projeto à lista de recentes (ou move ao topo se já existe).
 
+        Lê o arquivo .mtl para extrair last_modified e folder (path).
+
         Args:
             project_path: Caminho completo do arquivo .mtl
         """
@@ -60,12 +62,36 @@ class RecentProjectsManager:
         # Remove se já existe (para mover ao topo)
         recents = [r for r in recents if r.get("path") != project_path]
 
-        # Adiciona no topo
+        # Adiciona no topo com dados enriquecidos
         project_name = Path(project_path).stem
+        folder = os.path.dirname(project_path)
+        last_modified = ""
+        active = os.path.isfile(project_path)
+
+        # Tenta ler last_modified do .mtl
+        if active:
+            try:
+                from utils.ProjectUtil import ProjectUtil
+                data = ProjectUtil.load_project(project_path)
+                if data:
+                    raw = data.get("last_modified", "")
+                    if raw:
+                        from utils.FormatUtils import FormatUtils
+                        try:
+                            from datetime import datetime
+                            dt = datetime.fromisoformat(raw)
+                            last_modified = FormatUtils.format_date(dt.timestamp())
+                        except Exception:
+                            last_modified = raw[:10]  # fallback: só a data
+            except Exception:
+                pass
+
         recents.insert(0, {
             "path": project_path,
+            "folder": folder,
             "name": project_name,
-            "active": os.path.isfile(project_path),
+            "last_modified": last_modified,
+            "active": active,
         })
 
         # Limita tamanho
