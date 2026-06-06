@@ -24,9 +24,12 @@ from __future__ import annotations
 
 import os
 
+from typing import Any, Dict, List
+
 from PySide6.QtCore import Signal
 
 from core.enum.ToolKey import ToolKey
+from core.manager.SignalManager import SignalManager
 from core.menus.BaseMenuItem import BaseMenuItem
 from resources.widgets.RecentProjectsMenu import RecentProjectsMenu
 from utils.RecentProjectsManager import RecentProjectsManager
@@ -60,8 +63,21 @@ class FileMenuItem(BaseMenuItem):
     # ── API pública ──────────────────────────────────────────────────
 
     def refresh_recentes(self) -> None:
-        """Reconstrói o submenu de recentes com dados atualizados do disco."""
+        """
+        Reconstrói o submenu de recentes lendo do disco.
+        Usado na construção inicial do menu.
+        """
         recents = self._recent_manager.get_validated()
+        self._recent_menu.rebuild(recents)
+
+    def rebuild_recentes_from_signal(self, recents: List[Dict[str, Any]]) -> None:
+        """
+        Reconstrói o submenu de recentes com dados recebidos via sinal (in-memory).
+        Mais rápido que refresh_recentes() porque não lê do disco.
+
+        Args:
+            recents: Lista de dicts com chaves path, name, active
+        """
         self._recent_menu.rebuild(recents)
 
     # ── Construção do menu ───────────────────────────────────────────

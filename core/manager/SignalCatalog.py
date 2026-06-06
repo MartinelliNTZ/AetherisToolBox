@@ -15,6 +15,8 @@ Uso:
 
 from __future__ import annotations
 
+from typing import Any, Dict, List
+
 from PySide6.QtCore import QObject, Signal
 
 
@@ -29,18 +31,19 @@ class SignalCatalog(QObject):
 
     # ── Sinais ───────────────────────────────────────────────────────
 
-    tool_opened:      Signal = Signal(str)   # emitido quando uma ferramenta é aberta
-    tool_closed:      Signal = Signal(str)   # emitido quando uma ferramenta é fechada
-    tool_focused:     Signal = Signal(str)   # emitido quando uma ferramenta ganha foco
-    app_startup:      Signal = Signal()      # emitido quando a aplicação inicia
-    app_shutdown:     Signal = Signal()      # emitido quando a aplicação encerra
-    console_message:  Signal = Signal(str)   # emitido para exibir mensagem no console
-    progress_update:  Signal = Signal(float) # emitido para atualizar a barra de progresso (0-100)
-    progress_reset:   Signal = Signal()      # emitido para resetar a barra de progresso
-    project_changed:  Signal = Signal()      # emitido quando o projeto ativo é salvo/criado
-    hud_show:         Signal = Signal(dict)  # emitido para exibir HUD loader: {"message": str}
-    hud_update:       Signal = Signal(dict)  # emitido para atualizar HUD: {"message": str, "progress": float}
-    hud_hide:         Signal = Signal()      # emitido para esconder HUD loader
-    execution_started: Signal = Signal(str)  # emitido quando plugin inicia execução: tool_name
-    execution_finished: Signal = Signal(str) # emitido quando plugin finaliza execução: tool_name
-    execution_cancelled: Signal = Signal(str) # emitido quando plugin cancela execução: tool_name
+    tool_opened:          Signal = Signal(str)   # emitido quando uma ferramenta é aberta
+    tool_closed:          Signal = Signal(str)   # emitido quando uma ferramenta é fechada
+    tool_focused:         Signal = Signal(str)   # emitido quando uma ferramenta ganha foco
+    app_startup:          Signal = Signal()      # emitido quando a aplicação inicia
+    app_shutdown:         Signal = Signal()      # emitido quando a aplicação encerra
+    console_message:      Signal = Signal(str)   # emitido para exibir mensagem no console
+    progress_update:      Signal = Signal(float) # emitido para atualizar a barra de progresso (0-100)
+    progress_reset:       Signal = Signal()      # emitido para resetar a barra de progresso
+    project_changed:      Signal = Signal()      # emitido quando o projeto ativo é salvo/criado
+    recent_projects_changed: Signal = Signal(list)  # emitido quando a lista de recentes muda: list[dict]
+    hud_show:             Signal = Signal(dict)  # emitido para exibir HUD loader: {"message": str}
+    hud_update:           Signal = Signal(dict)  # emitido para atualizar HUD: {"message": str, "progress": float}
+    hud_hide:             Signal = Signal()      # emitido para esconder HUD loader
+    execution_started:    Signal = Signal(str)  # emitido quando plugin inicia execução: tool_name
+    execution_finished:   Signal = Signal(str) # emitido quando plugin finaliza execução: tool_name
+    execution_cancelled:  Signal = Signal(str) # emitido quando plugin cancela execução: tool_name

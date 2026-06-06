@@ -39,6 +39,7 @@ O `SignalManager` é o canal oficial para mensagens entre plugins e entre plugin
 | `progress_update` | `Signal(float)` | Progresso global (0.0–100.0) para a ProgressBar da `MainWindow` |
 | `progress_reset` | `Signal()` | Reseta a barra de progresso para 0% |
 | `project_changed` | `Signal()` | Projeto ativo foi salvo/criado |
+| `recent_projects_changed` | `Signal(list)` | Lista de projetos recentes foi alterada: `list[dict]` com chaves path, name, active. Emitido após add_recent/remove_recent. FileMenuItem conecta-se a este sinal para atualizar o submenu "Abrir Recente" em tempo real. |
 | `hud_show` | `Signal(dict)` | Exibe HUD Loader: `{"message": str}` |
 | `hud_update` | `Signal(dict)` | Atualiza HUD: `{"message": str, "progress": float}` |
 | `hud_hide` | `Signal()` | Esconde HUD Loader |

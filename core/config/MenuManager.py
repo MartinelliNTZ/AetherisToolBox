@@ -92,6 +92,10 @@ class MenuManager(QObject):
         self._file_item.salvar_como_clicked.connect(self._on_salvar_como)
         self._file_item.recente_clicked.connect(self._on_recente_abrir)
         self._file_item.sair_clicked.connect(self._on_sair)
+        # Atualiza o submenu de recentes em tempo real via sinal dedicado
+        SignalManager.instance().recent_projects_changed.connect(
+            self._file_item.rebuild_recentes_from_signal
+        )
         self._menu_bar.add_menu_item(self._file_item)
 
         # ── 3. Criar e registrar SystemMenuItem ──
@@ -230,7 +234,10 @@ class MenuManager(QObject):
             # Adiciona aos projetos recentes
             self._recent_manager.add_recent(file_path)
 
-            # Emite sinal para FileManager recarregar
+            # Emite sinal para FileManager recarregar e atualiza recentes em tempo real
+            SignalManager.instance().recent_projects_changed.emit(
+                self._recent_manager.get_validated()
+            )
             SignalManager.instance().project_changed.emit()
 
             self._logger.info(
@@ -281,7 +288,10 @@ class MenuManager(QObject):
             # Adiciona aos projetos recentes
             self._recent_manager.add_recent(result["file_path"])
 
-            # Emite sinal para FileManager recarregar
+            # Emite sinal para FileManager recarregar e atualiza recentes em tempo real
+            SignalManager.instance().recent_projects_changed.emit(
+                self._recent_manager.get_validated()
+            )
             SignalManager.instance().project_changed.emit()
 
             self._logger.info(
@@ -352,7 +362,10 @@ class MenuManager(QObject):
             # Move ao topo dos recentes
             self._recent_manager.add_recent(file_path)
 
-            # Emite sinal para FileManager recarregar
+            # Emite sinal para FileManager recarregar e atualiza recentes em tempo real
+            SignalManager.instance().recent_projects_changed.emit(
+                self._recent_manager.get_validated()
+            )
             SignalManager.instance().project_changed.emit()
 
             self._logger.info(
