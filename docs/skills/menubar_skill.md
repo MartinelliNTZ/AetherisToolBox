@@ -36,6 +36,7 @@ Classe base para todas as abas. Fornece:
 | Método | Descrição |
 |---|---|
 | `add_action(text, callback, data, icon, enabled)` | Adiciona uma ação ao dropdown |
+| `add_submenu(text, menu)` | Adiciona um submenu (`QMenu`) como item do dropdown |
 | `add_separator()` | Adiciona separador visual |
 | `clear()` | Remove todas as ações |
 | `build_menu()` | Constrói e retorna um `QMenu` com estilo aplicado |
@@ -67,16 +68,29 @@ class MeuMenuItem(BaseMenuItem):
 
 ## 📁 `core/menus/FileMenuItem.py`
 
-Aba "Arquivo". Itens fixos:
+Aba "Arquivo". Itens fixos e submenu dinâmico:
 
 | Item | Sinal emitido | Data |
 |---|---|---|
+| Novo | `novo_clicked` | `"novo"` |
+| Abrir | `abrir_clicked` | `"abrir"` |
+| Salvar como | `salvar_como_clicked` | `"salvar_como"` |
+| Abrir Recente | `recente_clicked(str)` (submenu dinâmico) | path do .mtl |
 | Sair | `sair_clicked` | `"sair"` |
+
+O submenu "Abrir Recente" é um `RecentProjectsMenu` (QMenu) que exibe a lista de projetos recentes salvos em `config/recent_projects.json`. Projetos cujo arquivo .mtl não existe mais em disco aparecem desabilitados (active=False, itálico).
+
+**Métodos públicos:**
+- `refresh_recentes()` — reconstrói o submenu com dados atualizados do disco
 
 ```python
 from core.menus.FileMenuItem import FileMenuItem
 
 item = FileMenuItem()
+item.novo_clicked.connect(self._on_novo)
+item.abrir_clicked.connect(self._on_abrir)
+item.salvar_como_clicked.connect(self._on_salvar_como)
+item.recente_clicked.connect(self._on_recente)
 item.sair_clicked.connect(self.close)
 ```
 

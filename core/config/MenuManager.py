@@ -40,6 +40,7 @@ from utils.ExplorerUtils import ExplorerUtils
 from utils.MessageBox import MessageBox
 from utils.Preferences import Preferences
 from utils.ProjectUtil import ProjectUtil
+from utils.RecentProjectsManager import RecentProjectsManager
 
 
 class MenuManager(QObject):
@@ -67,6 +68,7 @@ class MenuManager(QObject):
         self._menu_bar: Optional[MenuBar] = None
         self._toolbar_widget: Optional[QWidget] = None
         self._logger = LogUtils(tool=ToolKey.SYSTEM.value, class_name="MenuManager")
+        self._recent_manager = RecentProjectsManager()
 
     # ────────────────────────────────────────────────────────────────
     # API pública
@@ -88,6 +90,7 @@ class MenuManager(QObject):
         self._file_item.novo_clicked.connect(self._on_novo)
         self._file_item.abrir_clicked.connect(self._on_abrir)
         self._file_item.salvar_como_clicked.connect(self._on_salvar_como)
+        self._file_item.recente_clicked.connect(self._on_recente_abrir)
         self._file_item.sair_clicked.connect(self._on_sair)
         self._menu_bar.add_menu_item(self._file_item)
 
@@ -224,6 +227,9 @@ class MenuManager(QObject):
             # Atualiza last_modified
             ProjectUtil.update_last_modified(file_path)
 
+            # Adiciona aos projetos recentes
+            self._recent_manager.add_recent(file_path)
+
             # Emite sinal para FileManager recarregar
             SignalManager.instance().project_changed.emit()
 
@@ -272,6 +278,9 @@ class MenuManager(QObject):
             sys_prefs["root_folder"] = folder
             Preferences.save_tool_prefs(ToolKey.SYSTEM, sys_prefs)
 
+            # Adiciona aos projetos recentes
+            self._recent_manager.add_recent(result["file_path"])
+
             # Emite sinal para FileManager recarregar
             SignalManager.instance().project_changed.emit()
 
@@ -291,6 +300,76 @@ class MenuManager(QObject):
             )
             MessageBox.show_error(
                 "Erro ao salvar projeto", title="Salvar como", detail=str(e),
+            )
+
+    # ────────────────────────────────────────────────────────────────
+    # Handler: projeto recente
+    # ────────────────────────────────────────────────────────────────
+
+    def _on_recente_abrir(self, file_path: str) -> None:
+        """
+        Abre um projeto da lista de recentes.
+
+        Valida se o arquivo ainda existe. Se não existir (active=False),
+        não faz nada (o RecentProjectsMenu já desabilita o item, mas
+        este handler serve como fallback).
+        """
+        try:
+            if not os.path.isfile(file_path):
+                self._logger.warning(
+                    "Projeto recente não encontrado em disco",
+                    code="MENU_RECENTE_NOT_FOUND",
+                    file_path=file_path,
+                )
+                MessageBox.show_warning(
+                    f"O arquivo '{file_path}' não foi encontrado.\n"
+                    "Ele será mantido na lista de recentes como inativo.",
+                    title="Arquivo Não Encontrado",
+                )
+                return
+
+            project_data = ProjectUtil.load_project(file_path)
+            if project_data is None:
+                self._logger.warning(
+                    "Projeto recente inválido", code="MENU_RECENTE_INVALIDO",
+                    file_path=file_path,
+                )
+                MessageBox.show_error(
+                    f"O arquivo '{file_path}' não é um projeto válido.",
+                    title="Projeto Inválido",
+                )
+                return
+
+            # Salva nas preferências do sistema
+            sys_prefs = Preferences.load_tool_prefs(ToolKey.SYSTEM)
+            sys_prefs["current_project"] = file_path
+            sys_prefs["root_folder"] = os.path.dirname(file_path)
+            Preferences.save_tool_prefs(ToolKey.SYSTEM, sys_prefs)
+
+            # Atualiza last_modified
+            ProjectUtil.update_last_modified(file_path)
+
+            # Move ao topo dos recentes
+            self._recent_manager.add_recent(file_path)
+
+            # Emite sinal para FileManager recarregar
+            SignalManager.instance().project_changed.emit()
+
+            self._logger.info(
+                "Projeto recente aberto", code="MENU_RECENTE_OK",
+                file_path=file_path,
+                project_name=project_data.get("project_name", ""),
+            )
+
+        except Exception as e:
+            self._logger.error(
+                "Erro ao abrir projeto recente", code="MENU_RECENTE_ERR",
+                error=str(e),
+            )
+            MessageBox.show_error(
+                "Erro ao abrir projeto recente",
+                title="Abrir Recente",
+                detail=str(e),
             )
 
     # ────────────────────────────────────────────────────────────────
