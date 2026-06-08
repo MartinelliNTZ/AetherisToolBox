@@ -544,3 +544,78 @@ class AppStyles(BaseStyle):
             f"  border-radius: 0px 0px {t.RADIUS_SM}px {t.RADIUS_SM}px;"
             f"}}"
         )
+
+    # ────────────────────────────────────────────────────────────────────
+    # RECENT PROJECTS — estilos para RecentProjectsMenu
+    # ────────────────────────────────────────────────────────────────────
+
+    @classmethod
+    def recent_project_name_style(cls, active: bool = True) -> str:
+        """
+        Estilo para o label do nome do projeto (RecentProjectsMenu).
+
+        Args:
+            active: Se True, nome em ACCENT_TEXT negrito. Se False,
+                    nome em TEXT_MUTED itálico (projeto não encontrado).
+        """
+        t = ct.theme
+        color = t.ACCENT_TEXT if active else t.TEXT_MUTED
+        italic = "font-style: italic;" if not active else ""
+        return (
+            f"QLabel {{"
+            f"  color: {color};"
+            f"  font-weight: bold;"
+            f"  {italic}"
+            f"}}"
+        )
+
+    @classmethod
+    def recent_project_sub_style(cls, active: bool = True) -> str:
+        """
+        Estilo para os labels de path e data (RecentProjectsMenu).
+
+        Args:
+            active: Se True, cor TEXT_SECONDARY. Se False,
+                    mesma cor (mas o item está desabilitado visualmente).
+        """
+        t = ct.theme
+        color = t.TEXT_SECONDARY
+        return (
+            f"QLabel {{"
+            f"  color: {color};"
+            f"}}"
+        )
+
+    @classmethod
+    def recent_project_hover_style(cls) -> str:
+        """
+        Cor de fundo hover para o item do RecentProjectsMenu.
+        Usa ACCENT com baixa opacidade simulada via SURFACE_3.
+        """
+        t = ct.theme
+        return t.SURFACE_3
+
+    @classmethod
+    def recent_project_hover_name_style(cls) -> str:
+        """
+        Estilo do nome do projeto no hover (ACCENT_BRIGHT).
+        """
+        t = ct.theme
+        return (
+            f"QLabel {{"
+            f"  color: {t.ACCENT_BRIGHT};"
+            f"  font-weight: bold;"
+            f"}}"
+        )
+
+    @classmethod
+    def recent_project_hover_sub_style(cls) -> str:
+        """
+        Estilo do path/data no hover (TEXT_MEDIUM).
+        """
+        t = ct.theme
+        return (
+            f"QLabel {{"
+            f"  color: {t.TEXT_MEDIUM};"
+            f"}}"
+        )
