@@ -1,217 +1,362 @@
 # -*- coding: utf-8 -*-
 """
-MdManager — Lógica de extração e transformação de Markdown a partir de DoclingDocument
-=======================================================================================
-Genérico: não apenas colunas, mas qualquer manipulação futura de markdown.
-Sem dependências Qt — puro Python + docling-core.
+MessageBox — Gerenciador centralizado de diálogos para o usuário
+==================================================================
+Centraliza todas as chamadas a QMessageBox, garantindo:
+  - Interface consistente em toda a aplicação
+  - Nenhum código acessa QMessageBox diretamente
+  - Títulos, ícones e textos padronizados
+  - Fácil manutenção e customização global
 
 Uso:
-    from plugins.docling.MdManager import MdManager
+    from utils.MessageBox import MessageBox
 
-    md = MdManager.export_by_columns(doc, page_no=0, manual_columns=0)
+    # Erro
+    MessageBox.show_error("Falha ao carregar arquivo")
+    MessageBox.show_error("Falha ao conectar", title="Erro de Rede",
+                          detail="Detalhes técnicos...")
+
+    # Informação
+    MessageBox.show_info("Operação concluída com sucesso")
+
+    # Aviso
+    MessageBox.show_warning("Espaço em disco baixo")
+
+    # Pergunta (retorna True/False)
+    if MessageBox.show_question("Deseja salvar as alterações?"):
+        ...
+
+    # Pergunta com botões personalizados
+    resultado = MessageBox.show_question(
+        "O que deseja fazer?",
+        title="Salvar?",
+        buttons=MessageBox.YES_NO_CANCEL,
+    )
+    # resultado: QMessageBox.StandardButton.Yes, .No, .Cancel
 """
 
 from __future__ import annotations
 
-import statistics
-from typing import Optional
+import sys
+from typing import Any, Optional
 
-from docling_core.types.doc import (
-    CodeItem,
-    DocItem,
-    DocItemLabel,
-    DoclingDocument,
-    ListItem,
-    SectionHeaderItem,
-    TableItem,
-    TextItem,
-    TitleItem,
-)
-from docling_core.types.doc.document import FormulaItem
+from PySide6.QtCore import QTimer
+from PySide6.QtWidgets import QApplication, QMessageBox
+
+from core.enum.ToolKey import ToolKey
+from utils.BaseUtil import BaseUtil
 
 
-class MdManager:
+class MessageBox(BaseUtil):
     """
-    Métodos estáticos para extrair e transformar DoclingDocument em Markdown.
+    Classe estática para exibição de diálogos ao usuário.
+
+    Todos os métodos aceitam os seguintes parâmetros nomeados opcionais:
+        title      : str   — Título da janela (padrão varia por método)
+        detail     : str   — Texto detalhado (seção "Mostrar Detalhes")
+        icon       : QMessageBox.Icon — Ícone (padrão varia por método)
+        parent     : QWidget — Widget pai (padrão: janela ativa)
+        buttons    : QMessageBox.StandardButtons — Botões (padrão: OK)
+        default_btn: QMessageBox.StandardButton — Botão padrão (foco)
     """
 
-    # ── Constantes internas ────────────────────────────────────────────
-    _COLUMN_NAMES = (
-        "Esquerda", "Centro", "Direita",
-        "Coluna 4", "Coluna 5", "Coluna 6",
+    # ── Atalhos para botões comuns ──────────────────────────────────
+    OK = QMessageBox.StandardButton.Ok
+    YES = QMessageBox.StandardButton.Yes
+    NO = QMessageBox.StandardButton.No
+    CANCEL = QMessageBox.StandardButton.Cancel
+    YES_NO = QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+    YES_NO_CANCEL = (
+        QMessageBox.StandardButton.Yes
+        | QMessageBox.StandardButton.No
+        | QMessageBox.StandardButton.Cancel
     )
+    OK_CANCEL = QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel
 
-    # ══════════════════════════════════════════════════════════════════
+    # ── Títulos padrão ─────────────────────────────────────────────
+    DEFAULT_TITLE_INFO = "Informação"
+    DEFAULT_TITLE_WARNING = "Aviso"
+    DEFAULT_TITLE_ERROR = "Erro"
+    DEFAULT_TITLE_CRITICAL = "Erro Crítico"
+    DEFAULT_TITLE_QUESTION = "Confirmação"
+
+    # ═════════════════════════════════════════════════════════════════
     # API Pública
-    # ══════════════════════════════════════════════════════════════════
+    # ═════════════════════════════════════════════════════════════════
 
     @staticmethod
-    def export_by_columns(
-        doc: DoclingDocument,
+    def show_info(
+        text: str,
         *,
-        manual_columns: int = 0,
-        page_no: int = 0,
-    ) -> Optional[str]:
+        title: str = DEFAULT_TITLE_INFO,
+        detail: str = "",
+        parent: Any = None,
+        tool_key: str = ToolKey.UNTRACEABLE.value,
+    ) -> None:
         """
-        Monta Markdown com seções por coluna (da esquerda para a direita),
-        usando caixas normalizadas.
+        Exibe uma mensagem informativa.
 
-        Retorna None se não houver dados suficientes para layout multi-coluna.
-
-        Args:
-            doc: DoclingDocument carregado.
-            manual_columns: 0 para automático, 2-6 para forçar colunas.
-            page_no: Número da página para processar (0 = primeira).
-
-        Returns:
-            str com markdown dividido por colunas, ou None.
+        Parâmetros:
+            text  : Mensagem principal a ser exibida
+            title : Título da janela (opcional, padrão: "Informação")
+            detail: Texto detalhado colapsável (opcional)
+            parent: Widget pai (opcional, padrão: janela ativa)
+            tool_key: Chave da ferramenta para logging.
         """
-        blocks: list[tuple[float, float, str]] = []
-        for item, _level in doc.iterate_items(traverse_pictures=True):
-            if not isinstance(item, DocItem):
-                continue
-            geo = MdManager._norm_center_top(doc, item)
-            if geo is None:
-                continue
-            cx, top, pno = geo
-            if pno != page_no:
-                continue
-            snip = MdManager._snippet_for_item(doc, item)
-            if not snip:
-                continue
-            blocks.append((cx, top, snip))
-
-        if len(blocks) < 4:
-            return None
-
-        cx_list = [b[0] for b in blocks]
-        k = manual_columns if manual_columns >= 2 else MdManager._infer_column_count(cx_list)
-        if k < 2:
-            return None
-
-        labels, centroids = MdManager._kmeans1d_assign(cx_list, k)
-        order = sorted(range(k), key=lambda i: centroids[i])
-
-        by_col: list[list[tuple[float, str]]] = [[] for _ in range(k)]
-        for lab, (_cx, top, snip) in zip(labels, blocks, strict=True):
-            by_col[lab].append((top, snip))
-
-        # Separador <hr> em markdown
-        rule = "\n\n---\n\n"
-        sections: list[str] = []
-        for rank, old_idx in enumerate(order):
-            title = (
-                MdManager._COLUMN_NAMES[rank]
-                if rank < len(MdManager._COLUMN_NAMES)
-                else f"Coluna {rank + 1}"
-            )
-            col_blocks = sorted(by_col[old_idx], key=lambda x: x[0])
-            texts = [t for _, t in col_blocks]
-            body = "\n\n".join(texts)
-            sections.append(
-                f"## **Painel {rank + 1}** — _{title}_\n\n{body}\n"
-            )
-
-        return rule.join(sections).strip() + "\n"
-
-    # ══════════════════════════════════════════════════════════════════
-    # Métodos Internos (estáticos)
-    # ══════════════════════════════════════════════════════════════════
+        logger = BaseUtil._get_logger(tool_key, "MessageBox")
+        logger.info(f"Exibindo info: {text[:80]}", code="MSG_INFO")
+        _show(
+            text=text,
+            title=title,
+            detail=detail,
+            icon=QMessageBox.Icon.Information,
+            parent=parent,
+            buttons=QMessageBox.StandardButton.Ok,
+        )
 
     @staticmethod
-    def _norm_center_top(
-        doc: DoclingDocument, item: DocItem
-    ) -> Optional[tuple[float, float, int]]:
+    def show_warning(
+        text: str,
+        *,
+        title: str = DEFAULT_TITLE_WARNING,
+        detail: str = "",
+        parent: Any = None,
+        tool_key: str = ToolKey.UNTRACEABLE.value,
+    ) -> None:
         """
-        Centro horizontal e topo normalizados (0..1) e número da página.
-        Retorna (cx, top, page_no) ou None se item não tiver prov.
+        Exibe uma mensagem de aviso.
+
+        Parâmetros:
+            text  : Mensagem principal
+            title : Título da janela (opcional, padrão: "Aviso")
+            detail: Texto detalhado colapsável (opcional)
+            parent: Widget pai (opcional)
+            tool_key: Chave da ferramenta para logging.
         """
-        if not item.prov:
-            return None
-        prov = item.prov[0]
-        page = doc.pages.get(prov.page_no)
-        if not page:
-            return None
-        b = prov.bbox.normalized(page.size)
-        cx = (b.l + b.r) / 2.0
-        top = min(b.t, b.b)
-        return cx, top, prov.page_no
+        logger = BaseUtil._get_logger(tool_key, "MessageBox")
+        logger.warning(f"Exibindo aviso: {text[:80]}", code="MSG_WARNING")
+        _show(
+            text=text,
+            title=title,
+            detail=detail,
+            icon=QMessageBox.Icon.Warning,
+            parent=parent,
+            buttons=QMessageBox.StandardButton.Ok,
+        )
 
     @staticmethod
-    def _snippet_for_item(doc: DoclingDocument, item: DocItem) -> Optional[str]:
-        """Trecho Markdown aproximado para um item isolado."""
-        if isinstance(item, TableItem):
-            try:
-                return item.export_to_markdown(doc).strip()
-            except Exception:
-                return None
-        if isinstance(item, CodeItem) and item.text.strip():
-            lang = getattr(item.code_language, "value", str(item.code_language))
-            if lang in ("unknown", "UNKNOWN", "Unknown"):
-                lang = ""
-            fence = (
-                f"```{lang}\n{item.text.strip()}\n```"
-                if lang
-                else f"```\n{item.text.strip()}\n```"
-            )
-            return fence
-        if isinstance(item, FormulaItem) and getattr(item, "text", "") and item.text.strip():
-            return f"$${item.text.strip()}$$"
-        if not isinstance(item, TextItem) or not item.text.strip():
-            return None
-        if item.label in (DocItemLabel.PAGE_HEADER, DocItemLabel.PAGE_FOOTER):
-            return None
-        t = item.text.strip()
-        if isinstance(item, TitleItem):
-            return f"# {t}"
-        if isinstance(item, SectionHeaderItem):
-            return f"## {t}"
-        if isinstance(item, ListItem):
-            return f"- {t}"
-        return t
+    def show_error(
+        text: str,
+        *,
+        title: str = DEFAULT_TITLE_ERROR,
+        detail: str = "",
+        parent: Any = None,
+        tool_key: str = ToolKey.UNTRACEABLE.value,
+    ) -> None:
+        """
+        Exibe uma mensagem de erro.
+
+        Parâmetros:
+            text  : Mensagem principal
+            title : Título da janela (opcional, padrão: "Erro")
+            detail: Texto detalhado colapsável (opcional)
+            parent: Widget pai (opcional)
+            tool_key: Chave da ferramenta para logging.
+        """
+        logger = BaseUtil._get_logger(tool_key, "MessageBox")
+        logger.error(f"Exibindo erro: {text[:80]}", code="MSG_ERROR")
+        _show(
+            text=text,
+            title=title,
+            detail=detail,
+            icon=QMessageBox.Icon.Critical,
+            parent=parent,
+            buttons=QMessageBox.StandardButton.Ok,
+        )
 
     @staticmethod
-    def _infer_column_count(cx_values: list[float]) -> int:
-        """Infere número de colunas pela distribuição dos centros horizontais."""
-        if len(cx_values) < 6:
-            return 1
-        xs = sorted(cx_values)
-        gaps = [xs[i + 1] - xs[i] for i in range(len(xs) - 1)]
-        if not gaps:
-            return 1
-        med = statistics.median(gaps)
-        mg = max(gaps)
-        if mg < 0.06 and med < 0.025:
-            return 1
-        threshold = max(0.08, 2.2 * med)
-        splits = sum(1 for g in gaps if g >= threshold)
-        k = splits + 1
-        return max(1, min(6, k))
+    def show_critical(
+        text: str,
+        *,
+        title: str = DEFAULT_TITLE_CRITICAL,
+        detail: str = "",
+        parent: Any = None,
+        tool_key: str = ToolKey.UNTRACEABLE.value,
+    ) -> None:
+        """
+        Exibe uma mensagem de erro crítico.
+
+        Parâmetros:
+            text  : Mensagem principal
+            title : Título da janela (opcional, padrão: "Erro Crítico")
+            detail: Texto detalhado colapsável (opcional)
+            parent: Widget pai (opcional)
+            tool_key: Chave da ferramenta para logging.
+        """
+        logger = BaseUtil._get_logger(tool_key, "MessageBox")
+        logger.critical(f"Exibindo critico: {text[:80]}", code="MSG_CRITICAL")
+        _show(
+            text=text,
+            title=title,
+            detail=detail,
+            icon=QMessageBox.Icon.Critical,
+            parent=parent,
+            buttons=QMessageBox.StandardButton.Ok,
+        )
 
     @staticmethod
-    def _kmeans1d_assign(
-        xs: list[float], k: int
-    ) -> tuple[list[int], list[float]]:
+    def show_question(
+        text: str,
+        *,
+        title: str = DEFAULT_TITLE_QUESTION,
+        detail: str = "",
+        parent: Any = None,
+        buttons: QMessageBox.StandardButtons = YES_NO,
+        default_button: QMessageBox.StandardButton = YES,
+        tool_key: str = ToolKey.UNTRACEABLE.value,
+    ) -> QMessageBox.StandardButton:
         """
-        Atribui cada x a um cluster 0..k-1.
-        Retorna (labels, centroids) na mesma ordem de xs.
+        Exibe uma pergunta ao usuário.
+
+        Parâmetros:
+            text           : Mensagem da pergunta
+            title          : Título da janela (opcional, padrão: "Confirmação")
+            detail         : Texto detalhado colapsável (opcional)
+            parent         : Widget pai (opcional)
+            buttons        : Botões exibidos (padrão: Yes | No)
+            default_button : Botão com foco padrão (padrão: Yes)
+            tool_key: Chave da ferramenta para logging.
+
+        Retorna:
+            QMessageBox.StandardButton pressionado pelo usuário.
+            Ex: QMessageBox.StandardButton.Yes, .No, .Cancel
         """
-        if k <= 1 or not xs:
-            return [0] * len(xs), [0.5]
-        lo, hi = min(xs), max(xs)
-        if hi - lo < 1e-6:
-            return [0] * len(xs), [(lo + hi) / 2]
-        centroids = [lo + (hi - lo) * (i + 0.5) / k for i in range(k)]
-        labels: list[int] = []
-        for _ in range(18):
-            clusters: list[list[float]] = [[] for _ in range(k)]
-            for x in xs:
-                j = min(range(k), key=lambda i: abs(x - centroids[i]))
-                clusters[j].append(x)
-            for i in range(k):
-                if clusters[i]:
-                    centroids[i] = sum(clusters[i]) / len(clusters[i])
-            labels = [
-                min(range(k), key=lambda i: abs(x - centroids[i])) for x in xs
-            ]
-        return labels, centroids
+        logger = BaseUtil._get_logger(tool_key, "MessageBox")
+        logger.info(f"Exibindo pergunta: {text[:80]}", code="MSG_QUESTION")
+        return _show(
+            text=text,
+            title=title,
+            detail=detail,
+            icon=QMessageBox.Icon.Question,
+            parent=parent,
+            buttons=buttons,
+            default_button=default_button,
+        )
+
+    # ═════════════════════════════════════════════════════════════════
+    # Método genérico (para uso interno ou casos avançados)
+    # ═════════════════════════════════════════════════════════════════
+
+    @staticmethod
+    def show(
+        text: str,
+        *,
+        title: str = "",
+        detail: str = "",
+        icon: QMessageBox.Icon = QMessageBox.Icon.NoIcon,
+        parent: Any = None,
+        buttons: QMessageBox.StandardButtons = QMessageBox.StandardButton.Ok,
+        default_button: Optional[QMessageBox.StandardButton] = None,
+        tool_key: str = ToolKey.UNTRACEABLE.value,
+    ) -> QMessageBox.StandardButton:
+        """
+        Método genérico para exibir qualquer tipo de mensagem.
+
+        Parâmetros:
+            text           : Mensagem principal
+            title          : Título da janela
+            detail         : Texto detalhado colapsável
+            icon           : Ícone (QMessageBox.Icon)
+            parent         : Widget pai
+            buttons        : Botões exibidos
+            default_button : Botão com foco padrão
+            tool_key: Chave da ferramenta para logging.
+
+        Retorna:
+            QMessageBox.StandardButton pressionado pelo usuário.
+        """
+        logger = BaseUtil._get_logger(tool_key, "MessageBox")
+        logger.debug(f"Exibindo mensagem generica: {text[:80]}", code="MSG_SHOW")
+        return _show(
+            text=text,
+            title=title,
+            detail=detail,
+            icon=icon,
+            parent=parent,
+            buttons=buttons,
+            default_button=default_button,
+        )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Função interna de exibição
+# ═══════════════════════════════════════════════════════════════════════
+
+def _show(
+    text: str,
+    title: str,
+    detail: str,
+    icon: QMessageBox.Icon,
+    parent: Any = None,
+    buttons: QMessageBox.StandardButtons = QMessageBox.StandardButton.Ok,
+    default_button: Optional[QMessageBox.StandardButton] = None,
+) -> QMessageBox.StandardButton:
+    """
+    Constrói e exibe o QMessageBox de forma segura.
+
+    Regras:
+      1. Obtém o parent automaticamente se não fornecido
+      2. Cria QApplication se não existir (fallback para antes do startup)
+      3. Usa QMessageBox.exec() — bloqueante mas seguro
+      4. Retorna o botão pressionado
+    """
+    # ── Garante QApplication ──────────────────────────────────────
+    app = QApplication.instance()
+    if app is None:
+        app = QApplication(sys.argv)
+
+    # ── Parent automático ─────────────────────────────────────────
+    if parent is None:
+        parent = _find_active_window()
+
+    # ── Constrói a mensagem ───────────────────────────────────────
+    msg_box = QMessageBox(parent)
+    msg_box.setWindowTitle(title)
+    msg_box.setText(str(text))
+    msg_box.setIcon(icon)
+    msg_box.setStandardButtons(buttons)
+
+    if detail:
+        msg_box.setDetailedText(str(detail))
+
+    if default_button is not None:
+        msg_box.setDefaultButton(default_button)
+
+    # ── Exibe (bloqueante) ────────────────────────────────────────
+    pressed = msg_box.exec()
+
+    # Converte o resultado para StandardButton (compatível PySide6)
+    return QMessageBox.StandardButton(pressed)
+
+
+def _find_active_window() -> Any:
+    """
+    Tenta encontrar a janela principal ativa para usar como parent.
+
+    Percorre os topLevelWidgets da QApplication e retorna o primeiro
+    que esteja visível e tenha título.
+    """
+    app = QApplication.instance()
+    if app is None:
+        return None
+
+    try:
+        for widget in app.topLevelWidgets():
+            if widget.isVisible() and widget.windowTitle():
+                return widget
+    except Exception as e:
+        BaseUtil._get_logger(ToolKey.SYSTEM.value, "MessageBox").error(
+            "Falha ao buscar janela ativa", code="FIND_WIN_ERR", error=str(e)
+        )
+
+    return None

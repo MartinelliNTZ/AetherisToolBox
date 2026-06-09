@@ -16,24 +16,17 @@ import csv
 import os
 from typing import List
 
-from core.config.LogUtils import LogUtils
 from core.enum.ToolKey import ToolKey
+from utils.BaseUtil import BaseUtil
 
 
-class VectorLayerSource:
+class VectorLayerSource(BaseUtil):
     """
     Metodos estaticos para leitura de camadas vetoriais.
     Converte tipos numpy para tipos nativos Python automaticamente.
     """
 
     _SUPPORTED_EXTENSIONS = frozenset({".shp", ".gpkg", ".csv"})
-
-    # ── Logger ───────────────────────────────────────────────────────
-
-    @staticmethod
-    def _get_logger(tool_key: str) -> LogUtils:
-        """Retorna instancia de LogUtils para esta classe."""
-        return LogUtils(tool=tool_key, class_name="VectorLayerSource")
 
     # ── API Publica ──────────────────────────────────────────────────
 
@@ -54,7 +47,7 @@ class VectorLayerSource:
             ValueError: Se extensao nao suportada.
             FileNotFoundError: Se arquivo nao existe.
         """
-        logger = VectorLayerSource._get_logger(tool_key)
+        logger = BaseUtil._get_logger(tool_key, "VectorLayerSource")
         logger.info(f"Lendo arquivo vetorial", code="VECTOR_READ_START", path=path)
 
         if not os.path.exists(path):
@@ -94,23 +87,30 @@ class VectorLayerSource:
             raise
 
     @staticmethod
-    def get_driver_name(path: str) -> str:
+    def get_driver_name(
+        path: str,
+        tool_key: str = ToolKey.UNTRACEABLE.value,
+    ) -> str:
         """
         Retorna o nome do driver/formato baseado na extensao.
 
         Args:
             path: Caminho do arquivo.
+            tool_key: Chave da ferramenta para logging.
 
         Returns:
             Nome legivel do formato: "ESRI Shapefile", "GeoPackage", "CSV", ou "Desconhecido".
         """
+        logger = BaseUtil._get_logger(tool_key, "VectorLayerSource")
         ext = os.path.splitext(path)[1].lower()
         drivers = {
             ".shp": "ESRI Shapefile",
             ".gpkg": "GeoPackage",
             ".csv": "CSV",
         }
-        return drivers.get(ext, "Desconhecido")
+        result = drivers.get(ext, "Desconhecido")
+        logger.debug("Driver obtido", code="VECTOR_DRIVER", path=path, driver=result)
+        return result
 
     # ── Leitura Interna ──────────────────────────────────────────────
 

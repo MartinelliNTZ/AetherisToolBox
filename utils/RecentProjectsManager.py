@@ -25,13 +25,13 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
-from core.config.LogUtils import LogUtils
 from core.enum.ToolKey import ToolKey
+from utils.BaseUtil import BaseUtil
 
 
-class RecentProjectsManager:
+class RecentProjectsManager(BaseUtil):
     """
     Gerencia a lista de projetos recentes em arquivo próprio.
     """
@@ -40,8 +40,9 @@ class RecentProjectsManager:
     _CONFIG_DIR: Path = Path(__file__).resolve().parent.parent / "config"
     _FILE_PATH: Path = _CONFIG_DIR / "recent_projects.json"
 
-    def __init__(self):
-        self._logger = LogUtils(tool=ToolKey.SYSTEM.value, class_name="RecentProjectsManager")
+    def __init__(self, tool_key: str = ToolKey.UNTRACEABLE.value):
+        self._tool_key = tool_key
+        self._logger = self._get_logger(tool_key)
 
     # ── API pública ──────────────────────────────────────────────────
 
@@ -72,7 +73,7 @@ class RecentProjectsManager:
         if active:
             try:
                 from utils.ProjectUtil import ProjectUtil
-                data = ProjectUtil.load_project(project_path)
+                data = ProjectUtil.load_project(project_path, tool_key=self._tool_key)
                 if data:
                     raw = data.get("last_modified", "")
                     if raw:
@@ -80,7 +81,7 @@ class RecentProjectsManager:
                         try:
                             from datetime import datetime
                             dt = datetime.fromisoformat(raw)
-                            last_modified = FormatUtils.format_date(dt.timestamp())
+                            last_modified = FormatUtils.format_date(dt.timestamp(), tool_key=self._tool_key)
                         except Exception:
                             last_modified = raw[:10]  # fallback: só a data
             except Exception:

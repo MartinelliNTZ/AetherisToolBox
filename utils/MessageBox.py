@@ -40,7 +40,6 @@ from __future__ import annotations
 import sys
 from typing import Any, Optional
 
-from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QApplication, QMessageBox
 
 from core.config.LogUtils import LogUtils

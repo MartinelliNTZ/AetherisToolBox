@@ -9,22 +9,21 @@ from __future__ import annotations
 
 from typing import Dict
 
-from core.config.LogUtils import LogUtils
 from core.enum.ToolKey import ToolKey
+from utils.BaseUtil import BaseUtil
 
 
-class RasterLayerSource:
+class RasterLayerSource(BaseUtil):
     """
     Metodos estaticos para leitura de camadas raster.
     Placeholder — implementacao basica de metadados.
     """
 
     @staticmethod
-    def _get_logger(tool_key: str) -> LogUtils:
-        return LogUtils(tool=tool_key, class_name="RasterLayerSource")
-
-    @staticmethod
-    def read_metadata(path: str, tool_key: str = ToolKey.UNTRACEABLE.value) -> Dict:
+    def read_metadata(
+        path: str,
+        tool_key: str = ToolKey.UNTRACEABLE.value,
+    ) -> Dict:
         """
         Le metadados basicos de um raster GeoTIFF.
 
@@ -35,6 +34,6 @@ class RasterLayerSource:
         Returns:
             Dict com metadados disponiveis, ou dict vazio se nao for possivel ler.
         """
-        logger = RasterLayerSource._get_logger(tool_key)
+        logger = BaseUtil._get_logger(tool_key, "RasterLayerSource")
         logger.info("Leitura de raster ainda nao implementada", code="RASTER_STUB", path=path)
         return {}
