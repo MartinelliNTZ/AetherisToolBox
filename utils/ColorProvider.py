@@ -96,32 +96,32 @@ class ColorProvider(BaseUtil):
             rgba("#a6784f", 120) -> "rgba(166,120,79,120)"
         """
         logger = BaseUtil._get_logger(tool_key, "ColorProvider")
-        hex_color = hex_color.lstrip("#")
+        clean_color = hex_color.lstrip("#")
 
-        r = int(hex_color[0:2], 16)
-        g = int(hex_color[2:4], 16)
-        b = int(hex_color[4:6], 16)
+        r = int(clean_color[0:2], 16)
+        g = int(clean_color[2:4], 16)
+        b = int(clean_color[4:6], 16)
 
         result = f"rgba({r},{g},{b},{alpha})"
-        logger.debug("Cor convertida para rgba", code="RGBA_OK", hex=hex_color, alpha=alpha)
+        logger.debug("Cor convertida para rgba", code="RGBA_OK", hex=clean_color, alpha=alpha)
         return result
 
     @classmethod
     def level_color(
         cls,
-        level: str,
+        log_level: str,
         tool_key: str = ToolKey.UNTRACEABLE.value,
     ) -> str:
         """
         Retorna a cor hexadecimal para o nivel de log.
 
         Args:
-            level: Nivel (DEBUG, INFO, WARNING, ERROR, CRITICAL).
+            log_level: Nivel (DEBUG, INFO, WARNING, ERROR, CRITICAL).
             tool_key: Chave da ferramenta para logging.
         """
         logger = cls._get_logger(tool_key)
-        result = cls.LEVEL_COLORS.get(level.upper(), "#DCDCDC")
-        logger.debug("Cor de nivel obtida", code="LEVEL_COLOR", level=level, color=result)
+        result = cls.LEVEL_COLORS.get(log_level.upper(), "#DCDCDC")
+        logger.debug("Cor de nivel obtida", code="LEVEL_COLOR", log_level=log_level, color=result)
         return result
 
     @classmethod
@@ -180,6 +180,8 @@ class ColorProvider(BaseUtil):
         tool_key: str = ToolKey.UNTRACEABLE.value,
     ) -> str:
         """Cor padrao do texto primario (branco/cinza claro)."""
+        _ = cls
+        _ = tool_key
         return "#DCDCDC"
 
     # ── Metodos internos ────────────────────────────────────────────

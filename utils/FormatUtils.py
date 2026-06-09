@@ -1,181 +1,63 @@
 # -*- coding: utf-8 -*-
 """
-DictManager — Catálogo centralizado de dicionários do sistema
-===============================================================
-Fornece dicionários padronizados para uso em widgets como GridCheckBox.
+FormatUtils — Utilitários de formatação de dados
+===================================================
+Fornece formatação de tamanho de arquivo e datas de forma
+centralizada para todo o sistema.
 
-Cada entrada tem:
-    label       → texto exibido
-    description → tooltip/dica
-    default     → valor padrão (True = checado, False = deschecado)
+Uso:
+    from utils.FormatUtils import FormatUtils
 
-Cada categoria tem sua própria constante no topo do módulo.
-O método `file_extensions()` mescla todas e retorna o dict completo.
+    size_str = FormatUtils.format_size(1024)
+    date_str = FormatUtils.format_date(1234567890.0)
 """
 
 from __future__ import annotations
 
-from typing import Any, Dict
+from datetime import datetime
 
 from core.enum.ToolKey import ToolKey
 from utils.BaseUtil import BaseUtil
 
 
-# ── Backup ──
-BAK_EXTENSIONS: Dict[str, Dict[str, Any]] = {
-    ".bak":   {"label": ".bak",   "description": "Arquivo de backup", "default": False},
-    ".lock":  {"label": ".lock",  "description": "Arquivo de lock (dependências)", "default": False},
-    ".old":   {"label": ".old",   "description": "Arquivo de versão anterior", "default": False},
-    ".tmp":   {"label": ".tmp",   "description": "Arquivo temporário", "default": False},
-}
-
-# ── Config / Setup ──
-CONFIG_EXTENSIONS: Dict[str, Dict[str, Any]] = {
-    ".cfg":   {"label": ".cfg",   "description": "Arquivo de configuração genérico", "default": True},
-    ".env":   {"label": ".env",   "description": "Variáveis de ambiente", "default": True},
-    ".ini":   {"label": ".ini",   "description": "Arquivo de configuração", "default": True},
-    ".toml":  {"label": ".toml",  "description": "TOML (config moderno)", "default": True},
-    ".yaml":  {"label": ".yaml",  "description": "YAML alternativo", "default": True},
-    ".yml":   {"label": ".yml",   "description": "YAML (recursos, config)", "default": True},
-}
-
-# ── Documentos ──
-DOCUMENT_EXTENSIONS: Dict[str, Dict[str, Any]] = {
-    ".csv":   {"label": ".csv",   "description": "Valores separados por vírgula", "default": True},
-    ".doc":   {"label": ".doc",   "description": "Microsoft Word (antigo)", "default": True},
-    ".docx":  {"label": ".docx",  "description": "Microsoft Word (moderno)", "default": True},
-    ".html":  {"label": ".html",  "description": "HyperText Markup Language", "default": True},
-    ".json":  {"label": ".json",  "description": "JavaScript Object Notation", "default": True},
-    ".log":   {"label": ".log",   "description": "Arquivo de log", "default": True},
-    ".md":    {"label": ".md",    "description": "Markdown", "default": True},
-    ".pdf":   {"label": ".pdf",   "description": "Adobe Portable Document", "default": True},
-    ".rtf":   {"label": ".rtf",   "description": "Rich Text Format", "default": True},
-    ".txt":   {"label": ".txt",   "description": "Arquivo de texto puro", "default": True},
-    ".xml":   {"label": ".xml",   "description": "eXtensible Markup Language", "default": True},
-}
-
-# ── Geoprocessamento ──
-GEOPROCESSOR_EXTENSIONS: Dict[str, Dict[str, Any]] = {
-    ".dbf":    {"label": ".dbf",    "description": "Shapefile (atributos dBASE)", "default": True},
-    ".dem":    {"label": ".dem",    "description": "Digital Elevation Model", "default": True},
-    ".ecw":    {"label": ".ecw",    "description": "Enhanced Compressed Wavelet", "default": True},
-    ".geojson":{"label": ".geojson","description": "GeoJSON", "default": True},
-    ".gpkg":   {"label": ".gpkg",   "description": "GeoPackage", "default": True},
-    ".grd":    {"label": ".grd",    "description": "Surfer Grid / DEM", "default": True},
-    ".hdf":    {"label": ".hdf",    "description": "Hierarchical Data Format", "default": True},
-    ".jp2":    {"label": ".jp2",    "description": "JPEG 2000", "default": True},
-    ".las":    {"label": ".las",    "description": "LIDAR Point Cloud (ASPRS)", "default": True},
-    ".laz":    {"label": ".laz",    "description": "LIDAR Point Cloud (comprimido)", "default": True},
-    ".nc":     {"label": ".nc",     "description": "NetCDF", "default": True},
-    ".prj":    {"label": ".prj",    "description": "Shapefile (projeção)", "default": True},
-    ".qpj":    {"label": ".qpj",    "description": "Shapefile (projeção QGIS)", "default": True},
-    ".shp":    {"label": ".shp",    "description": "Shapefile (geometria)", "default": True},
-    ".shx":    {"label": ".shx",    "description": "Shapefile (índice)", "default": True},
-    ".sid":    {"label": ".sid",    "description": "MrSID Image", "default": True},
-    ".vrt":    {"label": ".vrt",    "description": "GDAL Virtual Raster", "default": True},
-}
-
-# ── Imagens / Raster ──
-IMAGE_EXTENSIONS: Dict[str, Dict[str, Any]] = {
-    ".bmp":   {"label": ".bmp",   "description": "Bitmap Image", "default": True},
-    ".gif":   {"label": ".gif",   "description": "Graphics Interchange Format", "default": True},
-    ".ico":   {"label": ".ico",   "description": "Windows Icon", "default": False},
-    ".jpeg":  {"label": ".jpeg",  "description": "JPEG Image (alternativo)", "default": True},
-    ".jpg":   {"label": ".jpg",   "description": "JPEG Image", "default": True},
-    ".png":   {"label": ".png",   "description": "Portable Network Graphics", "default": True},
-    ".svg":   {"label": ".svg",   "description": "Scalable Vector Graphics", "default": True},
-    ".tif":   {"label": ".tif",   "description": "Tagged Image File (GeoTIFF)", "default": True},
-    ".tiff":  {"label": ".tiff",  "description": "Tagged Image File Format", "default": True},
-}
-
-# ── Keras / ML ──
-KERAS_EXTENSIONS: Dict[str, Dict[str, Any]] = {
-    ".h5":    {"label": ".h5",    "description": "HDF5 (modelos Keras/TF)", "default": True},
-    ".keras": {"label": ".keras", "description": "Keras modelo salvo", "default": True},
-    ".onnx":  {"label": ".onnx",  "description": "Open Neural Network Exchange", "default": True},
-    ".pt":    {"label": ".pt",    "description": "PyTorch model", "default": True},
-    ".pth":   {"label": ".pth",   "description": "PyTorch model (alternativo)", "default": True},
-}
-
-# ── Programação ──
-PROGRAMMING_EXTENSIONS: Dict[str, Dict[str, Any]] = {
-    ".bat":   {"label": ".bat",   "description": "Windows batch script", "default": True},
-    ".cpp":   {"label": ".cpp",   "description": "C++ source", "default": False},
-    ".css":   {"label": ".css",   "description": "Cascading Style Sheets", "default": True},
-    ".h":     {"label": ".h",     "description": "C/C++ header", "default": False},
-    ".js":    {"label": ".js",    "description": "JavaScript source", "default": True},
-    ".ps1":   {"label": ".ps1",   "description": "PowerShell script", "default": True},
-    ".py":    {"label": ".py",    "description": "Python source", "default": True},
-    ".qss":   {"label": ".qss",   "description": "Qt Style Sheet", "default": True},
-    ".ts":    {"label": ".ts",    "description": "TypeScript source", "default": True},
-}
-
-# ── Planilhas ──
-SPREADSHEET_EXTENSIONS: Dict[str, Dict[str, Any]] = {
-    ".xls":   {"label": ".xls",   "description": "Microsoft Excel (antigo)", "default": True},
-    ".xlsx":  {"label": ".xlsx",  "description": "Microsoft Excel (moderno)", "default": True},
-}
-
-# ── Texto editável (abre como bloco de notas) ─────────────────────────
-TEXT_EXTENSIONS: Dict[str, Dict[str, Any]] = {
-    ".bat":   {"label": ".bat",   "description": "Windows batch script", "default": True},
-    ".cfg":   {"label": ".cfg",   "description": "Arquivo de configuração genérico", "default": True},
-    ".cpp":   {"label": ".cpp",   "description": "C++ source", "default": True},
-    ".css":   {"label": ".css",   "description": "Cascading Style Sheets", "default": True},
-    ".csv":   {"label": ".csv",   "description": "Valores separados por vírgula", "default": True},
-    ".env":   {"label": ".env",   "description": "Variáveis de ambiente", "default": True},
-    ".h":     {"label": ".h",     "description": "C/C++ header", "default": True},
-    ".html":  {"label": ".html",  "description": "HyperText Markup Language", "default": True},
-    ".ini":   {"label": ".ini",   "description": "Arquivo de configuração", "default": True},
-    ".js":    {"label": ".js",    "description": "JavaScript source", "default": True},
-    ".json":  {"label": ".json",  "description": "JavaScript Object Notation", "default": True},
-    ".log":   {"label": ".log",   "description": "Arquivo de log", "default": True},
-    ".md":    {"label": ".md",    "description": "Markdown", "default": True},
-    ".ps1":   {"label": ".ps1",   "description": "PowerShell script", "default": True},
-    ".py":    {"label": ".py",    "description": "Python source", "default": True},
-    ".qss":   {"label": ".qss",   "description": "Qt Style Sheet", "default": True},
-    ".rtf":   {"label": ".rtf",   "description": "Rich Text Format", "default": True},
-    ".toml":  {"label": ".toml",  "description": "TOML (config moderno)", "default": True},
-    ".ts":    {"label": ".ts",    "description": "TypeScript source", "default": True},
-    ".txt":   {"label": ".txt",   "description": "Arquivo de texto puro", "default": True},
-    ".xml":   {"label": ".xml",   "description": "eXtensible Markup Language", "default": True},
-    ".yaml":  {"label": ".yaml",  "description": "YAML alternativo", "default": True},
-    ".yml":   {"label": ".yml",   "description": "YAML (recursos, config)", "default": True},
-}
-
-
-class DictManager(BaseUtil):
-    """
-    Métodos estáticos que retornam dicionários padronizados.
-
-    As constantes de módulo (ex: DOCUMENT_EXTENSIONS) podem ser usadas
-    individualmente; o método `file_extensions()` mescla todas.
-    """
+class FormatUtils(BaseUtil):
+    """Utilitários de formatação de dados."""
 
     @staticmethod
-    def file_extensions(
+    def format_size(
+        size_bytes: int,
         tool_key: str = ToolKey.UNTRACEABLE.value,
-    ) -> Dict[str, Dict[str, Any]]:
-        """
-        Retorna o catálogo completo de extensões mesclando todas
-        as constantes de categoria.
+    ) -> str:
+        """Formata bytes para string legível (B, KB, MB, GB).
 
         Args:
+            size_bytes: Tamanho em bytes.
             tool_key: Chave da ferramenta para logging.
-
-        Retorna:
-            { ".ext": { "label": "...", "description": "...", "default": bool } }
         """
-        logger = BaseUtil._get_logger(tool_key, "DictManager")
-        result = {
-            **BAK_EXTENSIONS,
-            **CONFIG_EXTENSIONS,
-            **DOCUMENT_EXTENSIONS,
-            **GEOPROCESSOR_EXTENSIONS,
-            **IMAGE_EXTENSIONS,
-            **KERAS_EXTENSIONS,
-            **PROGRAMMING_EXTENSIONS,
-            **SPREADSHEET_EXTENSIONS,
-        }
-        logger.debug("Extensoes carregadas", code="DICT_EXTENSIONS", count=len(result))
+        logger = BaseUtil._get_logger(tool_key, "FormatUtils")
+        if size_bytes < 1024:
+            result = f"{size_bytes} B"
+        elif size_bytes < 1024 ** 2:
+            result = f"{size_bytes / 1024:.1f} KB"
+        elif size_bytes < 1024 ** 3:
+            result = f"{size_bytes / 1024 ** 2:.1f} MB"
+        else:
+            result = f"{size_bytes / 1024 ** 3:.2f} GB"
+        logger.debug("Tamanho formatado", code="FMT_SIZE", bytes=size_bytes, result=result)
+        return result
+
+    @staticmethod
+    def format_date(
+        timestamp: float,
+        tool_key: str = ToolKey.UNTRACEABLE.value,
+    ) -> str:
+        """Formata timestamp Unix para string de data dd/mm/AAAA HH:MM:SS.
+
+        Args:
+            timestamp: Timestamp Unix.
+            tool_key: Chave da ferramenta para logging.
+        """
+        logger = BaseUtil._get_logger(tool_key, "FormatUtils")
+        result = datetime.fromtimestamp(timestamp).strftime("%d/%m/%Y %H:%M:%S")
+        logger.debug("Data formatada", code="FMT_DATE", timestamp=timestamp, result=result)
         return result
