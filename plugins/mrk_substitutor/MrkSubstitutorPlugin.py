@@ -2,10 +2,10 @@
 """
 MrkSubstitutorPlugin — Substitui valores em arquivos MRK
 ==========================================================
-Usa MrkWorkerTask (QThread) para nao travar a UI.
+Usa MrkSingleTask (QThread) para nao travar a UI.
 Exibe HUDLoader durante processamento.
-Batch sequencial sem recursao (loop).
-A leitura de dados tambem vai para thread (worker interno).
+Batch sequencial via MrkBatchWorker (loop).
+A leitura de dados vai para thread (worker interno).
 """
 
 from __future__ import annotations
