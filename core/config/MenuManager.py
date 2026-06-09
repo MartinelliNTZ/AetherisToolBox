@@ -22,7 +22,7 @@ import os
 from typing import Dict, List, Optional
 
 from PySide6.QtCore import Signal, QObject
-from PySide6.QtWidgets import QWidget, QHBoxLayout
+from PySide6.QtWidgets import QWidget
 
 from core.config.LogUtils import LogUtils
 from core.config.ToolRegistry import ToolRegistry

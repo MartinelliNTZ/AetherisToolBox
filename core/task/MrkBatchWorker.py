@@ -16,6 +16,7 @@ from typing import Dict, List
 
 from PySide6.QtCore import QThread, Signal
 
+from core.config.LogUtils import LogUtils
 from core.enum.ToolKey import ToolKey
 
 
@@ -46,6 +47,7 @@ class MrkSingleTask(QThread):
         self._mapping = mapping
         self._output_dir = output_dir
         self._tool_key = tool_key
+        self._logger = LogUtils(tool=tool_key, class_name="MrkSingleTask")
 
     def run(self):
         try:
@@ -58,6 +60,7 @@ class MrkSingleTask(QThread):
             total = self._process_mrk(Path(self._mrk_path), data)
             self.finished_ok.emit(total)
         except Exception as e:
+            self._logger.error("Falha no single task", code="MRK_SINGLE_ERR", error=str(e))
             self.failed.emit(str(e))
 
     def _process_mrk(self, mrk_path: Path, data: List[dict]) -> int:
@@ -267,9 +270,6 @@ class MrkBatchWorker(QThread):
 
     def _process_single(self, mrk_path: Path, data: List[dict]) -> int:
         """Processa UM MRK com dados ja carregados. Retorna total de substituicoes."""
-        from core.task.MrkWorkerTask import MrkWorkerTask
-
-        # Reusa a logica do MrkSingleTask internamente
         with open(mrk_path, "r", encoding="utf-8") as f:
             mrk_lines = f.readlines()
 

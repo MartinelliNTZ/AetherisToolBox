@@ -213,7 +213,6 @@ class MrkSubstitutorPlugin(BasePlugin):
 
     def _on_save_config(self):
         self.save_prefs()
-        self.force_save_prefs()
         MessageBox.show_info("Configuracao salva!", title="Salvo")
 
     def _on_executar(self):
@@ -300,7 +299,6 @@ class MrkSubstitutorPlugin(BasePlugin):
         SignalManager.instance().console_message.emit(f"[MrkSubst] {msg}")
         MessageBox.show_info(msg, title="Concluido")
         self.save_prefs()
-        self.force_save_prefs()
 
     def _on_worker_failed(self, error: str):
         self._cleanup_worker()
@@ -321,8 +319,7 @@ class MrkSubstitutorPlugin(BasePlugin):
             return None
 
         recursive = bool(self._grid_opts.all.get(RECURSIVE_KEY, False))
-        mrk_paths = [str(p) for p in ExplorerUtils.find_files(mrk_dir_str, MRK_EXTENSIONS, recursive=recursive)]
-        mrk_paths = [p for p in mrk_paths if Path(p).suffix.lower() == ".mrk"]
+        mrk_paths = ExplorerUtils.find_files(mrk_dir_str, MRK_EXTENSIONS, recursive=recursive)
 
         if not mrk_paths:
             self._cleanup_worker()
@@ -356,4 +353,3 @@ class MrkSubstitutorPlugin(BasePlugin):
         SignalManager.instance().console_message.emit(f"[MrkSubst] {msg}")
         MessageBox.show_info(msg, title="Concluido")
         self.save_prefs()
-        self.force_save_prefs()

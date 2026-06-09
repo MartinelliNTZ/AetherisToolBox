@@ -22,6 +22,7 @@ from typing import Dict, List
 
 from PySide6.QtCore import QThread, Signal
 
+from core.config.LogUtils import LogUtils
 from core.enum.ToolKey import ToolKey
 
 
@@ -57,6 +58,7 @@ class MrkWorkerTask(QThread):
         self._mapping = mapping
         self._output_dir = output_dir
         self._tool_key = tool_key
+        self._logger = LogUtils(tool=tool_key, class_name="MrkWorkerTask")
 
     def run(self) -> None:
         """Executa o processamento em background."""
@@ -64,6 +66,7 @@ class MrkWorkerTask(QThread):
             total = self._process()
             self.finished_ok.emit(total)
         except Exception as e:
+            self._logger.error("Falha no worker", code="MRK_WORKER_ERR", error=str(e))
             self.failed.emit(str(e))
 
     # ── Logica Central ────────────────────────────────────────────
@@ -208,6 +211,12 @@ class MrkWorkerTask(QThread):
         with open(output_path, "w", encoding="utf-8") as f:
             f.writelines(output_lines)
 
+        self._logger.info(
+            "MRK processado",
+            code="MRK_PROCESS_DONE",
+            path=mrk_path.name,
+            replacements=total_replacements,
+        )
         self.console_msg.emit(
             f"[MrkSubst] {output_path.name} -> {total_replacements} substituicoes"
         )

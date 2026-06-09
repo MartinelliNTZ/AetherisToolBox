@@ -22,14 +22,10 @@ Uso:
 
 from __future__ import annotations
 
-import os
-
 from typing import Any, Dict, List
 
 from PySide6.QtCore import Signal
 
-from core.enum.ToolKey import ToolKey
-from core.manager.SignalManager import SignalManager
 from core.menus.BaseMenuItem import BaseMenuItem
 from resources.widgets.RecentProjectsMenu import RecentProjectsMenu
 from utils.RecentProjectsManager import RecentProjectsManager
