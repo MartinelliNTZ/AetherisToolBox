@@ -5,15 +5,26 @@ Uso: campo de caminho único com seletor embutido.
 
 QFileDialog é PROIBIDO fora de utils/ExplorerUtils.
 SimpleSelector usa ExplorerUtils para todas as operações de seleção.
+
+O botão 📂 (suggested_path) funciona da seguinte forma:
+  - O plugin passa um PATH RELATIVO (ex: "vetores/black_points_filter")
+  - Quando o botão 📂 é clicado, o SimpleSelector busca o root_folder
+    do projeto ativo via ProjectUtil.get_root_folder()
+  - Concatena root_folder + path_relativo e insere no QLineEdit
 """
 
 from __future__ import annotations
 
+import os
+from typing import Callable, Optional
+
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QWidget, QHBoxLayout, QLabel, QLineEdit
 
+from core.config.LogUtils import LogUtils
 from resources.widgets.SimpleSecondaryButton import SimpleSecondaryButton
 from utils.ExplorerUtils import ExplorerUtils
+from utils.ProjectUtil import ProjectUtil
 
 
 class SimpleSelector(QWidget):
@@ -28,7 +39,8 @@ class SimpleSelector(QWidget):
         "directories"  — múltiplas pastas
 
     Suporta suggested_path: str opcional. Se informado, um botão "📂" é
-    adicionado ao lado do "..." que insere o caminho sugerido no QLineEdit.
+    adicionado ao lado do "..." que, ao ser clicado, busca o root_folder
+    do projeto ativo e concatena com o path relativo recebido.
 
     Uso:
         sel = SimpleSelector("Imagem:", file_filter="GeoTIFF (*.tif *.tiff)",
@@ -53,6 +65,10 @@ class SimpleSelector(QWidget):
 
         self._file_filter = file_filter
         self._browse_mode = browse_mode
+        self._suggested_rel_path: str = ""  # path relativo recebido do plugin
+
+        # Logger para rastreio
+        self._logger = LogUtils(tool="SimpleSelector", class_name="SimpleSelector")
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -80,21 +96,31 @@ class SimpleSelector(QWidget):
         layout.addWidget(self.btn)
 
         # ── Botão de Caminho Padrão (depois do "...") ──
+        # Sempre criado e sempre conectado ao callback.
+        # Invisível por padrão — fica visível quando set_suggested_path() for chamado.
+        self._btn_suggest = SimpleSecondaryButton("📂")
+        self._btn_suggest.setFixedWidth(30)
+        self._btn_suggest.setVisible(bool(suggested_path))
+        self._btn_suggest.clicked.connect(self._on_suggest_clicked)
         if suggested_path:
-            self._btn_suggest = SimpleSecondaryButton("📂")
-            self._btn_suggest.setToolTip(f"Usar pasta padrão: {suggested_path}")
-            self._btn_suggest.setFixedWidth(30)
-            self._btn_suggest.clicked.connect(lambda: self.set_path(suggested_path))
-            layout.addWidget(self._btn_suggest)
+            self._suggested_rel_path = suggested_path
+            self._btn_suggest.setToolTip(f"Usar pasta do projeto: {suggested_path}")
+            self._logger.info(
+                f"Botão 📂 criado com path relativo: {suggested_path}",
+                code="SUGGEST_CREATED",
+            )
+        else:
+            self._btn_suggest.setToolTip("Usar pasta do projeto")
+            self._logger.info(
+                "Botão 📂 criado sem path relativo inicial",
+                code="SUGGEST_CREATED_EMPTY",
+            )
+        layout.addWidget(self._btn_suggest)
 
     # ── Lógica do seletor ─────────────────────────────────────────────
 
     def _browse(self):
         current = self.edit.text().strip()
-        # resolve_initial_dir trata:
-        #   - diretório existente → retorna ele mesmo
-        #   - arquivo existente   → retorna diretório pai
-        #   - inválido/vazio      → retorna "" (abre em recentes)
         initial_dir = ExplorerUtils.resolve_initial_dir(current)
 
         if self._browse_mode == "save_file":
@@ -130,6 +156,46 @@ class SimpleSelector(QWidget):
             if path:
                 self.edit.setText(path)
 
+    def _on_suggest_clicked(self):
+        """
+        Callback do botão 📂.
+        Busca o root_folder do projeto ativo e concatena com o path relativo.
+        """
+        self._logger.info(
+            f"Botão 📂 clicado. Path relativo: {self._suggested_rel_path}",
+            code="SUGGEST_CLICKED",
+        )
+
+        if not self._suggested_rel_path:
+            self._logger.warning(
+                "Path relativo vazio — botão não fará nada",
+                code="SUGGEST_EMPTY",
+            )
+            return
+
+        # Busca root_folder do projeto ativo
+        root_folder = ProjectUtil.get_root_folder()
+        self._logger.info(
+            f"root_folder obtido: {root_folder}",
+            code="SUGGEST_ROOT",
+        )
+
+        if not root_folder:
+            self._logger.warning(
+                "Nenhum projeto ativo (root_folder vazio)",
+                code="SUGGEST_NO_PROJECT",
+            )
+            return
+
+        # Concatena root_folder + path relativo
+        full_path = os.path.join(root_folder, self._suggested_rel_path)
+        self._logger.info(
+            f"Caminho completo gerado: {full_path}",
+            code="SUGGEST_PATH",
+        )
+
+        self.edit.setText(full_path)
+
     # ── Getters / Setters ─────────────────────────────────────────────
 
     def path(self) -> str:
@@ -146,39 +212,71 @@ class SimpleSelector(QWidget):
             return []
         return [p.strip() for p in text.split(";")]
 
-    def set_suggested_path(self, suggested_path: str):
+    def set_suggested_path(self, suggested_rel_path: str):
         """
-        Atualiza ou adiciona o botao de caminho padrao (📂).
-        Se suggested_path for vazio, remove o botao se existir.
-        Se ja existir um botao, atualiza o tooltip e callback.
+        Define o path relativo para o botão 📂.
+
+        O plugin DEVE passar um PATH RELATIVO (ex: "vetores/black_points_filter").
+        Quando o botão for clicado, o SimpleSelector busca o root_folder
+        do projeto ativo e concatena com este path relativo.
+
+        Se suggested_rel_path for vazio, esconde o botão.
+        Se for válido, mostra o botão e atualiza o tooltip.
         """
-        if hasattr(self, '_btn_suggest') and self._btn_suggest:
-            if suggested_path:
-                self._btn_suggest.setToolTip(f"Usar pasta padrão: {suggested_path}")
-                # Desconecta conexoes antigas e conecta nova
-                try:
-                    self._btn_suggest.clicked.disconnect()
-                except TypeError:
-                    pass
-                self._btn_suggest.clicked.connect(lambda: self.set_path(suggested_path))
-                self._btn_suggest.setVisible(True)
-            else:
-                self._btn_suggest.setVisible(False)
-        elif suggested_path:
-            # Cria o botao se nao existir
-            from resources.widgets.SimpleSecondaryButton import SimpleSecondaryButton
-            self._btn_suggest = SimpleSecondaryButton("📂")
-            self._btn_suggest.setToolTip(f"Usar pasta padrão: {suggested_path}")
-            self._btn_suggest.setFixedWidth(30)
-            self._btn_suggest.clicked.connect(lambda: self.set_path(suggested_path))
-            # Insere antes do layout (depois do botao "...")
-            idx = self.layout().indexOf(self.btn) + 1
-            self.layout().insertWidget(idx, self._btn_suggest)
+        self._logger.info(
+            f"set_suggested_path chamado com: '{suggested_rel_path}'",
+            code="SET_SUGGESTED",
+        )
+
+        if suggested_rel_path:
+            self._suggested_rel_path = suggested_rel_path
+            self._btn_suggest.setToolTip(
+                f"Usar pasta do projeto: {suggested_rel_path}"
+            )
+            self._btn_suggest.setVisible(True)
+            self._logger.info(
+                f"Botão 📂 ativado com path relativo: {suggested_rel_path}",
+                code="SUGGEST_ACTIVATED",
+            )
+        else:
+            self._suggested_rel_path = ""
+            self._btn_suggest.setVisible(False)
+            self._logger.info(
+                "Botão 📂 desativado (path vazio)",
+                code="SUGGEST_DEACTIVATED",
+            )
+
+    def set_suggested_callback(self, callback: Callable[[], None], tooltip: str = ""):
+        """
+        Permite que o plugin defina um callback personalizado para o botão 📂,
+        em vez do comportamento padrão de buscar o projeto.
+
+        Args:
+            callback: Função sem argumentos a ser chamada quando o botão for clicado.
+            tooltip: Tooltip opcional para o botão.
+        """
+        self._logger.info(
+            "Callback personalizado registrado para botão 📂",
+            code="SUGGEST_CALLBACK",
+        )
+        try:
+            self._btn_suggest.clicked.disconnect()
+        except TypeError:
+            pass
+        self._btn_suggest.clicked.connect(callback)
+        if tooltip:
+            self._btn_suggest.setToolTip(tooltip)
+        self._btn_suggest.setVisible(True)
 
     def set_path(self, path: str):
         """Define o caminho do QLineEdit."""
+        self._logger.info(
+            f"set_path chamado: {path[:80]}...",
+            code="SET_PATH",
+        )
         self.edit.setText(path)
 
     def clear(self):
         """Limpa o QLineEdit."""
+        self._logger.info("clear() chamado", code="CLEAR")
         self.edit.setText("")

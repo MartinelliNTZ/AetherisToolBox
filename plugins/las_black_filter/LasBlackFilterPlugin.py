@@ -540,24 +540,27 @@ class LasBlackFilterPlugin(BasePlugin):
 
     def _atualizar_suggested_path(self, modo: str):
         """
-        Atualiza o botao 📂 dos selectors de saida com o diretorio
-        do projeto (root/las/black_points_filter/) ou da origem.
+        Atualiza o botao 📂 dos selectors de saida com o PATH RELATIVO.
+
+        O SimpleSelector usará este path relativo e, quando o botão for
+        clicado, buscará o root_folder do projeto ativo via ProjectUtil
+        e concatenará com este path para formar o caminho completo.
+
+        modo "projeto" → "las/black_points_filter"
+        modo "origem"  → caminho vazio (esconde o botão)
         """
         if modo == "projeto":
-            sys_prefs = Preferences.load_tool_prefs(ToolKey.SYSTEM)
-            root_folder = sys_prefs.get("root_folder", "")
-            if root_folder and os.path.isdir(root_folder):
-                proj_dir = os.path.join(root_folder, "las", "black_points_filter")
-                self._sel_limpo.set_suggested_path(proj_dir)
-                self._sel_pretos.set_suggested_path(proj_dir)
-            else:
-                origem = os.path.dirname(self._current_path) if self._current_path else ""
-                self._sel_limpo.set_suggested_path(origem)
-                self._sel_pretos.set_suggested_path(origem)
+            # Passa APENAS o path relativo — o widget resolve o root_folder
+            rel_path = "las/black_points_filter"
+            self._sel_limpo.set_suggested_path(rel_path)
+            self._sel_pretos.set_suggested_path(rel_path)
+            SignalManager.instance().console_message.emit(
+                f"[LasBlackFilter] Botão 📂 configurado para: {rel_path}"
+            )
         else:
-            origem = os.path.dirname(self._current_path) if self._current_path else ""
-            self._sel_limpo.set_suggested_path(origem)
-            self._sel_pretos.set_suggested_path(origem)
+            # Modo origem: esconde o botão 📂
+            self._sel_limpo.set_suggested_path("")
+            self._sel_pretos.set_suggested_path("")
 
     # ══════════════════════════════════════════════════════════════════
     # Preferências
