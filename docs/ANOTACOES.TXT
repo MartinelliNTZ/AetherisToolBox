@@ -5,3 +5,10 @@ em resources/widgets
 - Prefira sempre usar dict inves de list
 - Todas as tools herdam de Baseplugin
 - Sempre que criar uma classe atualize o @docs/CatalogoDeClasses.md
+
+
+
+CRIAR UM SISTEMA COMPLETO DE TASK
+CRIAR SKILL DE TASK
+COLOCAR O FILTRO DE PONTOS PRETOS EM TASK
+COLOCAR O FILTRO DE PONTOS PRETOS PARA FILTRAR PONTOS ZERADOS DE ALTITUDE
