@@ -31,6 +31,10 @@ __pycache__/
 *.geojson
 *.json
 report
+*.bin
+*.las
+*.laz
+*.laz_tmp
 # Ambiente virtual Python
 venv/
 .venv/

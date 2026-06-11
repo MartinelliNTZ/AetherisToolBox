@@ -146,6 +146,35 @@ class SimpleSelector(QWidget):
             return []
         return [p.strip() for p in text.split(";")]
 
+    def set_suggested_path(self, suggested_path: str):
+        """
+        Atualiza ou adiciona o botao de caminho padrao (📂).
+        Se suggested_path for vazio, remove o botao se existir.
+        Se ja existir um botao, atualiza o tooltip e callback.
+        """
+        if hasattr(self, '_btn_suggest') and self._btn_suggest:
+            if suggested_path:
+                self._btn_suggest.setToolTip(f"Usar pasta padrão: {suggested_path}")
+                # Desconecta conexoes antigas e conecta nova
+                try:
+                    self._btn_suggest.clicked.disconnect()
+                except TypeError:
+                    pass
+                self._btn_suggest.clicked.connect(lambda: self.set_path(suggested_path))
+                self._btn_suggest.setVisible(True)
+            else:
+                self._btn_suggest.setVisible(False)
+        elif suggested_path:
+            # Cria o botao se nao existir
+            from resources.widgets.SimpleSecondaryButton import SimpleSecondaryButton
+            self._btn_suggest = SimpleSecondaryButton("📂")
+            self._btn_suggest.setToolTip(f"Usar pasta padrão: {suggested_path}")
+            self._btn_suggest.setFixedWidth(30)
+            self._btn_suggest.clicked.connect(lambda: self.set_path(suggested_path))
+            # Insere antes do layout (depois do botao "...")
+            idx = self.layout().indexOf(self.btn) + 1
+            self.layout().insertWidget(idx, self._btn_suggest)
+
     def set_path(self, path: str):
         """Define o caminho do QLineEdit."""
         self.edit.setText(path)
