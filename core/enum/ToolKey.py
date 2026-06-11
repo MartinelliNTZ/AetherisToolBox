@@ -30,6 +30,7 @@ class ToolKey(str, Enum):
     ICO_CONVERTER = "IcoConverter"
     DOCLING = "Docling"
     MRK_SUBSTITUTOR = "MrkSubstitutor"
+    LAS_BLACK_FILTER = "LasBlackFilter"
 
     # ── Método utilitário ──────────────────────────────────────────────
 
