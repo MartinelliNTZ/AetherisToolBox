@@ -7,7 +7,7 @@ Campo para definir o nome base do(s) arquivo(s) de saída - SelectorGrid    O AR
 
 BOTOES EXTRAS 
     SALVAR O ARQUIVO NA ORIGEM = NOME ORIGINAL + _filtrado.las/laz e SE MARCADO SALVAR O ARQUIVO DE PONTOS PRETOS NA ORIGEM COM NOME ORIGINAL + _pretos.las/laz
-    SALVAR NO PROJETO VERIFICA SE EXISTE UM PROJETO ATIVO SE NAO TIVER NAO FAZ NADA SO EXIBE MENSAGEM, SE TIVER PROJETO ATIVO SALVA NA PASTA DO PROJETO COM NOME ORIGINAL + _filtrado.las/laz e SE MARCADO SALVA O ARQUIVO DE PONTOS PRETOS NA PASTA DO PROJETO COM NOME ORIGINAL + _pretos.las/laz O CAMINHO  DE SALVAMENTO DEVE SER  RAIZ PROJETO/las/black_points_filter/ + NOME DO ARQUIVO use a explorer utils + @/plugins\project_manager\SaveProjectPlugin.py (current project provavelmente ta nas prefs leia a doc) A RESPONSABILIDADE É DE QUEM FAZER ISSO? ESSA RESPONSABILIDADE DEVE SER PASSADO PARA O WIDGET, simplector e selectorgrid, esse botao deve ao lado dos 
+    SALVAR NO PROJETO VERIFICA SE EXISTE UM PROJETO ATIVO SE NAO TIVER NAO FAZ NADA SO EXIBE MENSAGEM, SE TIVER PROJETO ATIVO SALVA NA PASTA DO PROJETO COM NOME ORIGINAL + _filtrado.las/laz e SE MARCADO SALVA O ARQUIVO DE PONTOS PRETOS NA PASTA DO PROJETO COM NOME ORIGINAL + _pretos.las/laz O CAMINHO  DE SALVAMENTO DEVE SER  RAIZ PROJETO/las/black_points_filter/ + NOME DO ARQUIVO use a explorer utils + @/plugins\project_manager\SaveProjectPlugin.py (current project provavelmente ta nas prefs leia a doc) A RESPONSABILIDADE É DE QUEM FAZER ISSO? ESSA RESPONSABILIDADE DEVE SER PASSADO PARA O WIDGET, simplector e selectorgrid ele ja tem esse sistema de pasta do projeto basta implementar corretamten 
 
 
 Progresso via SignalManager (ProgressBar + HUD + Console)
@@ -50,11 +50,11 @@ Layout seguindo Contrato 18 (Título → Separator → ExecutionButtons → cont
 │  PluginPage (title="Filtro de Pontos Pretos")    │
 │  ─ Separator ────────────────                     │
 │  [ExecutionButtons]                               │
-│    [SELECIONAR LAS] ← secondary                  │
+│    [SELECIONAR LAS][USAR ORIGEM] ← secondary                  │
 │    [EXECUTAR]       ← primary                    │
 │                                                   │
 │  ── GroupPainel "Arquivo de Entrada" ──           │
-│    SimpleSelector (LAS/LAZ)                       │
+│    GRIDSelector (LAS/LAZ)                       │
 │    GridLabel (info do arquivo)                    │
 │                                                   │
 │  ── GroupPainel "Configurações" ──                │
@@ -68,7 +68,7 @@ Layout seguindo Contrato 18 (Título → Separator → ExecutionButtons → cont
 Widgets reutilizáveis (já existentes em resources/widgets/):
 Widget	Uso
 SimpleSelector	Selecionar arquivo LAS/LAZ de entrada
-ExecutionButtons	Botões "SELECIONAR LAS" e "EXECUTAR" (botao usar origem e salvar no projeto   eles adicionam o caminho ao simpleselector)
+ExecutionButtons	Botões "SELECIONAR LAS" e "EXECUTAR" (botao usar origem  ele adicionam o caminho ao simpleselector)
 GroupPainel	Agrupar seções (Entrada, Config, Saída)
 GridDoubleSpinBox	Campo do limiar de preto (0–255, default 0)
 GridLineEdit	Campo do nome base do arquivo de saída NAO SERA NOME BASE E sim SULFIXO _filtrado.las/laz e para o arquivo de pontos pretos _pretos.las/laz 
