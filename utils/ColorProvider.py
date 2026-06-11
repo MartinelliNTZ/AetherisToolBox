@@ -24,8 +24,11 @@ from __future__ import annotations
 
 from typing import Dict, List
 
+from core.enum.ToolKey import ToolKey
+from utils.BaseUtil import BaseUtil
 
-class ColorProvider:
+
+class ColorProvider(BaseUtil):
     """
     Provedor de cores via hash consistente.
     Para um mesmo nome (tool ou class), a cor e sempre a mesma.
@@ -76,77 +79,109 @@ class ColorProvider:
 
     # ── API ─────────────────────────────────────────────────────────
     @staticmethod
-    def rgba(hex_color: str, alpha: int) -> str:
+    def rgba(
+        hex_color: str,
+        alpha: int,
+        tool_key: str = ToolKey.UNTRACEABLE.value,
+    ) -> str:
         """
         Converte HEX + alpha para rgba().
+
+        Args:
+            hex_color: Cor hexadecimal (ex: "#a6784f").
+            alpha: Valor alpha (0-255).
+            tool_key: Chave da ferramenta para logging.
+
         Exemplo:
-        rgba("#a6784f", 120) -> "rgba(166,120,79,120)"
+            rgba("#a6784f", 120) -> "rgba(166,120,79,120)"
         """
+        logger = BaseUtil._get_logger(tool_key, "ColorProvider")
+        clean_color = hex_color.lstrip("#")
 
-        hex_color = hex_color.lstrip("#")
+        r = int(clean_color[0:2], 16)
+        g = int(clean_color[2:4], 16)
+        b = int(clean_color[4:6], 16)
 
-        r = int(hex_color[0:2], 16)
-        g = int(hex_color[2:4], 16)
-        b = int(hex_color[4:6], 16)
-
-        return f"rgba({r},{g},{b},{alpha})"
+        result = f"rgba({r},{g},{b},{alpha})"
+        logger.debug("Cor convertida para rgba", code="RGBA_OK", hex=clean_color, alpha=alpha)
+        return result
 
     @classmethod
-    def level_color(cls, level: str) -> str:
+    def level_color(
+        cls,
+        log_level: str,
+        tool_key: str = ToolKey.UNTRACEABLE.value,
+    ) -> str:
         """
         Retorna a cor hexadecimal para o nivel de log.
 
         Args:
-            level: Nivel (DEBUG, INFO, WARNING, ERROR, CRITICAL)
-
-        Returns:
-            Cor hexadecimal (ex: "#10B981")
+            log_level: Nivel (DEBUG, INFO, WARNING, ERROR, CRITICAL).
+            tool_key: Chave da ferramenta para logging.
         """
-        return cls.LEVEL_COLORS.get(level.upper(), "#DCDCDC")
+        logger = cls._get_logger(tool_key)
+        result = cls.LEVEL_COLORS.get(log_level.upper(), "#DCDCDC")
+        logger.debug("Cor de nivel obtida", code="LEVEL_COLOR", log_level=log_level, color=result)
+        return result
 
     @classmethod
-    def tool_color(cls, tool_name: str) -> str:
+    def tool_color(
+        cls,
+        tool_name: str,
+        tool_key: str = ToolKey.UNTRACEABLE.value,
+    ) -> str:
         """
         Retorna uma cor unica e consistente para uma tool.
 
         Args:
-            tool_name: Nome da ferramenta (ex: "Console", "Home")
-
-        Returns:
-            Cor hexadecimal (ex: "#60A5FA")
+            tool_name: Nome da ferramenta (ex: "Console", "Home").
+            tool_key: Chave da ferramenta para logging.
         """
+        logger = cls._get_logger(tool_key)
         if not tool_name:
+            logger.debug("Tool name vazio, retornando cor padrao", code="TOOL_COLOR_EMPTY")
             return "#DCDCDC"
 
         if tool_name not in cls._tool_cache:
             idx = cls._hash_name(tool_name, len(cls._TOOL_PALETTE))
             cls._tool_cache[tool_name] = cls._TOOL_PALETTE[idx]
+            logger.debug("Nova cor de tool gerada", code="TOOL_COLOR_NEW", tool=tool_name, color=cls._tool_cache[tool_name])
 
         return cls._tool_cache[tool_name]
 
     @classmethod
-    def class_color(cls, class_name: str) -> str:
+    def class_color(
+        cls,
+        class_name: str,
+        tool_key: str = ToolKey.UNTRACEABLE.value,
+    ) -> str:
         """
         Retorna uma cor unica e consistente para uma classe.
 
         Args:
-            class_name: Nome da classe (ex: "MainWindow", "ConsoleTool")
-
-        Returns:
-            Cor hexadecimal (ex: "#93C5FD")
+            class_name: Nome da classe (ex: "MainWindow", "ConsoleTool").
+            tool_key: Chave da ferramenta para logging.
         """
+        logger = cls._get_logger(tool_key)
         if not class_name:
+            logger.debug("Class name vazio, retornando cor padrao", code="CLASS_COLOR_EMPTY")
             return "#DCDCDC"
 
         if class_name not in cls._class_cache:
             idx = cls._hash_name(class_name, len(cls._CLASS_PALETTE))
             cls._class_cache[class_name] = cls._CLASS_PALETTE[idx]
+            logger.debug("Nova cor de classe gerada", code="CLASS_COLOR_NEW", cls=class_name, color=cls._class_cache[class_name])
 
         return cls._class_cache[class_name]
 
     @classmethod
-    def text_primary(cls) -> str:
+    def text_primary(
+        cls,
+        tool_key: str = ToolKey.UNTRACEABLE.value,
+    ) -> str:
         """Cor padrao do texto primario (branco/cinza claro)."""
+        _ = cls
+        _ = tool_key
         return "#DCDCDC"
 
     # ── Metodos internos ────────────────────────────────────────────

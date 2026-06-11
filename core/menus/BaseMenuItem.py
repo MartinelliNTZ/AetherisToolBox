@@ -12,7 +12,7 @@ from typing import Any, Callable, Dict, List, Optional
 
 from PySide6.QtCore import QObject, Signal
 from PySide6.QtGui import QAction, QIcon
-from PySide6.QtWidgets import QMenu
+from PySide6.QtWidgets import QMenu, QWidget
 
 from resources.styles.AppStyles import AppStyles
 
@@ -69,6 +69,20 @@ class BaseMenuItem(QObject):
             "enabled": enabled,
         })
 
+    def add_submenu(self, text: str, menu: QMenu) -> None:
+        """
+        Adiciona um submenu à lista de ações.
+
+        Args:
+            text: Texto exibido no menu pai (item que abre o submenu).
+            menu: QMenu a ser exibido como submenu.
+        """
+        self._actions.append({
+            "submenu": True,
+            "text": text,
+            "menu": menu,
+        })
+
     def add_separator(self) -> None:
         """Adiciona um separador visual à lista."""
         self._actions.append({"separator": True})
@@ -95,10 +109,18 @@ class BaseMenuItem(QObject):
         menu = QMenu(self._title, self.parent())
         menu.setStyleSheet(self._menu_style())
         for action_cfg in self._actions:
+            # Submenu
+            if action_cfg.get("submenu"):
+                submenu = action_cfg["menu"]
+                menu.addMenu(submenu)
+                continue
+
+            # Separador
             if action_cfg.get("separator"):
                 menu.addSeparator()
                 continue
 
+            # Ação normal
             text = action_cfg["text"]
             callback = action_cfg["callback"]
             data = action_cfg["data"]

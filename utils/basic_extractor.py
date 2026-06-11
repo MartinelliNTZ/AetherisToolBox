@@ -26,32 +26,40 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Dict
 
+from core.enum.ToolKey import ToolKey
+from utils.BaseUtil import BaseUtil
 from utils.FormatUtils import FormatUtils
 from utils.JsonUtil import JsonUtil
 
 
-class BasicExtractor:
+class BasicExtractor(BaseUtil):
     """Extrai metadados básicos de arquivos do sistema."""
 
     @staticmethod
-    def extract(file_path: str) -> Dict[str, Any]:
+    def extract(
+        file_path: str,
+        tool_key: str = ToolKey.UNTRACEABLE.value,
+    ) -> Dict[str, Any]:
         """
         Extrai metadados de um arquivo ou diretório.
 
         Args:
             file_path: Caminho completo do arquivo.
+            tool_key: Chave da ferramenta para logging.
 
         Returns:
             Dicionário com chaves: name, size, size_formatted, path, directory,
             extension, extension_name, created, modified, is_file, is_dir.
             Retorna dict vazio se o caminho não existir.
         """
+        logger = BaseUtil._get_logger(tool_key, "BasicExtractor")
         path = Path(file_path)
         if not path.exists():
+            logger.warning("Arquivo nao encontrado", code="EXTRACT_NOT_FOUND", path=file_path)
             return {}
 
         stat = path.stat()
-        return {
+        result = {
             "name": path.name,
             "size": stat.st_size,
             "size_formatted": FormatUtils.format_size(stat.st_size),
@@ -66,22 +74,33 @@ class BasicExtractor:
             "is_file": path.is_file(),
             "is_dir": path.is_dir(),
         }
+        logger.info("Metadados extraidos", code="EXTRACT_OK", path=file_path)
+        return result
 
     @staticmethod
-    def enrich_json(json_path: str, file_path: str) -> Dict[str, Any]:
+    def enrich_json(
+        json_path: str,
+        file_path: str,
+        tool_key: str = ToolKey.UNTRACEABLE.value,
+    ) -> Dict[str, Any]:
         """
         Lê um JSON, extrai metadados do arquivo, enriquece e salva.
 
         Args:
             json_path: Caminho do arquivo JSON (criado via JsonUtil).
             file_path: Caminho do arquivo a extrair metadados.
+            tool_key: Chave da ferramenta para logging.
 
         Returns:
             Dicionário completo com os dados enriquecidos.
             Retorna dict vazio se o arquivo não existir.
         """
-        metadata = BasicExtractor.extract(file_path)
+        logger = BaseUtil._get_logger(tool_key, "BasicExtractor")
+        metadata = BasicExtractor.extract(file_path, tool_key=tool_key)
         if not metadata:
+            logger.warning("Nada a enriquecer", code="ENRICH_EMPTY", path=file_path)
             return {}
 
-        return JsonUtil.update_json(json_path, metadata)
+        result = JsonUtil.update_json(json_path, metadata)
+        logger.info("JSON enriquecido com metadados", code="ENRICH_OK", path=file_path)
+        return result

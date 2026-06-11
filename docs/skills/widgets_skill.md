@@ -975,6 +975,21 @@ grid.changed.connect(self._on_mapping_changed)
 
 ---
 
+### `RecentProjectsMenu` — `RecentProjectsMenu.py`
+QMenu especializado em exibir lista de projetos recentes. Cada item representa um projeto com nome, tooltip (caminho completo) e estado active/inactive. Projetos com `active=False` (arquivo não encontrado em disco) aparecem desabilitados em itálico, não clicáveis. Usado como submenu do menu "Arquivo > Abrir Recente".
+
+```python
+from resources.widgets.RecentProjectsMenu import RecentProjectsMenu
+
+recent_menu = RecentProjectsMenu()
+recent_menu.rebuild(recents)  # recents = lista de dicts com path, name, active
+recent_menu.project_clicked.connect(self._on_recent_clicked)
+```
+
+**Sinais:** `project_clicked(path: str)` — emitido ao clicar em um projeto ativo
+
+---
+
 ### `GridRadio` — `GridRadio.py`
 Grade de radio buttons organizados em colunas configuráveis, similar a `GridCheckBox`. Cada radio button tem label, description e tooltip definidos por dicionário.
 

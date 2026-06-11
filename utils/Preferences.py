@@ -23,11 +23,11 @@ import json
 from pathlib import Path
 from typing import Any, Dict
 
-from core.config.LogUtils import LogUtils
 from core.enum.ToolKey import ToolKey
+from utils.BaseUtil import BaseUtil
 
 
-class Preferences:
+class Preferences(BaseUtil):
     """
     Gerenciador de preferências estático.
 
@@ -47,34 +47,33 @@ class Preferences:
     """
 
     _DEFAULT_PATH: Path = Path(__file__).resolve().parent.parent / "config" / "preferences.json"
-    _logger_instance = None
 
     # ── API Pública ──────────────────────────────────────────────────
 
     @staticmethod
-    def save_tool_prefs(tool_key: ToolKey, data: Dict[str, Any]) -> None:
+    def save_tool_prefs(
+        tool_key: ToolKey,
+        data: Dict[str, Any],
+        caller_tool_key: str = ToolKey.UNTRACEABLE.value,
+    ) -> None:
         """
         Salva (merge) as preferências de uma ferramenta no arquivo JSON.
-
-        - Lê o arquivo atual do disco
-        - Mescla APENAS a seção da tool_key com os dados fornecidos
-        - Persiste o resultado completo
 
         Args:
             tool_key: Chave da ferramenta (ToolKey enum)
             data: Dicionário com as preferências a salvar
+            caller_tool_key: Chave da ferramenta chamadora para logging.
         """
+        logger = BaseUtil._get_logger(caller_tool_key, "Preferences")
         tool_name = tool_key.value if isinstance(tool_key, ToolKey) else str(tool_key)
         all_data = Preferences._load_from_disk()
 
-        # Merge na seção da tool
         section = all_data.get(tool_name, {})
         section.update(data)
         all_data[tool_name] = section
 
-        # Persiste
         Preferences._write_to_disk(all_data)
-        Preferences._get_logger().info(
+        logger.info(
             "Preferências salvas",
             code="PREFS_SAVE",
             tool=tool_name,
@@ -82,20 +81,25 @@ class Preferences:
         )
 
     @staticmethod
-    def load_tool_prefs(tool_key: ToolKey) -> Dict[str, Any]:
+    def load_tool_prefs(
+        tool_key: ToolKey,
+        caller_tool_key: str = ToolKey.UNTRACEABLE.value,
+    ) -> Dict[str, Any]:
         """
         Carrega as preferências de uma ferramenta do arquivo JSON.
 
         Args:
             tool_key: Chave da ferramenta (ToolKey enum)
+            caller_tool_key: Chave da ferramenta chamadora para logging.
 
         Returns:
             Dicionário com as preferências da tool (vazio se não existir)
         """
+        logger = BaseUtil._get_logger(caller_tool_key, "Preferences")
         tool_name = tool_key.value if isinstance(tool_key, ToolKey) else str(tool_key)
         all_data = Preferences._load_from_disk()
         section = all_data.get(tool_name, {})
-        Preferences._get_logger().info(
+        logger.info(
             "Preferências carregadas",
             code="PREFS_LOAD",
             tool=tool_name,
@@ -110,10 +114,19 @@ class Preferences:
         return Preferences._load_from_disk()
 
     @staticmethod
-    def save_all(data: Dict[str, Any]) -> None:
-        """Sobrescreve o JSON inteiro com o dict fornecido."""
+    def save_all(
+        data: Dict[str, Any],
+        caller_tool_key: str = ToolKey.UNTRACEABLE.value,
+    ) -> None:
+        """Sobrescreve o JSON inteiro com o dict fornecido.
+
+        Args:
+            data: Dicionário completo de preferências.
+            caller_tool_key: Chave da ferramenta chamadora para logging.
+        """
+        logger = BaseUtil._get_logger(caller_tool_key, "Preferences")
         Preferences._write_to_disk(data)
-        Preferences._get_logger().info(
+        logger.info(
             "Todas as preferências salvas",
             code="PREFS_SAVE_ALL",
             sections=list(data.keys()),
@@ -142,7 +155,7 @@ class Preferences:
                     loaded = json.load(f)
                 return loaded if isinstance(loaded, dict) else {}
             except Exception as e:
-                cls._get_logger().error(
+                cls._get_logger(ToolKey.SYSTEM.value).error(
                     "Erro ao carregar preferências do disco",
                     code="PREFS_LOAD_ERR",
                     error=str(e),
@@ -157,12 +170,3 @@ class Preferences:
         path.parent.mkdir(parents=True, exist_ok=True)
         with path.open("w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
-
-    @classmethod
-    def _get_logger(cls) -> LogUtils:
-        """Retorna logger estático para Preferences."""
-        if cls._logger_instance is None:
-            cls._logger_instance = LogUtils(
-                tool=ToolKey.SYSTEM.value, class_name="Preferences"
-            )
-        return cls._logger_instance

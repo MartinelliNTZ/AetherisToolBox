@@ -19,12 +19,15 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
 from PySide6.QtWidgets import QFileDialog, QWidget
 
+from core.enum.ToolKey import ToolKey
+from utils.BaseUtil import BaseUtil
 
-class ExplorerUtils:
+
+class ExplorerUtils(BaseUtil):
     """
     Métodos estáticos para todas as operações de seleção de arquivo/pasta.
     """
@@ -37,17 +40,31 @@ class ExplorerUtils:
         initial_dir: str = "",
         file_filter: str = "Todos (*.*)",
         parent: Optional[QWidget] = None,
+        tool_key: str = ToolKey.UNTRACEABLE.value,
     ) -> str:
         """
         Abre diálogo para selecionar UM arquivo para leitura.
 
+        Args:
+            title: Título do diálogo.
+            initial_dir: Diretório inicial.
+            file_filter: Filtro de arquivos.
+            parent: Widget pai.
+            tool_key: Chave da ferramenta para logging.
+
         Returns:
             Caminho do arquivo selecionado, ou string vazia se cancelado.
         """
+        logger = BaseUtil._get_logger(tool_key, "ExplorerUtils")
         path, _ = QFileDialog.getOpenFileName(
             parent, title, initial_dir, file_filter,
         )
-        return path or ""
+        result = path or ""
+        if result:
+            logger.info("Arquivo selecionado", code="EXPL_OPEN_FILE", path=result)
+        else:
+            logger.debug("Selecao de arquivo cancelada", code="EXPL_OPEN_FILE_CANCEL")
+        return result
 
     @staticmethod
     def save_file(
@@ -55,34 +72,61 @@ class ExplorerUtils:
         initial_dir: str = "",
         file_filter: str = "Todos (*.*)",
         parent: Optional[QWidget] = None,
+        tool_key: str = ToolKey.UNTRACEABLE.value,
     ) -> str:
         """
         Abre diálogo para selecionar UM arquivo para salvar.
 
+        Args:
+            title: Título do diálogo.
+            initial_dir: Diretório inicial.
+            file_filter: Filtro de arquivos.
+            parent: Widget pai.
+            tool_key: Chave da ferramenta para logging.
+
         Returns:
             Caminho do arquivo, ou string vazia se cancelado.
         """
+        logger = BaseUtil._get_logger(tool_key, "ExplorerUtils")
         path, _ = QFileDialog.getSaveFileName(
             parent, title, initial_dir, file_filter,
         )
-        return path or ""
+        result = path or ""
+        if result:
+            logger.info("Arquivo salvo selecionado", code="EXPL_SAVE_FILE", path=result)
+        else:
+            logger.debug("Selecao de salvamento cancelada", code="EXPL_SAVE_FILE_CANCEL")
+        return result
 
     @staticmethod
     def select_directory(
         title: str = "Selecionar pasta",
         initial_dir: str = "",
         parent: Optional[QWidget] = None,
+        tool_key: str = ToolKey.UNTRACEABLE.value,
     ) -> str:
         """
         Abre diálogo para selecionar UMA pasta.
 
+        Args:
+            title: Título do diálogo.
+            initial_dir: Diretório inicial.
+            parent: Widget pai.
+            tool_key: Chave da ferramenta para logging.
+
         Returns:
             Caminho da pasta, ou string vazia se cancelado.
         """
+        logger = BaseUtil._get_logger(tool_key, "ExplorerUtils")
         path = QFileDialog.getExistingDirectory(
             parent, title, initial_dir,
         )
-        return path or ""
+        result = path or ""
+        if result:
+            logger.info("Pasta selecionada", code="EXPL_SELECT_DIR", path=result)
+        else:
+            logger.debug("Selecao de pasta cancelada", code="EXPL_SELECT_DIR_CANCEL")
+        return result
 
     # ── Modos múltiplos ─────────────────────────────────────────────
 
@@ -92,41 +136,71 @@ class ExplorerUtils:
         initial_dir: str = "",
         file_filter: str = "Todos (*.*)",
         parent: Optional[QWidget] = None,
+        tool_key: str = ToolKey.UNTRACEABLE.value,
     ) -> List[str]:
         """
         Abre diálogo para selecionar MÚLTIPLOS arquivos para leitura.
 
+        Args:
+            title: Título do diálogo.
+            initial_dir: Diretório inicial.
+            file_filter: Filtro de arquivos.
+            parent: Widget pai.
+            tool_key: Chave da ferramenta para logging.
+
         Returns:
             Lista de caminhos, ou lista vazia se cancelado.
         """
+        logger = BaseUtil._get_logger(tool_key, "ExplorerUtils")
         paths, _ = QFileDialog.getOpenFileNames(
             parent, title, initial_dir, file_filter,
         )
-        return list(paths)
+        result = list(paths)
+        if result:
+            logger.info("Multiplos arquivos selecionados", code="EXPL_OPEN_FILES", count=len(result))
+        else:
+            logger.debug("Selecao multipla cancelada", code="EXPL_OPEN_FILES_CANCEL")
+        return result
 
     @staticmethod
     def select_directories(
         title: str = "Selecionar pastas",
         initial_dir: str = "",
         parent: Optional[QWidget] = None,
+        tool_key: str = ToolKey.UNTRACEABLE.value,
     ) -> List[str]:
         """
         Abre diálogo para selecionar MÚLTIPLAS pastas.
         Nota: QFileDialog nativo não suporta multi-pasta diretamente.
         Esta implementação retorna uma pasta por vez (usuário escolhe uma).
 
+        Args:
+            title: Título do diálogo.
+            initial_dir: Diretório inicial.
+            parent: Widget pai.
+            tool_key: Chave da ferramenta para logging.
+
         Returns:
             Lista com um caminho de pasta, ou vazia.
         """
+        logger = BaseUtil._get_logger(tool_key, "ExplorerUtils")
         path = QFileDialog.getExistingDirectory(
             parent, title, initial_dir,
         )
-        return [path] if path else []
+        result = [path] if path else []
+        if result:
+            logger.info("Pasta selecionada (multi)", code="EXPL_SELECT_DIRS", count=1)
+        else:
+            logger.debug("Selecao de pastas cancelada", code="EXPL_SELECT_DIRS_CANCEL")
+        return result
 
     # ── Config Directory ────────────────────────────────────────────
 
     @staticmethod
-    def get_plugin_config_dir(plugin_name: str) -> Path:
+    def get_plugin_config_dir(
+        plugin_name: str,
+        tool_key: str = ToolKey.UNTRACEABLE.value,
+    ) -> Path:
         """
         Retorna e garante a existência do diretório de config de um plugin.
 
@@ -134,12 +208,15 @@ class ExplorerUtils:
 
         Args:
             plugin_name: Nome do plugin (ex: "hotkey", "renamer").
+            tool_key: Chave da ferramenta para logging.
 
         Returns:
             Path do diretório (já criado).
         """
+        logger = BaseUtil._get_logger(tool_key, "ExplorerUtils")
         config_dir = Path("config/data") / plugin_name
         config_dir.mkdir(parents=True, exist_ok=True)
+        logger.info("Diretorio de config garantido", code="EXPL_CONFIG_DIR", plugin=plugin_name, path=str(config_dir))
         return config_dir
 
     # ── Busca de Arquivos ───────────────────────────────────────────
@@ -149,6 +226,7 @@ class ExplorerUtils:
         root_path: str,
         extensions: frozenset[str],
         recursive: bool = False,
+        tool_key: str = ToolKey.UNTRACEABLE.value,
     ) -> List[str]:
         """
         Busca arquivos por extensao em um diretorio (generico).
@@ -157,15 +235,19 @@ class ExplorerUtils:
             root_path: Caminho do diretorio raiz.
             extensions: Conjunto de extensoes (ex: frozenset({".mrk", ".MRK"})).
             recursive: Se True, vasculha subpastas recursivamente.
+            tool_key: Chave da ferramenta para logging.
 
         Returns:
             Lista de caminhos absolutos dos arquivos encontrados, ordenados.
             Vazia se diretorio invalido ou nenhum arquivo encontrado.
         """
+        logger = BaseUtil._get_logger(tool_key, "ExplorerUtils")
         if not root_path:
+            logger.debug("root_path vazio em find_files", code="EXPL_FIND_EMPTY_ROOT")
             return []
         root = Path(root_path)
         if not root.is_dir():
+            logger.warning("Diretorio invalido em find_files", code="EXPL_FIND_INVALID_DIR", path=root_path)
             return []
 
         results: List[str] = []
@@ -175,12 +257,17 @@ class ExplorerUtils:
                 results.append(str(f.resolve()))
 
         results.sort()
+        logger.info("Busca de arquivos concluida", code="EXPL_FIND_DONE", root=root_path, count=len(results), recursive=recursive)
         return results
 
     # ── Default Paths ──────────────────────────────────────────────
 
     @staticmethod
-    def get_default_path(category: str, root_folder: str = "") -> str:
+    def get_default_path(
+        category: str,
+        root_folder: str = "",
+        tool_key: str = ToolKey.UNTRACEABLE.value,
+    ) -> str:
         """
         Retorna caminho padrão para uma categoria baseado na root_folder.
         Use DefaultPathCategory enum para evitar strings soltas.
@@ -188,8 +275,14 @@ class ExplorerUtils:
         Categorias: "vector", "raster", "ico", "image", "documents"
 
         Se root_folder vazio, retorna "" (botão de sugestão não aparece).
+
+        Args:
+            category: Categoria do caminho.
+            root_folder: Pasta raiz.
+            tool_key: Chave da ferramenta para logging.
         """
         from core.enum.DefaultPathCategory import DefaultPathCategory
+        logger = BaseUtil._get_logger(tool_key, "ExplorerUtils")
         paths = {
             DefaultPathCategory.VECTOR:    "vector",
             DefaultPathCategory.RASTER:    "raster",
@@ -199,47 +292,66 @@ class ExplorerUtils:
         }
         sub = paths.get(category, "")
         if not sub or not root_folder:
+            logger.debug("Caminho padrao vazio", code="EXPL_DEFAULT_PATH_EMPTY", category=category, has_root=bool(root_folder))
             return ""
-        return os.path.join(root_folder, sub)
+        result = os.path.join(root_folder, sub)
+        logger.debug("Caminho padrao resolvido", code="EXPL_DEFAULT_PATH", category=category, path=result)
+        return result
 
     @staticmethod
-    def ensure_directory(path: str) -> str:
+    def ensure_directory(
+        path: str,
+        tool_key: str = ToolKey.UNTRACEABLE.value,
+    ) -> str:
         """
         Garante que um diretório existe. Se não existir, cria.
         Se path for vazio, retorna vazio.
 
         Args:
             path: Caminho do diretório.
+            tool_key: Chave da ferramenta para logging.
 
         Returns:
             O mesmo path, ou vazio se vazio.
         """
+        logger = BaseUtil._get_logger(tool_key, "ExplorerUtils")
         if not path:
+            logger.debug("Path vazio em ensure_directory", code="EXPL_ENSURE_EMPTY")
             return ""
         os.makedirs(path, exist_ok=True)
+        logger.info("Diretorio garantido", code="EXPL_ENSURE_DIR", path=path)
         return path
 
     # ── Utilitário ──────────────────────────────────────────────────
 
     @staticmethod
-    def resolve_initial_dir(current_path: str) -> str:
+    def resolve_initial_dir(
+        current_path: str,
+        tool_key: str = ToolKey.UNTRACEABLE.value,
+    ) -> str:
         """
         Retorna o diretório base de um caminho, se ele existir.
         Útil para definir o initial_dir dos diálogos.
 
         Args:
             current_path: Caminho atual (arquivo ou pasta).
+            tool_key: Chave da ferramenta para logging.
 
         Returns:
             - Se for um diretório existente → o próprio diretório.
             - Se for um arquivo existente → o diretório pai.
             - Se não existir ou vazio → string vazia (abre em recentes).
         """
+        logger = BaseUtil._get_logger(tool_key, "ExplorerUtils")
         if not current_path:
+            logger.debug("current_path vazio", code="EXPL_RESOLVE_EMPTY")
             return ""
         if os.path.isdir(current_path):
+            logger.debug("Diretorio inicial resolveu para si mesmo", code="EXPL_RESOLVE_DIR", path=current_path)
             return current_path
         parent = os.path.dirname(current_path)
         if parent and os.path.exists(parent):
+            logger.debug("Diretorio inicial resolveu para pai", code="EXPL_RESOLVE_PARENT", path=parent)
             return parent
+        logger.debug("Diretorio inicial nao encontrado", code="EXPL_RESOLVE_NOT_FOUND", path=current_path)
         return ""
