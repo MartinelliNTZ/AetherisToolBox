@@ -39,7 +39,7 @@ class LasBlackFilterPlugin(BasePlugin):
         - SelectorGrid para selecionar o LAS de entrada
         - GridDoubleSpinBox para limiar de preto (0–255)
         - GridCheckBox para salvar pontos pretos removidos
-        - GridLabel para info do arquivo e caminhos de saída
+        - SelectorGrid para caminhos de saída (save_file)
         - ExecutionButtons: SELECIONAR LAS, USAR ORIGEM, EXECUTAR
     """
 
@@ -79,7 +79,7 @@ class LasBlackFilterPlugin(BasePlugin):
                 "text": "USAR ORIGEM",
                 "callback": self._on_usar_origem,
                 "type": "secondary",
-                "description": "Salvar na mesma pasta do arquivo original",
+                "description": "Preencher caminhos de saida automaticamente",
             },
             "executar": {
                 "text": "EXECUTAR",
@@ -152,14 +152,21 @@ class LasBlackFilterPlugin(BasePlugin):
         grupo_saida = GroupPainel("Arquivos de Saída")
         self.main_layout.addWidget(grupo_saida)
 
-        self._output_label = GridLabel(
+        self._output_grid = SelectorGrid(
             {
-                "limpo": {"label": "LAS Filtrado", "value": "—"},
-                "pretos": {"label": "LAS Pretos", "value": "—"},
+                "LAS Filtrado": {
+                    "file_filter": self._LAS_FILTER,
+                    "browse_mode": "save_file",
+                    "placeholder": "Caminho do arquivo filtrado...",
+                },
+                "LAS Pretos": {
+                    "file_filter": self._LAS_FILTER,
+                    "browse_mode": "save_file",
+                    "placeholder": "Caminho do arquivo de pontos pretos...",
+                },
             },
-            columns=1,
         )
-        grupo_saida.group_layout.addWidget(self._output_label)
+        grupo_saida.group_layout.addWidget(self._output_grid)
 
         self.page.set_badge(self.page.PRONTA)
 
@@ -182,8 +189,9 @@ class LasBlackFilterPlugin(BasePlugin):
 
     def _on_usar_origem(self):
         """
-        Configura os caminhos de saída para a pasta do arquivo original.
+        Preenche automaticamente os caminhos de saída.
         Se projeto ativo, salva em root_folder/las/black_points_filter/.
+        Caso contrário, salva na mesma pasta do arquivo original.
         """
         if not self._current_path:
             MessageBox.show_warning(
@@ -193,13 +201,13 @@ class LasBlackFilterPlugin(BasePlugin):
             )
             return
 
-        caminhos = self._resolver_caminhos_saida(usar_origem=True)
-        self._output_label.set("limpo", caminhos["limpo"])
-        self._output_label.set("pretos", caminhos["pretos"])
+        caminhos = self._resolver_caminhos_saida(usar_origem=False)
+        self._output_grid["LAS Filtrado"].set_path(caminhos["limpo"])
+        self._output_grid["LAS Pretos"].set_path(caminhos["pretos"])
         self._btns.set_enabled("executar", True)
 
         SignalManager.instance().console_message.emit(
-            f"[LasBlackFilter] Destino definido para pasta origem do LAS"
+            "[LasBlackFilter] Caminhos de saida preenchidos automaticamente"
         )
 
     def _on_executar(self):
@@ -222,15 +230,16 @@ class LasBlackFilterPlugin(BasePlugin):
         limiar = self._spin_limiar.get("limiar")
         salvar_pretos = self._ckb_salvar_pretos.checked.get("salvar_pretos", False)
 
-        # Se não usou "USAR ORIGEM", resolve caminhos com base no projeto
-        output_limpo = self._output_label.get("limpo")
-        if output_limpo in ("", "—"):
-            caminhos = self._resolver_caminhos_saida(usar_origem=False)
-            output_limpo = caminhos["limpo"]
-            output_pretos = caminhos["pretos"] if salvar_pretos else ""
-        else:
-            output_limpo = self._output_label.get("limpo")
-            output_pretos = self._output_label.get("pretos") if salvar_pretos else ""
+        output_limpo = self._output_grid["LAS Filtrado"].path()
+        if not output_limpo:
+            MessageBox.show_warning(
+                "Defina o caminho do arquivo de saída (LAS Filtrado).\n"
+                "Use o botao USAR ORIGEM ou preencha manualmente.",
+                title="Filtro Pontos Pretos",
+            )
+            return
+
+        output_pretos = self._output_grid["LAS Pretos"].path() if salvar_pretos else ""
 
         # Executa em segundo plano via QTimer para não travar UI
         self._btns.set_all_enabled(False)
@@ -329,14 +338,16 @@ class LasBlackFilterPlugin(BasePlugin):
             signals.console_message.emit(
                 f"[LasBlackFilter] Salvando LAS filtrado: {output_limpo}"
             )
-            ExplorerUtils.ensure_directory(os.path.dirname(output_limpo), tool_key=self.tool_key)
+            ExplorerUtils.ensure_directory(
+                os.path.dirname(output_limpo), tool_key=self.tool_key
+            )
             las_limpo.write(output_limpo)
 
             signals.progress_update.emit(75.0)
 
             # ── Salva pontos pretos (opcional) ──────────────────────
             n_pretos = 0
-            if salvar_pretos and n_removidos > 0:
+            if salvar_pretos and n_removidos > 0 and output_pretos:
                 mask_pretos = ~mask_valido
                 las_pretos = laspy.LasData(las.header)
                 las_pretos.points = las.points[mask_pretos]
@@ -353,15 +364,11 @@ class LasBlackFilterPlugin(BasePlugin):
                     os.path.dirname(output_pretos), tool_key=self.tool_key
                 )
                 las_pretos.write(output_pretos)
-                self._output_label.set("pretos", output_pretos)
 
             signals.progress_update.emit(100.0)
 
             # ── Finalização ─────────────────────────────────────────
             self.page.set_badge(self.page.PRONTA)
-
-            # Atualiza GridLabel com caminhos
-            self._output_label.set("limpo", output_limpo)
 
             signals.execution_finished.emit(self.tool_key)
             signals.console_message.emit(
@@ -377,7 +384,7 @@ class LasBlackFilterPlugin(BasePlugin):
                 restantes=len(las_limpo.points),
                 total=n_total,
                 output_limpo=output_limpo,
-                output_pretos=output_pretos if salvar_pretos else None,
+                output_pretos=output_pretos if (salvar_pretos and output_pretos) else None,
             )
 
             # Mensagem final
@@ -388,7 +395,7 @@ class LasBlackFilterPlugin(BasePlugin):
                 f"Pontos mantidos: {len(las_limpo.points):,}\n\n"
                 f"LAS filtrado salvo em:\n{output_limpo}"
             )
-            if salvar_pretos and n_pretos > 0:
+            if salvar_pretos and n_pretos > 0 and output_pretos:
                 msg += f"\n\nPontos pretos salvos em:\n{output_pretos}"
 
             MessageBox.show_info(msg, title="Filtro Pontos Pretos")
@@ -427,7 +434,8 @@ class LasBlackFilterPlugin(BasePlugin):
         try:
             with laspy.open(path) as las:
                 n_pontos = las.header.point_count
-                has_rgb = "red" in las.point_format.dimension_names
+                # LasReader.header.point_format existe no objeto header
+                has_rgb = "red" in las.header.point_format.dimension_names
 
             self._current_path = path
             self._las_info = {
@@ -462,12 +470,8 @@ class LasBlackFilterPlugin(BasePlugin):
                     title="Filtro Pontos Pretos",
                 )
             else:
-                # Por padrão, já define os caminhos de saída na pasta do projeto
-                caminhos = self._resolver_caminhos_saida(usar_origem=False)
-                self._output_label.set("limpo", caminhos["limpo"])
-                self._output_label.set("pretos", caminhos["pretos"])
-                self._btns.set_enabled("executar", True)
-                self._btns.set_enabled("usar_origem", True)
+                # Preenche caminhos de saída automaticamente
+                self._on_usar_origem()
 
             self.logger.info(
                 "LAS carregado",
@@ -511,7 +515,6 @@ class LasBlackFilterPlugin(BasePlugin):
         ext = os.path.splitext(self._current_path)[1].lower()  # .las ou .laz
 
         if usar_origem:
-            # Salva na pasta do arquivo original
             base_dir = dir_origem
         else:
             # Tenta salvar na pasta do projeto ativo
