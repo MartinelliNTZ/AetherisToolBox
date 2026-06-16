@@ -23,7 +23,7 @@ from core.ui.HudCircularRingsLoader import HudCircularRingsLoader
 from plugins.BasePlugin import BasePlugin
 from core.papeline import ExecutionContext, AsyncPipelineEngine
 from core.papeline.step import DoclingConvertStep, DoclingSaveStep
-from core.papeline.task.DoclingWorkerTask import DoclingWorkerTask
+from core.papeline.task import DoclingWorkerTask
 from resources.widgets.ExecutionButtons import ExecutionButtons
 from resources.widgets.GridCheckBox import GridCheckBox
 from resources.widgets.GridDoubleSpinBox import GridDoubleSpinBox

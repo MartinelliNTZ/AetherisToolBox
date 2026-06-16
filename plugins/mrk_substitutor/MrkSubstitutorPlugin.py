@@ -235,7 +235,7 @@ class MrkSubstitutorPlugin(BasePlugin):
         SignalManager.instance().progress_update.emit(0.0)
         SignalManager.instance().hud_show.emit({"message": "Preparando..."})
 
-        from core.papeline.task.MrkBatchWorker import MrkBatchWorker
+        from core.papeline.task import MrkBatchWorker
 
         output_dir = Path(output_dir_str)
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -278,7 +278,7 @@ class MrkSubstitutorPlugin(BasePlugin):
             MessageBox.show_warning("Selecione o arquivo MRK e de dados.", title="Aviso")
             return None
 
-        from core.papeline.task.MrkBatchWorker import MrkSingleTask
+        from core.papeline.task import MrkSingleTask
 
         task = MrkSingleTask(
             mrk_path=mrk_path_str,
@@ -330,7 +330,7 @@ class MrkSubstitutorPlugin(BasePlugin):
 
         SignalManager.instance().console_message.emit(f"[MrkSubst] {len(mrk_paths)} MRKs encontrados")
 
-        from core.papeline.task.MrkBatchWorker import MrkBatchWorker
+        from core.papeline.task import MrkBatchWorker
 
         worker = MrkBatchWorker(
             mrk_paths=mrk_paths,
