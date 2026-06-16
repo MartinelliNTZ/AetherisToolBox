@@ -16,15 +16,16 @@ iniciar → step 1 → task assíncrona → callback sucesso → step 2 → ... 
 
 ```
 core/papeline/
-├── __init__.py               — Exporta classes públicas
+├── __init__.py               — Exporta classes públicas (6 componentes)
 ├── ExecutionContext.py        — Estado compartilhado entre steps
 ├── BaseTask.py                — Wrapper abstrato para trabalho em background
 ├── BaseStep.py                — Contrato abstrato para etapas da pipeline
-├── AsyncPipelineEngine.py     — Orquestrador da execução sequencial
+├── AsyncPipelineEngine.py     — Orquestrador (blocking thread.join)
+├── QtPipelineEngine.py        — Executa pipeline em QThread (não bloqueante)
 ├── task/
-│   ├── __init__.py            — Exporta tasks concretas (5 classes)
-│   ├── MrkSinglePipelineTask.py — MrkSinglePipelineTask (BaseTask) + MrkSingleTask (QThread) + MrkBatchWorker (QThread)
-│   └── DoclingPipelineTask.py    — DoclingPipelineTask (BaseTask) + DoclingWorkerTask (QThread)
+│   ├── __init__.py            — Exporta tasks concretas (2 classes)
+│   ├── MrkSinglePipelineTask.py — MrkSinglePipelineTask (BaseTask)
+│   └── DoclingPipelineTask.py    — DoclingPipelineTask (BaseTask)
 └── step/
     ├── __init__.py            — Exporta steps concretos
     ├── MrkSteps.py            — Steps MRK (MrkLoadDataStep, MrkProcessStep, MrkFindDataStep)
@@ -106,13 +107,15 @@ class MinhaTask(BaseTask):
 | `is_cancelled` | `bool` | True se cancelada |
 
 **Fluxo interno:**
-1. `run()` é chamado em background thread
+1. `run()` é chamado
 2. `run()` chama `_run()` (lógica real)
 3. Se `_run()` lançar exceção → captura em `self.exception`, retorna `False`
 4. Se `_run()` retornar `True` → `self.result` contém o resultado
 5. `finished(success)` é chamado após o término
 6. `success=True` → dispara `on_success(self.result)`
 7. `success=False` → dispara `on_error(self.exception)`
+
+> ⚠️ **Importante:** BaseTask NÃO é QThread. Para executar em thread sem travar UI, use `QtPipelineEngine`.
 
 ---
 
@@ -156,9 +159,57 @@ class MeuStep(BaseStep):
 
 ---
 
+### `SingleTaskStep` — Step genérico (para plugins)
+
+Step que executa UMA BaseTask a partir de uma factory function. Ideal para plugins que precisam rodar 1 task em background sem criar Steps customizados.
+
+```python
+from core.papeline import SingleTaskStep, ExecutionContext, QtPipelineEngine
+from core.papeline.task import DoclingPipelineTask
+
+step = SingleTaskStep(
+    task_factory=lambda: DoclingPipelineTask(file_path, columnar=True),
+    name="converter",
+)
+ctx = ExecutionContext({"file_path": file_path})
+
+engine = QtPipelineEngine(steps=[step], context=ctx, parent=self)
+engine.finished_ok.connect(self._on_done)
+engine.failed.connect(self._on_error)
+engine.start()
+```
+
+O resultado da task fica em `context.get("result")`.
+
+---
+
+### `QtPipelineEngine` — `core/papeline/QtPipelineEngine.py`
+
+Executa N steps sequencialmente em uma QThread, sem travar a UI. Ideal para plugins.
+
+```python
+from core.papeline import QtPipelineEngine, ExecutionContext, SingleTaskStep
+
+step = SingleTaskStep(task_factory=lambda: MinhaTask(dado), name="meu_step")
+ctx = ExecutionContext({"dado": 42})
+
+engine = QtPipelineEngine(steps=[step], context=ctx, parent=self)
+engine.finished_ok.connect(minha_callback)
+engine.failed.connect(minha_callback_erro)
+engine.start()
+```
+
+**Sinais (Qt):**
+| Sinal | Tipo | Descrição |
+|-------|------|-----------|
+| `finished_ok` | `Signal(object)` | ExecutionContext ao finalizar com sucesso |
+| `failed` | `Signal(str)` | Mensagem de erro |
+
+---
+
 ### `AsyncPipelineEngine` — `core/papeline/AsyncPipelineEngine.py`
 
-Orquestrador principal da execução sequencial.
+Orquestrador principal para execução sequencial **fora do Qt**. Usa `thread.join()` — **não use em plugins** (bloqueia UI).
 
 ```python
 from core.papeline import AsyncPipelineEngine, ExecutionContext
@@ -175,7 +226,6 @@ engine = AsyncPipelineEngine(
 )
 
 engine.start()
-# engine.cancel()  # para cancelar
 ```
 
 **Parâmetros do construtor:**
@@ -195,20 +245,13 @@ engine.start()
 | `start()` | Inicia execução |
 | `cancel()` | Cancela (cooperativo) |
 
-**Propriedades:**
-
-| Propriedade | Tipo | Descrição |
-|-------------|------|-----------|
-| `is_running` | `bool` | True se executando |
-| `context` | `ExecutionContext` | Contexto atual |
-
 ---
 
 ## 🔧 Tasks Concretas
 
 ### `MrkSinglePipelineTask` — `core/papeline/task/MrkSinglePipelineTask.py`
 
-Task para processamento de arquivos MRK (BaseTask). Cada arquivo .py contém tanto a versão BaseTask (pipeline) quanto a versão QThread (plugin direto).
+Task para processamento de arquivos MRK.
 
 ```python
 from core.papeline.task import MrkSinglePipelineTask
@@ -220,11 +263,6 @@ task = MrkSinglePipelineTask(
     output_dir="saida/",
 )
 ```
-
-Classes disponíveis em `MrkSinglePipelineTask.py`:
-- `MrkSinglePipelineTask(BaseTask)` — usado na pipeline assíncrona
-- `MrkSingleTask(QThread)` — processa 1 MRK com dados (usado pelo MrkSubstitutorPlugin)
-- `MrkBatchWorker(QThread)` — processa N MRKs em lote
 
 ### `DoclingPipelineTask` — `core/papeline/task/DoclingPipelineTask.py`
 
@@ -240,27 +278,35 @@ task = DoclingPipelineTask(
 )
 ```
 
-Classes disponíveis em `DoclingPipelineTask.py`:
-- `DoclingPipelineTask(BaseTask)` — usado na pipeline assíncrona
-- `DoclingWorkerTask(QThread)` — usado diretamente pelo DoclingPlugin
-
-### Importação via `__init__.py`
-
-Todas as 5 classes são exportadas pelo `core/papeline/task/__init__.py`:
-
-```python
-from core.papeline.task import (
-    MrkSinglePipelineTask,
-    MrkSingleTask,
-    MrkBatchWorker,
-    DoclingPipelineTask,
-    DoclingWorkerTask,
-)
-```
-
 ---
 
 ## 🎯 Exemplo Completo
+
+### Pipeline para pipeline engine (assíncrono, não bloqueante)
+
+```python
+from core.papeline import (
+    ExecutionContext,
+    QtPipelineEngine,
+    SingleTaskStep,
+)
+from core.papeline.task import DoclingPipelineTask
+
+# Step que converte documento
+step = SingleTaskStep(
+    task_factory=lambda: DoclingPipelineTask("documento.pdf"),
+    name="converter",
+)
+
+# Engine não bloqueante
+ctx = ExecutionContext({"file": "documento.pdf"})
+engine = QtPipelineEngine(steps=[step], context=ctx, parent=plugin)
+engine.finished_ok.connect(lambda ctx: print(f"OK: {ctx.get('result')}"))
+engine.failed.connect(lambda msg: print(f"ERRO: {msg}"))
+engine.start()
+```
+
+### Pipeline com steps customizados (blocking)
 
 ```python
 from core.papeline import (
@@ -270,19 +316,15 @@ from core.papeline import (
     AsyncPipelineEngine,
 )
 
-# 1. Task concreta
 class CalcularTask(BaseTask):
     def __init__(self, valor):
         super().__init__("calcular")
         self._valor = valor
 
     def _run(self) -> bool:
-        import time
-        time.sleep(1)
         self.result = self._valor * 2
         return True
 
-# 2. Steps concretos
 class StepCalcular(BaseStep):
     def name(self): return "calcular"
     def create_task(self, ctx):
@@ -291,19 +333,9 @@ class StepCalcular(BaseStep):
     def on_success(self, ctx, result):
         ctx.set("resultado", result)
 
-class StepMostrar(BaseStep):
-    def name(self): return "mostrar"
-    def create_task(self, ctx): return None  # síncrono
-    def run_inline(self, ctx):
-        print(f"Resultado: {ctx.get('resultado')}")
-        return ctx.get("resultado")
-    def on_success(self, ctx, result):
-        print("Step síncrono concluído!")
-
-# 3. Executa pipeline
 ctx = ExecutionContext({"valor": 21})
 engine = AsyncPipelineEngine(
-    steps=[StepCalcular(), StepMostrar()],
+    steps=[StepCalcular()],
     context=ctx,
     on_finished=lambda c: print(f"Pipeline OK: {c.get('resultado')}"),
 )
@@ -323,6 +355,7 @@ engine.start()
 | **Erro para a pipeline** | Exceção em qualquer step interrompe a execução |
 | **Cancelamento cooperativo** | Step DEVE verificar `context.is_cancelled()` |
 | **Contexto é o estado** | Steps comunicam-se exclusivamente via `ExecutionContext` |
+| **Em plugins, use QtPipelineEngine** | Nunca use AsyncPipelineEngine em plugins (bloqueia UI) |
 
 ## ✅ Checklist ao criar nova Pipeline
 

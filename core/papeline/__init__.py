@@ -1,10 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-core/async — Sistema de Pipeline Assíncrono
-============================================
+core/papeline — Sistema de Pipeline Assíncrono
+================================================
 Pipeline sequencial assíncrono composto por etapas (Steps) que são
-executadas uma após a outra. Cada etapa pode executar uma tarefa
-pesada em background thread e, ao finalizar, chama callbacks.
+executadas uma após a outra.
 
 Componentes:
     - ExecutionContext: Estado compartilhado entre steps
@@ -17,10 +16,15 @@ from .ExecutionContext import ExecutionContext
 from .BaseTask import BaseTask
 from .BaseStep import BaseStep
 from .AsyncPipelineEngine import AsyncPipelineEngine
+from .ParallelStep import ParallelStep, ParallelTask
+from .PipelineRunner import PipelineRunner
 
 __all__ = [
     "ExecutionContext",
     "BaseTask",
     "BaseStep",
     "AsyncPipelineEngine",
+    "ParallelStep",
+    "ParallelTask",
+    "PipelineRunner",
 ]
