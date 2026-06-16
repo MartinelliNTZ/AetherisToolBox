@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 from PySide6.QtCore import QThread, Signal
 
@@ -150,10 +150,8 @@ class MrkSingleTask(QThread):
         Processa UM arquivo MRK contra os dados fornecidos.
         Delega ao método estático e emite progresso.
         """
-        total_lines = 0
         with open(mrk_path, "r", encoding="utf-8") as f:
             mrk_lines = f.readlines()
-        total_lines = len(mrk_lines)
 
         result = self._process_mrk_static(
             mrk_path, data, self._mapping, self._output_dir,

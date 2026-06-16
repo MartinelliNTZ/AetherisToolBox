@@ -1,6 +1,6 @@
 # Skill: Sistema de Pipeline Assíncrono (AsyncPipeline)
 
-Esta skill documenta o sistema de pipeline assíncrono implementado em `core/async/`, descrevendo sua arquitetura, componentes e como criar novas pipelines.
+Esta skill documenta o sistema de pipeline assíncrono implementado em `core/papeline/`, descrevendo sua arquitetura, componentes e como criar novas pipelines.
 
 ---
 
@@ -15,23 +15,25 @@ iniciar → step 1 → task assíncrona → callback sucesso → step 2 → ... 
 ## 🧱 Arquitetura
 
 ```
-core/async/
-├── __init__.py              — Exporta classes públicas
-├── ExecutionContext.py       — Estado compartilhado entre steps
-├── BaseTask.py               — Wrapper abstrato para trabalho em background
-├── BaseStep.py               — Contrato abstrato para etapas da pipeline
-├── AsyncPipelineEngine.py    — Orquestrador da execução sequencial
+core/papeline/
+├── __init__.py               — Exporta classes públicas
+├── ExecutionContext.py        — Estado compartilhado entre steps
+├── BaseTask.py                — Wrapper abstrato para trabalho em background
+├── BaseStep.py                — Contrato abstrato para etapas da pipeline
+├── AsyncPipelineEngine.py     — Orquestrador da execução sequencial
 ├── task/
-│   ├── __init__.py           — Exporta tasks concretas
-│   ├── MrkSinglePipelineTask.py   — Task de processamento MRK
-│   └── DoclingPipelineTask.py     — Task de conversão Docling
+│   ├── __init__.py            — Exporta tasks concretas (5 classes)
+│   ├── MrkSinglePipelineTask.py — MrkSinglePipelineTask (BaseTask) + MrkSingleTask (QThread) + MrkBatchWorker (QThread)
+│   └── DoclingPipelineTask.py    — DoclingPipelineTask (BaseTask) + DoclingWorkerTask (QThread)
 └── step/
-    └── __init__.py           — Steps concretos (criar aqui)
+    ├── __init__.py            — Exporta steps concretos
+    ├── MrkSteps.py            — Steps MRK (MrkLoadDataStep, MrkProcessStep, MrkFindDataStep)
+    └── DoclingSteps.py        — Steps Docling (DoclingConvertStep, DoclingSaveStep)
 ```
 
 ## 📦 Componentes
 
-### `ExecutionContext` — `core/async/ExecutionContext.py`
+### `ExecutionContext` — `core/papeline/ExecutionContext.py`
 
 Container de estado compartilhado entre todos os steps da pipeline.
 
@@ -73,7 +75,7 @@ ctx.clear()  # reseta tudo
 
 ---
 
-### `BaseTask` — `core/async/BaseTask.py`
+### `BaseTask` — `core/papeline/BaseTask.py`
 
 Classe abstrata para execução de trabalho pesado em background.
 
@@ -114,7 +116,7 @@ class MinhaTask(BaseTask):
 
 ---
 
-### `BaseStep` — `core/async/BaseStep.py`
+### `BaseStep` — `core/papeline/BaseStep.py`
 
 Contrato abstrato que define uma etapa da pipeline.
 
@@ -154,7 +156,7 @@ class MeuStep(BaseStep):
 
 ---
 
-### `AsyncPipelineEngine` — `core/async/AsyncPipelineEngine.py`
+### `AsyncPipelineEngine` — `core/papeline/AsyncPipelineEngine.py`
 
 Orquestrador principal da execução sequencial.
 
@@ -204,9 +206,9 @@ engine.start()
 
 ## 🔧 Tasks Concretas
 
-### `MrkSinglePipelineTask` — `core/async/task/MrkSinglePipelineTask.py`
+### `MrkSinglePipelineTask` — `core/papeline/task/MrkSinglePipelineTask.py`
 
-Task para processamento de arquivos MRK. Adaptação do `MrkSingleTask` original.
+Task para processamento de arquivos MRK (BaseTask). Cada arquivo .py contém tanto a versão BaseTask (pipeline) quanto a versão QThread (plugin direto).
 
 ```python
 from core.papeline.task import MrkSinglePipelineTask
@@ -219,9 +221,14 @@ task = MrkSinglePipelineTask(
 )
 ```
 
-### `DoclingPipelineTask` — `core/async/task/DoclingPipelineTask.py`
+Classes disponíveis em `MrkSinglePipelineTask.py`:
+- `MrkSinglePipelineTask(BaseTask)` — usado na pipeline assíncrona
+- `MrkSingleTask(QThread)` — processa 1 MRK com dados (usado pelo MrkSubstitutorPlugin)
+- `MrkBatchWorker(QThread)` — processa N MRKs em lote
 
-Task para conversão de documentos via Docling. Adaptação do `DoclingWorkerTask` original.
+### `DoclingPipelineTask` — `core/papeline/task/DoclingPipelineTask.py`
+
+Task para conversão de documentos via Docling.
 
 ```python
 from core.papeline.task import DoclingPipelineTask
@@ -230,6 +237,24 @@ task = DoclingPipelineTask(
     file_path="documento.pdf",
     columnar=True,
     manual_columns=0,
+)
+```
+
+Classes disponíveis em `DoclingPipelineTask.py`:
+- `DoclingPipelineTask(BaseTask)` — usado na pipeline assíncrona
+- `DoclingWorkerTask(QThread)` — usado diretamente pelo DoclingPlugin
+
+### Importação via `__init__.py`
+
+Todas as 5 classes são exportadas pelo `core/papeline/task/__init__.py`:
+
+```python
+from core.papeline.task import (
+    MrkSinglePipelineTask,
+    MrkSingleTask,
+    MrkBatchWorker,
+    DoclingPipelineTask,
+    DoclingWorkerTask,
 )
 ```
 
@@ -301,8 +326,8 @@ engine.start()
 
 ## ✅ Checklist ao criar nova Pipeline
 
-- [ ] Criei as tasks em `core/async/task/` herdando de `BaseTask`?
-- [ ] Criei os steps em `core/async/step/` herdando de `BaseStep`?
+- [ ] Criei as tasks em `core/papeline/task/` herdando de `BaseTask`?
+- [ ] Criei os steps em `core/papeline/step/` herdando de `BaseStep`?
 - [ ] Atualizei os `__init__.py` correspondentes?
 - [ ] Usei `super().__init__(description=...)` nas tasks?
 - [ ] O `on_success` atualiza o `ExecutionContext` com os resultados?
