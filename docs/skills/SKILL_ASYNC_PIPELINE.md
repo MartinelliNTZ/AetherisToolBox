@@ -1,0 +1,314 @@
+# Skill: Sistema de Pipeline Assíncrono (AsyncPipeline)
+
+Esta skill documenta o sistema de pipeline assíncrono implementado em `core/async/`, descrevendo sua arquitetura, componentes e como criar novas pipelines.
+
+---
+
+## 📋 Visão Geral
+
+O sistema implementa um **pipeline sequencial assíncrono** composto por etapas (`Steps`) executadas uma após a outra. Cada etapa pode executar uma tarefa pesada em background e, ao finalizar, chama callbacks de sucesso/erro que avançam para a próxima etapa.
+
+```
+iniciar → step 1 → task assíncrona → callback sucesso → step 2 → ... → finalizar
+```
+
+## 🧱 Arquitetura
+
+```
+core/async/
+├── __init__.py              — Exporta classes públicas
+├── ExecutionContext.py       — Estado compartilhado entre steps
+├── BaseTask.py               — Wrapper abstrato para trabalho em background
+├── BaseStep.py               — Contrato abstrato para etapas da pipeline
+├── AsyncPipelineEngine.py    — Orquestrador da execução sequencial
+├── task/
+│   ├── __init__.py           — Exporta tasks concretas
+│   ├── MrkSinglePipelineTask.py   — Task de processamento MRK
+│   └── DoclingPipelineTask.py     — Task de conversão Docling
+└── step/
+    └── __init__.py           — Steps concretos (criar aqui)
+```
+
+## 📦 Componentes
+
+### `ExecutionContext` — `core/async/ExecutionContext.py`
+
+Container de estado compartilhado entre todos os steps da pipeline.
+
+```python
+from core.papeline import ExecutionContext
+
+ctx = ExecutionContext({"arquivo": "teste.mrk"})
+ctx.set("resultado", 42)
+ctx.set("caminho", "/tmp/saida").set("status", "ok")  # fluent
+
+valor = ctx.get("resultado", default=0)
+existe = ctx.has("caminho")
+ctx.require(["caminho", "resultado"])  # KeyError se faltar
+
+ctx.add_error(ValueError("algo errado"))
+erros = ctx.get_errors()
+if ctx.has_errors(): ...
+
+ctx.cancel()
+if ctx.is_cancelled(): ...
+
+ctx.clear()  # reseta tudo
+```
+
+**Métodos:**
+
+| Método | Retorno | Descrição |
+|--------|---------|-----------|
+| `set(key, value)` | `ExecutionContext` | Armazena valor (fluent) |
+| `get(key, default)` | `Any` | Recupera valor |
+| `has(key)` | `bool` | Verifica existência |
+| `require(keys)` | `None` | Lança `KeyError` se faltar |
+| `add_error(exc)` | `None` | Adiciona erro |
+| `get_errors()` | `list[Exception]` | Retorna cópia dos erros |
+| `has_errors()` | `bool` | True se houve erro |
+| `cancel()` | `None` | Marca cancelamento |
+| `is_cancelled()` | `bool` | True se cancelado |
+| `clear()` | `None` | Reseta tudo |
+
+---
+
+### `BaseTask` — `core/async/BaseTask.py`
+
+Classe abstrata para execução de trabalho pesado em background.
+
+```python
+from core.papeline import BaseTask
+
+class MinhaTask(BaseTask):
+    def __init__(self, dado: str):
+        super().__init__(description=f"Processar: {dado}")
+        self._dado = dado
+
+    def _run(self) -> bool:
+        # Lógica pesada aqui
+        resultado = self._dado.upper()
+        self.result = {"original": self._dado, "upper": resultado}
+        return True  # False se falhar
+```
+
+**Atributos:**
+
+| Atributo | Tipo | Descrição |
+|----------|------|-----------|
+| `description` | `str` | Descrição para logs |
+| `exception` | `Exception \| None` | Exceção capturada |
+| `result` | `Any` | Resultado produzido |
+| `on_success` | `callable \| None` | Callback de sucesso |
+| `on_error` | `callable \| None` | Callback de erro |
+| `is_cancelled` | `bool` | True se cancelada |
+
+**Fluxo interno:**
+1. `run()` é chamado em background thread
+2. `run()` chama `_run()` (lógica real)
+3. Se `_run()` lançar exceção → captura em `self.exception`, retorna `False`
+4. Se `_run()` retornar `True` → `self.result` contém o resultado
+5. `finished(success)` é chamado após o término
+6. `success=True` → dispara `on_success(self.result)`
+7. `success=False` → dispara `on_error(self.exception)`
+
+---
+
+### `BaseStep` — `core/async/BaseStep.py`
+
+Contrato abstrato que define uma etapa da pipeline.
+
+```python
+from core.papeline import BaseStep, ExecutionContext, BaseTask
+
+class MeuStep(BaseStep):
+    def name(self) -> str:
+        return "meu_step"
+
+    def create_task(self, context: ExecutionContext) -> BaseTask | None:
+        arquivo = context.get("arquivo")
+        return MinhaTask(arquivo)
+
+    def on_success(self, context: ExecutionContext, result: Any) -> None:
+        context.set("resultado_step", result)
+
+    # Opcionais:
+    def should_run(self, context: ExecutionContext) -> bool:
+        return context.has("arquivo")
+
+    def on_error(self, context: ExecutionContext, exception: Exception) -> None:
+        context.add_error(exception)
+```
+
+**Métodos:**
+
+| Método | Obrigatório | Descrição |
+|--------|-------------|-----------|
+| `name()` | ✅ | Identificador único |
+| `create_task(context)` | ✅ | Cria `BaseTask \| None` |
+| `on_success(context, result)` | ✅ | Callback de sucesso |
+| `should_run(context)` | ❌ | Se `False`, step é pulado |
+| `on_error(context, exception)` | ❌ | Tratamento de erro |
+| `rollback(context)` | ❌ | Desfazer alterações |
+| `run_inline(context)` | ❌ | Execução síncrona |
+
+---
+
+### `AsyncPipelineEngine` — `core/async/AsyncPipelineEngine.py`
+
+Orquestrador principal da execução sequencial.
+
+```python
+from core.papeline import AsyncPipelineEngine, ExecutionContext
+
+steps = [StepCarregar(), StepProcessar(), StepSalvar()]
+context = ExecutionContext({"param": 10})
+
+engine = AsyncPipelineEngine(
+    steps=steps,
+    context=context,
+    on_finished=lambda ctx: print(f"Sucesso! {ctx.get('resultado')}"),
+    on_error=lambda errors: print(f"Erros: {errors}"),
+    on_cancelled=lambda ctx: print("Cancelado"),
+)
+
+engine.start()
+# engine.cancel()  # para cancelar
+```
+
+**Parâmetros do construtor:**
+
+| Parâmetro | Tipo | Descrição |
+|-----------|------|-----------|
+| `steps` | `list[BaseStep]` | Steps a executar |
+| `context` | `ExecutionContext` | Estado compartilhado |
+| `on_finished` | `callable \| None` | Callback de sucesso |
+| `on_error` | `callable \| None` | Callback de erro |
+| `on_cancelled` | `callable \| None` | Callback de cancelamento |
+
+**Métodos:**
+
+| Método | Descrição |
+|--------|-----------|
+| `start()` | Inicia execução |
+| `cancel()` | Cancela (cooperativo) |
+
+**Propriedades:**
+
+| Propriedade | Tipo | Descrição |
+|-------------|------|-----------|
+| `is_running` | `bool` | True se executando |
+| `context` | `ExecutionContext` | Contexto atual |
+
+---
+
+## 🔧 Tasks Concretas
+
+### `MrkSinglePipelineTask` — `core/async/task/MrkSinglePipelineTask.py`
+
+Task para processamento de arquivos MRK. Adaptação do `MrkSingleTask` original.
+
+```python
+from core.papeline.task import MrkSinglePipelineTask
+
+task = MrkSinglePipelineTask(
+    mrk_path="dados/arquivo.mrk",
+    data=[{"Lat": "-22.123", "Lon": "-42.456"}],
+    mapping={"Lat": "Lat", "Lon": "Lon", "Ellh": "Ellh"},
+    output_dir="saida/",
+)
+```
+
+### `DoclingPipelineTask` — `core/async/task/DoclingPipelineTask.py`
+
+Task para conversão de documentos via Docling. Adaptação do `DoclingWorkerTask` original.
+
+```python
+from core.papeline.task import DoclingPipelineTask
+
+task = DoclingPipelineTask(
+    file_path="documento.pdf",
+    columnar=True,
+    manual_columns=0,
+)
+```
+
+---
+
+## 🎯 Exemplo Completo
+
+```python
+from core.papeline import (
+    ExecutionContext,
+    BaseStep,
+    BaseTask,
+    AsyncPipelineEngine,
+)
+
+# 1. Task concreta
+class CalcularTask(BaseTask):
+    def __init__(self, valor):
+        super().__init__("calcular")
+        self._valor = valor
+
+    def _run(self) -> bool:
+        import time
+        time.sleep(1)
+        self.result = self._valor * 2
+        return True
+
+# 2. Steps concretos
+class StepCalcular(BaseStep):
+    def name(self): return "calcular"
+    def create_task(self, ctx):
+        v = ctx.get("valor", 10)
+        return CalcularTask(v)
+    def on_success(self, ctx, result):
+        ctx.set("resultado", result)
+
+class StepMostrar(BaseStep):
+    def name(self): return "mostrar"
+    def create_task(self, ctx): return None  # síncrono
+    def run_inline(self, ctx):
+        print(f"Resultado: {ctx.get('resultado')}")
+        return ctx.get("resultado")
+    def on_success(self, ctx, result):
+        print("Step síncrono concluído!")
+
+# 3. Executa pipeline
+ctx = ExecutionContext({"valor": 21})
+engine = AsyncPipelineEngine(
+    steps=[StepCalcular(), StepMostrar()],
+    context=ctx,
+    on_finished=lambda c: print(f"Pipeline OK: {c.get('resultado')}"),
+)
+engine.start()
+```
+
+---
+
+## ⚠️ Regras e Comportamentos
+
+| Comportamento | Descrição |
+|---------------|-----------|
+| **Pipeline só executa uma vez** | `start()` lança `RuntimeError` se já executando |
+| **Steps sequenciais** | Step só começa quando anterior termina |
+| **Step pode ser pulado** | `should_run()` retornando `False` |
+| **Step síncrono** | `create_task()` retorna `None` + implementar `run_inline()` |
+| **Erro para a pipeline** | Exceção em qualquer step interrompe a execução |
+| **Cancelamento cooperativo** | Step DEVE verificar `context.is_cancelled()` |
+| **Contexto é o estado** | Steps comunicam-se exclusivamente via `ExecutionContext` |
+
+## ✅ Checklist ao criar nova Pipeline
+
+- [ ] Criei as tasks em `core/async/task/` herdando de `BaseTask`?
+- [ ] Criei os steps em `core/async/step/` herdando de `BaseStep`?
+- [ ] Atualizei os `__init__.py` correspondentes?
+- [ ] Usei `super().__init__(description=...)` nas tasks?
+- [ ] O `on_success` atualiza o `ExecutionContext` com os resultados?
+- [ ] Tratei exceções dentro de `_run()` retornando `False`?
+
+## 🔗 Referências
+
+- Documentação de análise: `docs/implementacoes/analise_sistema_pipeline_assincrono.md`
+- Contratos do sistema: `docs/skills/SKILL_PLUGIN_CONTRACT.md`

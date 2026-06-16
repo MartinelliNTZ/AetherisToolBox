@@ -13,10 +13,12 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from PySide6.QtCore import QThread, Signal
+from PySide6.QtCore import QThread, Signal, QTimer
 
 from core.enum.ToolKey import ToolKey
 from core.manager.SignalManager import SignalManager
+from core.papeline import ExecutionContext, AsyncPipelineEngine
+from core.papeline.step import MrkLoadDataStep, MrkProcessStep, MrkFindDataStep
 from plugins.BasePlugin import BasePlugin
 from resources.widgets.ExecutionButtons import ExecutionButtons
 from resources.widgets.GridCheckBox import GridCheckBox
@@ -233,7 +235,7 @@ class MrkSubstitutorPlugin(BasePlugin):
         SignalManager.instance().progress_update.emit(0.0)
         SignalManager.instance().hud_show.emit({"message": "Preparando..."})
 
-        from core.async.task.MrkBatchWorker import MrkBatchWorker
+        from core.papeline.task.MrkBatchWorker import MrkBatchWorker
 
         output_dir = Path(output_dir_str)
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -276,7 +278,7 @@ class MrkSubstitutorPlugin(BasePlugin):
             MessageBox.show_warning("Selecione o arquivo MRK e de dados.", title="Aviso")
             return None
 
-        from core.async.task.MrkBatchWorker import MrkSingleTask
+        from core.papeline.task.MrkBatchWorker import MrkSingleTask
 
         task = MrkSingleTask(
             mrk_path=mrk_path_str,
@@ -328,7 +330,7 @@ class MrkSubstitutorPlugin(BasePlugin):
 
         SignalManager.instance().console_message.emit(f"[MrkSubst] {len(mrk_paths)} MRKs encontrados")
 
-        from core.async.task.MrkBatchWorker import MrkBatchWorker
+        from core.papeline.task.MrkBatchWorker import MrkBatchWorker
 
         worker = MrkBatchWorker(
             mrk_paths=mrk_paths,
