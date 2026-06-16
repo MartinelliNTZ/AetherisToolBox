@@ -21,7 +21,7 @@ from core.enum.ToolKey import ToolKey
 from core.manager.SignalManager import SignalManager
 from core.ui.HudCircularRingsLoader import HudCircularRingsLoader
 from plugins.BasePlugin import BasePlugin
-from core.task.DoclingWorkerTask import DoclingWorkerTask
+from core.async.task.DoclingWorkerTask import DoclingWorkerTask
 from resources.widgets.ExecutionButtons import ExecutionButtons
 from resources.widgets.GridCheckBox import GridCheckBox
 from resources.widgets.GridDoubleSpinBox import GridDoubleSpinBox
