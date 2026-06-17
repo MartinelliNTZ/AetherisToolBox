@@ -318,7 +318,15 @@ class MainWindow(QMainWindow):
 
     def _on_hud_show(self, data: dict):
         msg = data.get("message", "Processando...")
-        self._hud.set_progress(0.0, msg)
+        timer = data.get("timer", None)     # Modo 2: segundos
+        stages = data.get("stages", None)   # Modo 3: (segundos, num_etapas)
+
+        if timer is not None:
+            self._hud.start_timer(float(timer), msg)
+        elif stages is not None and isinstance(stages, (list, tuple)) and len(stages) == 2:
+            self._hud.start_staged(float(stages[0]), int(stages[1]), msg)
+        else:
+            self._hud.set_progress(0.0, msg)
         self._hud.show_loader()
 
     def _on_hud_update(self, data: dict):

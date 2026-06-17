@@ -11,7 +11,6 @@ from __future__ import annotations
 import os
 from core.enum.ToolKey import ToolKey
 from core.manager.SignalManager import SignalManager
-from core.ui.HudCircularRingsLoader import HudCircularRingsLoader
 from plugins.BasePlugin import BasePlugin
 from core.papeline.PipelineRunner import PipelineRunner
 from core.papeline.step import DoclingConvertStep
@@ -50,8 +49,6 @@ class DoclingPlugin(BasePlugin):
 
     def _build_ui(self):
         super()._build_ui()
-        self._loader = HudCircularRingsLoader(self)
-        self._loader.setGeometry(0, 0, self.width(), self.height())
 
         self._btns = ExecutionButtons(self)
         self._btns.setup({
@@ -124,7 +121,6 @@ class DoclingPlugin(BasePlugin):
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        self._loader.setGeometry(0, 0, self.width(), self.height())
 
     def _on_columnar_changed(self):
         enabled = bool(self._grid_col_opts.all.get("columnar", False))
@@ -153,8 +149,12 @@ class DoclingPlugin(BasePlugin):
         self._txt_preview.clear_content()
         self.page.set_badge(self.page.RUNNING)
         self._btns.set_enabled("converter", False)
-        self._loader.show_loader()
-        self._loader.set_progress(0, "Inicializando conversão...")
+
+        # Modo 2: timer de 10s via HUD central (sem HudCircularRingsLoader local)
+        SignalManager.instance().hud_show.emit({
+            "message": "Convertendo documento...",
+            "timer": 10.0,
+        })
 
         SignalManager.instance().console_message.emit(
             f"Convertendo: {os.path.basename(file_path)}"
@@ -190,8 +190,8 @@ class DoclingPlugin(BasePlugin):
 
     def _on_runner_finished(self):
         self._runner = None
-        self._loader.hide_loader()
         self._btns.set_enabled("converter", True)
+        SignalManager.instance().hud_hide.emit()
         SignalManager.instance().progress_update.emit(0.0)
 
     def _on_salvar(self):
