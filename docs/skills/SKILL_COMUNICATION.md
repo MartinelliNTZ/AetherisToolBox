@@ -148,20 +148,34 @@ SignalManager.instance().hud_show.emit({
 self._hud.start_timer(10.0, "Convertendo...")
 ```
 
-### Modo 3 — Etapas Estimadas
-Use `start_staged(segundos_totais, num_etapas)` para processos com etapas conhecidas. A loader divide o tempo total pelas etapas e sobe gradativamente. Ao receber `hud_stage_done` (via SignalManager), pula imediatamente para o próximo patamar.
+### Modo 3 — Etapas (N stages)
+Use `start_staged(segundos_totais, num_stages)` para processos com etapas conhecidas. Divide tempo e porcentagem igualmente:
+
+- **Ex: 100s, 4 stages** → cada stage = 25% em 25s
+- **Ex: 600s, 6 stages** → cada stage = 16.66% em 100s
+- **Ex: 200s, 4 stages** → stage 1: 0-25% em 50s, stage 2: 25.01-50% em 50s, stage 3: 50.01-75% em 50s, stage 4: 75.01-100% em 50s
+
+A loader avanca suavemente (0.01% a cada `tempo_stage / (pct_stage * 100)` segundos). Quando chega no limite do stage, PARA e aguarda `hud_stage_done`. O sinal `hud_stage_done(stage_index)` libera o proximo stage.
 
 ```python
-# Inicio: 100s totais, 4 etapas (25s/etapa)
+# Inicio: 200s totais, 4 etapas
 SignalManager.instance().hud_show.emit({
     "message": "Processando lote...",
-    "stages": [100.0, 4],  # (total_seconds, num_stages)
+    "stages": [200.0, 4],  # (total_seconds, num_stages)
 })
 
 # Quando uma etapa externa for concluida:
-SignalManager.instance().hud_stage_done.emit(0)  # etapa 0 concluida -> pula para 25%
-SignalManager.instance().hud_stage_done.emit(1)  # etapa 1 concluida -> pula para 50%
+SignalManager.instance().hud_stage_done.emit(0)  # stage 0 concluido -> pula para 25%
+SignalManager.instance().hud_stage_done.emit(1)  # stage 1 concluido -> pula para 50%
+SignalManager.instance().hud_stage_done.emit(2)  # stage 2 concluido -> pula para 75%
+SignalManager.instance().hud_stage_done.emit(3)  # stage 3 concluido -> pula para 100%
 ```
+
+**Comportamento detalhado:**
+- A cada tick (16ms), calcula `(elapsed / secs_per_stage) * pct_per_stage` para saber quanto % avancou dentro do stage atual
+- Quando atinge `stage_target_progress`, a progressao para automaticamente
+- `hud_stage_done(N)` libera o stage `(N+1)` e reinicia o timer
+- Se o ultimo stage for liberado, vai direto para 100%
 
 **Regras:**
 - Usar `SignalManager` (sinais `hud_show`, `hud_update`, `hud_hide`) para controlar o HUD a partir de workers.
