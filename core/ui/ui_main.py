@@ -333,9 +333,12 @@ class MainWindow(QMainWindow):
         msg = data.get("message", "")
         progress = data.get("progress", None)
         if progress is not None:
-            self._hud.set_progress(float(progress), msg)
-        elif msg:
+            # Atualiza valores diretamente sem set_progress()
+            # para não resetar o modo automático (timer/staged)
+            self._hud.progress = max(0.0, min(100.0, float(progress)))
+        if msg:
             self._hud.message = msg
+        if progress is not None or msg:
             self._hud.update()
 
     def _on_hud_hide(self):
