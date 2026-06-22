@@ -213,6 +213,8 @@ except Exception as e:
 - Permitido apenas para testes locais rápidos (por exemplo, testar saídas do `LogUtils`) e scripts temporários.
 - Nunca deixe `print()` em código final ou em commits destinados à base principal.
 
+> 💡 **Consulte também:** `docs/skills/SKILL_HUD_PROGRESS.md` para o fluxo completo de integração entre HUD Loader, ProgressBar e execução em QThread (PipelineRunner + Tasks).
+
 ## Regras Resumidas (Golden Rules)
 
 - **MessageBox**: sempre `utils.MessageBox` para diálogo com usuário.

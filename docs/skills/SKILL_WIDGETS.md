@@ -1030,6 +1030,8 @@ grid.changed.connect(self._on_radio_changed)
 
 ---
 
+> 💡 **Consulte também:** `docs/skills/SKILL_HUD_PROGRESS.md` para documentação sobre o HUD Loader (`HudCircularRingsLoader`) e a ProgressBar central da MainWindow.
+
 ## 🆕 Como criar um Novo Widget
 
 1. Crie o arquivo em `resources/widgets/MeuWidget.py`

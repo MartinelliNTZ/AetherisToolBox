@@ -17,6 +17,7 @@ Agir como engenheiro de software especializado no ecossistema **Aetheris ToolBox
 | MenuBar | `docs/skills/menubar_skill.md` | Criar/modificar sistema de menus (MenuItem, MenuBar, MenuManager) |
 | Widgets | `docs/skills/widgets_skill.md` | Verificar/ criar widgets reutilizáveis |
 | Contratos | `docs/ia/contracts.md` | Regras imutáveis do sistema |
+| HUD/Progresso | `docs/skills/SKILL_HUD_PROGRESS.md` | Controlar HUD Loader e ProgressBar central |
 
 ## ⛔ REGRA DE OURO: PARE E PERGUNTE
 

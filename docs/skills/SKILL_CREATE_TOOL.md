@@ -94,6 +94,8 @@ ToolKey.MINHA_FERRAMENTA.value: Tool(
 
 ---
 
+> 💡 **Consulte também:** `docs/skills/SKILL_HUD_PROGRESS.md` para entender como emitir progresso (HUD + ProgressBar) durante a execução de operações longas em background.
+
 ## ✅ Checklist de Verificação
 - [ ] A chave em `ToolKey` é idêntica ao `tool_key` passado no `super().__init__`.
 - [ ] O caminho do módulo no `_make_factory` usa pontos (ex: `plugins.pasta.arquivo`).
