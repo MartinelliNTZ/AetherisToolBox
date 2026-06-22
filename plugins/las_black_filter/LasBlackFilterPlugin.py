@@ -234,6 +234,7 @@ class LasBlackFilterPlugin(BasePlugin):
 
     def _on_executar(self):
         """Executa o filtro de pontos pretos em segundo plano."""
+        #self.save_prefs()
         if not self._current_path:
             MessageBox.show_warning(
                 "Nenhum arquivo LAS carregado.", title="Filtro Pontos Pretos",
@@ -602,6 +603,7 @@ class LasBlackFilterPlugin(BasePlugin):
 
     def load_prefs(self) -> None:
         """Carrega preferências salvas."""
+        self.logger.info("Carregando preferências", code="PREFS_LOAD")
         last_path = self.preferences.get("last_path", "")
         limiar = self.preferences.get("limiar", 0)
         salvar_pretos = self.preferences.get("salvar_pretos", False)
@@ -618,9 +620,10 @@ class LasBlackFilterPlugin(BasePlugin):
 
         self._spin_limiar.set_values({"limiar": limiar})
         self._ckb_salvar_pretos.set_all({"salvar_pretos": salvar_pretos})
+        self.logger.info("Preferências carregadas", code="PREFS_LOADED")
 
     def save_prefs(self) -> None:
-        """Salva preferências atuais."""
+        """Salva preferências atuais no cache de memória."""
         self.preferences["last_path"] = self._current_path
         self.preferences["limiar"] = self._spin_limiar.get("limiar")
         self.preferences["salvar_pretos"] = self._ckb_salvar_pretos.checked.get(
@@ -628,3 +631,4 @@ class LasBlackFilterPlugin(BasePlugin):
         )
         self.preferences["output_limpo"] = self._sel_limpo.path()
         self.preferences["output_pretos"] = self._sel_pretos.path()
+        self.logger.info("Preferências salvas no cache", code="PREFS_SAVED")
