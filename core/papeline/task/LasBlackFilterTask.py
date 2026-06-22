@@ -15,10 +15,10 @@ from __future__ import annotations
 import os
 from typing import Optional
 
-import laspy
 import numpy as np
 
 from core.manager.SignalManager import SignalManager
+from utils.LasUtil import LasUtil
 from ..BaseTask import BaseTask
 
 
@@ -72,8 +72,12 @@ class LasBlackFilterTask(BaseTask):
         signals.hud_update.emit({"message": "Lendo arquivo LAS...", "progress": 5.0})
         signals.progress_update.emit(5.0)
 
-        las = laspy.read(self._file_path)
-        n_total = len(las.points)
+        # Lê arrays RGB via LasUtil
+        rgb = LasUtil.get_rgb_arrays(self._file_path)
+        if not rgb:
+            raise RuntimeError("Falha ao ler arrays RGB do arquivo LAS")
+
+        n_total = len(rgb["red"])
 
         signals.hud_update.emit({
             "message": f"Analisando {n_total:,} pontos...",
@@ -81,14 +85,14 @@ class LasBlackFilterTask(BaseTask):
         })
         signals.progress_update.emit(20.0)
 
-        red = np.asarray(las.red, dtype=np.int64)
-        green = np.asarray(las.green, dtype=np.int64)
-        blue = np.asarray(las.blue, dtype=np.int64)
-
         signals.hud_stage_done.emit(0)  # Stage 0 concluído
 
         # ── Stage 1: Filtragem (25% → 50%) ─────────────────────────
-        mask_valido = (red > self._limiar) | (green > self._limiar) | (blue > self._limiar)
+        mask_valido = (
+            (rgb["red"] > self._limiar)
+            | (rgb["green"] > self._limiar)
+            | (rgb["blue"] > self._limiar)
+        )
         n_removidos = n_total - int(np.sum(mask_valido))
 
         signals.hud_update.emit({
@@ -100,20 +104,21 @@ class LasBlackFilterTask(BaseTask):
         signals.hud_stage_done.emit(1)  # Stage 1 concluído
 
         # ── Stage 2: Salvar LAS filtrado (50% → 75%) ───────────────
-        las_limpo = laspy.LasData(las.header)
-        las_limpo.points = las.points[mask_valido]
+        # Reabre o LAS completo para criar o arquivo filtrado
+        import laspy
+        las = laspy.read(self._file_path)
 
-        output_dir = os.path.dirname(self._output_limpo)
-        if output_dir:
-            os.makedirs(output_dir, exist_ok=True)
+        n_mantidos = LasUtil.create_filtered_las(
+            las, mask_valido, self._output_limpo,
+        )
+        if n_mantidos is None:
+            raise RuntimeError(f"Erro ao salvar LAS filtrado: {self._output_limpo}")
 
         signals.hud_update.emit({
-            "message": f"Salvando LAS filtrado ({len(las_limpo.points):,} pontos)...",
+            "message": f"Salvando LAS filtrado ({n_mantidos:,} pontos)...",
             "progress": 75.0,
         })
         signals.progress_update.emit(75.0)
-
-        las_limpo.write(self._output_limpo)
 
         signals.hud_stage_done.emit(2)  # Stage 2 concluído
 
@@ -122,13 +127,12 @@ class LasBlackFilterTask(BaseTask):
         output_pretos_final: Optional[str] = None
         if self._salvar_pretos and n_removidos > 0 and self._output_pretos:
             mask_pretos = ~mask_valido
-            las_pretos = laspy.LasData(las.header)
-            las_pretos.points = las.points[mask_pretos]
-            n_pretos = len(las_pretos.points)
-
-            output_dir_pretos = os.path.dirname(self._output_pretos)
-            if output_dir_pretos:
-                os.makedirs(output_dir_pretos, exist_ok=True)
+            n_pretos_salvos = LasUtil.create_filtered_las(
+                las, mask_pretos, self._output_pretos,
+            )
+            if n_pretos_salvos is not None:
+                n_pretos = n_pretos_salvos
+                output_pretos_final = self._output_pretos
 
             signals.hud_update.emit({
                 "message": f"Salvando {n_pretos:,} pontos pretos...",
@@ -136,16 +140,13 @@ class LasBlackFilterTask(BaseTask):
             })
             signals.progress_update.emit(95.0)
 
-            las_pretos.write(self._output_pretos)
-            output_pretos_final = self._output_pretos
-
         signals.hud_stage_done.emit(3)  # Stage 3 concluído → HUD vai a 100%
 
         # ── Resultado ───────────────────────────────────────────────
         self.result = {
             "n_total": n_total,
             "n_removidos": n_removidos,
-            "n_mantidos": len(las_limpo.points),
+            "n_mantidos": n_mantidos,
             "n_pretos": n_pretos,
             "output_limpo": self._output_limpo,
             "output_pretos": output_pretos_final or "",

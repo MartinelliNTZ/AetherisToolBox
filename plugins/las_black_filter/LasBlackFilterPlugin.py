@@ -18,9 +18,6 @@ from __future__ import annotations
 import os
 import traceback
 
-import laspy
-import numpy as np
-
 from core.enum.ToolKey import ToolKey
 from core.manager.SignalManager import SignalManager
 from core.papeline.PipelineRunner import PipelineRunner
@@ -454,17 +451,15 @@ class LasBlackFilterPlugin(BasePlugin):
             self._info_label.set("pontos", f"{n_pontos:,}")
             self._info_label.set("has_rgb", "Sim" if has_rgb else "Não")
 
-            # Bounding box aproximada
-            try:
-                las_read = laspy.read(path, count=min(10000, n_pontos))
-                if len(las_read.points) > 0:
-                    x_min, x_max = float(las_read.x.min()), float(las_read.x.max())
-                    y_min, y_max = float(las_read.y.min()), float(las_read.y.max())
-                    self._info_label.set(
-                        "bbox",
-                        f"X[{x_min:.1f}, {x_max:.1f}] Y[{y_min:.1f}, {y_max:.1f}]",
-                    )
-            except Exception:
+            # Bounding box aproximada via LasUtil
+            bbox = LasUtil.get_bounding_box(path, tool_key=self.tool_key)
+            if bbox:
+                self._info_label.set(
+                    "bbox",
+                    f"X[{bbox['x_min']:.1f}, {bbox['x_max']:.1f}] "
+                    f"Y[{bbox['y_min']:.1f}, {bbox['y_max']:.1f}]",
+                )
+            else:
                 self._info_label.set("bbox", "—")
 
             # Habilita/desabilita botao executar conforme has_rgb

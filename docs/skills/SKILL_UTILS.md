@@ -216,7 +216,7 @@ ProcessStatisticsUtil.ITEMS     # "items"
 
 ### `utils.LasUtil`
 
-Utilitário estático para leitura de metadados de arquivos LAS/LAZ (nuvens de pontos).
+Utilitário estático para leitura de metadados e processamento de arquivos LAS/LAZ (nuvens de pontos).
 
 ```python
 from utils.LasUtil import LasUtil
@@ -228,19 +228,62 @@ print(info["has_rgb"])       # True
 n = LasUtil.get_point_count("nuvem.las")
 has = LasUtil.has_rgb("nuvem.las")
 bbox = LasUtil.get_bounding_box("nuvem.las", sample_size=10000)
+
+rgb = LasUtil.get_rgb_arrays("nuvem.las")
+print(rgb["red"].shape)     # (1234567,)
+
+# Filtrar pontos com máscara
+las = laspy.read("nuvem.las")
+mask = las.red > 10
+n_salvos = LasUtil.create_filtered_las(las, mask, "saida_filtrada.las")
+
+# Resolver caminho de saída com sufixo
+output = LasUtil.resolve_output_path("nuvem.las", suffix="_filtrado")
+# → "nuvem_filtrado.las"
+
+# Garantir diretório de saída
+LasUtil.ensure_output_dir("pasta/saida/arquivo.las")
 ```
 
 **Métodos:**
-- `get_info(path)` — metadados completos (point_count, has_rgb, dimension_names)
-- `get_point_count(path)` — total de pontos (0 se erro)
-- `has_rgb(path)` — True se possui bandas red/green/blue
-- `get_bounding_box(path, sample_size=10000)` — bounding box aproximada (x/y/z min/max)
+
+| Método | Descrição | Retorno |
+|--------|-----------|---------|
+| `get_info(path)` | Metadados completos (point_count, has_rgb, dimension_names) | `dict` |
+| `get_point_count(path)` | Total de pontos (0 se erro) | `int` |
+| `has_rgb(path)` | True se possui bandas red/green/blue | `bool` |
+| `get_bounding_box(path, sample_size=10000)` | Bounding box aproximada (x/y/z min/max) | `dict` |
+| `get_rgb_arrays(path)` | Lê bandas RGB como arrays numpy int64 | `dict[str, np.ndarray]` |
+| `create_filtered_las(las, mask, output_path)` | Cria LAS filtrado a partir de máscara booleana | `Optional[int]` |
+| `ensure_output_dir(output_path)` | Garante que o diretório do output existe | `bool` |
+| `resolve_output_path(input_path, suffix, output_dir)` | Resolve caminho com sufixo no nome | `str` |
+
+**Detalhamento:**
+
+**`get_rgb_arrays(path, tool_key)`** — Lê as bandas RGB de um LAS como arrays numpy dtype int64.
+Retorna dict vazio se o LAS não tiver RGB ou em caso de erro.
+Levanta `FileNotFoundError` / `ValueError` nas validações de path.
+
+**`create_filtered_las(las, mask, output_path, tool_key)`** — Cria um novo arquivo LAS aplicando uma máscara booleana aos pontos do objeto `LasData` original.
+- `las`: objeto `laspy.LasData` original (fornece header e pontos).
+- `mask`: array booleano numpy (True = manter).
+- `output_path`: caminho para salvar o novo LAS.
+- Retorna `int` (nº de pontos salvos) ou `None` se houve erro.
+- Se a máscara for vazia (0 pontos), retorna 0 sem salvar.
+
+**`ensure_output_dir(output_path, tool_key)`** — Cria o diretório pai do caminho com `os.makedirs(exist_ok=True)`.
+Retorna True se o diretório existe (ou foi criado), False em caso de erro.
+
+**`resolve_output_path(input_path, suffix="_filtrado", output_dir=None)`** — Gera um caminho de saída combinando diretório (opcional), nome base do input e sufixo antes da extensão.
+- Se `output_dir` for None, mantém o mesmo diretório do input.
+- Exemplo: `"c:/dados/nuvem.las"` + `"_filtrado"` → `"c:/dados/nuvem_filtrado.las"`
 
 **Regras:**
 - Todos os métodos aceitam `tool_key: str = ToolKey.UNTRACEABLE.value`.
 - Herda de `BaseUtil`.
-- Levanta `FileNotFoundError` se o arquivo não existir.
-- Levanta `ValueError` se a extensão não for `.las` ou `.laz`.
+- `get_info`, `get_rgb_arrays`: levantam `FileNotFoundError` se o arquivo não existir.
+- `get_info`, `get_rgb_arrays`: levantam `ValueError` se a extensão não for `.las` ou `.laz`.
+- `create_filtered_las` delega a criação de diretório para `ensure_output_dir`.
 
 ### `utils.RecentProjectsManager`
 

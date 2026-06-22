@@ -16,12 +16,11 @@ Uso:
 from __future__ import annotations
 
 import os
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import laspy
 import numpy as np
 
-from core.config.LogUtils import LogUtils
 from core.enum.ToolKey import ToolKey
 from utils.BaseUtil import BaseUtil
 
@@ -35,7 +34,7 @@ class LasUtil(BaseUtil):
     """
 
     # ══════════════════════════════════════════════════════════════════
-    # API Pública
+    # API Pública — Metadados
     # ══════════════════════════════════════════════════════════════════
 
     @staticmethod
@@ -201,3 +200,198 @@ class LasUtil(BaseUtil):
                 error=str(e),
             )
             return {}
+
+    # ══════════════════════════════════════════════════════════════════
+    # API Pública — Leitura de Arrays
+    # ══════════════════════════════════════════════════════════════════
+
+    @staticmethod
+    def get_rgb_arrays(
+        path: str,
+        tool_key: str = ToolKey.UNTRACEABLE.value,
+    ) -> Dict[str, np.ndarray]:
+        """
+        Lê as bandas RGB de um arquivo LAS como arrays numpy int64.
+
+        Args:
+            path: Caminho do arquivo LAS/LAZ.
+            tool_key: ToolKey para logging.
+
+        Returns:
+            Dict com 'red', 'green', 'blue' (np.ndarray dtype int64)
+            ou dict vazio se erro ou sem RGB.
+
+        Raises:
+            FileNotFoundError: se o arquivo não existir.
+            ValueError: se a extensão não for .las/.laz.
+        """
+        logger = BaseUtil._get_logger(tool_key, "LasUtil")
+
+        # Validações
+        path = path.strip()
+        if not os.path.isfile(path):
+            raise FileNotFoundError(f"Arquivo não encontrado: {path}")
+
+        ext = os.path.splitext(path)[1].lower()
+        if ext not in (".las", ".laz"):
+            raise ValueError(
+                f"Extensão inválida '{ext}'. Esperado .las ou .laz."
+            )
+
+        try:
+            las = laspy.read(path)
+            if not hasattr(las, "red") or not hasattr(las, "green") or not hasattr(las, "blue"):
+                logger.warning(
+                    "LAS não possui bandas RGB completas",
+                    code="LAS_NO_RGB",
+                    path=path,
+                )
+                return {}
+
+            arrays = {
+                "red": np.asarray(las.red, dtype=np.int64),
+                "green": np.asarray(las.green, dtype=np.int64),
+                "blue": np.asarray(las.blue, dtype=np.int64),
+            }
+
+            logger.info(
+                "Arrays RGB lidos",
+                code="LAS_RGB_READ",
+                path=path,
+                n_points=len(arrays["red"]),
+            )
+            return arrays
+
+        except Exception as e:
+            logger.error(
+                "Erro ao ler arrays RGB do LAS",
+                code="LAS_RGB_ERR",
+                path=path,
+                error=str(e),
+            )
+            return {}
+
+    # ══════════════════════════════════════════════════════════════════
+    # API Pública — Filtragem e Escrita
+    # ══════════════════════════════════════════════════════════════════
+
+    @staticmethod
+    def ensure_output_dir(
+        output_path: str,
+        tool_key: str = ToolKey.UNTRACEABLE.value,
+    ) -> bool:
+        """
+        Garante que o diretório do arquivo de saída existe.
+
+        Args:
+            output_path: Caminho completo do arquivo de saída.
+            tool_key: ToolKey para logging.
+
+        Returns:
+            True se o diretório existe ou foi criado, False se erro.
+        """
+        logger = BaseUtil._get_logger(tool_key, "LasUtil")
+        output_dir = os.path.dirname(output_path)
+        if not output_dir:
+            return True  # diretório atual sempre existe
+        try:
+            os.makedirs(output_dir, exist_ok=True)
+            logger.debug(
+                "Diretório de saída garantido",
+                code="LAS_OUT_DIR",
+                path=output_dir,
+            )
+            return True
+        except Exception as e:
+            logger.error(
+                "Erro ao criar diretório de saída",
+                code="LAS_OUT_DIR_ERR",
+                path=output_dir,
+                error=str(e),
+            )
+            return False
+
+    @staticmethod
+    def create_filtered_las(
+        las: laspy.LasData,
+        mask: np.ndarray,
+        output_path: str,
+        tool_key: str = ToolKey.UNTRACEABLE.value,
+    ) -> Optional[int]:
+        """
+        Cria um novo arquivo LAS a partir de uma máscara booleana.
+
+        Args:
+            las: Objeto LasData original (fonte dos pontos e header).
+            mask: Array booleano com True para pontos a manter.
+            output_path: Caminho para salvar o novo arquivo.
+            tool_key: ToolKey para logging.
+
+        Returns:
+            Número de pontos salvos, ou None se erro.
+        """
+        logger = BaseUtil._get_logger(tool_key, "LasUtil")
+        try:
+            n_pontos = int(np.sum(mask))
+            if n_pontos == 0:
+                logger.warning(
+                    "Máscara vazia — nenhum ponto para salvar",
+                    code="LAS_EMPTY_MASK",
+                    output=output_path,
+                )
+                return 0
+
+            las_out = laspy.LasData(las.header)
+            las_out.points = las.points[mask]
+
+            if not LasUtil.ensure_output_dir(output_path, tool_key=tool_key):
+                return None
+
+            las_out.write(output_path)
+
+            logger.info(
+                "LAS filtrado salvo",
+                code="LAS_FILTER_SAVED",
+                output=output_path,
+                n_points=n_pontos,
+            )
+            return n_pontos
+
+        except Exception as e:
+            logger.error(
+                "Erro ao salvar LAS filtrado",
+                code="LAS_FILTER_SAVE_ERR",
+                output=output_path,
+                error=str(e),
+            )
+            return None
+
+    @staticmethod
+    def resolve_output_path(
+        input_path: str,
+        suffix: str = "_filtrado",
+        output_dir: Optional[str] = None,
+    ) -> str:
+        """
+        Resolve um caminho de saída com sufixo no nome do arquivo.
+
+        Exemplo:
+            input = "c:/dados/nuvem.las"
+            suffix = "_filtrado"
+            output_dir = "c:/saida"
+            → "c:/saida/nuvem_filtrado.las"
+
+        Se output_dir for None, usa o mesmo diretório do input.
+
+        Args:
+            input_path: Caminho do arquivo de entrada.
+            suffix: Sufixo a adicionar antes da extensão.
+            output_dir: Diretório de saída (None = mesmo do input).
+
+        Returns:
+            Caminho completo do arquivo de saída.
+        """
+        dir_origem = os.path.dirname(input_path) if output_dir is None else output_dir
+        basename = os.path.splitext(os.path.basename(input_path))[0]
+        ext = os.path.splitext(input_path)[1].lower()
+        return os.path.join(dir_origem, f"{basename}{suffix}{ext}")
