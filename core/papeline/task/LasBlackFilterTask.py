@@ -57,10 +57,18 @@ class LasBlackFilterTask(BaseTask):
         self._output_pretos = output_pretos
 
     def _run(self) -> bool:
-        """Executa a filtragem em background thread emitindo progresso."""
+        """
+        Executa a filtragem em background thread emitindo progresso.
+
+        4 etapas (stages) sincronizadas com o HUD Modo 3:
+          Stage 0: Leitura          (0% → 25%)
+          Stage 1: Filtragem        (25% → 50%)
+          Stage 2: Salvar Filtrado  (50% → 75%)
+          Stage 3: Salvar Pretos    (75% → 100%)
+        """
         signals = SignalManager.instance()
 
-        # ── Leitura (0% → ~30%) ────────────────────────────────────
+        # ── Stage 0: Leitura (0% → 25%) ────────────────────────────
         signals.hud_update.emit({"message": "Lendo arquivo LAS...", "progress": 5.0})
         signals.progress_update.emit(5.0)
 
@@ -77,7 +85,9 @@ class LasBlackFilterTask(BaseTask):
         green = np.asarray(las.green, dtype=np.int64)
         blue = np.asarray(las.blue, dtype=np.int64)
 
-        # ── Filtragem (30% → ~50%) ─────────────────────────────────
+        signals.hud_stage_done.emit(0)  # Stage 0 concluído
+
+        # ── Stage 1: Filtragem (25% → 50%) ─────────────────────────
         mask_valido = (red > self._limiar) | (green > self._limiar) | (blue > self._limiar)
         n_removidos = n_total - int(np.sum(mask_valido))
 
@@ -87,7 +97,9 @@ class LasBlackFilterTask(BaseTask):
         })
         signals.progress_update.emit(50.0)
 
-        # ── Salvar LAS filtrado (50% → ~75%) ───────────────────────
+        signals.hud_stage_done.emit(1)  # Stage 1 concluído
+
+        # ── Stage 2: Salvar LAS filtrado (50% → 75%) ───────────────
         las_limpo = laspy.LasData(las.header)
         las_limpo.points = las.points[mask_valido]
 
@@ -103,7 +115,9 @@ class LasBlackFilterTask(BaseTask):
 
         las_limpo.write(self._output_limpo)
 
-        # ── Salvar pontos pretos (opcional, 75% → ~95%) ────────────
+        signals.hud_stage_done.emit(2)  # Stage 2 concluído
+
+        # ── Stage 3: Salvar pontos pretos (opcional, 75% → 100%) ───
         n_pretos = 0
         output_pretos_final: Optional[str] = None
         if self._salvar_pretos and n_removidos > 0 and self._output_pretos:
@@ -124,6 +138,8 @@ class LasBlackFilterTask(BaseTask):
 
             las_pretos.write(self._output_pretos)
             output_pretos_final = self._output_pretos
+
+        signals.hud_stage_done.emit(3)  # Stage 3 concluído → HUD vai a 100%
 
         # ── Resultado ───────────────────────────────────────────────
         self.result = {

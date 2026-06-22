@@ -79,6 +79,19 @@ Plugin não sabe o progresso real, mas sabe o tempo estimado
 ### 📌 CENÁRIO 3 — Modo 3: Etapas (Stages)
 **Quando usar:** O processo tem N etapas conhecidas com duração total estimada. Cada etapa avança o progresso em (100/N)% e o HUD espera confirmação externa para liberar a próxima etapa.
 
+> 💡 **Dica:** O tempo total estimado pode ser obtido via `ProcessStatisticsUtil`:
+> ```python
+> # statistics.remaining_time → segundos restantes (baseado em histórico)
+> # statistics.total_time → tempo total acumulado do histórico
+> # fallback: 30s se não houver histórico
+> total_estimate = max(
+>     self.statistics.remaining_time,
+>     self.statistics.total_time,
+>     30.0,
+> )
+> ```
+> Veja `utils/ProcessStatisticsUtil.py` para detalhes da API.
+
 ```
 Plugin tem N etapas bem definidas
          │

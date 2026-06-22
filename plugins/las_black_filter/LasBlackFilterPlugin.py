@@ -282,8 +282,19 @@ class LasBlackFilterPlugin(BasePlugin):
         self._btns.set_all_enabled(False)
         self.page.set_badge(self.page.RUNNING)
 
+        # Obtem tempo total estimado do ProcessStatisticsUtil para o HUD
+        total_estimate_seconds = max(
+            self.statistics.remaining_time,
+            self.statistics.total_time,
+            30.0,  # fallback padrao
+        )
+
         SignalManager.instance().execution_started.emit(self.tool_key)
-        SignalManager.instance().hud_show.emit({"message": "Filtrando pontos pretos..."})
+        # HUD Modo 3 (Stages): 4 etapas com duração total estimada
+        SignalManager.instance().hud_show.emit({
+            "message": "Filtrando pontos pretos...",
+            "stages": [total_estimate_seconds, 4],
+        })
         SignalManager.instance().console_message.emit(
             f"[LasBlackFilter] Iniciando filtro (limiar={limiar})..."
         )
@@ -297,6 +308,7 @@ class LasBlackFilterPlugin(BasePlugin):
             output_limpo=output_limpo,
             n_total=n_total,
             eta=self.statistics.eta_str,
+            total_estimate_seconds=round(total_estimate_seconds, 1),
         )
 
         # Cria e inicia a pipeline em background via QThread
