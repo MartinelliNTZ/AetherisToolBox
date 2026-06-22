@@ -39,6 +39,7 @@ from core.enum.ToolKey import ToolKey
 from core.manager.SignalManager import SignalManager
 from resources.widgets.PluginPage import PluginPage
 from utils.Preferences import Preferences
+from utils.ProcessStatisticsUtil import ProcessStatisticsUtil
 
 
 class BasePlugin(QWidget):
@@ -56,6 +57,7 @@ class BasePlugin(QWidget):
         self.preferences     : Dict[str, Any]
         self.sys_preferences : Dict[str, Any] | None
         self.tool_key        : str
+        self.statistics      : ProcessStatisticsUtil — monitor de tempo/ETA
         self.main_layout     : QVBoxLayout — layout do PluginPage para addWidget
     """
 
@@ -81,6 +83,8 @@ class BasePlugin(QWidget):
 
         self.logger = LogUtils(
             tool=tool_key, class_name=self.__class__.__name__)
+
+        self.statistics = ProcessStatisticsUtil(tool_key=tool_key)
 
         self._build_ui()
         self.load_prefs()

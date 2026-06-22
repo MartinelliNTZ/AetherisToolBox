@@ -33,8 +33,11 @@ from resources.widgets.GroupPainel import GroupPainel
 from resources.widgets.SelectorGrid import SelectorGrid
 from resources.widgets.SimpleSelector import SimpleSelector
 from utils.ExplorerUtils import ExplorerUtils
+from utils.LasUtil import LasUtil
 from utils.MessageBox import MessageBox
 from utils.Preferences import Preferences
+from utils.ProcessStatisticsUtil import ProcessStatisticsUtil
+
 
 
 class LasBlackFilterPlugin(BasePlugin):
@@ -259,6 +262,23 @@ class LasBlackFilterPlugin(BasePlugin):
 
         output_pretos = self._sel_pretos.path() if salvar_pretos else ""
 
+        # Obtem total de pontos via LasUtil para o statistics
+        n_total = LasUtil.get_point_count(
+            self._current_path, tool_key=self.tool_key
+        )
+
+        # Inicia monitoramento de estatisticas (ETA, tempo, etc.)
+        self.statistics.start(
+            n=0,
+            ntype=ProcessStatisticsUtil.POINTS,
+            ntotal=n_total,
+        )
+
+        # Exibe ETA no console para depuracao (summary encapsula formatacao)
+        SignalManager.instance().console_message.emit(
+            f"[LasBlackFilter] {self.statistics.summary}"
+        )
+
         # Executa em segundo plano via QTimer para não travar UI
         self._btns.set_all_enabled(False)
         self.page.set_badge(self.page.RUNNING)
@@ -276,6 +296,8 @@ class LasBlackFilterPlugin(BasePlugin):
             limiar=limiar,
             salvar_pretos=salvar_pretos,
             output_limpo=output_limpo,
+            n_total=n_total,
+            eta=self.statistics.eta_str,
         )
 
         QTimer.singleShot(0, lambda: self._executar_filtro(
@@ -372,6 +394,15 @@ class LasBlackFilterPlugin(BasePlugin):
 
             signals.progress_update.emit(100.0)
 
+            # Finaliza monitoramento de estatisticas
+            elapsed = self.statistics.end()
+            self.logger.info(
+                "Tempo de processamento registrado",
+                code="STATS_RECORDED",
+                elapsed_s=round(elapsed, 3),
+                usages=self.statistics.usages,
+            )
+
             self.page.set_badge(self.page.PRONTA)
 
             signals.execution_finished.emit(self.tool_key)
@@ -433,9 +464,12 @@ class LasBlackFilterPlugin(BasePlugin):
         self.logger.info("Carregando LAS", code="LAS_LOAD", path=path)
 
         try:
-            with laspy.open(path) as las:
-                n_pontos = las.header.point_count
-                has_rgb = "red" in las.header.point_format.dimension_names
+            info = LasUtil.get_info(path, tool_key=self.tool_key)
+            if info.get("error"):
+                raise RuntimeError(info["error"])
+
+            n_pontos = info["point_count"]
+            has_rgb = info["has_rgb"]
 
             self._current_path = path
             self._las_info = {

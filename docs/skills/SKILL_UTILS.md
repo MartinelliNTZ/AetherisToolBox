@@ -20,6 +20,8 @@ Use `utils` sempre que precisar de:
 - metadados de arquivos (`BasicExtractor`)
 - extração de markdown de DoclingDocument (`MdManager`)
 - logger centralizado via `BaseUtil._get_logger()`
+- monitoramento de tempo/ETA de processamento (`ProcessStatisticsUtil`)
+- leitura de metadados de arquivos LAS/LAZ (`LasUtil`)
 
 ## 📦 Módulos principais e suas responsabilidades
 
@@ -174,6 +176,71 @@ from core.enum.ToolKey import ToolKey
 Preferences.save_tool_prefs(ToolKey.CONSOLE, {"font_size": 12})
 data = Preferences.load_tool_prefs(ToolKey.CONSOLE)
 ```
+
+### `utils.ProcessStatisticsUtil`
+
+Monitora tempo de execução, contagem de itens e estima ETA para operações longas. Os dados são persistidos via `Preferences` em `config/preferences.json` para acúmulo entre execuções.
+
+```python
+from utils.ProcessStatisticsUtil import ProcessStatisticsUtil
+
+stats = ProcessStatisticsUtil(tool_key="LasBlackFilter")
+stats.start(n=0, ntype=ProcessStatisticsUtil.POINTS, ntotal=50000)
+# ... processamento ...
+stats.end()
+
+print(stats.summary)           # "ETA: 10:35:08 (restam 30.0s, media historica: 0.0s)"
+print(stats.eta_str)           # "10:35:08"
+print(stats.remaining_str)     # "30.0s"
+print(stats.total_time_str)    # "0.0s"
+print(stats.elapsed_str)       # "25.3s"
+```
+
+**Constantes de tipo (NType):**
+```python
+ProcessStatisticsUtil.PIXELS    # "pixels"
+ProcessStatisticsUtil.FEATURES  # "features"
+ProcessStatisticsUtil.MBYTES    # "mbytes"
+ProcessStatisticsUtil.POINTS    # "points"
+ProcessStatisticsUtil.FILES     # "files"
+ProcessStatisticsUtil.LINES     # "lines"
+ProcessStatisticsUtil.ITEMS     # "items"
+```
+
+**Regras:**
+- A classe é instanciada automaticamente em `BasePlugin` como `self.statistics`.
+- `start()` carrega o histórico do disco via `Preferences.load_tool_prefs()`.
+- `end()` persiste os dados acumulados via `Preferences.save_tool_prefs()`.
+- Na primeira execução (sem dados históricos), assume **30s** como ETA padrão.
+- Herda de `BaseUtil`.
+
+### `utils.LasUtil`
+
+Utilitário estático para leitura de metadados de arquivos LAS/LAZ (nuvens de pontos).
+
+```python
+from utils.LasUtil import LasUtil
+
+info = LasUtil.get_info("nuvem.las", tool_key=ToolKey.LAS_BLACK_FILTER.value)
+print(info["point_count"])   # 1_234_567
+print(info["has_rgb"])       # True
+
+n = LasUtil.get_point_count("nuvem.las")
+has = LasUtil.has_rgb("nuvem.las")
+bbox = LasUtil.get_bounding_box("nuvem.las", sample_size=10000)
+```
+
+**Métodos:**
+- `get_info(path)` — metadados completos (point_count, has_rgb, dimension_names)
+- `get_point_count(path)` — total de pontos (0 se erro)
+- `has_rgb(path)` — True se possui bandas red/green/blue
+- `get_bounding_box(path, sample_size=10000)` — bounding box aproximada (x/y/z min/max)
+
+**Regras:**
+- Todos os métodos aceitam `tool_key: str = ToolKey.UNTRACEABLE.value`.
+- Herda de `BaseUtil`.
+- Levanta `FileNotFoundError` se o arquivo não existir.
+- Levanta `ValueError` se a extensão não for `.las` ou `.laz`.
 
 ### `utils.RecentProjectsManager`
 
