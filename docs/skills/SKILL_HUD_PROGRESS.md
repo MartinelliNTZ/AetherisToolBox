@@ -9,9 +9,171 @@ Esta skill documenta como o **HUD Loader** (overlay visual) e a **ProgressBar** 
 O sistema de progresso é **centralizado na MainWindow** (`core/ui/ui_main.py`). Ela possui:
 
 1. **`QProgressBar`** — barra fixa na parte inferior da janela (0–10000, formatada como %)
-2. **`HudCircularRingsLoader`** — overlay animado no centro da tela (3 modos: feedback real, timer, etapas)
+2. **`HudCircularRingsLoader`** — overlay animado no centro da tela
 
 Ambos são controlados **exclusivamente via `SignalManager`**. Nenhum plugin deve criar sua própria barra ou loader.
+
+---
+
+## 🎯 Os 5 Cenários de Uso do HudCircularRingsLoader
+
+O `HudCircularRingsLoader` (`core/ui/HudCircularRingsLoader.py`) possui **3 modos internos** que combinados com os **gatilhos automáticos da MainWindow** geram **5 cenários de uso** distintos:
+
+### 📌 CENÁRIO 1 — Modo 1: Feedback Real Manual
+**Quando usar:** O plugin/Task sabe exatamente o progresso e quer informar em tempo real.
+
+```
+Plugin conhece o progresso real
+         │
+         ├─ hud_show({"message": "Processando..."})
+         │   → HUD entra em _mode=1 (manual)
+         │
+         ├─ hud_update({"message": "Etapa X", "progress": 35.0})
+         │   → Plugin emite updates com progresso verdadeiro
+         │
+         └─ hud_hide()
+             → Encerra
+```
+
+**Mecanismo interno:**
+- `set_progress(value, message)` é chamado via `_on_hud_show` (no início) e `_on_hud_update` (durante execução)
+- O progresso NÃO é calculado automaticamente — quem define é o plugin/Task
+- O HUD exibe exatamente o valor recebido
+
+**Atalho pela MainWindow:**
+```python
+# Plugin (Main Thread ou QThread)
+SignalManager.instance().hud_update.emit({
+    "message": "Baixando arquivo 5/10...",
+    "progress": 50.0,
+})
+```
+
+### 📌 CENÁRIO 2 — Modo 2: Temporizador (Timer)
+**Quando usar:** O processo não tem feedback real de progresso, mas tem duração estimada conhecida. O HUD conta sozinho de 0% a 100% no tempo especificado.
+
+```
+Plugin não sabe o progresso real, mas sabe o tempo estimado
+         │
+         ├─ hud_show({"message": "Convertendo...", "timer": 10.0})
+         │   → HUD entra em _mode=2 (timer)
+         │   → _setup_stage(total_secs=10, num_stages=1)
+         │   → _elapsed.start()
+         │
+         │   A cada 16ms (tick):
+         │     elapsed_sec = _elapsed.elapsed() / 1000
+         │     progress = (elapsed_sec / 10.0) * 100.0
+         │     se elapsed_sec >= 10.0 → progress = 100.0
+         │
+         └─ hud_hide()
+             → Encerra
+```
+
+**Mecanismo interno:**
+- `start_timer(seconds, message)` configura `_mode=2`, `_num_stages=1`, `_secs_per_stage=seconds`
+- O método `_update_auto_progress()` é chamado a cada 16ms pelo `_tick()`
+- Calcula `progress = (elapsed_sec / secs_per_stage) * 100`
+- Quando `elapsed_sec >= secs_per_stage`, trava em 100%
+- A cada mudança, emite `hud_update` + `progress_update` automaticamente via `_emit_progress()`
+
+### 📌 CENÁRIO 3 — Modo 3: Etapas (Stages)
+**Quando usar:** O processo tem N etapas conhecidas com duração total estimada. Cada etapa avança o progresso em (100/N)% e o HUD espera confirmação externa para liberar a próxima etapa.
+
+```
+Plugin tem N etapas bem definidas
+         │
+         ├─ hud_show({"message": "Processando lote...", "stages": [200.0, 4]})
+         │   → HUD entra em _mode=3 (staged)
+         │   → _setup_stage(total=200, stages=4, stage_idx=0)
+         │   → _pct_per_stage = 25%, _secs_per_stage = 50s
+         │   → Progresso varia de 0% a 25% em 50s
+         │
+         │   Etapa 1 executando (0s → 50s):
+         │     progress = 0% → 25% (automático)
+         │     Quando atinge 25%, PARA e aguarda
+         │
+         ├─ hud_stage_done(0)  ← Plugin concluiu etapa 1
+         │   → _on_stage_done(0)
+         │   → next_stage = 1
+         │   → _setup_stage(total=200, stages=4, stage_idx=1)
+         │   → Progresso varia de 25% a 50% em 50s
+         │
+         ├─ hud_stage_done(1)  ← Plugin concluiu etapa 2
+         │   → Progresso 25% → 50% → 75% em 50s
+         │
+         ├─ hud_stage_done(2)  ← Plugin concluiu etapa 3
+         │   → Progresso 50% → 75% → 100% em 50s
+         │
+         └─ hud_stage_done(3)  ← Plugin concluiu etapa 4
+             → next_stage(4) >= num_stages(4)
+             → progress = 100% (direto, sem timer)
+```
+
+**Divisão do tempo total:**
+- 200s totais, 4 stages → cada stage = 50s, cada stage = 25%
+- 600s totais, 6 stages → cada stage = 100s, cada stage = 16.66%
+- 100s totais, 4 stages → stage 1: 0-25% em 25s, stage 2: 25-50% em 25s, ...
+
+**Mecanismo interno:**
+- `start_staged(total_seconds, num_stages, message)` configura `_mode=3`
+- `_setup_stage()` é chamado para cada stage, reiniciando `_elapsed`
+- Dentro de cada stage, `_update_auto_progress()` calcula o progresso linear
+- Quando `elapsed_sec >= secs_per_stage`, trava em `_stage_max_pct` e PARA (não avança)
+- `_on_stage_done(stage_index)` libera o próximo stage
+- Se `next_stage >= _num_stages`, vai direto para 100%
+
+### 📌 CENÁRIO 4 — Gatilho Automático: execution_started
+**Quando usar:** O plugin emite `execution_started` e a MainWindow automaticamente mostra o HUD em Modo 1 com 0%.
+
+```python
+# Plugin (Main Thread)
+SignalManager.instance().execution_started.emit(self.tool_key)
+```
+
+**O que acontece na MainWindow:**
+```python
+def _on_execution_started(self, tool_name: str):
+    self._hud.set_progress(0.0, f"Iniciando {tool_name}...")  # Modo 1
+    self._hud.show_loader()
+    self._on_progress_reset()
+```
+
+**Quando usar este cenário:** O plugin quer que o HUD apareça automaticamente ao iniciar, mas vai fornecer progresso real via `hud_update` durante a execução (Cenário 1 combinado).
+
+### 📌 CENÁRIO 5 — Gatilho Automático: execution_finished / execution_cancelled
+**Quando usar:** O plugin finaliza (sucesso ou erro) e a MainWindow automaticamente esconde o HUD.
+
+```python
+# Sucesso
+SignalManager.instance().execution_finished.emit(self.tool_key)
+# Falha
+SignalManager.instance().execution_cancelled.emit(self.tool_key)
+```
+
+**O que acontece na MainWindow:**
+```python
+def _on_execution_finished(self, tool_name: str):
+    self._hud.hide_loader()  # _mode = 1, self.hide()
+    self._on_progress_reset()
+
+def _on_execution_cancelled(self, tool_name: str):
+    self._hud.hide_loader()  # _mode = 1, self.hide()
+    self._on_progress_reset()
+```
+
+**Importante:** `hide_loader()` reseta `_mode` para 1 (manual) e esconde o widget. Na próxima exibição, o HUD começa do zero.
+
+---
+
+### 🔀 Tabela Comparativa dos Cenários
+
+| Cenário | Modo Interno | Sinal de Disparo | Quem calcula o % | Ideal para |
+|---------|-------------|-------------------|-------------------|------------|
+| 1 - Feedback Real | `_mode=1` | `hud_show` + `hud_update` | Plugin/Task (real) | Operações com progresso mensurável |
+| 2 - Temporizador | `_mode=2` | `hud_show({"timer": sec})` | HUD (automático) | Operações sem feedback, tempo conhecido |
+| 3 - Etapas | `_mode=3` | `hud_show({"stages": [s, n]})` + `hud_stage_done` | HUD (automático por etapa) | Processos multi-etapa |
+| 4 - Auto Início | `_mode=1` | `execution_started` | MainWindow (setup) | Inicialização automática |
+| 5 - Auto Fim | — | `execution_finished`/`execution_cancelled` | MainWindow (teardown) | Finalização automática |
 
 ```
 Plugin / Task                          MainWindow
