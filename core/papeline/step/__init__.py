@@ -15,6 +15,7 @@ Disponíveis:
 
 from .MrkSteps import MrkLoadDataStep, MrkLoadDataTask, MrkProcessStep, MrkFindDataStep
 from .DoclingSteps import DoclingConvertStep, DoclingSaveStep
+from .LasBlackFilterSteps import LasBlackFilterStep
 
 __all__ = [
     "MrkLoadDataStep",
@@ -23,4 +24,5 @@ __all__ = [
     "MrkFindDataStep",
     "DoclingConvertStep",
     "DoclingSaveStep",
+    "LasBlackFilterStep",
 ]

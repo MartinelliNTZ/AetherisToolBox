@@ -10,6 +10,7 @@ Fluxo:
   - SelectorGrid de entrada detecta mudança no path automaticamente
   - SimpleSelectors de saída com botão 📂 para pasta do projeto
   - ExecutionButtons: USAR ORIGEM + EXECUTAR
+  - PipelineRunner + LasBlackFilterStep para execução em background
 """
 
 from __future__ import annotations
@@ -20,10 +21,10 @@ import traceback
 import laspy
 import numpy as np
 
-from PySide6.QtCore import QTimer
-
 from core.enum.ToolKey import ToolKey
 from core.manager.SignalManager import SignalManager
+from core.papeline.PipelineRunner import PipelineRunner
+from core.papeline.step import LasBlackFilterStep
 from plugins.BasePlugin import BasePlugin
 from resources.widgets.ExecutionButtons import ExecutionButtons
 from resources.widgets.GridCheckBox import GridCheckBox
@@ -37,7 +38,6 @@ from utils.LasUtil import LasUtil
 from utils.MessageBox import MessageBox
 from utils.Preferences import Preferences
 from utils.ProcessStatisticsUtil import ProcessStatisticsUtil
-
 
 
 class LasBlackFilterPlugin(BasePlugin):
@@ -55,8 +55,7 @@ class LasBlackFilterPlugin(BasePlugin):
         )
         self._current_path: str = ""
         self._las_info: dict = {}
-        self._segundo_plano: bool = False
-        self._suggested_dir: str = ""  # diretorio sugerido para saida
+        self._runner: PipelineRunner | None = None
         self.logger.info("Ferramenta inicializada", code="TOOL_READY")
 
     # ══════════════════════════════════════════════════════════════════
@@ -149,7 +148,6 @@ class LasBlackFilterPlugin(BasePlugin):
         grupo_saida = GroupPainel("Arquivos de Saída")
         self.main_layout.addWidget(grupo_saida)
 
-        # Selectors de saída criados manualmente para suportar suggested_path dinâmico
         self._sel_limpo = SimpleSelector(
             label_text="LAS Filtrado",
             file_filter=self._LAS_FILTER,
@@ -180,11 +178,9 @@ class LasBlackFilterPlugin(BasePlugin):
         path = text.strip()
         if not path:
             return
-        # Verifica se é arquivo existente com extensão valida
         ext = os.path.splitext(path)[1].lower()
         if ext not in (".las", ".laz") or not os.path.isfile(path):
             return
-        # Evita recarregar o mesmo arquivo
         if path == self._current_path:
             return
         self._carregar_las(path)
@@ -212,8 +208,7 @@ class LasBlackFilterPlugin(BasePlugin):
 
     def _on_usar_projeto(self):
         """
-        Preenche caminhos de saída na pasta do projeto ativo e
-        atualiza o suggested_path (botao 📂) dos selectors de saida.
+        Preenche caminhos de saída na pasta do projeto ativo.
         Se não houver projeto ativo, faz fallback para origem.
         """
         if not self._current_path:
@@ -229,12 +224,16 @@ class LasBlackFilterPlugin(BasePlugin):
             self._atualizar_suggested_path(modo="projeto")
             self._btns.set_enabled("executar", True)
         else:
-            # Fallback para origem
             self._on_usar_origem()
 
     def _on_executar(self):
-        """Executa o filtro de pontos pretos em segundo plano."""
-        #self.save_prefs()
+        """Executa o filtro de pontos pretos via PipelineRunner em background."""
+        if self._runner is not None and self._runner.isRunning():
+            MessageBox.show_warning(
+                "Já existe um filtro em andamento.", title="Aguarde"
+            )
+            return
+
         if not self._current_path:
             MessageBox.show_warning(
                 "Nenhum arquivo LAS carregado.", title="Filtro Pontos Pretos",
@@ -275,21 +274,20 @@ class LasBlackFilterPlugin(BasePlugin):
             ntotal=n_total,
         )
 
-        # Exibe ETA no console para depuracao (summary encapsula formatacao)
         SignalManager.instance().console_message.emit(
             f"[LasBlackFilter] {self.statistics.summary}"
         )
 
-        # Executa em segundo plano via QTimer para não travar UI
+        # Prepara UI para execução
         self._btns.set_all_enabled(False)
         self.page.set_badge(self.page.RUNNING)
-        self._segundo_plano = True
 
         SignalManager.instance().execution_started.emit(self.tool_key)
         SignalManager.instance().hud_show.emit({"message": "Filtrando pontos pretos..."})
         SignalManager.instance().console_message.emit(
             f"[LasBlackFilter] Iniciando filtro (limiar={limiar})..."
         )
+
         self.logger.info(
             "Iniciando filtro",
             code="FILTER_START",
@@ -301,160 +299,101 @@ class LasBlackFilterPlugin(BasePlugin):
             eta=self.statistics.eta_str,
         )
 
-        QTimer.singleShot(0, lambda: self._executar_filtro(
-            self._current_path, limiar, salvar_pretos,
-            output_limpo, output_pretos,
-        ))
+        # Cria e inicia a pipeline em background via QThread
+        step = LasBlackFilterStep()
+        runner = PipelineRunner(
+            steps=[step],
+            context={
+                "file_path": self._current_path,
+                "limiar": limiar,
+                "salvar_pretos": salvar_pretos,
+                "output_limpo": output_limpo,
+                "output_pretos": output_pretos,
+            },
+            parent=self,
+        )
+        runner.finished_ok.connect(self._on_done)
+        runner.failed.connect(self._on_error)
+        runner.finished.connect(self._on_runner_finished)
+        self._runner = runner
+        runner.start()
 
     # ══════════════════════════════════════════════════════════════════
-    # Lógica de filtragem
+    # Callbacks da Pipeline
     # ══════════════════════════════════════════════════════════════════
 
-    def _executar_filtro(
-        self,
-        input_path: str,
-        limiar: int,
-        salvar_pretos: bool,
-        output_limpo: str,
-        output_pretos: str,
-    ):
-        """
-        Processa o LAS: filtra pontos pretos e salva arquivos.
-        """
-        signals = SignalManager.instance()
-        try:
-            # ── Leitura ─────────────────────────────────────────────
-            signals.hud_update.emit({
-                "message": "Lendo arquivo LAS...",
-                "progress": 5.0,
-            })
-            signals.progress_update.emit(5.0)
-            signals.console_message.emit("[LasBlackFilter] Lendo arquivo...")
+    def _on_done(self, context):
+        """Callback de sucesso da pipeline."""
+        n_removidos = context.get("n_removidos", 0)
+        n_mantidos = context.get("n_mantidos", 0)
+        n_total = context.get("n_total", 0)
+        n_pretos = context.get("n_pretos", 0)
+        output_limpo = context.get("output_limpo", "")
+        output_pretos = context.get("output_pretos", "")
 
-            las = laspy.read(input_path)
-            n_total = len(las.points)
+        # Finaliza monitoramento de estatisticas
+        elapsed = self.statistics.end()
+        self.logger.info(
+            "Tempo de processamento registrado",
+            code="STATS_RECORDED",
+            elapsed_s=round(elapsed, 3),
+            usages=self.statistics.usages,
+        )
 
-            signals.progress_update.emit(15.0)
-            signals.hud_update.emit({
-                "message": f"Analisando {n_total:,} pontos...",
-                "progress": 15.0,
-            })
+        SignalManager.instance().execution_finished.emit(self.tool_key)
+        SignalManager.instance().console_message.emit(
+            f"[LasBlackFilter] Filtro concluído! "
+            f"{n_removidos:,} pontos removidos, "
+            f"{n_mantidos:,} mantidos."
+        )
 
-            red = np.asarray(las.red, dtype=np.int64)
-            green = np.asarray(las.green, dtype=np.int64)
-            blue = np.asarray(las.blue, dtype=np.int64)
+        self.logger.info(
+            "Filtro concluído com sucesso",
+            code="FILTER_DONE",
+            removidos=n_removidos,
+            restantes=n_mantidos,
+            total=n_total,
+            output_limpo=output_limpo,
+            output_pretos=output_pretos or None,
+        )
 
-            signals.progress_update.emit(25.0)
+        msg = (
+            f"Filtro concluído!\n\n"
+            f"Total de pontos: {n_total:,}\n"
+            f"Pontos removidos: {n_removidos:,}\n"
+            f"Pontos mantidos: {n_mantidos:,}\n\n"
+            f"LAS filtrado salvo em:\n{output_limpo}"
+        )
+        if n_pretos > 0 and output_pretos:
+            msg += f"\n\nPontos pretos salvos em:\n{output_pretos}"
 
-            mask_valido = (red > limiar) | (green > limiar) | (blue > limiar)
-            n_removidos = n_total - int(np.sum(mask_valido))
+        MessageBox.show_info(msg, title="Filtro Pontos Pretos")
 
-            signals.progress_update.emit(40.0)
-            signals.hud_update.emit({
-                "message": f"Removendo {n_removidos:,} pontos pretos...",
-                "progress": 40.0,
-            })
+    def _on_error(self, message: str):
+        """Callback de erro da pipeline."""
+        SignalManager.instance().execution_cancelled.emit(self.tool_key)
+        SignalManager.instance().console_message.emit(
+            f"[LasBlackFilter] ERRO: {message}"
+        )
+        self.logger.error(
+            "Erro no filtro de pontos pretos",
+            code="FILTER_ERR",
+            error=message,
+            path=self._current_path,
+        )
+        MessageBox.show_error(
+            f"Erro durante o filtro:\n{message}",
+            title="Filtro Pontos Pretos",
+        )
 
-            las_limpo = laspy.LasData(las.header)
-            las_limpo.points = las.points[mask_valido]
-
-            signals.progress_update.emit(55.0)
-
-            signals.hud_update.emit({
-                "message": f"Salvando LAS filtrado ({len(las_limpo.points):,} pontos)...",
-                "progress": 60.0,
-            })
-            signals.console_message.emit(
-                f"[LasBlackFilter] Salvando LAS filtrado: {output_limpo}"
-            )
-            ExplorerUtils.ensure_directory(
-                os.path.dirname(output_limpo), tool_key=self.tool_key
-            )
-            las_limpo.write(output_limpo)
-
-            signals.progress_update.emit(75.0)
-
-            n_pretos = 0
-            if salvar_pretos and n_removidos > 0 and output_pretos:
-                mask_pretos = ~mask_valido
-                las_pretos = laspy.LasData(las.header)
-                las_pretos.points = las.points[mask_pretos]
-                n_pretos = len(las_pretos.points)
-
-                signals.hud_update.emit({
-                    "message": f"Salvando {n_pretos:,} pontos pretos...",
-                    "progress": 85.0,
-                })
-                signals.console_message.emit(
-                    f"[LasBlackFilter] Salvando pontos pretos: {output_pretos}"
-                )
-                ExplorerUtils.ensure_directory(
-                    os.path.dirname(output_pretos), tool_key=self.tool_key
-                )
-                las_pretos.write(output_pretos)
-
-            signals.progress_update.emit(100.0)
-
-            # Finaliza monitoramento de estatisticas
-            elapsed = self.statistics.end()
-            self.logger.info(
-                "Tempo de processamento registrado",
-                code="STATS_RECORDED",
-                elapsed_s=round(elapsed, 3),
-                usages=self.statistics.usages,
-            )
-
-            self.page.set_badge(self.page.PRONTA)
-
-            signals.execution_finished.emit(self.tool_key)
-            signals.console_message.emit(
-                f"[LasBlackFilter] Filtro concluído! "
-                f"{n_removidos:,} pontos removidos, "
-                f"{len(las_limpo.points):,} mantidos."
-            )
-
-            self.logger.info(
-                "Filtro concluído com sucesso",
-                code="FILTER_DONE",
-                removidos=n_removidos,
-                restantes=len(las_limpo.points),
-                total=n_total,
-                output_limpo=output_limpo,
-                output_pretos=output_pretos if (salvar_pretos and output_pretos) else None,
-            )
-
-            msg = (
-                f"Filtro concluído!\n\n"
-                f"Total de pontos: {n_total:,}\n"
-                f"Pontos removidos: {n_removidos:,}\n"
-                f"Pontos mantidos: {len(las_limpo.points):,}\n\n"
-                f"LAS filtrado salvo em:\n{output_limpo}"
-            )
-            if salvar_pretos and n_pretos > 0 and output_pretos:
-                msg += f"\n\nPontos pretos salvos em:\n{output_pretos}"
-
-            MessageBox.show_info(msg, title="Filtro Pontos Pretos")
-
-        except Exception as e:
-            self.page.set_badge(self.page.ERROR)
-            signals.execution_cancelled.emit(self.tool_key)
-            signals.console_message.emit(f"[LasBlackFilter] ERRO: {str(e)}")
-            self.logger.error(
-                "Erro no filtro de pontos pretos",
-                code="FILTER_ERR",
-                error=str(e),
-                path=input_path,
-            )
-            MessageBox.show_error(
-                f"Erro durante o filtro:\n{str(e)}",
-                title="Filtro Pontos Pretos",
-                detail=traceback.format_exc(),
-            )
-
-        finally:
-            self._btns.set_all_enabled(True)
-            self._btns.set_enabled("executar", bool(self._current_path))
-            self._segundo_plano = False
+    def _on_runner_finished(self):
+        """Callback executado ao final da pipeline (sucesso ou erro)."""
+        self._runner = None
+        self._btns.set_all_enabled(True)
+        self._btns.set_enabled("executar", bool(self._current_path))
+        self.page.set_badge(self.page.PRONTA)
+        SignalManager.instance().hud_hide.emit()
+        SignalManager.instance().progress_update.emit(0.0)
 
     # ══════════════════════════════════════════════════════════════════
     # Utilitários
@@ -585,7 +524,6 @@ class LasBlackFilterPlugin(BasePlugin):
         modo "origem"  → caminho vazio (esconde o botão)
         """
         if modo == "projeto":
-            # Passa APENAS o path relativo — o widget resolve o root_folder
             rel_path = "las/black_points_filter"
             self._sel_limpo.set_suggested_path(rel_path)
             self._sel_pretos.set_suggested_path(rel_path)
@@ -593,7 +531,6 @@ class LasBlackFilterPlugin(BasePlugin):
                 f"[LasBlackFilter] Botão 📂 configurado para: {rel_path}"
             )
         else:
-            # Modo origem: esconde o botão 📂
             self._sel_limpo.set_suggested_path("")
             self._sel_pretos.set_suggested_path("")
 
