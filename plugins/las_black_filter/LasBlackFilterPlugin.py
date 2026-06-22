@@ -48,14 +48,16 @@ class LasBlackFilterPlugin(BasePlugin):
     _LAS_FILTER = "LAS/LAZ (*.las *.laz)"
 
     def __init__(self, parent=None):
+        # -- Inicializa atributos ANTES de super().__init__() --
+        # pois BasePlugin.__init__() chama load_prefs() que acessa estes atributos
+        self._current_path: str = ""
+        self._las_info: dict = {}
+        self._runner: PipelineRunner | None = None
         super().__init__(
             tool_key=ToolKey.LAS_BLACK_FILTER.value,
             parent=parent,
             title="Filtro Pontos Pretos",
         )
-        self._current_path: str = ""
-        self._las_info: dict = {}
-        self._runner: PipelineRunner | None = None
         self.logger.info("Ferramenta inicializada", code="TOOL_READY")
 
     # ══════════════════════════════════════════════════════════════════
@@ -174,12 +176,16 @@ class LasBlackFilterPlugin(BasePlugin):
         """
         Disparado quando o texto do selector de entrada muda.
         Se o path for um arquivo valido, carrega o LAS automaticamente.
+        Evita chamada recursiva se o path ja estiver carregado.
         """
         path = text.strip()
         if not path:
             return
         ext = os.path.splitext(path)[1].lower()
         if ext not in (".las", ".laz") or not os.path.isfile(path):
+            return
+        # -- Protecao contra recursao: se ja estamos carregando, ignora --
+        if getattr(self, "_loading_las", False):
             return
         if path == self._current_path:
             return
@@ -195,6 +201,8 @@ class LasBlackFilterPlugin(BasePlugin):
                 "Nenhum arquivo LAS carregado.\nSelecione um arquivo primeiro.",
                 title="Filtro Pontos Pretos",
             )
+            self.logger.warning(f"Tentativa de executar sem LAS carregado em :{self._current_path}", code="EXEC_NO_LAS")
+            
             return
 
         caminhos = self._resolver_caminhos_saida(modo="origem")
@@ -238,6 +246,7 @@ class LasBlackFilterPlugin(BasePlugin):
             MessageBox.show_warning(
                 "Nenhum arquivo LAS carregado.", title="Filtro Pontos Pretos",
             )
+            self.logger.warning(f"Tentativa de executar sem LAS carregado em :{self._current_path}", code="EXEC_NO_LAS")
             return
 
         if not self._las_info.get("has_rgb", False):
@@ -413,6 +422,11 @@ class LasBlackFilterPlugin(BasePlugin):
 
     def _carregar_las(self, path: str):
         """Carrega metadados do LAS e atualiza a UI."""
+        # -- Protecao contra reentrada, evita recursao via textChanged --
+        if getattr(self, "_loading_las", False):
+            return
+        self._loading_las = True
+
         self.logger.info("Carregando LAS", code="LAS_LOAD", path=path)
 
         try:
@@ -431,7 +445,12 @@ class LasBlackFilterPlugin(BasePlugin):
             }
 
             # Atualiza UI
-            self._selector_grid["LAS/LAZ de Entrada"].set_path(path)
+            # Usa bloqueio de sinais para evitar recursao via textChanged
+            sel_entrada = self._selector_grid["LAS/LAZ de Entrada"]
+            sel_entrada.edit.blockSignals(True)
+            sel_entrada.set_path(path)
+            sel_entrada.edit.blockSignals(False)
+
             self._info_label.set("pontos", f"{n_pontos:,}")
             self._info_label.set("has_rgb", "Sim" if has_rgb else "Não")
 
@@ -448,9 +467,11 @@ class LasBlackFilterPlugin(BasePlugin):
             except Exception:
                 self._info_label.set("bbox", "—")
 
+            # Habilita/desabilita botao executar conforme has_rgb
+            self._btns.set_enabled("executar", has_rgb)
+            self.page.set_badge(self.page.PRONTA if has_rgb else self.page.ERROR)
+
             if not has_rgb:
-                self._btns.set_enabled("executar", False)
-                self.page.set_badge(self.page.ERROR)
                 SignalManager.instance().console_message.emit(
                     "[LasBlackFilter] AVISO: LAS sem bandas RGB"
                 )
@@ -459,15 +480,6 @@ class LasBlackFilterPlugin(BasePlugin):
                     "O filtro de pontos pretos não será executado.",
                     title="Filtro Pontos Pretos",
                 )
-            else:
-                # Tenta preencher automaticamente: projeto > origem
-                sys_prefs = Preferences.load_tool_prefs(ToolKey.SYSTEM)
-                root_folder = sys_prefs.get("root_folder", "")
-                if root_folder and os.path.isdir(root_folder):
-                    self._on_usar_projeto()
-                else:
-                    self._on_usar_origem()
-                self.page.set_badge(self.page.PRONTA)
 
             self.logger.info(
                 "LAS carregado",
@@ -490,6 +502,8 @@ class LasBlackFilterPlugin(BasePlugin):
                 title="Filtro Pontos Pretos",
                 detail=traceback.format_exc(),
             )
+        finally:
+            self._loading_las = False
 
     def _resolver_caminhos_saida(self, modo: str) -> dict[str, str]:
         """
@@ -559,13 +573,25 @@ class LasBlackFilterPlugin(BasePlugin):
         last_output_limpo = self.preferences.get("output_limpo", "")
         last_output_pretos = self.preferences.get("output_pretos", "")
 
+        # Carrega o LAS primeiro (se houver) para setar _current_path
         if last_path:
             self._carregar_las(last_path)
 
+        # Restaura outputs salvos (se existirem) SEM depender de _on_usar_*()
         if last_output_limpo:
             self._sel_limpo.set_path(last_output_limpo)
         if last_output_pretos:
             self._sel_pretos.set_path(last_output_pretos)
+
+        # Atualiza suggested_path se output_limpo aponta para pasta do projeto
+        if last_output_limpo and "black_points_filter" in last_output_limpo:
+            self._atualizar_suggested_path(modo="projeto")
+        elif self._current_path:
+            self._atualizar_suggested_path(modo="origem")
+
+        # Habilita executar se tem LAS carregado com RGB
+        if self._current_path and self._las_info.get("has_rgb", False):
+            self._btns.set_enabled("executar", True)
 
         self._spin_limiar.set_values({"limiar": limiar})
         self._ckb_salvar_pretos.set_all({"salvar_pretos": salvar_pretos})
