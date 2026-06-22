@@ -234,6 +234,18 @@ class ToolRegistry:
             category=CategoryTool.CENTRAL,
             show_in_toolbar=True,
         ),
+        ToolKey.LAS_CHECK.value: Tool(
+            name=ToolKey.LAS_CHECK.value,
+            title="LAS Quality Check",
+            widget_factory=_make_factory(
+                "plugins.las_check.LasCheckPlugin",
+                "LasCheckPlugin",
+            ),
+            tooltip="Valida e inspeciona nuvens de pontos LAS/LAZ com 8 checks de qualidade",
+            tool_type=ToolType.POINTS,
+            category=CategoryTool.CENTRAL,
+            show_in_toolbar=True,
+        ),
     }
 
     def register_default_tools(self) -> None:
