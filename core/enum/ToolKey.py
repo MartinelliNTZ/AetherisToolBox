@@ -31,6 +31,7 @@ class ToolKey(str, Enum):
     DOCLING = "Docling"
     MRK_SUBSTITUTOR = "MrkSubstitutor"
     LAS_BLACK_FILTER = "LasBlackFilter"
+    STATISTICS = "Statistics"
 
     # ── Método utilitário ──────────────────────────────────────────────
 
