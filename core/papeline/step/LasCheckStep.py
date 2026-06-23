@@ -74,14 +74,26 @@ class LasCheckStep(BaseStep):
             path=file_path,
         )
 
-        # Abre o LAS/LAZ (usa Lazrs como backend para .laz)
+        # Abre o LAS/LAZ (tenta todos os backends LAZ disponiveis)
         try:
-            laz_backend = laspy.LazBackend.Lazrs
+            # Tupla com todos os backends que o laspy reconhece como disponiveis
+            laz_backends = tuple(
+                b for b in laspy.LazBackend
+                if b.name in ("LazrsParallel", "Lazrs", "Laszip")
+            )
+            if laz_backends:
+                logger.debug(
+                    "Backends LAZ disponiveis",
+                    code="LASCHECK_LAZ_BACKENDS",
+                    backends=[b.name for b in laz_backends],
+                )
+            else:
+                laz_backends = None
         except AttributeError:
-            laz_backend = None
+            laz_backends = None
 
         try:
-            las = laspy.read(file_path, laz_backend=laz_backend)
+            las = laspy.read(file_path, laz_backend=laz_backends)
             logger.info(
                 "Arquivo aberto com sucesso",
                 code="LASCHECK_FILE_OPEN_OK",
@@ -101,7 +113,9 @@ class LasCheckStep(BaseStep):
                 path=file_path,
                 error=error_msg,
             )
-            if "No LazBackend selected" in error_msg or "cannot decompress" in error_msg:
+            if ("No LazBackend selected" in error_msg 
+                or "cannot decompress" in error_msg
+                or "is not available" in error_msg):
                 logger.critical(
                     "Backend LAZ nao disponivel mesmo com lazrs instalado",
                     code="LASCHECK_LAZ_BACKEND_FAIL",
