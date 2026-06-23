@@ -163,19 +163,15 @@ class LasCheckPlugin(BasePlugin):
         self._result_label = GridLabel(
             {
                 "total_pontos": {"label": "Total Pontos", "value": "—"},
-                "point_count": {"label": "Contagem", "value": "—"},
-                "rgb": {"label": "RGB Check", "value": "—"},
-                "bbox": {"label": "BBox", "value": "—"},
-                "classification": {"label": "Classificacao", "value": "—"},
-                "zero_coords": {"label": "Coord Zero", "value": "—"},
-                "duplicates": {"label": "Duplicatas", "value": "—"},
-                "density": {"label": "Densidade", "value": "—"},
-                "intensity": {"label": "Intensidade", "value": "—"},
                 "altimetria": {"label": "Altitude", "value": "—"},
+                "density": {"label": "Densidade", "value": "—"},
+                "rgb": {"label": "RGB Check", "value": "—"},
+                "zero_coords": {"label": "Coord Zero", "value": "—"},
                 "rgb_red": {"label": "Red Stats", "value": "—"},
+                "bbox": {"label": "BBox", "value": "—"},
                 "rgb_green": {"label": "Green Stats", "value": "—"},
-                "rgb_blue": {"label": "Blue Stats", "value": "—"},
                 "area_bbox": {"label": "Area BBox", "value": "—"},
+                "rgb_blue": {"label": "Blue Stats", "value": "—"},
                 "volume_bbox": {"label": "Volume BBox", "value": "—"},
                 "resumo": {"label": "Resumo", "value": "—"},
             },
@@ -250,19 +246,16 @@ class LasCheckPlugin(BasePlugin):
 
         # Reseta resultados checks de qualidade + estatisticas
         self._result_label.set_values({
-            "point_count": "—",
-            "rgb": "—",
-            "bbox": "—",
-            "classification": "—",
-            "zero_coords": "—",
-            "duplicates": "—",
-            "density": "—",
-            "intensity": "—",
+            "total_pontos": "—",
             "altimetria": "—",
+            "density": "—",
+            "rgb": "—",
+            "zero_coords": "—",
             "rgb_red": "—",
+            "bbox": "—",
             "rgb_green": "—",
-            "rgb_blue": "—",
             "area_bbox": "—",
+            "rgb_blue": "—",
             "volume_bbox": "—",
             "resumo": "—",
         })
@@ -355,8 +348,7 @@ class LasCheckPlugin(BasePlugin):
             f"{pass_count} ✅ {warn_count} ⚠️ {fail_count} ❌ ({total})")
 
         # Atualiza cada check apenas com o valor/mensagem (sem icone/rotulo)
-        for check_name in ("point_count", "bbox", "rgb", "classification",
-                           "zero_coords", "duplicates", "density", "intensity"):
+        for check_name in ("bbox", "rgb", "zero_coords", "density"):
             result = results.get(check_name)
             if not result:
                 continue
