@@ -1,14 +1,14 @@
 ---
 name: vector-raster-layer-utils
 description: >
-  Skill para utilização das classes principais de manipulação de camadas vetoriais e raster do Cadmus. Consulte antes de criar, modificar ou extrair dados de camadas QGIS.
+  Skill para utilização das classes principais de manipulação de camadas vetoriais e raster no Aetheris ToolBox. Consulte antes de criar, modificar ou extrair dados de camadas vetoriais/raster.
 ---
 
 # Vector & Raster Layer Utils
 
 ## Resumo Executivo
 
-Este skill cobre as **11 classes principais** do diretório `utils/vector/` e `utils/raster/`, que orquestram toda a manipulação de camadas vetoriais e raster no Cadmus:
+Este skill cobre as **11 classes principais** dos diretórios `utils/vector/` e `utils/raster/`, que orquestram toda a manipulação de camadas vetoriais e raster no Aetheris ToolBox:
 
 **Vetoriais (5 classes):**
 | # | Classe | Arquivo | Responsabilidade |
@@ -35,10 +35,21 @@ Este skill cobre as **11 classes principais** do diretório `utils/vector/` e `u
 
 Fornecer um guia completo de utilização das classes de camada, permitindo:
 - Saber **qual classe usar** para cada operação
-- Conhecer os **métodos estáticos principais** de cada classe
+- Conhecer os **métodos principais** de cada classe
 - Entender as **responsabilidades e limites** de cada classe
 - Aplicar **logging padronizado** com `tool_key`
 - Evitar violações arquiteturais (ex: usar classe errada para a operação)
+
+---
+
+## Status da Implementação
+
+> **⚠️ ATENÇÃO:** Todas as classes estão implementadas como **stubs (placeholders)**.
+> Os métodos possuem assinaturas completas com type hints e docstrings, mas retornam
+> valores padrão (None, False, 0, etc.) e logam `"... chamado — stub"`.
+>
+> **Implementar sob demanda** — quando um fluxo exigir funcionalidade real,
+> implemente o método específico seguindo o padrão das classes existentes.
 
 ---
 
@@ -46,11 +57,27 @@ Fornecer um guia completo de utilização das classes de camada, permitindo:
 
 | Campo | Tipo | Obrigatório | Descrição |
 |-------|------|-------------|-----------|
-| layer | QgsVectorLayer / QgsRasterLayer | Sim | Camada a ser manipulada |
-| tool_key / external_tool_key | str | Sim (logging) | Chave da ferramenta chamadora (`ToolKey.MEUREPOIO`) |
+| layer | QgsVectorLayer / QgsRasterLayer | Sim | Camada a ser manipulada (Any) |
+| tool_key / external_tool_key | str | Sim (logging) | Chave da ferramenta chamadora (`ToolKey.XXX.value`) |
 | output_path | str | Condicional | Caminho de saída para salvar/exportar |
 | field_name | str | Condicional | Nome do campo de atributos |
 | geometry | QgsGeometry | Condicional | Geometria para operações |
+
+---
+
+## Padrão de Logging
+
+Todas as classes herdam de `BaseUtil` e usam `BaseUtil._get_logger()`:
+
+```python
+from core.enum.ToolKey import ToolKey
+from utils.BaseUtil import BaseUtil
+
+logger = BaseUtil._get_logger(tool_key, "VectorLayerAttributes")
+logger.info("mensagem", code="CODIGO", path=path)
+```
+
+**NUNCA instancie LogUtils diretamente** — sempre use o método herdado de `BaseUtil`.
 
 ---
 
@@ -83,11 +110,11 @@ Responsável por campos e atributos de camadas vetoriais. Orquestra operações 
 
 ```python
 from qgis.PyQt.QtCore import QVariant
-from ..utils.vector.VectorLayerAttributes import VectorLayerAttributes
-from ..utils.ToolKeys import ToolKey
-from ...core.config.LogUtils import LogUtils
+from utils.vector.VectorLayerAttributes import VectorLayerAttributes
+from core.enum.ToolKey import ToolKey
+from utils.BaseUtil import BaseUtil
 
-logger = LogUtils(tool=ToolKey.MEU_ALGORITHM, class_name="MeuAlgoritmo")
+logger = BaseUtil._get_logger(ToolKey.MEU_ALGORITHM.value, "MeuAlgoritmo")
 
 # Garantir que campos existam
 added = VectorLayerAttributes.ensure_fields(
@@ -148,8 +175,8 @@ Responsável pelas transformações geométricas de camadas vetoriais. Altera ge
 ## Exemplo de Uso
 
 ```python
-from ..utils.vector.VectorLayerGeometry import VectorLayerGeometry
-from ..utils.ToolKeys import ToolKey
+from utils.vector.VectorLayerGeometry import VectorLayerGeometry
+from core.enum.ToolKey import ToolKey
 
 # Criar camada de pontos a partir de dicionários
 point_layer = VectorLayerGeometry.create_point_layer_from_dicts(
@@ -163,16 +190,7 @@ point_layer = VectorLayerGeometry.create_point_layer_from_dicts(
         ("nome", QVariant.String),
     ],
     geometry_keys=("lon", "lat"),
-    tool_key=ToolKey.MEU_ALGORITHM,
-)
-
-# Criar linha ordenada por campo 'sequencia'
-line_layer = VectorLayerGeometry.create_line_layer_from_points(
-    points=list(features),
-    order_by_field="sequencia",
-    name="Trilha",
-    group_by_fields=["rota_id"],
-    tool_key=ToolKey.MEU_ALGORITHM,
+    tool_key=ToolKey.MEU_ALGORITHM.value,
 )
 
 # Buffer
@@ -181,7 +199,7 @@ buffer_layer = VectorLayerGeometry.create_buffer_geometry(
     distance=100,
     segments=10,
     dissolve=True,
-    external_tool_key=ToolKey.MEU_ALGORITHM,
+    external_tool_key=ToolKey.MEU_ALGORITHM.value,
 )
 ```
 
@@ -206,11 +224,12 @@ Responsável pela leitura e cálculos espaciais. NÃO altera dados, apenas mede.
 |--------|-----------|---------|
 | `calculate_line_length(layer, field_name, use_ellipsoidal, precision)` | Calcula comprimento de linhas (elipsoidal ou cartesiano) | `None` (atualiza campo) |
 | `calculate_polygon_area(layer, field_name, use_ellipsoidal, precision)` | Calcula área de polígonos em hectares | `None` (atualiza campo) |
+| `calculate_polygon_perimeter(layer, field_name, use_ellipsoidal, precision)` | Calcula perímetro de polígonos | `None` (atualiza campo) |
 
 ## Exemplo de Uso
 
 ```python
-from ..utils.vector.VectorLayerMetrics import VectorLayerMetrics
+from utils.vector.VectorLayerMetrics import VectorLayerMetrics
 
 # Comprimento elipsoidal
 VectorLayerMetrics.calculate_line_length(
@@ -259,7 +278,7 @@ Responsável por CRS, conversão de unidades e reprojeção de camadas vetoriais
 
 ```python
 from qgis.core import QgsCoordinateReferenceSystem
-from ..utils.vector.VectorLayerProjection import VectorLayerProjection
+from utils.vector.VectorLayerProjection import VectorLayerProjection
 
 target_crs = QgsCoordinateReferenceSystem("EPSG:31983")
 
@@ -288,11 +307,14 @@ layer_garantido = VectorLayerProjection.ensure_crs(
 **Arquivo:** `utils/vector/VectorLayerSource.py`
 
 Responsável por I/O de camadas vetoriais: carregar, salvar, validar, clonar.
+**Única classe com implementação real de leitura** (`read()` para .shp/.gpkg/.csv).
 
 ## Métodos Estáticos Principais
 
 | Método | Descrição | Retorno |
 |--------|-----------|---------|
+| `read(path, tool_key)` | Lê arquivo vetorial e retorna lista de dicts | `list[dict]` |
+| `get_driver_name(path, tool_key)` | Nome do driver baseado na extensão | `str` |
 | `save_vector_layer(layer, save_to_folder, output_path, output_name, decision, external_tool_key)` | Salva camada (memória ou disco). `decision`: `"rename"` ou `"overwrite"` | `QgsVectorLayer` ou `None` |
 | `save_layer_to_path(layer, output_path, tool_key, decision)` | Salva e retorna caminho efetivo | `str` ou `None` |
 | `save_and_load_layer(layer, output_path, tool_key, decision)` | Salva e retorna camada carregada | `QgsVectorLayer` ou `None` |
@@ -307,16 +329,19 @@ Responsável por I/O de camadas vetoriais: carregar, salvar, validar, clonar.
 ## Exemplo de Uso
 
 ```python
-from qgis.core import QgsWkbTypes
-from ..utils.vector.VectorLayerSource import VectorLayerSource
-from ..utils.ToolKeys import ToolKey
+from utils.vector.VectorLayerSource import VectorLayerSource
+from core.enum.ToolKey import ToolKey
+
+# Ler dados
+data = VectorLayerSource.read("dados.shp", tool_key=ToolKey.MEU_ALGORITHM.value)
 
 # Validar antes de processar
+from qgis.core import QgsWkbTypes
 ok, msg = VectorLayerSource.validate_layer(
     layer,
     expected_geometry=QgsWkbTypes.PolygonGeometry,
     require_editable=True,
-    tool_key=ToolKey.MEU_ALGORITHM,
+    tool_key=ToolKey.MEU_ALGORITHM.value,
 )
 if not ok:
     raise RuntimeError(msg)
@@ -327,13 +352,18 @@ saved = VectorLayerSource.save_vector_layer(
     save_to_folder=True,
     output_path="C:/dados/resultado.gpkg",
     decision="rename",
-    external_tool_key=ToolKey.MEU_ALGORITHM,
+    external_tool_key=ToolKey.MEU_ALGORITHM.value,
 )
 ```
 
+## Extensões Suportadas para Leitura
+- `.shp` — ESRI Shapefile (via geopandas)
+- `.gpkg` — GeoPackage (via geopandas)
+- `.csv` — CSV (via csv.DictReader)
+
 ## Limitações
-- Não é thread-safe para `processing.run()` (exceto `*_to_path_safe`)
-- Extensões suportadas definidas em `StringManager.VECTOR_DRIVERS`
+- Métodos de salvamento/validação são **stubs** — implementar sob demanda
+- Extensões de leitura suportadas: `.shp`, `.gpkg`, `.csv`
 
 ---
 
@@ -350,12 +380,13 @@ Responsável por estatísticas e cálculos analíticos de rasters. NÃO altera d
 | `get_band_percentiles(raster_path, band_index, lower_pct, upper_pct, tool_key)` | Calcula percentis de uma banda (usando numpy) | `(float, float)` |
 | `get_global_min_max(values, tool_key)` | Min/max global a partir de lista de tuplas `(min, max)` | `(float, float)` |
 | `get_global_min_max_from_rasters(raster_band_tuples, lower_pct, upper_pct, tool_key)` | Min/max global de múltiplos rasters | `(float, float)` |
+| `get_raster_statistics(raster_path, band_index, tool_key)` | Estatísticas básicas (min, max, mean, std) | `dict` |
 
 ## Exemplo de Uso
 
 ```python
-from ..utils.raster.RasterLayerMetrics import RasterLayerMetrics
-from ..utils.ToolKeys import ToolKey
+from utils.raster.RasterLayerMetrics import RasterLayerMetrics
+from core.enum.ToolKey import ToolKey
 
 # Percentis de uma banda
 p_low, p_high = RasterLayerMetrics.get_band_percentiles(
@@ -363,19 +394,7 @@ p_low, p_high = RasterLayerMetrics.get_band_percentiles(
     band_index=1,
     lower_pct=2.0,
     upper_pct=98.0,
-    tool_key=ToolKey.MEU_ALGORITHM,
-)
-
-# Min/max global de múltiplas bandas (RGB)
-global_min, global_max = RasterLayerMetrics.get_global_min_max_from_rasters(
-    raster_band_tuples=[
-        ("C:/dados/mosaico.tif", 1),  # Red
-        ("C:/dados/mosaico.tif", 2),  # Green
-        ("C:/dados/mosaico.tif", 3),  # Blue
-    ],
-    lower_pct=2.0,
-    upper_pct=98.0,
-    tool_key=ToolKey.MEU_ALGORITHM,
+    tool_key=ToolKey.MEU_ALGORITHM.value,
 )
 ```
 
@@ -401,34 +420,26 @@ Responsável pelo processamento raster destrutivo e operações pixel a pixel.
 | `extract_band(raster_path, band_num, output_path, tool_key)` | Extrai banda específica para GeoTIFF | `str` (output_path) |
 | `create_alpha_mask(raster_path, nodata_value, output_path, tool_key)` | Cria máscara alpha (byte: 0/255) a partir de NoData | `str` (output_path) |
 | `compose_multiband_raster(band_files, output_path, create_alpha, alpha_band_path, creation_options, tool_key)` | Compõe múltiplos GeoTIFFs em raster multibanda | `str` (output_path) |
+| `apply_nodata_mask(raster_path, mask_path, output_path, tool_key)` | Aplica máscara NoData em um raster | `str` (output_path) |
 
 ## Exemplo de Uso
 
 ```python
-from ..utils.raster.RasterLayerProcessing import RasterLayerProcessing
-from ..utils.ToolKeys import ToolKey
+from utils.raster.RasterLayerProcessing import RasterLayerProcessing
+from core.enum.ToolKey import ToolKey
 
 # Extrair banda
 band_path = RasterLayerProcessing.extract_band(
     raster_path="C:/dados/mosaico.tif",
     band_num=1,
-    tool_key=ToolKey.MEU_ALGORITHM,
+    tool_key=ToolKey.MEU_ALGORITHM.value,
 )
 
 # Criar máscara alpha
 alpha_path = RasterLayerProcessing.create_alpha_mask(
     raster_path="C:/dados/mosaico.tif",
     nodata_value=-9999,
-    tool_key=ToolKey.MEU_ALGORITHM,
-)
-
-# Compor RGB (bandas 4, 2, 1)
-rgb_path = RasterLayerProcessing.compose_multiband_raster(
-    band_files=[band4_path, band2_path, band1_path],
-    output_path="C:/dados/rgb_composite.tif",
-    create_alpha=True,
-    alpha_band_path=alpha_path,
-    tool_key=ToolKey.MEU_ALGORITHM,
+    tool_key=ToolKey.MEU_ALGORITHM.value,
 )
 ```
 
@@ -453,6 +464,8 @@ Responsável por CRS, resolução, alinhamento e extent de rasters.
 |--------|-----------|---------|
 | `get_raster_crs(raster, external_tool_key)` | Obtém CRS do raster (QgsRasterLayer ou caminho string) | `QgsCoordinateReferenceSystem` ou `None` |
 | `reproject_raster_to_crs(raster_path, target_crs, resampling_method, ..., output_path, target_resolution, ...)` | Reprojeta/reamostra raster via `gdal:warpreproject` | `str` (output_path) |
+| `align_rasters(raster_paths, target_crs, target_resolution, resampling_method, ...)` | Alinha múltiplos rasters para mesmo CRS e resolução | `list[str]` |
+| `get_raster_extent(raster_path, external_tool_key)` | Obtém extent de um raster | `dict` ou `None` |
 
 ## Parâmetros Detalhados do `reproject_raster_to_crs`
 
@@ -460,28 +473,26 @@ Responsável por CRS, resolução, alinhamento e extent de rasters.
 |-----------|------|--------|-----------|
 | `raster_path` | str | obrigatório | Caminho do raster de entrada |
 | `target_crs` | str/QgsCRS | obrigatório | CRS de destino |
-| `resampling_method` | ResamplingMethod | `CUBICO_SUAVIZADO` | Método de reamostragem |
+| `resampling_method` | ResamplingMethod | `None` | Método de reamostragem |
 | `nodata_value` | float | `None` | Valor NoData (herdado se None) |
 | `target_resolution` | float | `None` | Resolução de destino (pula reamostragem se None) |
-| `output_path` | str | tempdir | Caminho de saída |
+| `output_path` | str | `None` (temp) | Caminho de saída |
 | `multithreading` | bool | `False` | Processamento multi-thread |
 | `creation_options` | str | `""` | Opções GDAL extras |
 
 ## Exemplo de Uso
 
 ```python
-from ..utils.raster.RasterLayerProjection import RasterLayerProjection
-from ...core.enum.ResamplingMethod import ResamplingMethod
-from ..utils.ToolKeys import ToolKey
+from utils.raster.RasterLayerProjection import RasterLayerProjection
+from core.enum.ToolKey import ToolKey
 
 # Reprojetar com reamostragem
 output = RasterLayerProjection.reproject_raster_to_crs(
     raster_path="C:/dados/mosaico.tif",
     target_crs="EPSG:31983",
-    resampling_method=ResamplingMethod.CUBICO_SUAVIZADO,
     target_resolution=0.5,
     output_path="C:/dados/mosaico_reprojetado.tif",
-    external_tool_key=ToolKey.MEU_ALGORITHM,
+    external_tool_key=ToolKey.MEU_ALGORITHM.value,
 )
 ```
 
@@ -506,7 +517,7 @@ Responsável pela simbologia e visualização de rasters (estilo QML).
 | `save_sidecar_style(raster_path, qml_root, tool_key)` | Salva QML sidecar (mesma pasta do raster) | `str` ou `None` |
 | `apply_qml_inplace(layer, qml_path, feedback, tool_key)` | Aplica QML em camada raster existente | `bool` |
 | `apply_qml_to_layer(raster_path, qml_path, context, feedback, layer_name, tool_key)` | Carrega raster + aplica QML + registra no context | `bool` |
-| `generate_percentil_multiband_style(raster_path, band_indices, lower_pct, upper_pct, min_value, max_value, alpha_band, opacity, algorithm, layer, feedback, tool_key)` | Pipeline completo: calcula percentis → gera QML → salva sidecar → salva backup → aplica estilo | `dict` |
+| `generate_percentil_multiband_style(raster_path, band_indices, lower_pct, upper_pct, ...)` | Pipeline completo: calcula percentis → gera QML → salva sidecar → salva backup → aplica estilo | `dict` |
 | `save_qml_backup(qml_root, output_base, tool_key)` | Salva backup do QML em temp/styles | `str` ou `None` |
 
 ## `generate_percentil_multiband_style` retorna:
@@ -524,8 +535,8 @@ Responsável pela simbologia e visualização de rasters (estilo QML).
 ## Exemplo de Uso
 
 ```python
-from ..utils.raster.RasterLayerRendering import RasterLayerRendering
-from ..utils.ToolKeys import ToolKey
+from utils.raster.RasterLayerRendering import RasterLayerRendering
+from core.enum.ToolKey import ToolKey
 
 # Pipeline completo: percentis → QML → sidecar → backup → aplicar
 result = RasterLayerRendering.generate_percentil_multiband_style(
@@ -537,7 +548,7 @@ result = RasterLayerRendering.generate_percentil_multiband_style(
     opacity=1.0,
     layer=my_raster_layer,   # Opcional: aplicar in-place
     feedback=feedback,
-    tool_key=ToolKey.MEU_ALGORITHM,
+    tool_key=ToolKey.MEU_ALGORITHM.value,
 )
 ```
 
@@ -555,13 +566,14 @@ result = RasterLayerRendering.generate_percentil_multiband_style(
 
 Responsável pelo carregamento, salvamento e criação de camadas raster.
 
-## Métodos Principais
+## Métodos (instância — NÃO estáticos)
 
 | Método | Descrição | Retorno |
 |--------|-----------|---------|
 | `load_raster_from_file(file_path, external_tool_key)` | Carrega raster de arquivo (GeoTIFF, IMG, etc) | `QgsRasterLayer` ou `None` |
 | `load_raster_from_url(url, cache_directory, external_tool_key, layer_name, provider_key)` | Carrega raster remoto (XYZ/WMS) | `QgsRasterLayer` ou `None` |
 | `add_google_basemap(project, basemap_style, external_tool_key, layer_name)` | Adiciona camada base Google (hybrid/satellite/road) evitando duplicidade | `QgsRasterLayer` ou `None` |
+| `get_raster_info(file_path, external_tool_key)` | Obtém informações básicas do raster | `dict` |
 
 ## `GOOGLE_BASEMAP_VARIANTS`
 
@@ -574,20 +586,20 @@ Responsável pelo carregamento, salvamento e criação de camadas raster.
 ## Exemplo de Uso
 
 ```python
-from ..utils.raster.RasterLayerSource import RasterLayerSource
-from ..utils.ToolKeys import ToolKey
+from utils.raster.RasterLayerSource import RasterLayerSource
+from core.enum.ToolKey import ToolKey
 
 # Carregar do disco
 raster = RasterLayerSource().load_raster_from_file(
     file_path="C:/dados/mosaico.tif",
-    external_tool_key=ToolKey.MEU_ALGORITHM,
+    external_tool_key=ToolKey.MEU_ALGORITHM.value,
 )
 
 # Adicionar Google Satellite ao projeto (evita duplicidade)
 basemap = RasterLayerSource().add_google_basemap(
     project=QgsProject.instance(),
     basemap_style="satellite",
-    external_tool_key=ToolKey.MEU_ALGORITHM,
+    external_tool_key=ToolKey.MEU_ALGORITHM.value,
 )
 ```
 
@@ -605,7 +617,7 @@ basemap = RasterLayerSource().add_google_basemap(
 
 Responsável pela integração bidirecional entre rasters e vetores.
 
-## Métodos (stubs — implementar conforme necessidade)
+## Métodos (instância — NÃO estáticos)
 
 | Método | Descrição | Entrada | Saída |
 |--------|-----------|---------|-------|
@@ -619,7 +631,7 @@ Responsável pela integração bidirecional entre rasters e vetores.
 ## Exemplo de Uso
 
 ```python
-from ..utils.raster.RasterVectorBridge import RasterVectorBridge
+from utils.raster.RasterVectorBridge import RasterVectorBridge
 
 bridge = RasterVectorBridge()
 
@@ -629,15 +641,7 @@ bridge.rasterize_vector_layer(
     attribute_field="classe",
     output_raster_path="C:/dados/classificacao.tif",
     pixel_size=0.5,
-    external_tool_key=ToolKey.MEU_ALGORITHM,
-)
-
-# Poligonizar (quando implementado)
-bridge.polygonize_raster(
-    raster=my_raster,
-    band_index=1,
-    output_vector_path="C:/dados/poligonos.gpkg",
-    external_tool_key=ToolKey.MEU_ALGORITHM,
+    external_tool_key=ToolKey.MEU_ALGORITHM.value,
 )
 ```
 
@@ -655,45 +659,49 @@ bridge.polygonize_raster(
 Todas as classes aceitam `external_tool_key` ou `tool_key` para rastreabilidade:
 
 ```python
+from core.enum.ToolKey import ToolKey
+
 # Vetoriais (parâmetro: external_tool_key ou tool_key)
 VectorLayerGeometry.create_buffer_geometry(
     layer=layer,
     distance=100,
-    external_tool_key=ToolKey.MEU_ALGORITHM,
+    external_tool_key=ToolKey.MEU_ALGORITHM.value,
 )
 
 # Raster (parâmetro: tool_key ou external_tool_key)
 RasterLayerMetrics.get_band_percentiles(
     raster_path="mosaico.tif",
     band_index=1,
-    tool_key=ToolKey.MEU_ALGORITHM,
+    tool_key=ToolKey.MEU_ALGORITHM.value,
 )
 ```
 
 ## Padrão 2 — Pipeline Vetorial Completo
 
 ```python
-from ..utils.vector.VectorLayerSource import VectorLayerSource
-from ..utils.vector.VectorLayerAttributes import VectorLayerAttributes
-from ..utils.vector.VectorLayerGeometry import VectorLayerGeometry
-from ..utils.vector.VectorLayerMetrics import VectorLayerMetrics
-from ..utils.vector.VectorLayerProjection import VectorLayerProjection
-from ..utils.ToolKeys import ToolKey
+from utils.vector.VectorLayerSource import VectorLayerSource
+from utils.vector.VectorLayerAttributes import VectorLayerAttributes
+from utils.vector.VectorLayerGeometry import VectorLayerGeometry
+from utils.vector.VectorLayerMetrics import VectorLayerMetrics
+from utils.vector.VectorLayerProjection import VectorLayerProjection
+from core.enum.ToolKey import ToolKey
 
 # 1. Carregar
 layer = VectorLayerSource.load_existing_vector_layer(
-    "C:/dados/entrada.gpkg", tool_key=ToolKey.MEU_ALGORITHM,
+    "C:/dados/entrada.gpkg", tool_key=ToolKey.MEU_ALGORITHM.value,
 )
 
 # 2. Validar
-ok, msg = VectorLayerSource.validate_layer(layer, tool_key=ToolKey.MEU_ALGORITHM)
+ok, msg = VectorLayerSource.validate_layer(layer, tool_key=ToolKey.MEU_ALGORITHM.value)
 
 # 3. Reprojetar se necessário
+from qgis.core import QgsCoordinateReferenceSystem
 layer = VectorLayerProjection.ensure_crs(
     layer, QgsCoordinateReferenceSystem("EPSG:31983"),
 )
 
 # 4. Garantir campos
+from qgis.PyQt.QtCore import QVariant
 VectorLayerAttributes.ensure_fields(
     layer, [("area_ha", QVariant.Double, 16, 4)],
 )
@@ -704,19 +712,19 @@ VectorLayerMetrics.calculate_polygon_area(layer, "area_ha", use_ellipsoidal=True
 # 6. Salvar
 saved = VectorLayerSource.save_vector_layer(
     layer, save_to_folder=True, output_path="C:/dados/saida.gpkg",
-    decision="rename", external_tool_key=ToolKey.MEU_ALGORITHM,
+    decision="rename", external_tool_key=ToolKey.MEU_ALGORITHM.value,
 )
 ```
 
 ## Padrão 3 — Pipeline Raster Completo
 
 ```python
-from ..utils.raster.RasterLayerSource import RasterLayerSource
-from ..utils.raster.RasterLayerProjection import RasterLayerProjection
-from ..utils.raster.RasterLayerMetrics import RasterLayerMetrics
-from ..utils.raster.RasterLayerProcessing import RasterLayerProcessing
-from ..utils.raster.RasterLayerRendering import RasterLayerRendering
-from ..utils.ToolKeys import ToolKey
+from utils.raster.RasterLayerSource import RasterLayerSource
+from utils.raster.RasterLayerProjection import RasterLayerProjection
+from utils.raster.RasterLayerMetrics import RasterLayerMetrics
+from utils.raster.RasterLayerProcessing import RasterLayerProcessing
+from utils.raster.RasterLayerRendering import RasterLayerRendering
+from core.enum.ToolKey import ToolKey
 
 # 1. Carregar
 raster = RasterLayerSource().load_raster_from_file("C:/dados/mosaico.tif")
@@ -724,17 +732,17 @@ raster = RasterLayerSource().load_raster_from_file("C:/dados/mosaico.tif")
 # 2. Reprojetar
 proj_path = RasterLayerProjection.reproject_raster_to_crs(
     "C:/dados/mosaico.tif", "EPSG:31983",
-    external_tool_key=ToolKey.MEU_ALGORITHM,
+    external_tool_key=ToolKey.MEU_ALGORITHM.value,
 )
 
 # 3. Extrair banda
 band_path = RasterLayerProcessing.extract_band(
-    proj_path, 1, tool_key=ToolKey.MEU_ALGORITHM,
+    proj_path, 1, tool_key=ToolKey.MEU_ALGORITHM.value,
 )
 
 # 4. Calcular percentis
 p_low, p_high = RasterLayerMetrics.get_band_percentiles(
-    proj_path, 1, tool_key=ToolKey.MEU_ALGORITHM,
+    proj_path, 1, tool_key=ToolKey.MEU_ALGORITHM.value,
 )
 
 # 5. Gerar e aplicar estilo QML
@@ -742,15 +750,15 @@ result = RasterLayerRendering.generate_percentil_multiband_style(
     raster_path=proj_path,
     band_indices=[1, 2, 3],
     lower_pct=2.0, upper_pct=98.0,
-    tool_key=ToolKey.MEU_ALGORITHM,
+    tool_key=ToolKey.MEU_ALGORITHM.value,
 )
 ```
 
 ## Padrão 4 — Criação de Camadas a partir de Dados Externos
 
 ```python
-from ..utils.vector.VectorLayerGeometry import VectorLayerGeometry
-from ..utils.ToolKeys import ToolKey
+from utils.vector.VectorLayerGeometry import VectorLayerGeometry
+from core.enum.ToolKey import ToolKey
 
 # A partir de dicionários (API, CSV, etc)
 records = [
@@ -762,7 +770,7 @@ point_layer = VectorLayerGeometry.create_point_layer_from_dicts(
     name="Torres",
     field_specs=[("id", QVariant.Int), ("altura", QVariant.Double)],
     geometry_keys=("lon", "lat"),
-    tool_key=ToolKey.MEU_ALGORITHM,
+    tool_key=ToolKey.MEU_ALGORITHM.value,
 )
 ```
 
@@ -772,13 +780,13 @@ point_layer = VectorLayerGeometry.create_point_layer_from_dicts(
 
 ## ✅ Sempre:
 - Usar `external_tool_key` ou `tool_key` para logging (rastreabilidade)
-- Validar camada com `VectorLayerSource.validate_layer()` antes de processar
-- Preferir métodos estáticos (sem instanciar classe)
+- Usar `ToolKey.XXX.value` (nunca strings soltas) — Contrato 26
+- Preferir métodos estáticos onde disponível (não instanciar classe)
 - Usar `decision="rename"` ao salvar para evitar sobrescrita acidental
 - Delegar operações para a classe correta (não misturar responsabilidades)
+- Usar `BaseUtil._get_logger()` em vez de instanciar `LogUtils` diretamente
 
 ## ❌ Nunca:
-- Usar `processing.run()` diretamente em tasks (não é thread-safe)
 - Usar `VectorLayerGeometry` para manipular atributos
 - Usar `VectorLayerAttributes` para transformar geometrias
 - Usar `RasterLayerMetrics` para alterar pixels
@@ -786,12 +794,13 @@ point_layer = VectorLayerGeometry.create_point_layer_from_dicts(
 - Usar `VectorLayerSource` para transformar geometrias
 - Chamar métodos de instância passando `external_tool_key` quando o método é estático
 - Esquecer de passar `tool_key/external_tool_key` para logging
+- Implementar leitura de shapefile/CSV/GeoTIFF diretamente no plugin (use essas classes)
 
 ## Sobre Thread-Safety:
 - Métodos que usam `processing.run()` NÃO são thread-safe
 - Métodos `*_to_path_safe` (ex: `explode_lines_to_path_safe`, `create_buffer_to_path_safe`) são seguros para `QgsTask`
-- Para operações thread-safe com vetores: usar `QgsVectorFileWriter` diretamente (como em `explode_lines_to_path_safe`)
-- Para operações thread-safe com rasters: usar GDAL diretamente (como em `extract_band`, `compose_multiband_raster`)
+- Para operações thread-safe com vetores: usar `QgsVectorFileWriter` diretamente
+- Para operações thread-safe com rasters: usar GDAL diretamente
 
 ---
 
@@ -810,23 +819,26 @@ point_layer = VectorLayerGeometry.create_point_layer_from_dicts(
 | Explodir linhas em segmentos | VectorLayerGeometry | `explode_lines_to_path_safe()` |
 | Calcular comprimento de linhas | VectorLayerMetrics | `calculate_line_length()` |
 | Calcular área de polígonos em hectares | VectorLayerMetrics | `calculate_polygon_area()` |
+| Calcular perímetro de polígonos | VectorLayerMetrics | `calculate_polygon_perimeter()` |
 | Reprojetar camada vetorial | VectorLayerProjection | `reproject_layer()` |
 | Converter distância para unidade da camada | VectorLayerProjection | `convert_distance_to_layer_units()` |
 | Obter info de coordenada em múltiplos formatos | VectorLayerProjection | `get_coordinate_info()` |
 | Salvar camada vetorial em disco | VectorLayerSource | `save_vector_layer()` |
 | Validar camada antes de processar | VectorLayerSource | `validate_layer()` |
 | Calcular percentis de banda raster | RasterLayerMetrics | `get_band_percentiles()` |
-| Calcular min/max global de múltiplas bandas | RasterLayerMetrics | `get_global_min_max_from_rasters()` |
+| Calcular estatísticas básicas do raster | RasterLayerMetrics | `get_raster_statistics()` |
 | Extrair banda específica para GeoTIFF | RasterLayerProcessing | `extract_band()` |
 | Criar máscara alpha a partir de NoData | RasterLayerProcessing | `create_alpha_mask()` |
 | Compor múltiplas bandas em um RGB | RasterLayerProcessing | `compose_multiband_raster()` |
 | Reprojetar raster | RasterLayerProjection | `reproject_raster_to_crs()` |
+| Alinhar múltiplos rasters | RasterLayerProjection | `align_rasters()` |
 | Gerar e aplicar estilo QML percentil | RasterLayerRendering | `generate_percentil_multiband_style()` |
 | Aplicar QML em camada existente | RasterLayerRendering | `apply_qml_inplace()` |
 | Carregar raster do disco | RasterLayerSource | `load_raster_from_file()` |
 | Adicionar Google Satellite ao projeto | RasterLayerSource | `add_google_basemap()` |
 | Converter vetor → raster | RasterVectorBridge | `rasterize_vector_layer()` (stub) |
 | Converter raster → polígonos | RasterVectorBridge | `polygonize_raster()` (stub) |
+| Amostrar raster em pontos | RasterVectorBridge | `sample_raster_at_points()` (stub) |
 
 ---
 
@@ -834,14 +846,15 @@ point_layer = VectorLayerGeometry.create_point_layer_from_dicts(
 
 | Módulo | Caminho | Usado por |
 |--------|---------|-----------|
-| LogUtils | `core/config/LogUtils.py` | Todas as classes (logging) |
-| ToolKey | `utils/ToolKeys.py` | Todas as classes (identificação) |
+| BaseUtil | `utils/BaseUtil.py` | Todas as classes (herança + logging) |
+| ToolKey | `core/enum/ToolKey.py` | Todas as classes (identificação) |
+| LogUtils | `core/config/LogUtils.py` | Indiretamente via BaseUtil |
 | ProjectUtils | `utils/ProjectUtils.py` | VectorLayerSource, VectorLayerProjection |
 | StringManager | `utils/StringManager.py` | VectorLayerSource (drivers, extensões) |
 | ExplorerUtils | `utils/ExplorerUtils.py` | RasterLayerRendering (temp folders) |
 | XmlUtil | `utils/XmlUtil.py` | RasterLayerRendering (QML) |
-| MetadataFields | `utils/mrk/MetadataFields.py` | VectorLayerGeometry (nomes de campos) |
 | ResamplingMethod | `core/enum/ResamplingMethod.py` | RasterLayerProjection |
+| geopandas | externa | VectorLayerSource (leitura .shp/.gpkg) |
 
 ---
 
@@ -852,8 +865,33 @@ point_layer = VectorLayerGeometry.create_point_layer_from_dicts(
 | Reutilizável? | ✅ Classes são stateless, aceitam tool_key externo |
 | Clara? | ✅ Responsabilidades explícitas por classe |
 | Independente de contexto oculto? | ✅ Não depende de variáveis globais |
-| Thread-safe? | ⚠️ Parcial: métodos `*_to_path_safe` sim, `processing.run()` não |
-| Logging padronizado? | ✅ Todas usam LogUtils com tool_key |
+| Thread-safe? | ⚠️ Parcial: stubs não implementados ainda |
+| Logging padronizado? | ✅ Todas usam BaseUtil._get_logger com tool_key |
+
+---
+
+# Guia de Implementação
+
+Quando precisar implementar um método stub:
+
+1. **Identifique qual classe** contém o método (consulte a tabela de Casos de Uso)
+2. **Leia o arquivo** para ver a assinatura exata e docstring
+3. **Implemente** seguindo o padrão de logging existente:
+   ```python
+   @staticmethod
+   def meu_metodo(param1: str, tool_key: str = ToolKey.UNTRACEABLE.value) -> bool:
+       logger = BaseUtil._get_logger(tool_key, "VectorLayerXxx")
+       logger.info("Executando operacao X", code="XXX_START", ...)
+       try:
+           # ... implementação real ...
+           logger.info("Operacao concluida", code="XXX_DONE")
+           return True
+       except Exception as e:
+           logger.error("Falha na operacao", code="XXX_ERR", error=str(e))
+           raise
+   ```
+4. **Atualize esta skill** se adicionar novos métodos públicos
+5. **Respeite os limites** da classe (não invada responsabilidade de outra)
 
 ---
 
@@ -861,4 +899,5 @@ point_layer = VectorLayerGeometry.create_point_layer_from_dicts(
 
 | Data | Versão | Descrição |
 |------|--------|-----------|
-| 2026-06-23 | 1.0.0 | Criação — análise completa de utils/vector (5 classes) e utils/raster (6 classes). Documentação de todos os métodos estáticos principais, exemplos, padrões e limitações. |
+| 2026-06-23 | 2.0.0 | Adaptação para Aetheris ToolBox: stubs de todas as 11 classes, logging via BaseUtil._get_logger, ToolKey de core/enum, imports ajustados, pacotes __init__.py atualizados |
+| 2026-06-23 | 1.0.0 | Criação — documentação original do Cadmus |
