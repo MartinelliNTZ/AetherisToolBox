@@ -246,6 +246,18 @@ class ToolRegistry:
             category=CategoryTool.CENTRAL,
             show_in_toolbar=True,
         ),
+        ToolKey.POINT_BOUNDARY.value: Tool(
+            name=ToolKey.POINT_BOUNDARY.value,
+            title="Limite de Pontos",
+            widget_factory=_make_factory(
+                "plugins.point_boundary.PointBoundaryPlugin",
+                "PointBoundaryPlugin",
+            ),
+            tooltip="Gera limite (envoltória) de nuvens LAS/LAZ ou vetores de pontos com validação iterativa",
+            tool_type=ToolType.VECTOR,
+            category=CategoryTool.CENTRAL,
+            show_in_toolbar=True,
+        ),
     }
 
     def register_default_tools(self) -> None:

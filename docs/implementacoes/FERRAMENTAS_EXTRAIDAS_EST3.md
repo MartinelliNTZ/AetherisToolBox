@@ -2,12 +2,12 @@
 
 > **Fonte:** `docs/implementacoes/EST3.PY`
 > **Propósito original:** Script completo para ler LAS, gerar estatísticas JSON e mosaico RGB GeoTIFF com pipeline em 5 estágios.
-> **Plugins existentes:** 2 (LasCheckPlugin, LasBlackFilterPlugin)
-> **Potenciais novos plugins:** 10
+> **Plugins existentes:** 3 (LasCheckPlugin, LasBlackFilterPlugin, PointBoundaryPlugin)
+> **Potenciais novos plugins:** 9
 
 ---
 
-## ✅ JÁ IMPLEMENTADOS (2)
+## ✅ JÁ IMPLEMENTADOS (3)
 
 ### 1. LasCheckPlugin — Verificação de Qualidade LAS
 **Arquivo:** `plugins/las_check/LasCheckPlugin.py`
@@ -51,31 +51,46 @@ Remove pontos onde R, G e B estão todos abaixo de um limiar configurável (0–
 
 ---
 
-## 📋 POTENCIAIS NOVAS FERRAMENTAS (10)
+### 3. PointBoundaryPlugin — Geração de Limite de Pontos
+**Arquivo:** `plugins/point_boundary/PointBoundaryPlugin.py`
+**Step:** `plugins/point_boundary/PointBoundaryStep.py`
+**Task:** `plugins/point_boundary/PointBoundaryTask.py`
 
-### 3. ConcaveHullValidatorPlugin — Validação de Envoltória Côncava
-**Função alvo:** Geração de `concave_hull` com validação iterativa e detecção de "escada".
+Gera o limite (boundary) de nuvens de pontos a partir de múltiplas fontes com validação iterativa via concave hull e detecção automática de "escada".
 
-**Descrição:**
-- Amostra 100k pontos do LAS
-- Gera concave hull com `ratio` decrescente (RATIO_INICIAL=0.10 passo 0.01)
-- Detecta "escada" quando queda de área > LIMIAR_ESCADA (12%)
-- Suaviza o polígono com `buffer(20).buffer(-20)`
+**Fontes suportadas:** LAS/LAZ, SHP, GPKG, KML, CSV, GeoJSON
+
+**Funcionalidades:**
+- Amostragem configurável (default 100k pontos)
+- Gera concave hull com ratio decrescente (default 0.10 passo 0.01)
+- Detecta "escada" quando queda de área > limiar configurável (default 12%)
+- Suaviza o polígono com buffer duplo configurável (default 20m)
 - Salva GPKGs de cada iteração para validação visual
 - Exporta JSON com resultados de cada iteração
+- CRS hierárquico: fonte → configurado → EPSG:4326
+- HUD + ProgressBar + Statistics integrados
 
-**Parâmetros:**
+**Parâmetros (GridDoubleSpinBox):**
 | Parâmetro | Default | Descrição |
 |-----------|---------|-----------|
-| `RATIO_INICIAL` | 0.10 | Ratio inicial do concave hull |
-| `RATIO_STEP` | 0.01 | Decremento do ratio por iteração |
-| `LIMIAR_ESCADA` | 12.0% | Queda de área que dispara detecção de escada |
-| `SUAVISACAO` | 20 m | Buffer de suavização pós-hull |
-| `N_AMOSTRAS` | 100.000 | Pontos usados para o hull |
+| `ratio_inicial` | 0.10 | Ratio inicial do concave hull |
+| `ratio_step` | 0.01 | Decremento do ratio por iteração |
+| `limiar_escada` | 12.0% | Queda de área que dispara detecção de escada |
+| `suavisacao` | 20 m | Buffer de suavização pós-hull |
+| `n_amostras` | 100.000 | Pontos usados para o hull |
 
-**Código fonte EST3:** Bloco `# ── VALIDACAO CONCAVE HULL` (linhas ~260–350).
+**Métodos utilitários adicionados:**
+- `LasUtil.extract_points()` — extração de coordenadas de LAS/LAZ
+- `VectorLayerSource.extract_point_coordinates()` — extração de coordenadas de vetores + CSV
+- `VectorLayerGeometry.generate_concave_boundary()` — geração do concave hull
+- `VectorLayerGeometry.smooth_polygon()` — suavização via buffer duplo
+- `VectorLayerGeometry.detect_escada()` — detecção de escada em sequência de áreas
+
+**Extraído de:** Bloco `# ── VALIDACAO CONCAVE HULL` (linhas ~260–350) no EST3.
 
 ---
+
+## 📋 POTENCIAIS NOVAS FERRAMENTAS (9)
 
 ### 4. LasStatisticsPlugin — Estatísticas Completas do LAS
 **Função alvo:** Geração do JSON de estatísticas (`estatisticas_las.json`).
@@ -235,7 +250,7 @@ LAS Original
     ├──► [2] LasBlackFilterPlugin     → Remove pontos pretos
     │       └──► [12] LasCleanExporterPlugin → Salva LAS limpo
     │
-    ├──► [3] ConcaveHullValidatorPlugin → Polígono de recorte (GPKG)
+    ├──► [3] PointBoundaryPlugin      → Polígono de recorte (GPKG)
     │
     └──► [5] IdwInterpolatorPlugin    → Grid RGB interpolado
             │

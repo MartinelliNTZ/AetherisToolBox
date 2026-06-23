@@ -24,6 +24,8 @@ import csv
 import os
 from typing import Any, List, Optional, Tuple
 
+import numpy as np
+
 from core.enum.ToolKey import ToolKey
 from utils.BaseUtil import BaseUtil
 
@@ -35,7 +37,7 @@ class VectorLayerSource(BaseUtil):
     Nao transforma geometrias — use VectorLayerGeometry para isso.
     """
 
-    _SUPPORTED_EXTENSIONS = frozenset({".shp", ".gpkg", ".csv"})
+    _SUPPORTED_EXTENSIONS = frozenset({".shp", ".gpkg", ".csv", ".kml", ".geojson"})
 
     # ── API Publica — Leitura ────────────────────────────────────────
 
@@ -116,6 +118,8 @@ class VectorLayerSource(BaseUtil):
             ".shp": "ESRI Shapefile",
             ".gpkg": "GeoPackage",
             ".csv": "CSV",
+            ".kml": "KML",
+            ".geojson": "GeoJSON",
         }
         result = drivers.get(ext, "Desconhecido")
         logger.debug("Driver obtido", code="VECTOR_DRIVER", path=path, driver=result)
@@ -388,3 +392,200 @@ class VectorLayerSource(BaseUtil):
             rows.append(d)
 
         return rows
+
+    # ══════════════════════════════════════════════════════════════════
+    # API — Extração de Coordenadas (PointBoundaryPlugin)
+    # ══════════════════════════════════════════════════════════════════
+
+    @staticmethod
+    def extract_point_coordinates(
+        path: str,
+        tool_key: str = ToolKey.UNTRACEABLE.value,
+        sample: int = 0,
+        csv_x_field: str = "x",
+        csv_y_field: str = "y",
+    ) -> tuple[np.ndarray, np.ndarray, dict]:
+        """
+        Extrai coordenadas (x, y) de arquivos vetoriais de pontos.
+
+        Suporta: .shp, .gpkg, .kml, .geojson, .csv
+
+        Para CSV: usa csv_x_field e csv_y_field para identificar colunas.
+        Para KML/GeoJSON/SHP/GPKG: extrai geometrias Point e MultiPoint.
+
+        Args:
+            path: Caminho do arquivo.
+            tool_key: ToolKey para logging.
+            sample: Se > 0, amostragem uniforme.
+            csv_x_field: Nome da coluna X (CSV).
+            csv_y_field: Nome da coluna Y (CSV).
+
+        Returns:
+            (x_array, y_array, metadata) onde metadata contém:
+                - n_total: total de pontos
+                - n_extraidos: pontos extraídos (após amostragem)
+                - crs: CRS em formato string (se disponível)
+                - fonte: "shp", "gpkg", "kml", "geojson" ou "csv"
+                - fields: lista de nomes de campos (atributos)
+        """
+        logger = BaseUtil._get_logger(tool_key, "VectorLayerSource")
+        logger.info("Extraindo coordenadas de vetor", code="VECTOR_EXTRACT_COORDS", path=path)
+
+        ext = os.path.splitext(path)[1].lower()
+        if ext not in VectorLayerSource._SUPPORTED_EXTENSIONS:
+            raise ValueError(
+                f"Extensão '{ext}' não suportada. "
+                f"Use: {', '.join(VectorLayerSource._SUPPORTED_EXTENSIONS)}"
+            )
+
+        if ext == ".csv":
+            return VectorLayerSource._extract_csv_coords(
+                path, tool_key, sample, csv_x_field, csv_y_field
+            )
+        else:
+            return VectorLayerSource._extract_geo_coords(
+                path, tool_key, sample
+            )
+
+    @staticmethod
+    def _extract_csv_coords(
+        path: str,
+        tool_key: str,
+        sample: int,
+        x_field: str,
+        y_field: str,
+    ) -> tuple[np.ndarray, np.ndarray, dict]:
+        """Extrai coordenadas de CSV."""
+        import pandas as pd
+
+        logger = BaseUtil._get_logger(tool_key, "VectorLayerSource")
+        df = pd.read_csv(path)
+
+        if x_field not in df.columns or y_field not in df.columns:
+            raise ValueError(
+                f"Colunas X='{x_field}' ou Y='{y_field}' não encontradas no CSV. "
+                f"Colunas disponíveis: {list(df.columns)}"
+            )
+
+        x = df[x_field].values.astype(np.float64)
+        y = df[y_field].values.astype(np.float64)
+
+        n_total = len(x)
+        fields = list(df.columns)
+
+        # Remove pontos com NaN
+        mask_valido = ~(np.isnan(x) | np.isnan(y))
+        x = x[mask_valido]
+        y = y[mask_valido]
+        n_validos = len(x)
+
+        if n_validos == 0:
+            raise ValueError("Nenhum ponto válido encontrado no CSV (todos NaN).")
+
+        # Amostragem
+        if sample > 0 and n_validos > sample:
+            step = max(1, n_validos // sample)
+            x = x[::step]
+            y = y[::step]
+            n_extraidos = len(x)
+        else:
+            n_extraidos = n_validos
+
+        metadata = {
+            "n_total": n_total,
+            "n_extraidos": n_extraidos,
+            "crs": "",
+            "fonte": "csv",
+            "fields": fields,
+        }
+
+        logger.info(
+            "Coordenadas extraidas do CSV",
+            code="VECTOR_CSV_EXTRACT_DONE",
+            n_total=n_total,
+            n_validos=n_validos,
+            n_extraidos=n_extraidos,
+            x_field=x_field,
+            y_field=y_field,
+        )
+        return x, y, metadata
+
+    @staticmethod
+    def _extract_geo_coords(
+        path: str,
+        tool_key: str,
+        sample: int,
+    ) -> tuple[np.ndarray, np.ndarray, dict]:
+        """Extrai coordenadas de Shapefile/GPKG/KML/GeoJSON usando geopandas."""
+        import geopandas as gpd
+        from shapely.geometry import Point, MultiPoint
+
+        logger = BaseUtil._get_logger(tool_key, "VectorLayerSource")
+        gdf = gpd.read_file(path)
+
+        if gdf.empty:
+            raise ValueError(f"Arquivo vazio: {path}")
+
+        crs = ""
+        if gdf.crs is not None:
+            crs = str(gdf.crs)
+
+        fields = list(gdf.columns)
+        n_total = len(gdf)
+
+        # Extrai coordenadas de Point e MultiPoint
+        xs: list[float] = []
+        ys: list[float] = []
+
+        for geom in gdf.geometry:
+            if geom is None:
+                continue
+            if geom.geom_type == "Point":
+                xs.append(float(geom.x))
+                ys.append(float(geom.y))
+            elif geom.geom_type == "MultiPoint":
+                for pt in geom.geoms:
+                    xs.append(float(pt.x))
+                    ys.append(float(pt.y))
+            else:
+                logger.warning(
+                    "Geometria ignorada (nao e Point/MultiPoint)",
+                    code="VECTOR_SKIP_NON_POINT",
+                    geom_type=geom.geom_type,
+                )
+
+        if len(xs) == 0:
+            raise ValueError(
+                "Nenhuma geometria Point ou MultiPoint encontrada no arquivo."
+            )
+
+        x = np.array(xs, dtype=np.float64)
+        y = np.array(ys, dtype=np.float64)
+        n_extraidos_raw = len(x)
+
+        # Amostragem
+        if sample > 0 and n_extraidos_raw > sample:
+            step = max(1, n_extraidos_raw // sample)
+            x = x[::step]
+            y = y[::step]
+            n_extraidos = len(x)
+        else:
+            n_extraidos = n_extraidos_raw
+
+        metadata = {
+            "n_total": n_total,
+            "n_extraidos": n_extraidos,
+            "crs": crs,
+            "fonte": os.path.splitext(path)[1].lower().lstrip("."),
+            "fields": fields,
+        }
+
+        logger.info(
+            "Coordenadas extraidas de vetor",
+            code="VECTOR_GEO_EXTRACT_DONE",
+            n_features=n_total,
+            n_points_raw=n_extraidos_raw,
+            n_extraidos=n_extraidos,
+            crs=crs or "N/A",
+        )
+        return x, y, metadata

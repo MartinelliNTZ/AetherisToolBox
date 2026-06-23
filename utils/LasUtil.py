@@ -395,3 +395,78 @@ class LasUtil(BaseUtil):
         basename = os.path.splitext(os.path.basename(input_path))[0]
         ext = os.path.splitext(input_path)[1].lower()
         return os.path.join(dir_origem, f"{basename}{suffix}{ext}")
+
+    # ══════════════════════════════════════════════════════════════════
+    # API — Extração de Coordenadas (PointBoundaryPlugin)
+    # ══════════════════════════════════════════════════════════════════
+
+    @staticmethod
+    def extract_points(
+        path: str,
+        tool_key: str = ToolKey.UNTRACEABLE.value,
+        sample: int = 0,
+    ) -> tuple[np.ndarray, np.ndarray, dict]:
+        """
+        Extrai coordenadas (x, y) de um arquivo LAS/LAZ.
+
+        Args:
+            path: Caminho do arquivo .las ou .laz.
+            tool_key: ToolKey para logging.
+            sample: Se > 0, retorna no máximo 'sample' pontos (amostragem uniforme).
+
+        Returns:
+            (x_array, y_array, metadata) onde metadata contém:
+                - n_total: total de pontos no arquivo
+                - n_extraidos: pontos extraídos (após amostragem)
+                - has_rgb: se tem bandas RGB
+                - crs: CRS em formato string (se disponível no header)
+                - fonte: "las"
+        """
+        logger = BaseUtil._get_logger(tool_key, "LasUtil")
+        logger.info("Extraindo pontos do LAS", code="LAS_EXTRACT_POINTS", path=path)
+
+        las = laspy.read(path)
+        n_total = len(las.points)
+
+        x = np.asarray(las.x, dtype=np.float64)
+        y = np.asarray(las.y, dtype=np.float64)
+
+        has_rgb = hasattr(las, "red") and las.red is not None
+
+        # Tenta extrair CRS do header
+        crs = ""
+        try:
+            vlrs = las.header.vlrs
+            for vlr in vlrs:
+                if hasattr(vlr, "parsed_crs") and vlr.parsed_crs is not None:
+                    crs = str(vlr.parsed_crs)
+                    break
+        except Exception:
+            pass
+
+        # Amostragem
+        if sample > 0 and n_total > sample:
+            step = max(1, n_total // sample)
+            x = x[::step]
+            y = y[::step]
+            n_extraidos = len(x)
+        else:
+            n_extraidos = n_total
+
+        metadata = {
+            "n_total": n_total,
+            "n_extraidos": n_extraidos,
+            "has_rgb": has_rgb,
+            "crs": crs,
+            "fonte": "las",
+        }
+
+        logger.info(
+            "Pontos extraidos do LAS",
+            code="LAS_EXTRACT_DONE",
+            n_total=n_total,
+            n_extraidos=n_extraidos,
+            has_rgb=has_rgb,
+            crs=crs or "N/A",
+        )
+        return x, y, metadata

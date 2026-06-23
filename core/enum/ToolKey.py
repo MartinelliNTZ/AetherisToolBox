@@ -33,6 +33,7 @@ class ToolKey(str, Enum):
     LAS_BLACK_FILTER = "LasBlackFilter"
     LAS_CHECK = "LasCheck"
     STATISTICS = "Statistics"
+    POINT_BOUNDARY = "PointBoundary"
 
     # ── Método utilitário ──────────────────────────────────────────────
 

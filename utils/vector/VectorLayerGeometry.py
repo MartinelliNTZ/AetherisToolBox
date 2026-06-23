@@ -17,6 +17,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from core.enum.ToolKey import ToolKey
 from utils.BaseUtil import BaseUtil
+import numpy as np
 
 
 class VectorLayerGeometry(BaseUtil):
@@ -320,3 +321,176 @@ class VectorLayerGeometry(BaseUtil):
         logger = BaseUtil._get_logger(tool_key, "VectorLayerGeometry")
         logger.info("singleparts_to_multparts chamado — stub", code="GEOM_STUB")
         return False
+
+    # ══════════════════════════════════════════════════════════════════
+    # API — Boundary / Concave Hull (PointBoundaryPlugin)
+    # ══════════════════════════════════════════════════════════════════
+
+    @staticmethod
+    def generate_concave_boundary(
+        x: np.ndarray,
+        y: np.ndarray,
+        ratio: float = 0.10,
+        tool_key: str = ToolKey.UNTRACEABLE.value,
+    ):
+        """
+        Gera um polígono côncavo (concave hull) a partir de arrays de coordenadas.
+
+        Usa shapely.concave_hull internamente.
+
+        Args:
+            x: Array 1D de coordenadas X.
+            y: Array 1D de coordenadas Y.
+            ratio: Ratio do concave hull (0..1, menor = mais detalhe).
+            tool_key: ToolKey para logging.
+
+        Returns:
+            shapely.geometry.Polygon ou MultiPolygon.
+        """
+        from shapely import concave_hull
+        from shapely.geometry import MultiPoint
+
+        logger = BaseUtil._get_logger(tool_key, "VectorLayerGeometry")
+        logger.info(
+            "Gerando concave boundary",
+            code="GEOM_CONCAVE_START",
+            n_points=len(x),
+            ratio=ratio,
+        )
+
+        coords = np.column_stack((x, y))
+        mp = MultiPoint(coords)
+
+        hull = concave_hull(mp, ratio=ratio)
+
+        logger.info(
+            "Concave boundary gerado",
+            code="GEOM_CONCAVE_DONE",
+            ratio=ratio,
+            area=round(hull.area, 4),
+        )
+        return hull
+
+    @staticmethod
+    def smooth_polygon(
+        polygon,
+        distance: float = 20.0,
+        resolution: int = 16,
+        tool_key: str = ToolKey.UNTRACEABLE.value,
+    ):
+        """
+        Suaviza um polígono usando buffer positivo e negativo.
+
+        Equivalente a: polygon.buffer(distance, resolution).buffer(-distance, resolution)
+
+        Args:
+            polygon: shapely.geometry.Polygon
+            distance: Distância do buffer em metros.
+            resolution: Resolução do buffer (default 16).
+            tool_key: ToolKey para logging.
+
+        Returns:
+            shapely.geometry.Polygon suavizado.
+        """
+        logger = BaseUtil._get_logger(tool_key, "VectorLayerGeometry")
+        logger.info(
+            "Suavizando poligono",
+            code="GEOM_SMOOTH_START",
+            distance=distance,
+            resolution=resolution,
+        )
+
+        smoothed = polygon.buffer(distance, resolution=resolution).buffer(
+            -distance, resolution=resolution
+        )
+
+        logger.info(
+            "Poligono suavizado",
+            code="GEOM_SMOOTH_DONE",
+            area_original=round(polygon.area, 4),
+            area_suavizada=round(smoothed.area, 4),
+        )
+        return smoothed
+
+    @staticmethod
+    def detect_escada(
+        areas: list[float],
+        ratios: list[float],
+        limiar: float = 12.0,
+        tool_key: str = ToolKey.UNTRACEABLE.value,
+    ) -> tuple[float, float, bool]:
+        """
+        Detecta "escada" em uma sequência de áreas decrescentes.
+
+        Args:
+            areas: Lista de áreas em m² (do maior ratio para o menor).
+            ratios: Lista de ratios correspondentes.
+            limiar: Percentual de queda que dispara detecção (%).
+            tool_key: ToolKey para logging.
+
+        Returns:
+            (ratio_ideal, ratio_escada, encontrou)
+            ratio_ideal: Último ratio antes da escada.
+            ratio_escada: Ratio onde a escada foi detectada.
+            encontrou: True se escada detectada.
+        """
+        logger = BaseUtil._get_logger(tool_key, "VectorLayerGeometry")
+        logger.info(
+            "Detectando escada",
+            code="GEOM_ESCADA_START",
+            n_iteracoes=len(areas),
+            limiar=limiar,
+        )
+
+        if len(areas) < 2 or len(ratios) < 2:
+            logger.warning(
+                "Menos de 2 iteracoes — impossivel detectar escada",
+                code="GEOM_ESCADA_TOO_FEW",
+            )
+            return (ratios[-1] if ratios else 0.0, 0.0, False)
+
+        ratio_ideal = ratios[0]
+        ratio_escada = 0.0
+        encontrou = False
+
+        for i in range(1, len(areas)):
+            area_atual = areas[i]
+            area_anterior = areas[i - 1]
+
+            if area_anterior > 0:
+                queda_pct = ((area_anterior - area_atual) / area_anterior) * 100
+            else:
+                queda_pct = 0.0
+
+            logger.debug(
+                f"  ratio={ratios[i]:.3f}: area={area_atual:.2f} "
+                f"queda={queda_pct:.2f}%",
+                code="GEOM_ESCADA_ITER",
+                ratio=ratios[i],
+                area=round(area_atual, 4),
+                queda_pct=round(queda_pct, 2),
+            )
+
+            if queda_pct > limiar and ratios[i] < ratios[0]:
+                ratio_ideal = ratios[i - 1]
+                ratio_escada = ratios[i]
+                encontrou = True
+                logger.info(
+                    "Escada detectada",
+                    code="GEOM_ESCADA_FOUND",
+                    ratio_ideal=ratio_ideal,
+                    ratio_escada=ratio_escada,
+                    queda_pct=round(queda_pct, 2),
+                )
+                break
+
+            ratio_ideal = ratios[i]
+
+        if not encontrou:
+            logger.info(
+                "Nenhuma escada detectada",
+                code="GEOM_ESCADA_NONE",
+                ratio_ideal=ratio_ideal,
+            )
+
+        return (ratio_ideal, ratio_escada, encontrou)
