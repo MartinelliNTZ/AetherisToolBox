@@ -20,6 +20,8 @@ from __future__ import annotations
 
 from typing import Any
 
+import os
+
 import laspy
 import numpy as np
 
@@ -72,30 +74,59 @@ class LasCheckStep(BaseStep):
             path=file_path,
         )
 
-        # Abre o LAS (suporta .las e .laz)
+        # Abre o LAS/LAZ (usa Lazrs como backend para .laz)
         try:
-            las = laspy.read(file_path)
+            laz_backend = laspy.LazBackend.Lazrs
+        except AttributeError:
+            laz_backend = None
+
+        try:
+            las = laspy.read(file_path, laz_backend=laz_backend)
+            logger.info(
+                "Arquivo aberto com sucesso",
+                code="LASCHECK_FILE_OPEN_OK",
+                path=file_path,
+                ext=os.path.splitext(file_path)[1].lower(),
+                total_points=len(las.points),
+            )
+            signals.console_message.emit(
+                f"[LasCheck] Arquivo aberto: {os.path.basename(file_path)} "
+                f"({len(las.points):,} pontos)"
+            )
         except Exception as e:
             error_msg = str(e)
+            logger.error(
+                "Falha ao abrir arquivo LAS/LAZ",
+                code="LASCHECK_FILE_OPEN_ERR",
+                path=file_path,
+                error=error_msg,
+            )
             if "No LazBackend selected" in error_msg or "cannot decompress" in error_msg:
-                logger.error(
-                    "Backend LAZ nao encontrado",
-                    code="LASCHECK_LAZ_BACKEND",
+                logger.critical(
+                    "Backend LAZ nao disponivel mesmo com lazrs instalado",
+                    code="LASCHECK_LAZ_BACKEND_FAIL",
                     path=file_path,
                 )
+                signals.console_message.emit(
+                    f"[LasCheck] ERRO: Nao foi possivel abrir .LAZ. "
+                    f"Verifique instalacao do lazrs (pip install lazrs)."
+                )
                 return {
-                    "check_results": {
-                        "_laz_error": {
-                            "status": "fail",
-                            "message": "Backend LAZ nao instalado. Use 'pip install lazrs' ou converta para .LAS primeiro.",
-                            "detail": error_msg,
-                            "suggestion": "Instale: pip install lazrs",
-                        }
-                    },
+                    "check_results": {},
                     "summary": {"pass": 0, "warning": 0, "fail": 1, "total": 0, "error": True},
                     "error_type": "laz_backend",
-                    "error": error_msg,
+                    "error": (
+                        "Erro ao abrir .LAZ. Instale o backend com:\n"
+                        "  pip install lazrs\n\n"
+                        "Ou converta para .LAS primeiro."
+                    ),
                 }
+            logger.error(
+                "Erro desconhecido ao abrir arquivo",
+                code="LASCHECK_FILE_OPEN_UNKNOWN",
+                path=file_path,
+                error=error_msg,
+            )
             raise
 
         n_total = len(las.points)
@@ -120,9 +151,21 @@ class LasCheckStep(BaseStep):
         n_checks = len(check_order)
         enabled_count = 0
 
+        logger.info(
+            "Iniciando execucao dos checks",
+            code="LASCHECK_CHECKS_START",
+            total_checks=n_checks,
+            enabled_checks=list(checks_enabled.keys()),
+        )
+
         for idx, check_name in enumerate(check_order):
             enabled = checks_enabled.get(check_name, True)
             if not enabled:
+                logger.debug(
+                    f"Check '{check_name}' pulado (desabilitado)",
+                    code="LASCHECK_CHECK_SKIPPED",
+                    check=check_name,
+                )
                 results[check_name] = {
                     "status": "skipped",
                     "message": "Check desabilitado pelo usuário",
@@ -142,15 +185,30 @@ class LasCheckStep(BaseStep):
             })
 
             method = check_methods[check_name]
-            result = method(las, n_total)
-            results[check_name] = result
-
-            logger.info(
-                f"Check '{display}' concluído",
-                code="LASCHECK_CHECK_DONE",
-                check=check_name,
-                status=result["status"],
-            )
+            try:
+                result = method(las, n_total)
+                results[check_name] = result
+                logger.info(
+                    f"Check '{display}' concluido -> {result['status']}",
+                    code="LASCHECK_CHECK_DONE",
+                    check=check_name,
+                    status=result["status"],
+                    detail=result.get("detail", ""),
+                )
+            except Exception as e:
+                logger.error(
+                    f"Erro ao executar check '{display}'",
+                    code="LASCHECK_CHECK_EXEC_ERR",
+                    check=check_name,
+                    error=str(e),
+                    path=file_path,
+                )
+                results[check_name] = {
+                    "status": "fail",
+                    "message": f"Erro na verificacao: {str(e)}",
+                    "detail": str(e),
+                    "suggestion": "Verifique a integridade do arquivo.",
+                }
 
         # Consolida estatísticas
         pass_count = sum(1 for r in results.values() if r.get("status") == "pass")
@@ -160,11 +218,16 @@ class LasCheckStep(BaseStep):
         signals.progress_update.emit(100.0)
 
         logger.info(
-            "Checks concluídos",
+            "Checks concluidos",
             code="LASCHECK_DONE",
             pass_count=pass_count,
             warn_count=warn_count,
             fail_count=fail_count,
+            enabled_count=enabled_count,
+        )
+        signals.console_message.emit(
+            f"[LasCheck] Checks finalizados: "
+            f"{pass_count} ✅ {warn_count} ⚠️ {fail_count} ❌ ({enabled_count} checks)"
         )
 
         return {

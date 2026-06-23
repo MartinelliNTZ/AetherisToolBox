@@ -192,13 +192,27 @@ class LasCheckPlugin(BasePlugin):
 
     def _on_executar(self):
         """Executa os checks de qualidade via PipelineRunner em background."""
+        self.logger.info(
+            "Botao EXECUTAR pressionado",
+            code="LASCHECK_EXEC_BTN",
+            path=self._current_path,
+        )
+
         if self._runner is not None and self._runner.isRunning():
+            self.logger.warning(
+                "Tentativa de executar enquanto ja em execucao",
+                code="LASCHECK_EXEC_ALREADY_RUNNING",
+            )
             MessageBox.show_warning(
                 "Ja existe uma verificacao em andamento.", title="Aguarde"
             )
             return
 
         if not self._current_path:
+            self.logger.warning(
+                "Tentativa de executar sem LAS carregado",
+                code="LASCHECK_EXEC_NO_FILE",
+            )
             MessageBox.show_warning(
                 "Nenhum arquivo LAS carregado.", title="LAS Quality Check",
             )
@@ -206,6 +220,10 @@ class LasCheckPlugin(BasePlugin):
 
         checks_enabled = self._grid_checks.checked
         if not checks_enabled:
+            self.logger.warning(
+                "Tentativa de executar sem checks selecionados",
+                code="LASCHECK_EXEC_NO_CHECKS",
+            )
             MessageBox.show_warning(
                 "Selecione ao menos um check para executar.",
                 title="LAS Quality Check",
@@ -222,6 +240,15 @@ class LasCheckPlugin(BasePlugin):
             self._result_label.set(key, "—")
 
         n_checks = len(checks_enabled)
+        self.logger.info(
+            "Iniciando execucao dos checks em background",
+            code="LASCHECK_EXEC_START",
+            path=self._current_path,
+            n_checks=n_checks,
+            checks=list(checks_enabled.keys()),
+            ext=os.path.splitext(self._current_path)[1].lower(),
+            total_points=self._las_info.get("n_pontos", 0),
+        )
 
         SignalManager.instance().execution_started.emit(self.tool_key)
         SignalManager.instance().hud_show.emit({
@@ -231,13 +258,6 @@ class LasCheckPlugin(BasePlugin):
         SignalManager.instance().console_message.emit(
             f"[LasCheck] Iniciando {n_checks} checks em: "
             f"{os.path.basename(self._current_path)}"
-        )
-
-        self.logger.info(
-            "Iniciando checks",
-            code="LASCHECK_EXEC_START",
-            path=self._current_path,
-            checks=list(checks_enabled.keys()),
         )
 
         # Cria step que executa checks inline na QThread
@@ -257,12 +277,22 @@ class LasCheckPlugin(BasePlugin):
         self._runner = runner
         runner.start()
 
+        self.logger.debug(
+            "PipelineRunner iniciado em QThread",
+            code="LASCHECK_RUNNER_STARTED",
+            thread_id=id(runner),
+        )
+
     # ══════════════════════════════════════════════════════════════════
     # Callbacks da Pipeline
     # ══════════════════════════════════════════════════════════════════
 
     def _on_done(self, context):
         """Callback de sucesso da pipeline."""
+        self.logger.info(
+            "Pipeline finalizada com sucesso",
+            code="LASCHECK_PIPELINE_DONE",
+        )
         results = context.get("check_results", {})
         summary = context.get("summary", {})
 
@@ -305,6 +335,12 @@ class LasCheckPlugin(BasePlugin):
         )
 
         if fail_count > 0:
+            self.logger.warning(
+                "Checks concluidos com falhas",
+                code="LASCHECK_EXEC_HAS_FAILS",
+                fail_count=fail_count,
+                total=total,
+            )
             MessageBox.show_warning(
                 f"Checks concluidos com {fail_count} falha(s)!",
                 title="LAS Quality Check",
@@ -312,6 +348,12 @@ class LasCheckPlugin(BasePlugin):
 
     def _on_error(self, message: str):
         """Callback de erro da pipeline."""
+        self.logger.critical(
+            "Pipeline falhou com erro",
+            code="LASCHECK_PIPELINE_FAILED",
+            error=message,
+            path=self._current_path,
+        )
         SignalManager.instance().execution_cancelled.emit(self.tool_key)
         SignalManager.instance().console_message.emit(
             f"[LasCheck] ERRO: {message}"
@@ -322,9 +364,16 @@ class LasCheckPlugin(BasePlugin):
             error=message,
             path=self._current_path,
         )
-        # Exibe erro no GridLabel se for erro de LAZ
+
+        # Exibe erro no GridLabel
         if "LAZ" in message or "laz" in message:
+            self.logger.error(
+                "Erro relacionado a LAZ",
+                code="LASCHECK_LAZ_ERROR",
+                message=message,
+            )
             self._result_label.set("resumo", "❌ Erro LAZ - use .LAS")
+
         MessageBox.show_error(
             f"Erro durante os checks:\n{message}",
             title="LAS Quality Check",
@@ -332,6 +381,10 @@ class LasCheckPlugin(BasePlugin):
 
     def _on_runner_finished(self):
         """Callback executado ao final da pipeline (sucesso ou erro)."""
+        self.logger.info(
+            "PipelineRunner finalizado",
+            code="LASCHECK_RUNNER_FINISHED",
+        )
         self._runner = None
         self._btns.set_all_enabled(True)
         self._btns.set_enabled("executar", bool(self._current_path))
@@ -346,10 +399,21 @@ class LasCheckPlugin(BasePlugin):
     def _carregar_las(self, path: str):
         """Carrega metadados do LAS e atualiza a UI."""
         if getattr(self, "_loading_las", False):
+            self.logger.debug(
+                "Carregamento ja em andamento, ignorando chamada",
+                code="LASCHECK_LAS_ALREADY_LOADING",
+                path=path,
+            )
             return
         self._loading_las = True
 
-        self.logger.info("Carregando LAS", code="LASCHECK_LAS_LOAD", path=path)
+        self.logger.info(
+            "Carregando LAS",
+            code="LASCHECK_LAS_LOAD",
+            path=path,
+            ext=os.path.splitext(path)[1].lower(),
+            filesize=os.path.getsize(path) if os.path.isfile(path) else 0,
+        )
 
         try:
             info = LasUtil.get_info(path, tool_key=self.tool_key)
@@ -382,28 +446,64 @@ class LasCheckPlugin(BasePlugin):
                     f"X[{bbox['x_min']:.1f}, {bbox['x_max']:.1f}] "
                     f"Y[{bbox['y_min']:.1f}, {bbox['y_max']:.1f}]",
                 )
+                self.logger.debug(
+                    "Bounding box obtida",
+                    code="LASCHECK_BBOX_OK",
+                    **bbox,
+                )
             else:
                 self._info_label.set("bbox", "—")
+                self.logger.warning(
+                    "Bounding box nao disponivel",
+                    code="LASCHECK_BBOX_UNAVAILABLE",
+                )
 
             self._btns.set_enabled("executar", True)
             self.page.set_badge(self.page.PRONTA)
 
             SignalManager.instance().console_message.emit(
                 f"[LasCheck] Carregado: {os.path.basename(path)} "
-                f"({n_pontos:,} pontos)"
+                f"({n_pontos:,} pontos, RGB: {'sim' if has_rgb else 'nao'})"
             )
 
             self.logger.info(
-                "LAS carregado",
+                "LAS carregado com sucesso",
                 code="LASCHECK_LAS_LOADED",
                 path=path,
                 points=n_pontos,
                 has_rgb=has_rgb,
             )
 
-        except Exception as e:
+        except FileNotFoundError as e:
             self.logger.error(
-                "Erro ao carregar LAS",
+                "Arquivo nao encontrado",
+                code="LASCHECK_FILE_NOT_FOUND",
+                error=str(e),
+                path=path,
+            )
+            self.page.set_badge(self.page.ERROR)
+            MessageBox.show_error(
+                f"Arquivo nao encontrado:\n{path}",
+                title="LAS Quality Check",
+            )
+
+        except RuntimeError as e:
+            self.logger.error(
+                "Erro de metadados do LAS",
+                code="LASCHECK_META_ERR",
+                error=str(e),
+                path=path,
+            )
+            self.page.set_badge(self.page.ERROR)
+            MessageBox.show_error(
+                f"Erro ao ler metadados do LAS:\n{str(e)}",
+                title="LAS Quality Check",
+                detail=traceback.format_exc(),
+            )
+
+        except Exception as e:
+            self.logger.critical(
+                "Erro inesperado ao carregar LAS",
                 code="LASCHECK_LAS_LOAD_ERR",
                 error=str(e),
                 path=path,
@@ -416,6 +516,10 @@ class LasCheckPlugin(BasePlugin):
             )
         finally:
             self._loading_las = False
+            self.logger.debug(
+                "Flag _loading_las resetada",
+                code="LASCHECK_LOADING_FLAG_RESET",
+            )
 
     # ══════════════════════════════════════════════════════════════════
     # Preferências
