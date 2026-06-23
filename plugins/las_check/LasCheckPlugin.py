@@ -30,6 +30,7 @@ from resources.widgets.GroupPainel import GroupPainel
 from resources.widgets.SelectorGrid import SelectorGrid
 from utils.LasUtil import LasUtil
 from utils.MessageBox import MessageBox
+from utils.ProcessStatisticsUtil import ProcessStatisticsUtil
 
 
 # ── Configuração dos checks ─────────────────────────────────────────────
@@ -251,9 +252,30 @@ class LasCheckPlugin(BasePlugin):
         )
 
         SignalManager.instance().execution_started.emit(self.tool_key)
+
+        # Inicia monitoramento de estatísticas para estimar tempo total
+        self.statistics.start(
+            n=0,
+            ntype=ProcessStatisticsUtil.POINTS,
+            ntotal=n_checks,
+        )
+        total_estimate = max(
+            self.statistics.remaining_time,
+            self.statistics.total_time,
+            30.0,
+        )
+        self.logger.info(
+            "Estimativa de tempo calculada para HUD stages",
+            code="LASCHECK_STAGE_TIME",
+            total_estimate_s=round(total_estimate, 1),
+            n_stages=n_checks,
+            remaining_time_s=round(self.statistics.remaining_time, 1),
+            historical_time_s=round(self.statistics.total_time, 1),
+        )
+
         SignalManager.instance().hud_show.emit({
             "message": "Verificando nuvem de pontos...",
-            "stages": [30.0, 8],
+            "stages": [total_estimate, n_checks],
         })
         SignalManager.instance().console_message.emit(
             f"[LasCheck] Iniciando {n_checks} checks em: "

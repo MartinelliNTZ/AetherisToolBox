@@ -163,16 +163,23 @@ class LasCheckStep(BaseStep):
 
         results: dict[str, dict] = {}
         n_checks = len(check_order)
-        enabled_count = 0
+
+        # Constroi lista ordenada de checks habilitados (para stages)
+        enabled_check_names: list[str] = [
+            name for name in check_order if checks_enabled.get(name, True)
+        ]
+        n_enabled = len(enabled_check_names)
 
         logger.info(
             "Iniciando execucao dos checks",
             code="LASCHECK_CHECKS_START",
             total_checks=n_checks,
             enabled_checks=list(checks_enabled.keys()),
+            n_enabled=n_enabled,
         )
 
-        for idx, check_name in enumerate(check_order):
+        stage_idx = 0
+        for check_name in check_order:
             enabled = checks_enabled.get(check_name, True)
             if not enabled:
                 logger.debug(
@@ -188,14 +195,9 @@ class LasCheckStep(BaseStep):
                 }
                 continue
 
-            enabled_count += 1
-            progress = (idx / n_checks) * 100.0
-            signals.progress_update.emit(progress)
-
             display = self._CHECK_NAMES.get(check_name, check_name)
             signals.hud_update.emit({
                 "message": f"Verificando: {display}...",
-                "progress": progress,
             })
 
             method = check_methods[check_name]
@@ -224,6 +226,10 @@ class LasCheckStep(BaseStep):
                     "suggestion": "Verifique a integridade do arquivo.",
                 }
 
+            # Notifica HUD que esta etapa foi concluida (Cenário 3 - Stages)
+            signals.hud_stage_done.emit(stage_idx)
+            stage_idx += 1
+
         # Consolida estatísticas
         pass_count = sum(1 for r in results.values() if r.get("status") == "pass")
         warn_count = sum(1 for r in results.values() if r.get("status") == "warning")
@@ -237,11 +243,11 @@ class LasCheckStep(BaseStep):
             pass_count=pass_count,
             warn_count=warn_count,
             fail_count=fail_count,
-            enabled_count=enabled_count,
+            enabled_count=n_enabled,
         )
         signals.console_message.emit(
             f"[LasCheck] Checks finalizados: "
-            f"{pass_count} ✅ {warn_count} ⚠️ {fail_count} ❌ ({enabled_count} checks)"
+            f"{pass_count} ✅ {warn_count} ⚠️ {fail_count} ❌ ({n_enabled} checks)"
         )
 
         return {
@@ -250,7 +256,7 @@ class LasCheckStep(BaseStep):
                 "pass": pass_count,
                 "warning": warn_count,
                 "fail": fail_count,
-                "total": enabled_count,
+                "total": n_enabled,
             },
         }
 
