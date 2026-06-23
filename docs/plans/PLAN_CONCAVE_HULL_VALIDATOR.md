@@ -42,7 +42,7 @@ plugins/concave_hull_validator/
 ├── ConcaveHullValidatorPlugin.py      # Widget principal (herda BasePlugin)
 ├── ConcaveHullValidatorStep.py        # Step do pipeline (herda BaseStep)
 ├── ConcaveHullValidatorTask.py        # Task opcional (herda BaseTask)
-└── ConcaveHullValidatorUtil.py        # Lógica de leitura de fontes + concave hull
+
 ```
 
 ---
@@ -93,43 +93,43 @@ ToolKey.CONCAVE_HULL.value: Tool(
 
 ### Responsabilidades
 
-1. **Leitura de fontes** — método unificado que detecta extensão e extrai coordenadas (x, y):
+1. **Leitura de fontes** — método unificado que detecta extensão e extrai coordenadas (x, y):usando widgets corretos
    - `.las` / `.laz` → `laspy.read()` → `(las.x, las.y)`
    - `.shp` / `.gpkg` / `.kml` / `.geojson` → `geopandas.read_file()` → geometria de ponto
    - `.csv` → `pandas.read_csv()` → colunas x, y configuráveis
 
-2. **Amostragem** — `max(1, n_pontos // N_AMOSTRAS)` para reduzir para ~100k pontos
+2. **Amostragem** — `max(1, n_pontos // N_AMOSTRAS)` para reduzir para ~100k pontos (definido em GridDoubleSpinBox)
 
 3. **Geração iterativa do concave hull** — loop com ratio decrescente
 
-4. **Detecção de escada** — queda de área > LIMIAR_ESCADA (12%)
+4. **Detecção de escada** — queda de área > LIMIAR_ESCADA (12%)GridDoubleSpinBox
 
-5. **Suavização** — `buffer(SUAVISACAO).buffer(-SUAVISACAO)`
+5. **Suavização** — `buffer(SUAVISACAO).buffer(-SUAVISACAO)` GridDoubleSpinBox
 
-6. **Exportação** — GPKG por iteração + JSON final
+6. **Exportação** — GPKG por iteração
 
 ### API Pública
 
 ```python
-class ConcaveHullValidatorUtil(BaseUtil):
+class nome(BaseUtil):
     @staticmethod
     def extract_points(path: str, tool_key: str) -> tuple[np.ndarray, np.ndarray, dict]
         """Extrai coordenadas (x, y) de qualquer fonte suportada.
         Retorna (x, y, metadata) onde metadata contém info da fonte."""
 
     @staticmethod
-    def validate_hull(
+    def validate_hull( 
         x: np.ndarray,
         y: np.ndarray,
         output_dir: str,
         *,
-        ratio_inicial: float = 0.10,
-        ratio_step: float = 0.01,
-        limiar_escada: float = 12.0,
-        suavisacao: float = 20.0,
-        n_amostras: int = 100_000,
-        crs: str = "EPSG:31982",
-        tool_key: str = "Untraceable",
+        ratio_inicial: float = 0.10,GridDoubleSpinBox
+        ratio_step: float = 0.01,GridDoubleSpinBox
+        limiar_escada: float = 12.0,GridDoubleSpinBox
+        suavisacao: float = 20.0,GridDoubleSpinBox
+        n_amostras: int = 100_000,GridDoubleSpinBox
+        crs: str = "EPSG:31982", GridLineEdit
+        tool_key: str = Toolkey.UNTRACEABLE.value,
         progress_callback: callable = None,
     ) -> dict
         """Executa validação completa e retorna dict com resultados."""
@@ -277,12 +277,15 @@ class ConcaveHullValidatorStep(BaseStep):
 ### Fluxo de Execução
 
 ```
+CARREGA PREFERENCIAS → load_prefs()
 1. Usuário seleciona arquivo → _on_input_path_changed()
    ├── Detecta extensão (.las, .shp, .gpkg, .kml, .csv, .geojson)
    ├── Extrai metadados (n_pontos, CRS, tipo)
    └── Atualiza GridLabel com info da fonte
 
 2. Usuário clica EXECUTAR → _on_executar()
+    CHAMA @ProcessStaticsUtil.
+    exibe a HUDLOADER
    ├── Valida parâmetros
    ├── Cria PipelineRunner + ConcaveHullValidatorStep
    ├── Emite HUD stages
@@ -292,14 +295,17 @@ class ConcaveHullValidatorStep(BaseStep):
    ├── Atualiza GridLabel com resultados
    ├── Habilita botão SALVAR JSON
    └── Emite console_message
+    FECHA HUDLOADER
+    FECHA ESTATISTICAS
 
 4. Usuário clica SALVAR JSON → _on_salvar_json()
    └── Salva JSON com resultados completos
 ```
+5. AO FECHAR O PLUGIN → o base plugin ira save_prefs() persiste último diretório e parâmetros entao configure o save prefs
 
 ---
 
-## 🏗 Passo 5: ConcaveHullValidatorTask (Opcional)
+## 🏗 Passo 5: ConcaveHullValidatorTask (OBRIGATORIO)
 
 **Arquivo:** `plugins/concave_hull_validator/ConcaveHullValidatorTask.py`
 
@@ -340,7 +346,7 @@ hull_suavizado = hull_final.buffer(SUAVISACAO).buffer(-SUAVISACAO)
 |----|----------|-----------|
 | V2 | nodata=255 | Não se aplica (sem raster) |
 | V5 | BIGTIFF=YES | Não se aplica (sem raster) |
-| — | GPKG com CRS | Usar `fiona.open(..., crs=CRS)` para todos GPKGs de saída |
+| — | GPKG com CRS | Usar `fiona.open(..., crs=CRS)` para todos GPKGs de saída | (TENTA IDENTIFICAR CRS DE ENTRADA, CASO CONTRATIO , VER SE O USUARIO CONFIGUROU ALGUM, CASO CONTRATIO USAR 4326 PADRAO)
 
 ---
 
