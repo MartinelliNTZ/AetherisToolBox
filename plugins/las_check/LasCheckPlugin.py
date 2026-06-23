@@ -149,16 +149,6 @@ class LasCheckPlugin(BasePlugin):
         sel_entrada = self._selector_grid["LAS/LAZ de Entrada"]
         sel_entrada.edit.textChanged.connect(self._on_input_path_changed)
 
-        self._info_label = GridLabel(
-            {
-                "pontos": {"label": "Total Pontos", "value": "—"},
-                "has_rgb": {"label": "RGB", "value": "—"},
-                "bbox": {"label": "BBox", "value": "—"},
-            },
-            columns=1,
-        )
-        grupo_entrada.group_layout.addWidget(self._info_label)
-
         # ── GroupPainel "Checks" ────────────────────────────────────
         grupo_checks = GroupPainel("Checks")
         self.main_layout.addWidget(grupo_checks)
@@ -172,9 +162,11 @@ class LasCheckPlugin(BasePlugin):
 
         self._result_label = GridLabel(
             {
-                "point_count": {"label": "Pontos", "value": "—"},
+                "total_pontos": {"label": "Total Pontos", "value": "—"},
+                "has_rgb": {"label": "RGB", "value": "—"},
+                "point_count": {"label": "Contagem", "value": "—"},
+                "rgb": {"label": "RGB Check", "value": "—"},
                 "bbox": {"label": "BBox", "value": "—"},
-                "rgb": {"label": "RGB", "value": "—"},
                 "classification": {"label": "Classificacao", "value": "—"},
                 "zero_coords": {"label": "Coord Zero", "value": "—"},
                 "duplicates": {"label": "Duplicatas", "value": "—"},
@@ -255,12 +247,22 @@ class LasCheckPlugin(BasePlugin):
         self.page.set_badge(self.page.RUNNING)
         self._statistics_data = None
 
-        # Reseta resultados
-        for key in ("point_count", "bbox", "rgb", "classification",
-                     "zero_coords", "duplicates", "density", "intensity",
-                     "altimetria", "rgb_info", "area_bbox", "volume_bbox",
-                     "resumo"):
-            self._result_label.set(key, "—")
+        # Reseta resultados checks de qualidade + estatisticas
+        self._result_label.set_values({
+            "point_count": "—",
+            "rgb": "—",
+            "bbox": "—",
+            "classification": "—",
+            "zero_coords": "—",
+            "duplicates": "—",
+            "density": "—",
+            "intensity": "—",
+            "altimetria": "—",
+            "rgb_info": "—",
+            "area_bbox": "—",
+            "volume_bbox": "—",
+            "resumo": "—",
+        })
 
         n_checks = len(checks_enabled)
         self.logger.info(
@@ -624,12 +626,12 @@ class LasCheckPlugin(BasePlugin):
             sel_entrada.set_path(path)
             sel_entrada.edit.blockSignals(False)
 
-            self._info_label.set("pontos", f"{n_pontos:,}")
-            self._info_label.set("has_rgb", "Sim" if has_rgb else "Nao")
+            self._result_label.set("total_pontos", f"{n_pontos:,}")
+            self._result_label.set("has_rgb", "Sim" if has_rgb else "Nao")
 
             bbox = LasUtil.get_bounding_box(path, tool_key=self.tool_key)
             if bbox:
-                self._info_label.set(
+                self._result_label.set(
                     "bbox",
                     f"X[{bbox['x_min']:.1f}, {bbox['x_max']:.1f}] "
                     f"Y[{bbox['y_min']:.1f}, {bbox['y_max']:.1f}]",
@@ -640,7 +642,7 @@ class LasCheckPlugin(BasePlugin):
                     **bbox,
                 )
             else:
-                self._info_label.set("bbox", "—")
+                self._result_label.set("bbox", "—")
                 self.logger.warning(
                     "Bounding box nao disponivel",
                     code="LASCHECK_BBOX_UNAVAILABLE",
