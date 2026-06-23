@@ -149,6 +149,7 @@ class LasCheckStep(BaseStep):
         check_order = [
             "point_count", "bbox", "rgb", "classification",
             "zero_coords", "duplicates", "density", "intensity",
+            "statistics",
         ]
         check_methods = {
             "point_count": self._check_point_count,
@@ -159,6 +160,7 @@ class LasCheckStep(BaseStep):
             "duplicates": self._check_duplicates,
             "density": self._check_density,
             "intensity": self._check_intensity,
+            "statistics": self._check_statistics,
         }
 
         results: dict[str, dict] = {}
@@ -477,5 +479,141 @@ class LasCheckStep(BaseStep):
             "status": "pass",
             "message": f"Range [{i_min}, {i_max}] (válido)",
             "detail": f"[{i_min}, {i_max}]",
+            "suggestion": "",
+        }
+
+    @staticmethod
+    def _check_statistics(las: laspy.LasData, n_total: int) -> dict:
+        """
+        Gera JSON completo de estatísticas do LAS.
+
+        Extrai:
+          - Bounding box X, Y, Z (min/max)
+          - Altimetria Z (min/max, media, P5, P95)
+          - Area e Volume da bbox
+          - RGB min/max de cada banda (com detecção 16->8 bit)
+          - Densidade de pontos (bbox)
+          - Pixel ideal baseado na densidade:
+            espacamento = 1 / sqrt(densidade)
+            pixel_ideal = max(espacamento * 0.75, 0.01)
+        """
+        import json
+
+        # ── Bounding Box ────────────────────────────────────────────────
+        x = np.asarray(las.x, dtype=np.float64)
+        y = np.asarray(las.y, dtype=np.float64)
+        z = np.asarray(las.z, dtype=np.float64)
+
+        x_min, x_max = float(np.min(x)), float(np.max(x))
+        y_min, y_max = float(np.min(y)), float(np.max(y))
+        z_min, z_max = float(np.min(z)), float(np.max(z))
+
+        # ── Altimetria (media, P5, P95) ─────────────────────────────────
+        z_media = float(np.mean(z))
+        z_p5    = float(np.percentile(z, 5))
+        z_p95   = float(np.percentile(z, 95))
+
+        # ── Area e Volume da bbox ───────────────────────────────────────
+        area_bbox   = (x_max - x_min) * (y_max - y_min)
+        volume_bbox = area_bbox * (z_max - z_min)
+
+        # ── RGB stats ───────────────────────────────────────────────────
+        has_rgb = hasattr(las, "red") and las.red is not None
+        rgb_min = None
+        rgb_max = None
+        rgb_bit_depth = None
+
+        if has_rgb:
+            red   = np.asarray(las.red,   dtype=np.int64)
+            green = np.asarray(las.green, dtype=np.int64)
+            blue  = np.asarray(las.blue,  dtype=np.int64)
+
+            rgb_min = {
+                "red":   int(np.min(red)),
+                "green": int(np.min(green)),
+                "blue":  int(np.min(blue)),
+            }
+            rgb_max = {
+                "red":   int(np.max(red)),
+                "green": int(np.max(green)),
+                "blue":  int(np.max(blue)),
+            }
+            rgb_bit_depth = 16 if rgb_max["red"] > 255 else 8
+
+        # ── Densidade (bbox) e Pixel Ideal ──────────────────────────────
+        densidade_bbox = n_total / area_bbox if area_bbox > 0 else 0.0
+
+        if densidade_bbox > 0:
+            espacamento_m  = 1.0 / (densidade_bbox ** 0.5)
+            espacamento_cm = espacamento_m * 100
+            pixel_ideal_m  = max(espacamento_m * 0.75, 0.01)
+            pixel_ideal_cm = pixel_ideal_m * 100
+            pixel_ideal_mm = pixel_ideal_m * 1000
+        else:
+            espacamento_m  = 0.0
+            espacamento_cm = 0.0
+            pixel_ideal_m  = 0.01
+            pixel_ideal_cm = 1.0
+            pixel_ideal_mm = 10.0
+
+        # ── Dados completos para exportação JSON ─────────────────────────
+        stats_data = {
+            "numero_de_pontos": n_total,
+            "bounding_box": {
+                "x": {"min": round(x_min, 4), "max": round(x_max, 4)},
+                "y": {"min": round(y_min, 4), "max": round(y_max, 4)},
+                "z": {"min": round(z_min, 4), "max": round(z_max, 4)},
+            },
+            "altimetria": {
+                "min":   round(z_min, 4),
+                "max":   round(z_max, 4),
+                "media": round(z_media, 4),
+                "p5":    round(z_p5, 4),
+                "p95":   round(z_p95, 4),
+            },
+            "area_bbox_m2":   round(area_bbox, 4),
+            "volume_bbox_m3": round(volume_bbox, 4),
+            "rgb": {
+                "presente":  has_rgb,
+                "bit_depth": rgb_bit_depth,
+                "min":       rgb_min,
+                "max":       rgb_max,
+            },
+            "densidade_pontos_por_m2": {
+                "bounding_box": round(densidade_bbox, 4),
+            },
+            "pixel_ideal": {
+                "espacamento_m":   round(espacamento_m, 6),
+                "espacamento_cm":  round(espacamento_cm, 2),
+                "fator_conversao": 0.75,
+                "pixel_minimo_m":  0.01,
+                "pixel_m":  round(pixel_ideal_m, 6),
+                "pixel_cm": round(pixel_ideal_cm, 2),
+                "pixel_mm": round(pixel_ideal_mm, 1),
+            },
+        }
+
+        # JSON em detail para o plugin acessar
+        detail_json = json.dumps(stats_data, ensure_ascii=False)
+
+        # Mensagem resumida para exibição no GridLabel
+        if has_rgb:
+            msg = (
+                f"Z[{z_min:.2f},{z_max:.2f}] "
+                f"RGB({rgb_bit_depth}bit) "
+                f"Dens:{densidade_bbox:.2f}pts/m² "
+                f"Pixel:{pixel_ideal_cm:.2f}cm"
+            )
+        else:
+            msg = (
+                f"Z[{z_min:.2f},{z_max:.2f}] "
+                f"Dens:{densidade_bbox:.2f}pts/m² "
+                f"Pixel:{pixel_ideal_cm:.2f}cm"
+            )
+
+        return {
+            "status": "pass",
+            "message": msg,
+            "detail": detail_json,
             "suggestion": "",
         }

@@ -15,6 +15,7 @@ Fluxo:
 
 from __future__ import annotations
 
+import json
 import os
 import traceback
 
@@ -28,6 +29,7 @@ from resources.widgets.GridCheckBox import GridCheckBox
 from resources.widgets.GridLabel import GridLabel
 from resources.widgets.GroupPainel import GroupPainel
 from resources.widgets.SelectorGrid import SelectorGrid
+from utils.ExplorerUtils import ExplorerUtils
 from utils.LasUtil import LasUtil
 from utils.MessageBox import MessageBox
 from utils.ProcessStatisticsUtil import ProcessStatisticsUtil
@@ -75,6 +77,11 @@ CHECK_CONFIG: dict[str, dict] = {
         "description": "Verifica range de intensidade (0-65535)",
         "default": True,
     },
+    "statistics": {
+        "label": "Estatisticas Completas",
+        "description": "BBox XYZ, RGB, densidade, pixel ideal + JSON",
+        "default": True,
+    },
 }
 
 
@@ -88,6 +95,7 @@ class LasCheckPlugin(BasePlugin):
     def __init__(self, parent=None):
         self._current_path: str = ""
         self._las_info: dict = {}
+        self._statistics_data: dict | None = None  # dados completos do check statistics
         self._runner: PipelineRunner | None = None
         super().__init__(
             tool_key=ToolKey.LAS_CHECK.value,
@@ -106,6 +114,12 @@ class LasCheckPlugin(BasePlugin):
 
         # ── ExecutionButtons ────────────────────────────────────────
         self._btns = ExecutionButtons(self, {
+            "salvar_json": {
+                "text": "SALVAR JSON",
+                "callback": self._on_salvar_json,
+                "type": "secondary",
+                "description": "Salvar estatisticas em JSON",
+            },
             "executar": {
                 "text": "EXECUTAR",
                 "callback": self._on_executar,
@@ -114,6 +128,7 @@ class LasCheckPlugin(BasePlugin):
             },
         })
         self._btns.set_enabled("executar", False)
+        self._btns.set_enabled("salvar_json", False)
         self.main_layout.addWidget(self._btns)
 
         # ── GroupPainel "Arquivo de Entrada" ────────────────────────
@@ -148,7 +163,7 @@ class LasCheckPlugin(BasePlugin):
         grupo_checks = GroupPainel("Checks")
         self.main_layout.addWidget(grupo_checks)
 
-        self._grid_checks = GridCheckBox(CHECK_CONFIG, num_columns=2)
+        self._grid_checks = GridCheckBox(CHECK_CONFIG, num_columns=3)
         grupo_checks.group_layout.addWidget(self._grid_checks)
 
         # ── GroupPainel "Resultados" ────────────────────────────────
@@ -165,6 +180,10 @@ class LasCheckPlugin(BasePlugin):
                 "duplicates": {"label": "Duplicatas", "value": "—"},
                 "density": {"label": "Densidade", "value": "—"},
                 "intensity": {"label": "Intensidade", "value": "—"},
+                "altimetria": {"label": "Altitude", "value": "—"},
+                "rgb_info": {"label": "RGB Info", "value": "—"},
+                "area_bbox": {"label": "Area BBox", "value": "—"},
+                "volume_bbox": {"label": "Volume BBox", "value": "—"},
                 "resumo": {"label": "Resumo", "value": "—"},
             },
             columns=2,
@@ -234,10 +253,13 @@ class LasCheckPlugin(BasePlugin):
         # Prepara UI para execução
         self._btns.set_all_enabled(False)
         self.page.set_badge(self.page.RUNNING)
+        self._statistics_data = None
 
         # Reseta resultados
         for key in ("point_count", "bbox", "rgb", "classification",
-                     "zero_coords", "duplicates", "density", "intensity", "resumo"):
+                     "zero_coords", "duplicates", "density", "intensity",
+                     "altimetria", "rgb_info", "area_bbox", "volume_bbox",
+                     "resumo"):
             self._result_label.set(key, "—")
 
         n_checks = len(checks_enabled)
@@ -341,6 +363,67 @@ class LasCheckPlugin(BasePlugin):
             else:
                 self._result_label.set(check_name, message)
 
+        # ── Processa check "statistics" (labels separados) ─────────────
+        stats_result = results.get("statistics")
+        if stats_result and stats_result.get("status") not in ("skipped",):
+            detail_str = stats_result.get("detail", "")
+
+            try:
+                self._statistics_data = json.loads(detail_str)
+                self._statistics_data["arquivo"] = self._current_path
+
+                # Preenche labels específicos
+                alt = self._statistics_data.get("altimetria", {})
+                if alt:
+                    self._result_label.set(
+                        "altimetria",
+                        f"med:{alt.get('media',0):.2f} "
+                        f"P5:{alt.get('p5',0):.2f} "
+                        f"P95:{alt.get('p95',0):.2f} "
+                        f"[{alt.get('min',0):.2f},{alt.get('max',0):.2f}]",
+                    )
+
+                rgb = self._statistics_data.get("rgb", {})
+                if rgb.get("presente"):
+                    bit = rgb.get("bit_depth", 8)
+                    self._result_label.set(
+                        "rgb_info", f"presente {bit}bit"
+                    )
+                else:
+                    self._result_label.set("rgb_info", "ausente")
+
+                area_val = self._statistics_data.get("area_bbox_m2", 0)
+                self._result_label.set(
+                    "area_bbox", f"{area_val:,.2f} m²"
+                )
+
+                volume_val = self._statistics_data.get("volume_bbox_m3", 0)
+                self._result_label.set(
+                    "volume_bbox", f"{volume_val:,.2f} m³"
+                )
+
+                # Habilita botao JSON
+                self._btns.set_enabled("salvar_json", True)
+                self.logger.info(
+                    "Dados de estatisticas prontos para exportacao JSON",
+                    code="LASCHECK_STATS_JSON_READY",
+                    path=self._current_path,
+                )
+                SignalManager.instance().console_message.emit(
+                    "[LasCheck] Estatisticas completas disponiveis "
+                    "(botao SALVAR JSON ativo)"
+                )
+            except (json.JSONDecodeError, TypeError) as e:
+                self.logger.error(
+                    "Erro ao fazer parse do JSON de estatisticas",
+                    code="LASCHECK_STATS_PARSE_ERR",
+                    error=str(e),
+                )
+                self._result_label.set("altimetria", "Erro")
+        else:
+            for lbl in ("altimetria", "rgb_info", "area_bbox", "volume_bbox"):
+                self._result_label.set(lbl, "-" if stats_result else "—")
+
         SignalManager.instance().execution_finished.emit(self.tool_key)
         SignalManager.instance().console_message.emit(
             f"[LasCheck] Checks concluidos! "
@@ -410,9 +493,92 @@ class LasCheckPlugin(BasePlugin):
         self._runner = None
         self._btns.set_all_enabled(True)
         self._btns.set_enabled("executar", bool(self._current_path))
+        # Mantem "salvar_json" apenas se ha dados de statistics disponiveis
+        self._btns.set_enabled(
+            "salvar_json",
+            self._statistics_data is not None,
+        )
         self.page.set_badge(self.page.PRONTA)
         SignalManager.instance().hud_hide.emit()
         SignalManager.instance().progress_update.emit(0.0)
+
+    # ══════════════════════════════════════════════════════════════════
+    # Handlers de Ação
+    # ══════════════════════════════════════════════════════════════════
+
+    def _on_salvar_json(self):
+        """Abre dialogo para salvar o JSON de estatísticas em disco."""
+        self.logger.info(
+            "Botao SALVAR JSON pressionado",
+            code="LASCHECK_SAVE_JSON_BTN",
+            path=self._current_path,
+        )
+
+        if self._statistics_data is None:
+            self.logger.warning(
+                "Tentativa de salvar JSON sem dados disponiveis",
+                code="LASCHECK_SAVE_JSON_NO_DATA",
+            )
+            MessageBox.show_warning(
+                "Nao ha dados de estatisticas para salvar.\n"
+                "Execute os checks com 'Estatisticas Completas' habilitado.",
+                title="LAS Quality Check",
+            )
+            return
+
+        # Define nome padrão baseado no arquivo de entrada
+        basename = os.path.splitext(os.path.basename(self._current_path))[0]
+        default_name = f"{basename}_estatisticas_las.json"
+
+        # Usa o diretório do próprio LAS como initial_dir com nome default
+        las_dir = os.path.dirname(self._current_path)
+        initial_path = os.path.join(las_dir, default_name)
+
+        file_path = ExplorerUtils.save_file(
+            "Salvar Estatisticas LAS",
+            initial_dir=initial_path,
+            file_filter="JSON (*.json)",
+            parent=self,
+        )
+
+        if not file_path:
+            self.logger.info(
+                "Usuario cancelou o dialogo de salvamento",
+                code="LASCHECK_SAVE_JSON_CANCELLED",
+            )
+            return
+
+        try:
+            with open(file_path, "w", encoding="utf-8") as f:
+                json.dump(self._statistics_data, f, indent=2, ensure_ascii=False)
+
+            self.logger.info(
+                "JSON de estatisticas salvo com sucesso",
+                code="LASCHECK_SAVE_JSON_OK",
+                path=file_path,
+                filesize=os.path.getsize(file_path),
+            )
+
+            SignalManager.instance().console_message.emit(
+                f"[LasCheck] JSON salvo: {file_path}"
+            )
+
+            MessageBox.show_info(
+                f"Estatisticas salvas em:\n{file_path}",
+                title="LAS Quality Check",
+            )
+
+        except OSError as e:
+            self.logger.error(
+                "Erro ao salvar JSON de estatisticas",
+                code="LASCHECK_SAVE_JSON_ERR",
+                path=file_path,
+                error=str(e),
+            )
+            MessageBox.show_error(
+                f"Erro ao salvar arquivo:\n{str(e)}",
+                title="LAS Quality Check",
+            )
 
     # ══════════════════════════════════════════════════════════════════
     # Utilitários
