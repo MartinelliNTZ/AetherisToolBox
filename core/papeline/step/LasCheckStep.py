@@ -491,7 +491,7 @@ class LasCheckStep(BaseStep):
           - Bounding box X, Y, Z (min/max)
           - Altimetria Z (min/max, media, P5, P95)
           - Area e Volume da bbox
-          - RGB min/max de cada banda (com detecção 16->8 bit)
+          - RGB stats por banda (min, max, media, P5, P95) — igual à altimetria
           - Densidade de pontos (bbox)
           - Pixel ideal baseado na densidade:
             espacamento = 1 / sqrt(densidade)
@@ -517,28 +517,39 @@ class LasCheckStep(BaseStep):
         area_bbox   = (x_max - x_min) * (y_max - y_min)
         volume_bbox = area_bbox * (z_max - z_min)
 
-        # ── RGB stats ───────────────────────────────────────────────────
+        # ── RGB stats (min, max, media, P5, P95 por banda) ──────────────
         has_rgb = hasattr(las, "red") and las.red is not None
-        rgb_min = None
-        rgb_max = None
-        rgb_bit_depth = None
+        rgb_data = None
 
         if has_rgb:
-            red   = np.asarray(las.red,   dtype=np.int64)
-            green = np.asarray(las.green, dtype=np.int64)
-            blue  = np.asarray(las.blue,  dtype=np.int64)
+            red   = np.asarray(las.red,   dtype=np.float64)
+            green = np.asarray(las.green, dtype=np.float64)
+            blue  = np.asarray(las.blue,  dtype=np.float64)
 
-            rgb_min = {
-                "red":   int(np.min(red)),
-                "green": int(np.min(green)),
-                "blue":  int(np.min(blue)),
+            rgb_data = {
+                "presente": True,
+                "red": {
+                    "min":   int(np.min(red)),
+                    "max":   int(np.max(red)),
+                    "media": float(np.mean(red)),
+                    "p5":    float(np.percentile(red, 5)),
+                    "p95":   float(np.percentile(red, 95)),
+                },
+                "green": {
+                    "min":   int(np.min(green)),
+                    "max":   int(np.max(green)),
+                    "media": float(np.mean(green)),
+                    "p5":    float(np.percentile(green, 5)),
+                    "p95":   float(np.percentile(green, 95)),
+                },
+                "blue": {
+                    "min":   int(np.min(blue)),
+                    "max":   int(np.max(blue)),
+                    "media": float(np.mean(blue)),
+                    "p5":    float(np.percentile(blue, 5)),
+                    "p95":   float(np.percentile(blue, 95)),
+                },
             }
-            rgb_max = {
-                "red":   int(np.max(red)),
-                "green": int(np.max(green)),
-                "blue":  int(np.max(blue)),
-            }
-            rgb_bit_depth = 16 if rgb_max["red"] > 255 else 8
 
         # ── Densidade (bbox) e Pixel Ideal ──────────────────────────────
         densidade_bbox = n_total / area_bbox if area_bbox > 0 else 0.0
@@ -573,12 +584,7 @@ class LasCheckStep(BaseStep):
             },
             "area_bbox_m2":   round(area_bbox, 4),
             "volume_bbox_m3": round(volume_bbox, 4),
-            "rgb": {
-                "presente":  has_rgb,
-                "bit_depth": rgb_bit_depth,
-                "min":       rgb_min,
-                "max":       rgb_max,
-            },
+            "rgb": rgb_data if has_rgb else {"presente": False},
             "densidade_pontos_por_m2": {
                 "bounding_box": round(densidade_bbox, 4),
             },
@@ -598,9 +604,12 @@ class LasCheckStep(BaseStep):
 
         # Mensagem resumida para exibição no GridLabel
         if has_rgb:
+            r_med = rgb_data["red"]["media"]
+            g_med = rgb_data["green"]["media"]
+            b_med = rgb_data["blue"]["media"]
             msg = (
                 f"Z[{z_min:.2f},{z_max:.2f}] "
-                f"RGB({rgb_bit_depth}bit) "
+                f"Rmed:{r_med:.0f} Gmed:{g_med:.0f} Bmed:{b_med:.0f} "
                 f"Dens:{densidade_bbox:.2f}pts/m² "
                 f"Pixel:{pixel_ideal_cm:.2f}cm"
             )

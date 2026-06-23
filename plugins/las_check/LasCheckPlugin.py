@@ -163,7 +163,6 @@ class LasCheckPlugin(BasePlugin):
         self._result_label = GridLabel(
             {
                 "total_pontos": {"label": "Total Pontos", "value": "—"},
-                "has_rgb": {"label": "RGB", "value": "—"},
                 "point_count": {"label": "Contagem", "value": "—"},
                 "rgb": {"label": "RGB Check", "value": "—"},
                 "bbox": {"label": "BBox", "value": "—"},
@@ -173,7 +172,9 @@ class LasCheckPlugin(BasePlugin):
                 "density": {"label": "Densidade", "value": "—"},
                 "intensity": {"label": "Intensidade", "value": "—"},
                 "altimetria": {"label": "Altitude", "value": "—"},
-                "rgb_info": {"label": "RGB Info", "value": "—"},
+                "rgb_red": {"label": "Red Stats", "value": "—"},
+                "rgb_green": {"label": "Green Stats", "value": "—"},
+                "rgb_blue": {"label": "Blue Stats", "value": "—"},
                 "area_bbox": {"label": "Area BBox", "value": "—"},
                 "volume_bbox": {"label": "Volume BBox", "value": "—"},
                 "resumo": {"label": "Resumo", "value": "—"},
@@ -258,7 +259,9 @@ class LasCheckPlugin(BasePlugin):
             "density": "—",
             "intensity": "—",
             "altimetria": "—",
-            "rgb_info": "—",
+            "rgb_red": "—",
+            "rgb_green": "—",
+            "rgb_blue": "—",
             "area_bbox": "—",
             "volume_bbox": "—",
             "resumo": "—",
@@ -380,19 +383,26 @@ class LasCheckPlugin(BasePlugin):
                     self._result_label.set(
                         "altimetria",
                         f"med:{alt.get('media',0):.2f} "
-                        f"P5:{alt.get('p5',0):.2f} "
-                        f"P95:{alt.get('p95',0):.2f} "
-                        f"[{alt.get('min',0):.2f},{alt.get('max',0):.2f}]",
+                        f"P5%:{alt.get('p5',0):.2f} "
+                        f"P95%:{alt.get('p95',0):.2f}",
                     )
 
                 rgb = self._statistics_data.get("rgb", {})
                 if rgb.get("presente"):
-                    bit = rgb.get("bit_depth", 8)
-                    self._result_label.set(
-                        "rgb_info", f"presente {bit}bit"
-                    )
+                    for banda in ("red", "green", "blue"):
+                        bdata = rgb.get(banda, {})
+                        if bdata:
+                            self._result_label.set(
+                                f"rgb_{banda}",
+                                f"med:{bdata.get('media',0):.0f} "
+                                f"P5%:{bdata.get('p5',0):.0f} "
+                                f"P95%:{bdata.get('p95',0):.0f}",
+                            )
+                        else:
+                            self._result_label.set(f"rgb_{banda}", "—")
                 else:
-                    self._result_label.set("rgb_info", "ausente")
+                    for banda in ("red", "green", "blue"):
+                        self._result_label.set(f"rgb_{banda}", "ausente")
 
                 area_val = self._statistics_data.get("area_bbox_m2", 0)
                 self._result_label.set(
@@ -423,7 +433,7 @@ class LasCheckPlugin(BasePlugin):
                 )
                 self._result_label.set("altimetria", "Erro")
         else:
-            for lbl in ("altimetria", "rgb_info", "area_bbox", "volume_bbox"):
+            for lbl in ("altimetria", "rgb_red", "rgb_green", "rgb_blue", "area_bbox", "volume_bbox"):
                 self._result_label.set(lbl, "-" if stats_result else "—")
 
         SignalManager.instance().execution_finished.emit(self.tool_key)
@@ -627,7 +637,6 @@ class LasCheckPlugin(BasePlugin):
             sel_entrada.edit.blockSignals(False)
 
             self._result_label.set("total_pontos", f"{n_pontos:,}")
-            self._result_label.set("has_rgb", "Sim" if has_rgb else "Nao")
 
             bbox = LasUtil.get_bounding_box(path, tool_key=self.tool_key)
             if bbox:
