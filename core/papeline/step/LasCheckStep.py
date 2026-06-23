@@ -72,8 +72,32 @@ class LasCheckStep(BaseStep):
             path=file_path,
         )
 
-        # Abre o LAS
-        las = laspy.read(file_path)
+        # Abre o LAS (suporta .las e .laz)
+        try:
+            las = laspy.read(file_path)
+        except Exception as e:
+            error_msg = str(e)
+            if "No LazBackend selected" in error_msg or "cannot decompress" in error_msg:
+                logger.error(
+                    "Backend LAZ nao encontrado",
+                    code="LASCHECK_LAZ_BACKEND",
+                    path=file_path,
+                )
+                return {
+                    "check_results": {
+                        "_laz_error": {
+                            "status": "fail",
+                            "message": "Backend LAZ nao instalado. Use 'pip install lazrs' ou converta para .LAS primeiro.",
+                            "detail": error_msg,
+                            "suggestion": "Instale: pip install lazrs",
+                        }
+                    },
+                    "summary": {"pass": 0, "warning": 0, "fail": 1, "total": 0, "error": True},
+                    "error_type": "laz_backend",
+                    "error": error_msg,
+                }
+            raise
+
         n_total = len(las.points)
 
         # Ordem dos checks + mapeamento

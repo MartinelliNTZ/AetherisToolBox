@@ -2,22 +2,21 @@
 """
 LasCheckPlugin — Ferramenta de verificação de qualidade em nuvens LAS/LAZ
 ==========================================================================
-Executa 8 checks de qualidade em arquivos LAS/LAZ e exibe relatório
-consolidado com status (✅ pass / ⚠️ warning / ❌ fail / ⏭️ skipped).
+Executa 8 checks de qualidade em arquivos LAS/LAZ e exibe dados
+no GridLabel com valores compactos.
 
 Fluxo:
   - SelectorGrid de entrada detecta mudança no path automaticamente
   - GridCheckBox para selecionar quais checks executar
-  - ExecutionButtons: EXECUTAR + EXPORTAR RELATÓRIO
+  - ExecutionButtons: EXECUTAR
   - PipelineRunner + LasCheckStep para execução em background
-  - GridLabel para resultados compactos + ReadOnlyTextBrowser para relatório
+  - GridLabel com todos os resultados
 """
 
 from __future__ import annotations
 
 import os
 import traceback
-from datetime import datetime
 
 from core.enum.ToolKey import ToolKey
 from core.manager.SignalManager import SignalManager
@@ -28,10 +27,7 @@ from resources.widgets.ExecutionButtons import ExecutionButtons
 from resources.widgets.GridCheckBox import GridCheckBox
 from resources.widgets.GridLabel import GridLabel
 from resources.widgets.GroupPainel import GroupPainel
-from resources.widgets.ReadOnlyTextBrowser import ReadOnlyTextBrowser
 from resources.widgets.SelectorGrid import SelectorGrid
-from utils.ExplorerUtils import ExplorerUtils
-from utils.JsonUtil import JsonUtil
 from utils.LasUtil import LasUtil
 from utils.MessageBox import MessageBox
 
@@ -80,31 +76,6 @@ CHECK_CONFIG: dict[str, dict] = {
     },
 }
 
-CHECK_NAMES: dict[str, str] = {
-    "point_count": "Contagem de Pontos",
-    "bbox": "Bounding Box",
-    "rgb": "Bandas RGB",
-    "classification": "Classificacao",
-    "zero_coords": "Coordenadas Zero",
-    "duplicates": "Duplicatas XY",
-    "density": "Densidade / Gaps",
-    "intensity": "Intensidade",
-}
-
-STATUS_ICONS: dict[str, str] = {
-    "pass": "✅",
-    "warning": "⚠️",
-    "fail": "❌",
-    "skipped": "⏭️",
-}
-
-STATUS_LABELS: dict[str, str] = {
-    "pass": "APROVADO",
-    "warning": "ATENCAO",
-    "fail": "FALHA",
-    "skipped": "PULADO",
-}
-
 
 class LasCheckPlugin(BasePlugin):
     """
@@ -117,7 +88,6 @@ class LasCheckPlugin(BasePlugin):
         self._current_path: str = ""
         self._las_info: dict = {}
         self._runner: PipelineRunner | None = None
-        self._check_results: dict | None = None
         super().__init__(
             tool_key=ToolKey.LAS_CHECK.value,
             parent=parent,
@@ -141,15 +111,8 @@ class LasCheckPlugin(BasePlugin):
                 "type": "primary",
                 "description": "Executar checks de qualidade",
             },
-            "exportar": {
-                "text": "EXPORTAR RELATORIO",
-                "callback": self._on_exportar,
-                "type": "secondary",
-                "description": "Exportar relatorio para arquivo",
-            },
         })
         self._btns.set_enabled("executar", False)
-        self._btns.set_enabled("exportar", False)
         self.main_layout.addWidget(self._btns)
 
         # ── GroupPainel "Arquivo de Entrada" ────────────────────────
@@ -172,9 +135,9 @@ class LasCheckPlugin(BasePlugin):
 
         self._info_label = GridLabel(
             {
-                "pontos": {"label": "Total de Pontos", "value": "—"},
-                "has_rgb": {"label": "Possui RGB", "value": "—"},
-                "bbox": {"label": "Bounding Box", "value": "—"},
+                "pontos": {"label": "Total Pontos", "value": "—"},
+                "has_rgb": {"label": "RGB", "value": "—"},
+                "bbox": {"label": "BBox", "value": "—"},
             },
             columns=1,
         )
@@ -193,24 +156,19 @@ class LasCheckPlugin(BasePlugin):
 
         self._result_label = GridLabel(
             {
-                "point_count": {"label": "Contagem de Pontos", "value": "—"},
-                "bbox": {"label": "Bounding Box", "value": "—"},
-                "rgb": {"label": "Bandas RGB", "value": "—"},
+                "point_count": {"label": "Pontos", "value": "—"},
+                "bbox": {"label": "BBox", "value": "—"},
+                "rgb": {"label": "RGB", "value": "—"},
                 "classification": {"label": "Classificacao", "value": "—"},
-                "zero_coords": {"label": "Coordenadas Zero", "value": "—"},
-                "duplicates": {"label": "Duplicatas XY", "value": "—"},
-                "density": {"label": "Densidade / Gaps", "value": "—"},
+                "zero_coords": {"label": "Coord Zero", "value": "—"},
+                "duplicates": {"label": "Duplicatas", "value": "—"},
+                "density": {"label": "Densidade", "value": "—"},
                 "intensity": {"label": "Intensidade", "value": "—"},
+                "resumo": {"label": "Resumo", "value": "—"},
             },
-            columns=1,
+            columns=2,
         )
         grupo_result.group_layout.addWidget(self._result_label)
-
-        # ── ReadOnlyTextBrowser (relatório detalhado) ───────────────
-        self._report_browser = ReadOnlyTextBrowser(
-            placeholder="Relatorio detalhado aparecera aqui apos a execucao...",
-        )
-        self.main_layout.addWidget(self._report_browser)
 
         self.page.set_badge(self.page.PRONTA)
 
@@ -256,12 +214,11 @@ class LasCheckPlugin(BasePlugin):
 
         # Prepara UI para execução
         self._btns.set_all_enabled(False)
-        self._btns.set_enabled("exportar", False)
         self.page.set_badge(self.page.RUNNING)
-        self._report_browser.clear_content()
 
         # Reseta resultados
-        for key in CHECK_NAMES:
+        for key in ("point_count", "bbox", "rgb", "classification",
+                     "zero_coords", "duplicates", "density", "intensity", "resumo"):
             self._result_label.set(key, "—")
 
         n_checks = len(checks_enabled)
@@ -283,7 +240,7 @@ class LasCheckPlugin(BasePlugin):
             checks=list(checks_enabled.keys()),
         )
 
-        # Cria e inicia a pipeline em background
+        # Cria step que executa checks inline na QThread
         step = LasCheckStep()
         runner = PipelineRunner(
             steps=[step],
@@ -300,56 +257,6 @@ class LasCheckPlugin(BasePlugin):
         self._runner = runner
         runner.start()
 
-    def _on_exportar(self):
-        """Exporta o relatório para arquivo .txt ou .json."""
-        if not self._check_results:
-            MessageBox.show_warning(
-                "Nenhum resultado para exportar.\nExecute os checks primeiro.",
-                title="LAS Quality Check",
-            )
-            return
-
-        path = ExplorerUtils.save_file(
-            "Exportar Relatorio",
-            filter="Texto (*.txt);;JSON (*.json)",
-            parent=self,
-        )
-        if not path:
-            return
-
-        try:
-            ext = os.path.splitext(path)[1].lower()
-            if ext == ".json":
-                JsonUtil.write_json(path, self._check_results)
-            else:
-                report = self._gerar_relatorio_texto()
-                with open(path, "w", encoding="utf-8") as f:
-                    f.write(report)
-
-            self.logger.info(
-                "Relatorio exportado",
-                code="LASCHECK_EXPORT",
-                path=path,
-            )
-            SignalManager.instance().console_message.emit(
-                f"[LasCheck] Relatorio exportado: {path}"
-            )
-            MessageBox.show_info(
-                f"Relatorio exportado com sucesso:\n{path}",
-                title="LAS Quality Check",
-            )
-
-        except Exception as e:
-            self.logger.error(
-                "Erro ao exportar relatorio",
-                code="LASCHECK_EXPORT_ERR",
-                error=str(e),
-            )
-            MessageBox.show_error(
-                f"Erro ao exportar relatorio:\n{str(e)}",
-                title="LAS Quality Check",
-            )
-
     # ══════════════════════════════════════════════════════════════════
     # Callbacks da Pipeline
     # ══════════════════════════════════════════════════════════════════
@@ -359,31 +266,28 @@ class LasCheckPlugin(BasePlugin):
         results = context.get("check_results", {})
         summary = context.get("summary", {})
 
-        self._check_results = {
-            "file_path": self._current_path,
-            "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
-            "summary": summary,
-            "results": results,
-        }
-
         pass_count = summary.get("pass", 0)
         warn_count = summary.get("warning", 0)
         fail_count = summary.get("fail", 0)
         total = summary.get("total", 0)
 
-        # Atualiza GridLabel com resultados
-        for check_name, result in results.items():
-            status = result.get("status", "skipped")
-            icon = STATUS_ICONS.get(status, "—")
+        # Resumo
+        self._result_label.set("resumo",
+            f"{pass_count} ✅ {warn_count} ⚠️ {fail_count} ❌ ({total})")
+
+        # Atualiza cada check apenas com o valor/mensagem (sem icone/rotulo)
+        for check_name in ("point_count", "bbox", "rgb", "classification",
+                           "zero_coords", "duplicates", "density", "intensity"):
+            result = results.get(check_name)
+            if not result:
+                continue
             message = result.get("message", "")
-            self._result_label.set(check_name, f"{icon} {message}")
-
-        # Gera relatório detalhado no ReadOnlyTextBrowser
-        report = self._gerar_relatorio_texto()
-        self._report_browser.append_html(f"<pre>{report}</pre>")
-
-        # Habilita exportar
-        self._btns.set_enabled("exportar", True)
+            status = result.get("status", "")
+            # Mostra apenas o dado, sem APROVADO/ATENCAO/FALHA
+            if status == "skipped":
+                self._result_label.set(check_name, "-")
+            else:
+                self._result_label.set(check_name, message)
 
         SignalManager.instance().execution_finished.emit(self.tool_key)
         SignalManager.instance().console_message.emit(
@@ -400,22 +304,9 @@ class LasCheckPlugin(BasePlugin):
             total=total,
         )
 
-        # Notifica o usuário se houver falhas
         if fail_count > 0:
             MessageBox.show_warning(
-                f"Checks concluidos com {fail_count} falha(s)!\n\n"
-                f"{pass_count} ✅ aprovados\n"
-                f"{warn_count} ⚠️ atencao\n"
-                f"{fail_count} ❌ falhas\n\n"
-                f"Consulte o relatorio detalhado para mais informacoes.",
-                title="LAS Quality Check",
-            )
-        else:
-            MessageBox.show_info(
-                f"Checks concluidos!\n\n"
-                f"{pass_count} ✅ aprovados\n"
-                f"{warn_count} ⚠️ atencao\n"
-                f"{fail_count} ❌ falhas",
+                f"Checks concluidos com {fail_count} falha(s)!",
                 title="LAS Quality Check",
             )
 
@@ -431,6 +322,9 @@ class LasCheckPlugin(BasePlugin):
             error=message,
             path=self._current_path,
         )
+        # Exibe erro no GridLabel se for erro de LAZ
+        if "LAZ" in message or "laz" in message:
+            self._result_label.set("resumo", "❌ Erro LAZ - use .LAS")
         MessageBox.show_error(
             f"Erro durante os checks:\n{message}",
             title="LAS Quality Check",
@@ -523,48 +417,6 @@ class LasCheckPlugin(BasePlugin):
         finally:
             self._loading_las = False
 
-    def _gerar_relatorio_texto(self) -> str:
-        """Gera relatório em texto puro a partir dos resultados."""
-        if not self._check_results:
-            return "Nenhum resultado disponivel."
-
-        data = self._check_results
-        lines = []
-        lines.append("=" * 60)
-        lines.append("          LAS QUALITY CHECK REPORT")
-        lines.append("=" * 60)
-        lines.append(f"Arquivo:  {data.get('file_path', '—')}")
-        lines.append(f"Data:     {data.get('timestamp', '—')}")
-        lines.append("")
-
-        summary = data.get("summary", {})
-        pass_c = summary.get("pass", 0)
-        warn_c = summary.get("warning", 0)
-        fail_c = summary.get("fail", 0)
-        total = summary.get("total", 0)
-        lines.append(f"Resumo:   {pass_c} ✅  {warn_c} ⚠️  {fail_c} ❌  (total: {total})")
-        lines.append("")
-
-        results = data.get("results", {})
-        for check_name, result in results.items():
-            display = CHECK_NAMES.get(check_name, check_name)
-            status = result.get("status", "skipped")
-            icon = STATUS_ICONS.get(status, "—")
-            label = STATUS_LABELS.get(status, status.upper())
-            message = result.get("message", "")
-            suggestion = result.get("suggestion", "")
-
-            lines.append(f"  {icon} [{label}] {display}")
-            lines.append(f"     {message}")
-            if suggestion:
-                lines.append(f"     Sugestao: {suggestion}")
-            lines.append("")
-
-        lines.append("=" * 60)
-        lines.append("Fim do relatorio")
-        lines.append("=" * 60)
-        return "\n".join(lines)
-
     # ══════════════════════════════════════════════════════════════════
     # Preferências
     # ══════════════════════════════════════════════════════════════════
@@ -575,11 +427,9 @@ class LasCheckPlugin(BasePlugin):
         last_path = self.preferences.get("last_path", "")
         checks_enabled = self.preferences.get("checks_enabled", {})
 
-        # Carrega o LAS primeiro
         if last_path:
             self._carregar_las(last_path)
 
-        # Restaura checks habilitados
         if checks_enabled:
             self._grid_checks.set_all(checks_enabled)
 

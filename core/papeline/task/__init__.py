@@ -13,9 +13,11 @@ Tasks disponíveis:
 from .MrkSinglePipelineTask import MrkSinglePipelineTask
 from .DoclingPipelineTask import DoclingPipelineTask
 from .LasBlackFilterTask import LasBlackFilterTask
+from .LasCheckTask import LasCheckTask
 
 __all__ = [
     "MrkSinglePipelineTask",
     "DoclingPipelineTask",
     "LasBlackFilterTask",
+    "LasCheckTask",
 ]
