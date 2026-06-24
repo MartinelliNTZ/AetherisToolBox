@@ -5,7 +5,7 @@ FormatUtils — Utilitários de formatação de dados
 Fornece formatação de tamanho de arquivo e datas de forma
 centralizada para todo o sistema.
 
-Uso:
+Uso:F
     from utils.FormatUtils import FormatUtils
 
     size_str = FormatUtils.format_size(1024)
