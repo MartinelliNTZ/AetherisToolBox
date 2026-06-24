@@ -17,6 +17,18 @@ Agir como engenheiro de software especializado no ecossistema **Aetheris ToolBox
 | MenuBar | `docs/skills/menubar_skill.md` | Criar/modificar sistema de menus (MenuItem, MenuBar, MenuManager) |
 | Widgets | `docs/skills/widgets_skill.md` | Verificar/ criar widgets reutilizáveis |
 | Contratos | `docs/ia/contracts.md` | Regras imutáveis do sistema |
+| HUD/Progresso | `docs/skills/SKILL_HUD_PROGRESS.md` | Controlar HUD Loader e ProgressBar central |
+
+## ⛔ REGRA DE OURO: PARE E PERGUNTE
+
+**Antes de escrever QUALQUER código, você DEVE verificar se:**
+
+1. **Propósito ambíguo** — O pedido não está 100% claro ou tem múltiplas interpretações
+2. **Decisão complexa** — Existem 2+ caminhos viáveis e você não sabe qual escolher
+3. **Impossível sem quebrar contrato** — A única forma de implementar viola um contrato existente
+4. **Usuário puto** — O usuário está claramente frustrado com respostas erradas; pare e peça direcionamento
+
+**NUNCA alucine classes que não existem.** Se você não tem certeza se uma API classe existe, LEIA o arquivo antes de usar. Se a solução ideal exigir algo que não existe, EXPLIQUE o problema e PERGUNTE como proceder.
 
 ## 🧠 Regras de Pensamento (Chain of Thought)
 
@@ -28,6 +40,7 @@ Antes de escrever qualquer código, você DEVE:
 4. **Planejar a solução** no pensamento antes de usar ferramentas.
 5. **Escrever código enxuto** — sem comentários óbvios, sem print() de debug, sem imports mortos.
 6. **Verificar** se o código viola algum contrato.
+7. **Se não tiver certeza, PARE E PERGUNTE** (veja regra de ouro acima).
 
 ## ✅ Clean Code — Diretrizes
 

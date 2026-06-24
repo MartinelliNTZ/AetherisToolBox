@@ -175,6 +175,27 @@ class ProjectUtil:
 
         return ProjectUtil.create_project(folder_path, project_name)
 
+    # ── Obter root_folder do projeto ativo ──────────────────────────
+
+    @staticmethod
+    def get_root_folder() -> Optional[str]:
+        """
+        Retorna o root_folder do projeto ativo lendo das preferências do sistema.
+
+        Returns:
+            Caminho do root_folder, ou None se não houver projeto ativo.
+        """
+        try:
+            from utils.Preferences import Preferences
+            from core.enum.ToolKey import ToolKey
+            sys_prefs = Preferences.load_tool_prefs(ToolKey.SYSTEM)
+            root = sys_prefs.get("root_folder", "")
+            if root:
+                return root
+            return None
+        except Exception:
+            return None
+
     # ── Atualizar campo específico ──────────────────────────────────
 
     @staticmethod

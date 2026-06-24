@@ -14,3 +14,7 @@ pynput
 Pillow
 docling>=2.70
 docling-core>=2.16
+laspy
+lazrs>=0.8.1
+# python -m pip install -r requirements.txt
+#python -m pip install pynput

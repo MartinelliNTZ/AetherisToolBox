@@ -2,16 +2,8 @@
 """
 DoclingPlugin — Conversão de documentos para Markdown via Docling
 ==================================================================
-Plugin do Aetheris ToolBox que converte PDF, imagens, Office, etc.
-para Markdown usando Docling, com suporte a layout multi-coluna.
-
-Usa:
-- SignalManager para console/progress (Contrato 20)
-- ExecutionButtons para botões de ação (Contrato 18)
-- SelectorGrid para seleção de arquivo com filtro
-- GridCheckBox + GridDoubleSpinBox para opções de colunas
-- ReadOnlyTextBrowser para preview do markdown gerado
-- HudCircularRingsLoader para feedback visual durante conversão
+Usa PipelineRunner + DoclingConvertStep para executar a conversão
+em background sem travar a UI.
 """
 
 from __future__ import annotations
@@ -19,9 +11,9 @@ from __future__ import annotations
 import os
 from core.enum.ToolKey import ToolKey
 from core.manager.SignalManager import SignalManager
-from core.ui.HudCircularRingsLoader import HudCircularRingsLoader
 from plugins.BasePlugin import BasePlugin
-from core.task.DoclingWorkerTask import DoclingWorkerTask
+from core.papeline.PipelineRunner import PipelineRunner
+from core.papeline.step import DoclingConvertStep
 from resources.widgets.ExecutionButtons import ExecutionButtons
 from resources.widgets.GridCheckBox import GridCheckBox
 from resources.widgets.GridDoubleSpinBox import GridDoubleSpinBox
@@ -50,7 +42,7 @@ class DoclingPlugin(BasePlugin):
             parent=parent,
             title="Docling → Markdown",
         )
-        self._worker: DoclingWorkerTask | None = None
+        self._runner: PipelineRunner | None = None
         self._current_markdown: str = ""
         self.logger.info("DoclingPlugin inicializado", code="DOCLING_READY")
         self.page.set_badge(self.page.PRONTA)
@@ -58,11 +50,6 @@ class DoclingPlugin(BasePlugin):
     def _build_ui(self):
         super()._build_ui()
 
-        # ── HUD Loader (overlay) ──────────────────────────────────────
-        self._loader = HudCircularRingsLoader(self)
-        self._loader.setGeometry(0, 0, self.width(), self.height())
-
-        # ── ExecutionButtons ──────────────────────────────────────────
         self._btns = ExecutionButtons(self)
         self._btns.setup({
             "converter": {
@@ -80,7 +67,6 @@ class DoclingPlugin(BasePlugin):
         })
         self.main_layout.addWidget(self._btns)
 
-        # ── SelectorGrid: Arquivo de Entrada ──────────────────────────
         self._sel_grid = SelectorGrid(
             specs={
                 "Documento": {
@@ -93,7 +79,6 @@ class DoclingPlugin(BasePlugin):
         )
         self.main_layout.addWidget(self._sel_grid)
 
-        # ── Opções de layout ──────────────────────────────────────────
         self._grid_col_opts = GridCheckBox(
             config={
                 "columnar": {
@@ -127,7 +112,6 @@ class DoclingPlugin(BasePlugin):
         grp_opts.group_layout.addWidget(self._grid_cols)
         self.main_layout.addWidget(grp_opts)
 
-        # ── Preview do Markdown ───────────────────────────────────────
         self._txt_preview = ReadOnlyTextBrowser(
             placeholder="Markdown gerado aparece aqui...",
         )
@@ -135,22 +119,15 @@ class DoclingPlugin(BasePlugin):
         grp_preview.group_layout.addWidget(self._txt_preview)
         self.main_layout.addWidget(grp_preview, 1)
 
-    # ── Eventos ─────────────────────────────────────────────────────
-
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        self._loader.setGeometry(0, 0, self.width(), self.height())
-
-    # ── Slots ───────────────────────────────────────────────────────
 
     def _on_columnar_changed(self):
-        """Habilita/desabilita o spin de colunas conforme checkbox."""
         enabled = bool(self._grid_col_opts.all.get("columnar", False))
         self._grid_cols.set_enabled("num_cols", enabled)
 
     def _on_converter(self):
-        """Valida e dispara a conversão."""
-        if self._worker is not None and self._worker.isRunning():
+        if self._runner is not None and self._runner.isRunning():
             MessageBox.show_warning(
                 "Já existe uma conversão em andamento.", title="Aguarde"
             )
@@ -172,69 +149,54 @@ class DoclingPlugin(BasePlugin):
         self._txt_preview.clear_content()
         self.page.set_badge(self.page.RUNNING)
         self._btns.set_enabled("converter", False)
-        self._loader.show_loader()
-        self._loader.set_progress(0, "Inicializando conversão...")
+
+        # Modo 2: timer de 10s via HUD central (sem HudCircularRingsLoader local)
+        SignalManager.instance().hud_show.emit({
+            "message": "Convertendo documento...",
+            "timer": 10.0,
+        })
 
         SignalManager.instance().console_message.emit(
             f"Convertendo: {os.path.basename(file_path)}"
         )
-        self.logger.info(
-            "Iniciando conversão",
-            code="CONVERT_START",
-            file=file_path,
-            columnar=columnar,
-            cols=manual_cols,
-        )
 
-        self._worker = DoclingWorkerTask(
-            file_path,
-            columnar=columnar,
-            manual_columns=manual_cols,
-            tool_key=self.tool_key,
+        step = DoclingConvertStep(columnar=columnar, manual_columns=manual_cols)
+        runner = PipelineRunner(
+            steps=[step],
+            context={"file_path": file_path},
             parent=self,
         )
-        self._worker.finished_ok.connect(self._on_done)
-        self._worker.failed.connect(self._on_error)
-        self._worker.finished.connect(self._on_worker_finished)
-        self._worker.start()
+        runner.finished_ok.connect(self._on_done)
+        runner.failed.connect(self._on_error)
+        runner.finished.connect(self._on_runner_finished)
+        self._runner = runner
+        runner.start()
 
-    def _on_done(self, markdown: str):
-        """Recebe o Markdown gerado e exibe no preview."""
-        self._current_markdown = markdown
-        self._txt_preview.setPlainText(markdown)
-        SignalManager.instance().console_message.emit(
-            "Conversão concluída com sucesso!"
-        )
+    def _on_done(self, context):
+        self._current_markdown = context.get("markdown", "")
+        self._txt_preview.setPlainText(self._current_markdown)
+        SignalManager.instance().console_message.emit("Conversão concluída com sucesso!")
         SignalManager.instance().progress_update.emit(100.0)
         self.page.set_badge(self.page.PRONTA)
         self.logger.info("Markdown gerado", code="CONVERT_DONE")
 
     def _on_error(self, message: str):
-        """Exibe erro da conversão."""
         self.logger.error("Falha na conversão", code="CONVERT_ERR", error=message)
-        SignalManager.instance().console_message.emit(
-            f"Erro na conversão: {message}"
-        )
+        SignalManager.instance().console_message.emit(f"Erro na conversão: {message}")
         self._current_markdown = ""
         self._txt_preview.clear_content()
         self.page.set_badge(self.page.ERROR)
-        MessageBox.show_critical(
-            f"Erro na conversão:\n{message}", title="Erro"
-        )
+        MessageBox.show_critical(f"Erro na conversão:\n{message}", title="Erro")
 
-    def _on_worker_finished(self):
-        """Limpa estado do worker."""
-        self._worker = None
-        self._loader.hide_loader()
+    def _on_runner_finished(self):
+        self._runner = None
         self._btns.set_enabled("converter", True)
+        SignalManager.instance().hud_hide.emit()
         SignalManager.instance().progress_update.emit(0.0)
 
     def _on_salvar(self):
-        """Salva o Markdown gerado em arquivo .md."""
         if not self._current_markdown.strip():
-            MessageBox.show_warning(
-                "Não há Markdown para salvar.", title="Salvar"
-            )
+            MessageBox.show_warning("Não há Markdown para salvar.", title="Salvar")
             return
 
         path = ExplorerUtils.save_file(
@@ -248,37 +210,27 @@ class DoclingPlugin(BasePlugin):
         try:
             with open(path, "w", encoding="utf-8") as f:
                 f.write(self._current_markdown)
-            SignalManager.instance().console_message.emit(
-                f"Markdown salvo: {path}"
-            )
+            SignalManager.instance().console_message.emit(f"Markdown salvo: {path}")
             self.logger.info("Arquivo salvo", code="SAVE_DONE", path=path)
         except Exception as e:
             self.logger.error("Erro ao salvar", code="SAVE_ERR", error=str(e))
-            MessageBox.show_critical(
-                f"Erro ao salvar arquivo:\n{e}", title="Erro"
-            )
-
-    # ── Preferências ─────────────────────────────────────────────────
+            MessageBox.show_critical(f"Erro ao salvar arquivo:\n{e}", title="Erro")
 
     def load_prefs(self):
-        """Carrega preferências salvas."""
         file_path = self.preferences.get("file_path", "")
         if file_path:
             sel = self._sel_grid.get("Documento")
             if sel:
                 sel.set_path(file_path)
-
         states = self.preferences.get("options", {})
         if states:
             self._grid_col_opts.set_all(states)
-
         cols = self.preferences.get("num_cols", 0)
         self._grid_cols.set_values({"num_cols": cols})
         if cols > 0 or states.get("columnar", False):
             self._grid_cols.set_enabled("num_cols", True)
 
     def save_prefs(self):
-        """Salva preferências atuais."""
         sel = self._sel_grid.get("Documento")
         file_path = sel.path() if sel else ""
         self.preferences["file_path"] = file_path

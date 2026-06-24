@@ -354,6 +354,7 @@ Regras obrigatórias:
 HUDLoader:
 - O `HUDLoader` é recomendado para operações longas e mais visíveis; controle-o via sinais (`hud_show`, `hud_update`, `hud_hide`).
 - Diferentemente da ProgressBar, o uso do HUD é opcional quando apropriado, mas prefira o HUD central em vez de implementar indicadores locais.
+- Consulte `docs/skills/SKILL_HUD_PROGRESS.md` para o fluxo completo de progresso (HUD + ProgressBar + QThread).
 
 ```python
 # ✅ Correto

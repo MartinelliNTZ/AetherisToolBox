@@ -2,10 +2,8 @@
 """
 MrkSubstitutorPlugin — Substitui valores em arquivos MRK
 ==========================================================
-Usa MrkSingleTask (QThread) para nao travar a UI.
-Exibe HUDLoader durante processamento.
-Batch sequencial via MrkBatchWorker (loop).
-A leitura de dados vai para thread (worker interno).
+Usa PipelineRunner + MrkLoadDataStep + MrkProcessStep para executar
+em background sem travar a UI.
 """
 
 from __future__ import annotations
@@ -13,10 +11,10 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from PySide6.QtCore import QThread, Signal
-
 from core.enum.ToolKey import ToolKey
 from core.manager.SignalManager import SignalManager
+from core.papeline.PipelineRunner import PipelineRunner
+from core.papeline.step import MrkLoadDataStep, MrkProcessStep, MrkFindDataStep
 from plugins.BasePlugin import BasePlugin
 from resources.widgets.ExecutionButtons import ExecutionButtons
 from resources.widgets.GridCheckBox import GridCheckBox
@@ -28,8 +26,6 @@ from resources.widgets.SimpleSelector import SimpleSelector
 from utils.ExplorerUtils import ExplorerUtils
 from utils.MessageBox import MessageBox
 
-
-# ── Constantes ─────────────────────────────────────────────────────
 
 MODE_SINGLE = "single"
 MODE_BATCH = "batch"
@@ -91,13 +87,9 @@ class MrkSubstitutorPlugin(BasePlugin):
             parent=parent,
             title="Mrk Substituidor",
         )
-        self._worker: Optional[QThread] = None
+        self._runner: PipelineRunner | None = None
         self._update_ui_for_mode()
         self.logger.info("MrkSubstitutorPlugin inicializado", code="MRK_READY")
-
-    # ══════════════════════════════════════════════════════════════════
-    # UI
-    # ══════════════════════════════════════════════════════════════════
 
     def _build_ui(self):
         super()._build_ui()
@@ -132,10 +124,6 @@ class MrkSubstitutorPlugin(BasePlugin):
 
         self.main_layout.addWidget(GridGroupPainel(grp_files, grp_map))
 
-    # ══════════════════════════════════════════════════════════════════
-    # Cenario
-    # ══════════════════════════════════════════════════════════════════
-
     def _on_scenario_changed(self, mode: str):
         self._update_ui_for_mode()
 
@@ -144,10 +132,6 @@ class MrkSubstitutorPlugin(BasePlugin):
         self._sel_mrk_file.setVisible(mode == MODE_SINGLE)
         self._sel_mrk_dir.setVisible(mode == MODE_BATCH)
         self._sel_data.setVisible(mode == MODE_SINGLE)
-
-    # ══════════════════════════════════════════════════════════════════
-    # Mapping
-    # ══════════════════════════════════════════════════════════════════
 
     def _get_active_mapping(self) -> Dict[str, str]:
         mapping = {}
@@ -160,7 +144,6 @@ class MrkSubstitutorPlugin(BasePlugin):
         return mapping
 
     def _find_data_file(self, mrk_path: Path) -> Optional[str]:
-        """Busca arquivo de dados correspondente ao MRK (mesmo diretorio)."""
         base_name = mrk_path.stem
         directory = mrk_path.parent
         if not directory.is_dir():
@@ -178,10 +161,6 @@ class MrkSubstitutorPlugin(BasePlugin):
             best = min(candidates, key=lambda p: 0 if p.suffix.lower() == ".gpkg" else 1 if p.suffix.lower() == ".shp" else 2)
             return str(best)
         return None
-
-    # ══════════════════════════════════════════════════════════════════
-    # Preferences
-    # ══════════════════════════════════════════════════════════════════
 
     def load_prefs(self):
         self._sel_mrk_file.set_path(self.preferences.get(MRK_FILE_KEY, ""))
@@ -207,10 +186,6 @@ class MrkSubstitutorPlugin(BasePlugin):
         self.preferences[MAPPING_KEY] = self._mapping.all
         self.preferences["options"] = self._grid_opts.all
 
-    # ══════════════════════════════════════════════════════════════════
-    # Execucao
-    # ══════════════════════════════════════════════════════════════════
-
     def _on_save_config(self):
         self.save_prefs()
         MessageBox.show_info("Configuracao salva!", title="Salvo")
@@ -227,129 +202,111 @@ class MrkSubstitutorPlugin(BasePlugin):
 
         self._btns.set_all_enabled(False)
 
-        # Sinaliza inicio de execucao (ativa HUD + reseta progress)
         SignalManager.instance().execution_started.emit(self.tool_key)
         SignalManager.instance().console_message.emit(f"[{self.tool_key}] Iniciando execucao...")
         SignalManager.instance().progress_update.emit(0.0)
         SignalManager.instance().hud_show.emit({"message": "Preparando..."})
 
-        from core.task.MrkBatchWorker import MrkBatchWorker
-
         output_dir = Path(output_dir_str)
         output_dir.mkdir(parents=True, exist_ok=True)
 
         if self._grid_scenario.selected == MODE_SINGLE:
-            self._worker = self._create_single_worker(mapping, output_dir)
+            self._run_single(mapping, output_dir)
         else:
-            self._worker = self._create_batch_worker(mapping, output_dir)
+            self._run_batch(mapping, output_dir)
 
-        if self._worker:
-            self._worker.start()
-
-    def _cleanup_worker(self):
-        if self._worker:
-            try:
-                self._worker.quit()
-                self._worker.wait(500)
-            except Exception:
-                pass
-            self._worker = None
+    def _cleanup(self):
         self._btns.set_all_enabled(True)
+        SignalManager.instance().hud_hide.emit()
 
-    def _on_progress_both(self, progress: float):
-        """Propaga progresso para ProgressBar e HUD simultaneamente."""
-        SignalManager.instance().progress_update.emit(progress)
-        SignalManager.instance().hud_update.emit({
-            "message": f"Processando... {progress:.1f}%",
-            "progress": progress,
-        })
-
-    # ══════════════════════════════════════════════════════════════════
-    # Single Worker
-    # ══════════════════════════════════════════════════════════════════
-
-    def _create_single_worker(self, mapping: Dict[str, str], output_dir: Path):
+    def _run_single(self, mapping: Dict[str, str], output_dir: Path):
         mrk_path_str = self._sel_mrk_file.path()
         data_path_str = self._sel_data.path()
         if not mrk_path_str or not data_path_str:
-            self._cleanup_worker()
+            self._cleanup()
             MessageBox.show_warning("Selecione o arquivo MRK e de dados.", title="Aviso")
-            return None
+            return
 
-        from core.task.MrkBatchWorker import MrkSingleTask
-
-        task = MrkSingleTask(
-            mrk_path=mrk_path_str,
-            data_path=data_path_str,
-            mapping=mapping,
-            output_dir=str(output_dir),
-            tool_key=self.tool_key,
+        runner = PipelineRunner(
+            steps=[MrkLoadDataStep(), MrkProcessStep()],
+            context={
+                "data_path": data_path_str,
+                "mrk_path": mrk_path_str,
+                "mapping": mapping,
+                "output_dir": str(output_dir),
+                "tool_key": self.tool_key,
+            },
+            parent=self,
         )
-        task.finished_ok.connect(self._on_single_done)
-        task.failed.connect(self._on_worker_failed)
-        task.progress_updated.connect(lambda p: self._on_progress_both(p))
-        task.console_msg.connect(lambda m: SignalManager.instance().console_message.emit(f"[MrkSubst] {m}"))
-        return task
+        runner.finished_ok.connect(self._on_single_done)
+        runner.failed.connect(self._on_error)
+        runner.finished.connect(self._on_runner_finished)
+        self._runner = runner
+        runner.start()
 
-    def _on_single_done(self, total: int):
-        self._cleanup_worker()
-        msg = f"Concluido! {total} substituicoes."
+    def _on_single_done(self, context):
+        replacements = context.get("replacements", 0)
+        msg = f"Concluido! {replacements} substituicoes."
         self.logger.info(msg, code="MRK_SINGLE_DONE")
-        SignalManager.instance().execution_finished.emit(self.tool_key)
         SignalManager.instance().console_message.emit(f"[MrkSubst] {msg}")
         MessageBox.show_info(msg, title="Concluido")
         self.save_prefs()
 
-    def _on_worker_failed(self, error: str):
-        self._cleanup_worker()
-        self.logger.error("Erro no worker", code="MRK_WORKER_ERR", error=error)
+    def _on_error(self, message: str):
+        self.logger.error("Erro", code="MRK_ERR", error=message)
+        SignalManager.instance().console_message.emit(f"[MrkSubst] ERRO: {message}")
         SignalManager.instance().execution_cancelled.emit(self.tool_key)
-        SignalManager.instance().console_message.emit(f"[MrkSubst] ERRO: {error}")
-        MessageBox.show_error(f"Erro: {error}", title="Erro")
+        MessageBox.show_error(f"Erro: {message}", title="Erro")
 
-    # ══════════════════════════════════════════════════════════════════
-    # Batch Worker
-    # ══════════════════════════════════════════════════════════════════
+    def _on_runner_finished(self):
+        self._runner = None
+        self._cleanup()
+        SignalManager.instance().execution_finished.emit(self.tool_key)
 
-    def _create_batch_worker(self, mapping: Dict[str, str], output_dir: Path):
+    def _run_batch(self, mapping: Dict[str, str], output_dir: Path):
         mrk_dir_str = self._sel_mrk_dir.path()
         if not mrk_dir_str:
-            self._cleanup_worker()
+            self._cleanup()
             MessageBox.show_warning("Selecione a pasta com MRKs.", title="Aviso")
-            return None
+            return
 
         recursive = bool(self._grid_opts.all.get(RECURSIVE_KEY, False))
         mrk_paths = ExplorerUtils.find_files(mrk_dir_str, MRK_EXTENSIONS, recursive=recursive)
 
         if not mrk_paths:
-            self._cleanup_worker()
+            self._cleanup()
             MessageBox.show_warning("Nenhum arquivo .MRK encontrado.", title="Aviso")
-            return None
+            return
 
         SignalManager.instance().console_message.emit(f"[MrkSubst] {len(mrk_paths)} MRKs encontrados")
 
-        from core.task.MrkBatchWorker import MrkBatchWorker
+        for mrk_path_str in mrk_paths:
+            mrk_path = Path(mrk_path_str)
+            data_path = self._find_data_file(mrk_path)
+            if data_path is None:
+                SignalManager.instance().console_message.emit(f"[MrkSubst] Sem dados para {mrk_path.name}, pulando.")
+                continue
 
-        worker = MrkBatchWorker(
-            mrk_paths=mrk_paths,
-            mapping=mapping,
-            output_dir=str(output_dir),
-            tool_key=self.tool_key,
-        )
-        worker.finished_ok.connect(self._on_batch_done)
-        worker.failed.connect(self._on_worker_failed)
-        worker.progress_updated.connect(lambda p: self._on_progress_both(p))
-        worker.console_msg.connect(lambda m: SignalManager.instance().console_message.emit(f"[MrkSubst] {m}"))
-        worker.hud_update_msg.connect(lambda m, p: SignalManager.instance().hud_update.emit({"message": m, "progress": p}))
-        return worker
+            runner = PipelineRunner(
+                steps=[MrkLoadDataStep(), MrkProcessStep()],
+                context={
+                    "data_path": data_path,
+                    "mrk_path": mrk_path_str,
+                    "mapping": mapping,
+                    "output_dir": str(output_dir),
+                    "tool_key": self.tool_key,
+                },
+                parent=self,
+            )
+            runner.finished_ok.connect(lambda c, n=mrk_path.name: self._on_batch_item_done(c, n))
+            runner.failed.connect(lambda m, n=mrk_path.name: self._on_batch_item_error(m, n))
+            runner.finished.connect(runner.deleteLater)
+            runner.start()
+            runner.wait()  # batch items executam sequencialmente
 
-    def _on_batch_done(self, total: int, processed: int, failed: int):
-        self._cleanup_worker()
-        msg = f"Lote concluido! {total} substituicoes em {processed} MRKs."
-        if failed:
-            msg += f" {failed} falhas."
-        self.logger.info(msg, code="MRK_BATCH_DONE")
-        SignalManager.instance().execution_finished.emit(self.tool_key)
-        SignalManager.instance().console_message.emit(f"[MrkSubst] {msg}")
-        MessageBox.show_info(msg, title="Concluido")
-        self.save_prefs()
+    def _on_batch_item_done(self, context, name: str):
+        replacements = context.get("replacements", 0)
+        SignalManager.instance().console_message.emit(f"[MrkSubst] {name} -> {replacements} substituicoes")
+
+    def _on_batch_item_error(self, message: str, name: str):
+        SignalManager.instance().console_message.emit(f"[MrkSubst] ERRO em {name}: {message}")

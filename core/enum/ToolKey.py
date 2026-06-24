@@ -30,6 +30,10 @@ class ToolKey(str, Enum):
     ICO_CONVERTER = "IcoConverter"
     DOCLING = "Docling"
     MRK_SUBSTITUTOR = "MrkSubstitutor"
+    LAS_BLACK_FILTER = "LasBlackFilter"
+    LAS_CHECK = "LasCheck"
+    STATISTICS = "Statistics"
+    POINT_BOUNDARY = "PointBoundary"
 
     # ── Método utilitário ──────────────────────────────────────────────
 

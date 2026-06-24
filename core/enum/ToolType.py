@@ -20,3 +20,4 @@ class ToolType(str, Enum):
     AGRICULTURE = "Agriculture"
     RASTER = "Raster"
     IMAGE = "Image"
+    POINTS = "Points"

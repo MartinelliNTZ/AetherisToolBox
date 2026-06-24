@@ -47,3 +47,4 @@ class SignalCatalog(QObject):
     execution_started:    Signal = Signal(str)  # emitido quando plugin inicia execução: tool_name
     execution_finished:   Signal = Signal(str) # emitido quando plugin finaliza execução: tool_name
     execution_cancelled:  Signal = Signal(str) # emitido quando plugin cancela execução: tool_name
+    hud_stage_done:       Signal = Signal(int)  # emitido quando uma etapa externa é concluída: stage_index

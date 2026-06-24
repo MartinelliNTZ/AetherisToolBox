@@ -222,6 +222,42 @@ class ToolRegistry:
             category=CategoryTool.CENTRAL,
             show_in_toolbar=True,
         ),
+        ToolKey.LAS_BLACK_FILTER.value: Tool(
+            name=ToolKey.LAS_BLACK_FILTER.value,
+            title="Filtro Pontos Pretos",
+            widget_factory=_make_factory(
+                "plugins.las_black_filter.LasBlackFilterPlugin",
+                "LasBlackFilterPlugin",
+            ),
+            tooltip="Remove pontos pretos (R=G=B=0) de nuvens LAS/LAZ",
+            tool_type=ToolType.POINTS,
+            category=CategoryTool.CENTRAL,
+            show_in_toolbar=True,
+        ),
+        ToolKey.LAS_CHECK.value: Tool(
+            name=ToolKey.LAS_CHECK.value,
+            title="LAS Quality Check",
+            widget_factory=_make_factory(
+                "plugins.las_check.LasCheckPlugin",
+                "LasCheckPlugin",
+            ),
+            tooltip="Valida e inspeciona nuvens de pontos LAS/LAZ com 8 checks de qualidade",
+            tool_type=ToolType.POINTS,
+            category=CategoryTool.CENTRAL,
+            show_in_toolbar=True,
+        ),
+        ToolKey.POINT_BOUNDARY.value: Tool(
+            name=ToolKey.POINT_BOUNDARY.value,
+            title="Limite de Pontos",
+            widget_factory=_make_factory(
+                "plugins.point_boundary.PointBoundaryPlugin",
+                "PointBoundaryPlugin",
+            ),
+            tooltip="Gera limite (envoltória) de nuvens LAS/LAZ ou vetores de pontos com validação iterativa",
+            tool_type=ToolType.VECTOR,
+            category=CategoryTool.CENTRAL,
+            show_in_toolbar=True,
+        ),
     }
 
     def register_default_tools(self) -> None:

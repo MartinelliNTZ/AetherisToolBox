@@ -40,9 +40,10 @@ O `SignalManager` é o canal oficial para mensagens entre plugins e entre plugin
 | `progress_reset` | `Signal()` | Reseta a barra de progresso para 0% |
 | `project_changed` | `Signal()` | Projeto ativo foi salvo/criado |
 | `recent_projects_changed` | `Signal(list)` | Lista de projetos recentes foi alterada: `list[dict]` com chaves path, name, active. Emitido após add_recent/remove_recent. FileMenuItem conecta-se a este sinal para atualizar o submenu "Abrir Recente" em tempo real. |
-| `hud_show` | `Signal(dict)` | Exibe HUD Loader: `{"message": str}` |
+| `hud_show` | `Signal(dict)` | Exibe HUD Loader. Dict pode conter: `"message"`, `"timer"` (segundos, modo 2), `"stages"` (lista [segundos, num_etapas], modo 3) |
 | `hud_update` | `Signal(dict)` | Atualiza HUD: `{"message": str, "progress": float}` |
 | `hud_hide` | `Signal()` | Esconde HUD Loader |
+| `hud_stage_done` | `Signal(int)` | Notifica que uma etapa externa foi concluída (modo 3): `stage_index` |
 | `execution_started` | `Signal(str)` | Plugin iniciou execução: `tool_name` |
 | `execution_finished` | `Signal(str)` | Plugin finalizou execução com sucesso: `tool_name` |
 | `execution_cancelled` | `Signal(str)` | Plugin cancelou/falhou execução: `tool_name` |
@@ -124,15 +125,63 @@ Use 0.0–100.0 como intervalo. A responsabilidade de transformar um avanço em 
 
 Para resetar a barra para 0%, emita `SignalManager.instance().progress_reset.emit()`.
 
-## HUDLoader — Indicador para operações longas
+## HUDLoader — Indicador para operações longas (3 modos)
 
-O `HUDLoader` é um indicador visual para operações demoradas e pode exibir status mais detalhado que a ProgressBar. Diferente da ProgressBar, seu uso é opcional e contextual — porém recomenda-se:
+O `HUDLoader` é um indicador visual para operações demoradas e pode exibir status mais detalhado que a ProgressBar. Possui 3 modos de funcionamento:
 
+### Modo 1 — Feedback Real
+Use `set_progress(percentual, mensagem)` quando o processo fornece feedback de progresso.
+```python
+self._hud.set_progress(50.0, "Processando etapa 3...")
+```
+
+### Modo 2 — Temporizador
+Use `start_timer(segundos)` para processos sem feedback. A loader vai de 0% a 100% no tempo especificado.
+```python
+# Via SignalManager (recomendado para plugins):
+SignalManager.instance().hud_show.emit({
+    "message": "Convertendo documento...",
+    "timer": 10.0,  # 10 segundos ate 100%
+})
+
+# Direto no HUD loader:
+self._hud.start_timer(10.0, "Convertendo...")
+```
+
+### Modo 3 — Etapas (N stages)
+Use `start_staged(segundos_totais, num_stages)` para processos com etapas conhecidas. Divide tempo e porcentagem igualmente:
+
+- **Ex: 100s, 4 stages** → cada stage = 25% em 25s
+- **Ex: 600s, 6 stages** → cada stage = 16.66% em 100s
+- **Ex: 200s, 4 stages** → stage 1: 0-25% em 50s, stage 2: 25.01-50% em 50s, stage 3: 50.01-75% em 50s, stage 4: 75.01-100% em 50s
+
+A loader avanca suavemente (0.01% a cada `tempo_stage / (pct_stage * 100)` segundos). Quando chega no limite do stage, PARA e aguarda `hud_stage_done`. O sinal `hud_stage_done(stage_index)` libera o proximo stage.
+
+```python
+# Inicio: 200s totais, 4 etapas
+SignalManager.instance().hud_show.emit({
+    "message": "Processando lote...",
+    "stages": [200.0, 4],  # (total_seconds, num_stages)
+})
+
+# Quando uma etapa externa for concluida:
+SignalManager.instance().hud_stage_done.emit(0)  # stage 0 concluido -> pula para 25%
+SignalManager.instance().hud_stage_done.emit(1)  # stage 1 concluido -> pula para 50%
+SignalManager.instance().hud_stage_done.emit(2)  # stage 2 concluido -> pula para 75%
+SignalManager.instance().hud_stage_done.emit(3)  # stage 3 concluido -> pula para 100%
+```
+
+**Comportamento detalhado:**
+- A cada tick (16ms), calcula `(elapsed / secs_per_stage) * pct_per_stage` para saber quanto % avancou dentro do stage atual
+- Quando atinge `stage_target_progress`, a progressao para automaticamente
+- `hud_stage_done(N)` libera o stage `(N+1)` e reinicia o timer
+- Se o ultimo stage for liberado, vai direto para 100%
+
+**Regras:**
 - Usar `SignalManager` (sinais `hud_show`, `hud_update`, `hud_hide`) para controlar o HUD a partir de workers.
 - Preferir HUD para operações que bloqueiam/ocupam muito tempo ou exigem indicação destacada ao usuário.
-- O dicionário do `hud_update` agora aceita a chave `"progress"` (float, 0.0–100.0) para sincronizar o percentual com a ProgressBar.
-
-Não existe uma proibição estrita similar à ProgressBar, mas prefira reutilizar `HUDLoader` central quando disponível em vez de criar implementações locais.
+- O dicionário do `hud_update` aceita a chave `"progress"` (float, 0.0–100.0) para sincronizar o percentual com a ProgressBar.
+- Não existe proibição estrita similar à ProgressBar, mas prefira reutilizar `HUDLoader` central quando disponível em vez de criar implementações locais.
 
 ## LogUtils — Logs estruturados para desenvolvedores
 
@@ -163,6 +212,8 @@ except Exception as e:
 
 - Permitido apenas para testes locais rápidos (por exemplo, testar saídas do `LogUtils`) e scripts temporários.
 - Nunca deixe `print()` em código final ou em commits destinados à base principal.
+
+> 💡 **Consulte também:** `docs/skills/SKILL_HUD_PROGRESS.md` para o fluxo completo de integração entre HUD Loader, ProgressBar e execução em QThread (PipelineRunner + Tasks).
 
 ## Regras Resumidas (Golden Rules)
 
