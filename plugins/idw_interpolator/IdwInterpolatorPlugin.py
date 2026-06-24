@@ -14,7 +14,6 @@ Contratos seguidos:
   - Contrato 11: widgets reutilizáveis (GridCheckBox, GridDoubleSpinBox, etc.)
   - Contrato 18: ExecutionButtons padronizado
   - Contrato 20: SignalManager para progresso/console
-  - Contrato 21: JsonUtil não aplicável (metadados salvos na task)
   - Contrato 24: SignalManager apenas para comunicação entre componentes
 """
 
@@ -34,7 +33,6 @@ from resources.widgets.GridLabel import GridLabel
 from resources.widgets.GroupPainel import GroupPainel
 from resources.widgets.SelectorGrid import SelectorGrid
 from resources.widgets.SimpleLabel import SimpleLabel
-from utils.ExplorerUtils import ExplorerUtils
 from utils.LasUtil import LasUtil
 from utils.MessageBox import MessageBox
 
@@ -83,12 +81,13 @@ class IdwInterpolatorPlugin(BasePlugin):
         self._current_path: str = ""
         self._current_metadata: dict = {}
         self._runner: PipelineRunner | None = None
-        self._info_labels: list = []  # labels condicionais (bbox, densidade, espacamento)
         super().__init__(
             tool_key=ToolKey.IDW_INTERPOLATOR.value,
             parent=parent,
             title="Interpolação IDW",
         )
+        self._build_ui()
+        self.load_prefs()
         self.logger.info("Ferramenta inicializada", code="IDW_READY")
 
     # ══════════════════════════════════════════════════════════════════
@@ -144,6 +143,7 @@ class IdwInterpolatorPlugin(BasePlugin):
 
         sel_entrada = self._selector_grid["LAS/LAZ de Entrada"]
         sel_entrada.edit.textChanged.connect(self._on_input_path_changed)
+        sel_entrada.edit.textChanged.connect(self._log_path_changed)
 
         # Labels informativos (ocultos até calcular pixel ideal)
         self._info_las = SimpleLabel("")
@@ -162,8 +162,6 @@ class IdwInterpolatorPlugin(BasePlugin):
         self._info_espacamento.setVisible(False)
         grupo_entrada.group_layout.addWidget(self._info_espacamento)
 
-        self._info_labels = [self._info_bbox, self._info_densidade, self._info_espacamento]
-
         # ── GroupPainel "Target da Interpolação" ─────────────────────
         grupo_target = GroupPainel("Target da Interpolacao")
         self.main_layout.addWidget(grupo_target)
@@ -173,6 +171,7 @@ class IdwInterpolatorPlugin(BasePlugin):
         grupo_target.group_layout.addWidget(self._target_grid)
 
         self._separar_grid = GridCheckBox(SEPARAR_CONFIG, num_columns=1)
+        self._separar_grid.changed.connect(self._on_target_changed)
         grupo_target.group_layout.addWidget(self._separar_grid)
 
         # ── GroupPainel "Parâmetros IDW" ────────────────────────────
@@ -272,6 +271,16 @@ class IdwInterpolatorPlugin(BasePlugin):
     # Handlers
     # ══════════════════════════════════════════════════════════════════
 
+    def _log_path_changed(self, text: str):
+        """Loga qualquer mudança no campo de texto do selector (inclusive botao ...)."""
+        path = text.strip()
+        if path:
+            self.logger.debug(
+                "Selector alterado",
+                code="IDW_SELECTOR_CHANGED",
+                path=path,
+            )
+
     def _on_input_path_changed(self, text: str):
         """Disparado quando o texto do selector de entrada muda."""
         path = text.strip()
@@ -284,29 +293,21 @@ class IdwInterpolatorPlugin(BasePlugin):
             return
         self._carregar_las(path)
 
-    def _on_target_changed(self, key: str, value: bool):
-        """Disparado quando qualquer checkbox de target muda."""
+    def _on_target_changed(self):
+        """Disparado quando qualquer checkbox de target ou separar muda."""
         target = self._target_grid.checked
-        separate = self._separar_grid.get("separate", False)
+        separate = self._separar_grid.is_item_checked("separate")
 
-        # Se tem algum RGB mas não todos, e não está separando, avisa via label
-        has_rgb = target.get("r", False) and target.get("g", False) and target.get("b", False)
-        has_any_rgb = target.get("r", False) or target.get("g", False) or target.get("b", False)
+        has_rgb = "r" in target and "g" in target and "b" in target
+        has_any_rgb = "r" in target or "g" in target or "b" in target
 
         if not separate and has_any_rgb and not has_rgb:
             self._result_label.set("status",
-                "⚠️ Mosaico requer R, G e B. Marque 'Separar Bandas?' "
+                "Mosaico requer R, G e B. Marque 'Separar Bandas?' "
                 "para bandas individuais."
             )
         else:
             self._result_label.set("status", "Pronto")
-
-        self.logger.debug(
-            "Target alterado",
-            code="IDW_TARGET_CHANGED",
-            target=target,
-            separate=separate,
-        )
 
     def _on_calc_ideal_pixel(self):
         """Calcula pixel ideal pela densidade da nuvem e carrega no GridDoubleSpinBox."""
@@ -374,6 +375,20 @@ class IdwInterpolatorPlugin(BasePlugin):
                 title="Interpolacao IDW",
             )
 
+    def _resolver_output_path(self, base_path: str, has_z: bool) -> str:
+        """
+        Resolve o caminho de saída.
+        Se Z estiver ativo e o nome base não contiver '_Z', adiciona o sufixo.
+        """
+        if not has_z:
+            return base_path
+        dir_name = os.path.dirname(base_path)
+        basename = os.path.splitext(os.path.basename(base_path))[0]
+        ext = os.path.splitext(base_path)[1] or ".tif"
+        if not basename.endswith("_Z"):
+            basename += "_Z"
+        return os.path.join(dir_name, f"{basename}{ext}")
+
     def _on_executar(self):
         """Executa a interpolação IDW via PipelineRunner em background."""
         self.logger.info("Botao EXECUTAR pressionado", code="IDW_EXEC_BTN")
@@ -400,16 +415,17 @@ class IdwInterpolatorPlugin(BasePlugin):
             return
 
         target = self._target_grid.checked
-        if not any(target.values()):
+        if not target:
             MessageBox.show_warning(
                 "Selecione ao menos uma banda para interpolar.",
                 title="Interpolacao IDW",
             )
             return
 
-        separate = self._separar_grid.get("separate", False)
-        has_rgb = target.get("r", False) and target.get("g", False) and target.get("b", False)
-        has_any_rgb = target.get("r", False) or target.get("g", False) or target.get("b", False)
+        separate = self._separar_grid.is_item_checked("separate")
+        has_rgb = "r" in target and "g" in target and "b" in target
+        has_any_rgb = "r" in target or "g" in target or "b" in target
+        has_z = "z" in target
 
         if not separate and has_any_rgb and not has_rgb:
             MessageBox.show_warning(
@@ -418,6 +434,9 @@ class IdwInterpolatorPlugin(BasePlugin):
                 title="Interpolacao IDW",
             )
             return
+
+        # Resolve output path com sufixo _Z se Z ativo
+        output_path = self._resolver_output_path(output_path, has_z)
 
         # Coleta parâmetros
         params = self._params_grid.values
@@ -460,7 +479,7 @@ class IdwInterpolatorPlugin(BasePlugin):
 
         # Cria step e runner
         step = IdwInterpolatorStep()
-        crs_str = "EPSG:31982"  # CRS padrão, pode ser configurável futuramente
+        crs_str = "EPSG:31982"
         runner = PipelineRunner(
             steps=[step],
             context={
@@ -484,6 +503,9 @@ class IdwInterpolatorPlugin(BasePlugin):
         runner.finished.connect(self._on_runner_finished)
         self._runner = runner
         runner.start()
+
+        # Salva preferências ao executar
+        self.save_prefs()
 
     def _on_cancelar(self):
         """Cancela a execução em andamento."""
@@ -516,9 +538,7 @@ class IdwInterpolatorPlugin(BasePlugin):
         self._result_label.set("resolucao", f"{resol_cm:.2f} cm")
         self._result_label.set("n_tiles", str(tiles.get("total", 0)))
         self._result_label.set("output_path", str(arquivos[0]) if arquivos else "—")
-        self._result_label.set("status", "Concluido ✅")
-
-        self._btns.set_enabled("salvar_json", True)
+        self._result_label.set("status", "Concluido")
 
         SignalManager.instance().execution_finished.emit(self.tool_key)
         SignalManager.instance().console_message.emit(
@@ -532,11 +552,9 @@ class IdwInterpolatorPlugin(BasePlugin):
         self.logger.error("Pipeline IDW falhou", code="IDW_PIPELINE_FAILED", error=message)
 
         SignalManager.instance().execution_cancelled.emit(self.tool_key)
-        SignalManager.instance().console_message.emit(
-            f"[IDW] ERRO: {message}"
-        )
+        SignalManager.instance().console_message.emit(f"[IDW] ERRO: {message}")
 
-        self._result_label.set("status", f"❌ Erro")
+        self._result_label.set("status", "Erro")
         MessageBox.show_error(
             f"Erro durante a interpolacao IDW:\n{message}",
             title="Interpolacao IDW",
@@ -583,11 +601,12 @@ class IdwInterpolatorPlugin(BasePlugin):
 
             # Se não tem RGB, desmarca R, G, B
             if not has_rgb:
+                current_z = self._target_grid.is_item_checked("z")
                 self._target_grid.set_all({
                     "r": False,
                     "g": False,
                     "b": False,
-                    "z": self._target_grid.get("z", False),
+                    "z": current_z,
                 })
 
             self._btns.set_enabled("executar", True)
@@ -616,11 +635,11 @@ class IdwInterpolatorPlugin(BasePlugin):
             )
 
     # ══════════════════════════════════════════════════════════════════
-    # Preferências
+    # Preferências (SKILL_PREFERENCES.md)
     # ══════════════════════════════════════════════════════════════════
 
     def load_prefs(self) -> None:
-        """Carrega preferências salvas."""
+        """Carrega preferências salvas do disco."""
         self.logger.info("Carregando preferencias", code="IDW_PREFS_LOAD")
 
         last_path = self.preferences.get("last_path", "")
