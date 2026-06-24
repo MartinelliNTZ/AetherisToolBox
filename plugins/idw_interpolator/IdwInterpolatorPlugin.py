@@ -412,6 +412,7 @@ class IdwInterpolatorPlugin(BasePlugin):
                 "Selecione onde salvar o raster de saida.",
                 title="Interpolacao IDW",
             )
+            self.logger.warning("Nenhum caminho de saída selecionado", code="IDW_NO_OUTPUT")
             return
 
         target = self._target_grid.checked
@@ -420,6 +421,7 @@ class IdwInterpolatorPlugin(BasePlugin):
                 "Selecione ao menos uma banda para interpolar.",
                 title="Interpolacao IDW",
             )
+            self.logger.warning("Nenhuma banda selecionada", code="IDW_NO_TARGET")
             return
 
         separate = self._separar_grid.is_item_checked("separate")
@@ -433,6 +435,7 @@ class IdwInterpolatorPlugin(BasePlugin):
                 "Marque 'Separar Bandas?' para bandas individuais.",
                 title="Interpolacao IDW",
             )
+            self.logger.warning("Nenhuma banda selecionada", code="IDW_NO_TARGET")
             return
 
         # Resolve output path com sufixo _Z se Z ativo
