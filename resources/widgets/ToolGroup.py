@@ -39,8 +39,6 @@ class ToolGroup(QWidget):
         layout.setContentsMargins(4, 2, 4, 2)
         layout.setSpacing(2)
 
-        P = AppStyles.theme_colors()
-
         # ── Botões de cada ferramenta (apenas ícone) ──
         for tool in tools:
             btn = QToolButton()
@@ -53,20 +51,8 @@ class ToolGroup(QWidget):
             icon_size = AppStyles.toolbar_icon_size()
             btn.setFixedSize(btn_size, btn_size)
             btn.setIconSize(QSize(icon_size, icon_size))
+            btn.setStyleSheet(AppStyles.toolbar_btn_style())
             btn.clicked.connect(lambda checked, name=tool.name: self.tool_clicked.emit(name))
-            btn.setStyleSheet(f"""
-                QToolButton {{
-                    background-color: transparent;
-                    border: none;
-                    border-radius: 6px;
-                }}
-                QToolButton:hover {{
-                    background-color: {P["BG_ELEVATED"]};
-                }}
-                QToolButton:pressed {{
-                    background-color: {P["BG_PANEL"]};
-                }}
-            """)
             layout.addWidget(btn)
 
         # ── Separador decorativo ──

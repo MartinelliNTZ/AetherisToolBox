@@ -204,6 +204,7 @@ O estilo visual do dropdown (QMenu) está centralizado em `resources/styles/AppS
 | `AppStyles.menu_dropdown_style()` | Estilo do `QMenu` (dropdown suspenso) com hover dourado |
 | `AppStyles.toolbar_icon_size()` | Tamanho do ícone na toolbar (px) — obtido do tema via `TOOLBAR_ICON_SIZE` |
 | `AppStyles.toolbar_btn_size()` | Tamanho do botão na toolbar (px) — obtido do tema via `TOOLBAR_BTN_SIZE` |
+| `AppStyles.toolbar_btn_border_radius()` | Border-radius do botão da toolbar (px) — obtido do tema via `BORDER_RADIUS_TOOLBAR_BTN` |
 
 O `menu_dropdown_style()` é aplicado **diretamente em cada QMenu** via `BaseMenuItem.build_menu()` porque o QMenu é um popup independente que não herda stylesheet do pai.
 
