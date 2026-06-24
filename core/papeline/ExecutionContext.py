@@ -84,6 +84,11 @@ class ExecutionContext:
         self._errors.clear()
         self._is_cancelled = False
 
+    @property
+    def data(self) -> dict:
+        """Retorna o dicionário interno de dados (compatibilidade com código legado)."""
+        return self._data
+
     def __repr__(self) -> str:
         return (
             f"<ExecutionContext "

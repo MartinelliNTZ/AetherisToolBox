@@ -86,8 +86,8 @@ class IdwInterpolatorPlugin(BasePlugin):
             parent=parent,
             title="Interpolação IDW",
         )
-        self._build_ui()
-        self.load_prefs()
+        #self._build_ui()
+        #self.load_prefs()
         self.logger.info("Ferramenta inicializada", code="IDW_READY")
 
     # ══════════════════════════════════════════════════════════════════
