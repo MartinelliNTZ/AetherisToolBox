@@ -125,6 +125,7 @@ class ZeroGrausTheme(BaseTheme):
     ICON_MD = 20
     ICON_LG = 24
     ICON_XL = 32
+    TOOLBAR_ICON_SIZE = 20
 
     # ═══════════════════════════════════════════════════════════════════
     # 9. ANIMATION
@@ -233,6 +234,7 @@ class ZeroGrausTheme(BaseTheme):
     TITLE_BTN_FONT_SIZE = 11
     GROUP_MARGIN_TOP = 8
     SPLITTER_HANDLE_WIDTH = 4
+    TOOLBAR_BTN_SIZE = 32
 
     # ═══════════════════════════════════════════════════════════════════
     # 18. SPECIFICS — Border Radius (mapeados dos RADIUS semânticos)

@@ -57,7 +57,7 @@ Classe base abstrata que define **todos os tokens semânticos** do sistema. Cada
 | 5 | **SHADOW** | `SHADOW_*` | Sombras por tamanho | `SHADOW_SM`, `SHADOW_MD`, `SHADOW_LG`, `SHADOW_XL` |
 | 6 | **RADIUS** | `RADIUS_*` | Escala global de cantos arredondados | `RADIUS_XS`(2) a `RADIUS_XL`(16), `RADIUS_FULL` |
 | 7 | **SPACE** | `SPACE_*` | Escala global de espaçamento | `SPACE_XXS`(2) a `SPACE_3XL`(48) |
-| 8 | **ICON** | `ICON_*` | Tamanhos de ícone | `ICON_XS`(12) a `ICON_XL`(32) |
+| 8 | **ICON** | `ICON_*` | Tamanhos de ícone | `ICON_XS`(12) a `ICON_XL`(32), `TOOLBAR_ICON_SIZE`(20) |
 | 9 | **ANIMATION** | `ANIMATION_*` | Durações de animação (ms) | `ANIMATION_FAST`(120), `ANIMATION_SLOW`(260) |
 | 10 | **OPACITY** | `OPACITY_*` | Níveis de opacidade | `OPACITY_DISABLED`(0.35), `OPACITY_ACTIVE`(1.0) |
 | 11 | **LAYOUT** | `*` | Layout global | `PAGE_PADDING`, `SECTION_GAP`, `GRID_GAP` |
@@ -66,7 +66,7 @@ Classe base abstrata que define **todos os tokens semânticos** do sistema. Cada
 | 14 | **FOCUS_RING** | `FOCUS_RING_*` | Anel de foco visual | `FOCUS_RING_COLOR`, `FOCUS_RING_WIDTH` |
 | 15 | **STATUS** | `COLOR_*` | Cores de estado semântico | `COLOR_SUCCESS`, `COLOR_WARNING`, `COLOR_DANGER`, `COLOR_INFO` |
 | 16 | **FONT** | `FONT_*` | Tipografia | `FONT_FAMILY_DEFAULT`, `FONT_SIZE_NORMAL`, `FONT_WEIGHT_BOLD` |
-| 17 | **DIMENSIONS** | `*` | Alturas e tamanhos de widgets | `INPUT_HEIGHT`, `BUTTON_HEIGHT`, `SCROLLBAR_WIDTH` |
+| 17 | **DIMENSIONS** | `*` | Alturas e tamanhos de widgets | `INPUT_HEIGHT`, `BUTTON_HEIGHT`, `SCROLLBAR_WIDTH`, `TOOLBAR_BTN_SIZE` |
 | 18 | **SPECIFICS** | `BORDER_RADIUS_*`, `*_PADDING`, etc. | Tokens específicos de implementação | `BORDER_RADIUS_CARD`, `BADGE_PADDING_V`, `MENU_PADDING` |
 
 **Aliases de compatibilidade retroativa** (mapeiam nomes antigos → tokens semânticos):

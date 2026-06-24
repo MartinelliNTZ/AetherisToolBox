@@ -196,14 +196,21 @@ root_layout.addWidget(manager.toolbar_widget)
 
 ## 🎨 Estilos
 
-O estilo visual do dropdown (QMenu) está centralizado em `resources/styles/styles.py`:
+O estilo visual do dropdown (QMenu) está centralizado em `resources/styles/AppStyles.py`:
 
 | Método | Descrição |
 |---|---|
 | `AppStyles.menu_bar_style()` | Estilo da `QMenuBar` (tabs + barra) |
 | `AppStyles.menu_dropdown_style()` | Estilo do `QMenu` (dropdown suspenso) com hover dourado |
+| `AppStyles.toolbar_icon_size()` | Tamanho do ícone na toolbar (px) — obtido do tema via `TOOLBAR_ICON_SIZE` |
+| `AppStyles.toolbar_btn_size()` | Tamanho do botão na toolbar (px) — obtido do tema via `TOOLBAR_BTN_SIZE` |
 
 O `menu_dropdown_style()` é aplicado **diretamente em cada QMenu** via `BaseMenuItem.build_menu()` porque o QMenu é um popup independente que não herda stylesheet do pai.
+
+Os tamanhos de ícone e botão da toolbar (`AppStyles.toolbar_icon_size()` e `AppStyles.toolbar_btn_size()`) são lidos dos tokens semânticos do tema ativo, garantindo que cada tema possa definir seu próprio tamanho de toolbar. Atualmente:
+- **DarkCharcoalTheme**: ícone 20px, botão 32px
+- **ZeroGrausTheme**: ícone 20px, botão 32px
+- **BlueTheme**: ícone 22px, botão 36px
 
 ---
 

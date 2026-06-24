@@ -180,10 +180,11 @@ class BaseTheme:
     # ═══════════════════════════════════════════════════════════════════
     # 8. ICON — Tamanhos de ícone (pixels)
     #    ICON_XS → 12px (tiny indicator)
-    #    ICON_SM → 16px (toolbar, menu item)
+    #    ICON_SM → 16px (menu item)
     #    ICON_MD → 20px (botão padrão)
     #    ICON_LG → 24px (seção, header)
     #    ICON_XL → 32px (featured, empty state)
+    #    TOOLBAR_ICON_SIZE → tamanho do ícone na toolbar (ex: 20px)
     # ═══════════════════════════════════════════════════════════════════
 
     ICON_XS: int = 0
@@ -191,6 +192,7 @@ class BaseTheme:
     ICON_MD: int = 0
     ICON_LG: int = 0
     ICON_XL: int = 0
+    TOOLBAR_ICON_SIZE: int = 0
 
     # ═══════════════════════════════════════════════════════════════════
     # 9. ANIMATION — Durações de animação (ms) + easing
@@ -323,6 +325,7 @@ class BaseTheme:
     TITLE_BTN_HEIGHT: int = 0
     TITLE_BTN_WIDTH: int = 0
     TITLE_BTN_FONT_SIZE: int = 0
+    TOOLBAR_BTN_SIZE: int = 0
     GROUP_MARGIN_TOP: int = 0
     SPLITTER_HANDLE_WIDTH: int = 0
 

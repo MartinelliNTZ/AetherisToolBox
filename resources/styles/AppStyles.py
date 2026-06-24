@@ -619,3 +619,17 @@ class AppStyles(BaseStyle):
             f"  color: {t.TEXT_MEDIUM};"
             f"}}"
         )
+
+    # ────────────────────────────────────────────────────────────────────
+    # TOOLBAR (tamanhos de ícones e botões)
+    # ────────────────────────────────────────────────────────────────────
+
+    @classmethod
+    def toolbar_icon_size(cls) -> int:
+        """Tamanho do ícone na toolbar (px)."""
+        return ct.theme.TOOLBAR_ICON_SIZE
+
+    @classmethod
+    def toolbar_btn_size(cls) -> int:
+        """Tamanho do botão na toolbar (px)."""
+        return ct.theme.TOOLBAR_BTN_SIZE

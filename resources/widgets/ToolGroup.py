@@ -49,8 +49,10 @@ class ToolGroup(QWidget):
             btn.setObjectName("toolgroup_btn")
             btn.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
-            btn.setFixedSize(32, 32)
-            btn.setIconSize(QSize(20, 20))
+            btn_size = AppStyles.toolbar_btn_size()
+            icon_size = AppStyles.toolbar_icon_size()
+            btn.setFixedSize(btn_size, btn_size)
+            btn.setIconSize(QSize(icon_size, icon_size))
             btn.clicked.connect(lambda checked, name=tool.name: self.tool_clicked.emit(name))
             btn.setStyleSheet(f"""
                 QToolButton {{
