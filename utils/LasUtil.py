@@ -397,6 +397,145 @@ class LasUtil(BaseUtil):
         return os.path.join(dir_origem, f"{basename}{suffix}{ext}")
 
     # ══════════════════════════════════════════════════════════════════
+    # API — Extração de Arrays para Interpolação
+    # ══════════════════════════════════════════════════════════════════
+
+    @staticmethod
+    def extract_point_arrays(
+        path: str,
+        bands: dict,
+        tool_key: str = ToolKey.UNTRACEABLE.value,
+    ) -> dict:
+        """
+        Extrai arrays de coordenadas do LAS conforme bandas solicitadas.
+
+        Args:
+            path: Caminho do arquivo LAS/LAZ.
+            bands: Dict {"r": bool, "g": bool, "b": bool, "z": bool}.
+            tool_key: ToolKey para logging.
+
+        Returns:
+            {
+                "x": np.ndarray,
+                "y": np.ndarray,
+                "z": np.ndarray | None,
+                "red": np.ndarray | None,
+                "green": np.ndarray | None,
+                "blue": np.ndarray | None,
+                "n_points": int,
+            }
+        """
+        logger = BaseUtil._get_logger(tool_key, "LasUtil")
+        logger.info("Extraindo arrays do LAS", code="LAS_EXTRACT_ARRAYS", path=path)
+
+        las = laspy.read(path)
+        n_total = len(las.points)
+
+        result = {
+            "x": np.asarray(las.x, dtype=np.float64),
+            "y": np.asarray(las.y, dtype=np.float64),
+            "z": None,
+            "red": None,
+            "green": None,
+            "blue": None,
+            "n_points": n_total,
+        }
+
+        if bands.get("z", False):
+            result["z"] = np.asarray(las.z, dtype=np.float64)
+
+        if bands.get("r", False) and hasattr(las, "red"):
+            red_raw = np.asarray(las.red, dtype=np.float64)
+            result["red"] = (red_raw / 256 if np.max(red_raw) > 255 else red_raw).astype(np.uint8)
+
+        if bands.get("g", False) and hasattr(las, "green"):
+            green_raw = np.asarray(las.green, dtype=np.float64)
+            result["green"] = (green_raw / 256 if np.max(green_raw) > 255 else green_raw).astype(np.uint8)
+
+        if bands.get("b", False) and hasattr(las, "blue"):
+            blue_raw = np.asarray(las.blue, dtype=np.float64)
+            result["blue"] = (blue_raw / 256 if np.max(blue_raw) > 255 else blue_raw).astype(np.uint8)
+
+        logger.info(
+            "Arrays extraidos",
+            code="LAS_EXTRACT_ARRAYS_DONE",
+            n_points=n_total,
+            has_r=result["red"] is not None,
+            has_g=result["green"] is not None,
+            has_b=result["blue"] is not None,
+            has_z=result["z"] is not None,
+        )
+        return result
+
+    @staticmethod
+    def calcular_pixel_ideal(
+        path: str,
+        fator_conversao: float = 0.75,
+        tool_key: str = ToolKey.UNTRACEABLE.value,
+    ) -> dict:
+        """
+        Calcula pixel ideal baseado na densidade da nuvem.
+
+        Args:
+            path: Caminho do arquivo LAS/LAZ.
+            fator_conversao: Multiplicador do espacamento (default 0.75).
+            tool_key: ToolKey para logging.
+
+        Returns:
+            {
+                "n_pontos": int,
+                "area_bbox_m2": float,
+                "densidade_pts_m2": float,
+                "espacamento_m": float,
+                "espacamento_cm": float,
+                "pixel_ideal_m": float,
+                "pixel_ideal_cm": float,
+                "bbox": {...},
+            }
+        """
+        logger = BaseUtil._get_logger(tool_key, "LasUtil")
+        logger.info("Calculando pixel ideal", code="LAS_PIXEL_IDEAL", path=path)
+
+        info = LasUtil.get_info(path, tool_key=tool_key)
+        n_pontos = info.get("point_count", 0)
+        if n_pontos == 0:
+            logger.warning("LAS vazio — pixel ideal nao calculado", code="LAS_PIXEL_EMPTY")
+            return {}
+
+        bbox = LasUtil.get_bounding_box(path, tool_key=tool_key)
+        if not bbox:
+            return {}
+
+        area = (bbox["x_max"] - bbox["x_min"]) * (bbox["y_max"] - bbox["y_min"])
+        if area <= 0:
+            logger.warning("Area bbox zero", code="LAS_PIXEL_AREA_ZERO")
+            return {}
+
+        densidade = n_pontos / area
+        espacamento_m = 1.0 / (densidade ** 0.5)
+        pixel_ideal_m = max(espacamento_m * fator_conversao, 0.01)
+        pixel_ideal_cm = pixel_ideal_m * 100
+
+        result = {
+            "n_pontos": n_pontos,
+            "area_bbox_m2": round(area, 4),
+            "densidade_pts_m2": round(densidade, 4),
+            "espacamento_m": round(espacamento_m, 6),
+            "espacamento_cm": round(espacamento_m * 100, 2),
+            "pixel_ideal_m": round(pixel_ideal_m, 6),
+            "pixel_ideal_cm": round(pixel_ideal_cm, 2),
+            "bbox": bbox,
+        }
+
+        logger.info(
+            "Pixel ideal calculado",
+            code="LAS_PIXEL_DONE",
+            pixel_cm=pixel_ideal_cm,
+            densidade=densidade,
+        )
+        return result
+
+    # ══════════════════════════════════════════════════════════════════
     # API — Extração de Coordenadas (PointBoundaryPlugin)
     # ══════════════════════════════════════════════════════════════════
 

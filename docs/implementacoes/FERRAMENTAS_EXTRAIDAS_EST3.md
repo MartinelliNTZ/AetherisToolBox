@@ -110,23 +110,47 @@ Gera o limite (boundary) de nuvens de pontos a partir de múltiplas fontes com v
 
 ---
 
-### 5. IdwInterpolatorPlugin — Interpolação IDW para Grade
-**Função alvo:** Geração de grid regular via IDW (Inverse Distance Weighting).
+### 5. IdwInterpolatorPlugin — Interpolação IDW para Grid (✅ IMPLEMENTADO)
+**Arquivo:** `plugins/idw_interpolator/IdwInterpolatorPlugin.py`
+**Step:** `plugins/idw_interpolator/IdwInterpolatorStep.py`
+**Task:** `plugins/idw_interpolator/IdwInterpolatorTask.py`
+**Utils:** `utils/raster/InterpolatorUtils.py`
 
-**Descrição:**
-- Interpola pontos LAS (R, G, B) em grid regular usando IDW com cKDTree
-- Suporta processamento paralelo via `joblib.Parallel`
+Interpola nuvem LAS/LAZ em grid regular via IDW (Inverse Distance Weighting).
+
+**Funcionalidades:**
+- **GridCheckBox** para selecionar bandas alvo: R, G, B, Altura (Z) — checkboxes individuais
+- **GridCheckBox** "Separar Bandas?" (default false) — bandas individuais ou mosaico RGB/RGBZ
+- **Botão "Calcular Pixel Ideal"** — calcula `1/sqrt(densidade)` e carrega no GridDoubleSpinBox
+- **GridDoubleSpinBox** com parâmetros: resolução (cm), fator conversão, k, power, raio_max, overlap, pontos_por_tile
+- **ExecutionButtons** padronizado: PIXEL IDEAL, EXECUTAR, CANCELAR
+- PipelineRunner + IdwInterpolatorStep + IdwInterpolatorTask em background
+- Processamento paralelo via `joblib.Parallel` com tiles
 - Retomada automática (pula tiles já processados)
+- Tiles salvos em pasta temporária (`ExplorerUtils.get_plugin_config_dir`)
+- Mescla de bandas em paralelo (bandas independentes)
+- Montagem final via `RasterLayerProcessing.compose_multiband_raster()`
+- Metadados JSON com parâmetros, grid, tiles e arquivos gerados
+- Progresso via HUD + ProgressBar + Console
+- `load_prefs()` / `save_prefs()` completos
 
-**Parâmetros:**
-| Parâmetro | Default | Descrição |
-|-----------|---------|-----------|
-| `k` | 5 | Número de vizinhos mais próximos |
-| `power` | 2.0 | Expoente da distância (inverso quadrático) |
-| `raio_max` | 0.50 m | Raio máximo de busca |
-| `resolucao` | *pixel ideal* | Resolução do grid de saída |
+**Métodos adicionados ao LasUtil:**
+- `extract_point_arrays()` — extrai arrays (x, y, z, r, g, b) conforme bandas
+- `calcular_pixel_ideal()` — cálculo do pixel ideal por densidade
 
-**Código fonte EST3:** Função `_idw_tile_para_disco()` e classe `_calcular_tiles_por_densidade()`.
+**Utils criados:**
+- `InterpolatorUtils.idw_tile_para_disco()` — implementação principal IDW
+- `InterpolatorUtils.calcular_tiles_por_densidade()` — gradeamento por pontos/tile
+- `InterpolatorUtils.mesclar_banda()` — merge de tiles via memmap
+- `InterpolatorUtils.salvar_tile_tif()` — escrita GeoTIFF com BIGTIFF=YES
+
+**Contratos seguidos:**
+- Contrato 11: widgets reutilizáveis (GridCheckBox, GridDoubleSpinBox, etc.)
+- Contrato 18: ExecutionButtons padronizado
+- Contrato 20: SignalManager para progresso/console
+- Contrato 25: LasUtil para leitura LAS, não importa laspy/rasterio diretamente
+
+**Plano:** `docs/plans/PLAN_IDW_INTERPOLATOR.md`
 
 ---
 

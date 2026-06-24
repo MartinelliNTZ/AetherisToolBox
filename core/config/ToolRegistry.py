@@ -258,6 +258,18 @@ class ToolRegistry:
             category=CategoryTool.CENTRAL,
             show_in_toolbar=True,
         ),
+        ToolKey.IDW_INTERPOLATOR.value: Tool(
+            name=ToolKey.IDW_INTERPOLATOR.value,
+            title="Interpolação IDW",
+            widget_factory=_make_factory(
+                "plugins.idw_interpolator.IdwInterpolatorPlugin",
+                "IdwInterpolatorPlugin",
+            ),
+            tooltip="Interpola nuvem LAS/LAZ em grid regular via IDW (RGB e/ou Altura)",
+            tool_type=ToolType.POINTS,
+            category=CategoryTool.CENTRAL,
+            show_in_toolbar=True,
+        ),
     }
 
     def register_default_tools(self) -> None:

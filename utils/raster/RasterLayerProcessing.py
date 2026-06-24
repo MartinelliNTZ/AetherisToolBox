@@ -83,22 +83,128 @@ class RasterLayerProcessing(BaseUtil):
         tool_key: str = ToolKey.UNTRACEABLE.value,
     ) -> str:
         """
-        Compoe multiplos GeoTIFFs em raster multibanda.
+        Compõe múltiplos GeoTIFFs single-band em um raster multibanda.
+
+        Usado pelo IdwInterpolatorPlugin para gerar:
+        - mosaico_rgb.tif (3 bandas: R, G, B)
+        - mosaico_rgbz.tif (4 bandas: R, G, B, Z)
+
+        Compressão LZW, tiled 512x512, BIGTIFF=YES.
+        Chunked processing (2048 linhas) para evitar estouro de RAM.
 
         Args:
-            band_files: Lista de caminhos das bandas
-            output_path: Caminho de saida (opcional)
-            create_alpha: Criar banda alpha
-            alpha_band_path: Caminho da mascara alpha (se create_alpha)
-            creation_options: Opcoes GDAL extras
-            tool_key: Chave da ferramenta para logging
+            band_files: Lista de caminhos das bandas individuais.
+            output_path: Caminho de saída do raster composto.
+            create_alpha: Se True, cria banda alpha (0/255) a partir do NoData.
+            alpha_band_path: Caminho da mascara alpha (se create_alpha=True).
+            creation_options: Opcoes GDAL extras (string, ignorado por enquanto).
+            tool_key: Chave da ferramenta para logging.
 
         Returns:
-            Caminho do raster composto.
+            Caminho do raster composto, ou string vazia se erro.
         """
+        import rasterio
+        from rasterio.windows import Window
+        import numpy as np
+        import os
+
         logger = BaseUtil._get_logger(tool_key, "RasterLayerProcessing")
-        logger.info("compose_multiband_raster chamado — stub", code="RASTER_PROC_STUB")
-        return output_path or ""
+
+        if not band_files:
+            logger.error("Nenhuma banda fornecida", code="RASTER_COMPOSE_NO_BANDS")
+            return ""
+
+        if not output_path:
+            logger.error("Nenhum caminho de saida", code="RASTER_COMPOSE_NO_OUTPUT")
+            return ""
+
+        logger.info(
+            "Compondo raster multibanda",
+            code="RASTER_COMPOSE_START",
+            n_bands=len(band_files),
+            output=output_path,
+        )
+
+        try:
+            # Abre primeira banda para obter metadados
+            with rasterio.open(band_files[0]) as src_first:
+                height = src_first.height
+                width = src_first.width
+                transform = src_first.transform
+                crs = src_first.crs
+                dtype = src_first.dtypes[0]
+
+            n_bands = len(band_files)
+            if create_alpha and alpha_band_path:
+                n_bands += 1
+
+            meta = {
+                "driver": "GTiff",
+                "height": height,
+                "width": width,
+                "count": n_bands,
+                "dtype": dtype,
+                "crs": crs,
+                "transform": transform,
+                "compress": "lzw",
+                "predictor": 2,
+                "tiled": True,
+                "blockxsize": 512,
+                "blockysize": 512,
+                "BIGTIFF": "YES",
+            }
+
+            # Se 3 bandas RGB, define photometric
+            if len(band_files) == 3 and not create_alpha:
+                meta["photometric"] = "RGB"
+            elif len(band_files) == 4 and not create_alpha:
+                # R+G+B+Z — sem photometric específico
+                pass
+
+            os.makedirs(os.path.dirname(output_path), exist_ok=True)
+
+            with rasterio.open(output_path, "w", **meta) as dst:
+                chunk_linhas = 2048
+                for banda_idx, bf in enumerate(band_files, start=1):
+                    logger.debug(
+                        f"Escrevendo banda {banda_idx}/{len(band_files)}",
+                        code="RASTER_COMPOSE_BAND",
+                        file=bf,
+                    )
+                    with rasterio.open(bf) as src_band:
+                        for rs in range(0, height, chunk_linhas):
+                            re = min(rs + chunk_linhas, height)
+                            win = Window(0, rs, width, re - rs)
+                            data = src_band.read(1, window=win)
+                            dst.write(data, banda_idx, window=win)
+
+                # Banda alpha opcional
+                if create_alpha and alpha_band_path:
+                    logger.debug("Escrevendo banda alpha", code="RASTER_COMPOSE_ALPHA")
+                    with rasterio.open(alpha_band_path) as src_alpha:
+                        for rs in range(0, height, chunk_linhas):
+                            re = min(rs + chunk_linhas, height)
+                            win = Window(0, rs, width, re - rs)
+                            alpha = src_alpha.read(1, window=win)
+                            dst.write(alpha, n_bands, window=win)
+
+            sz = os.path.getsize(output_path) / 1e6
+            logger.info(
+                "Raster multibanda composto",
+                code="RASTER_COMPOSE_DONE",
+                output=output_path,
+                size_mb=round(sz, 1),
+                n_bands=n_bands,
+            )
+            return output_path
+
+        except Exception as e:
+            logger.error(
+                "Erro ao compor raster multibanda",
+                code="RASTER_COMPOSE_ERR",
+                error=str(e),
+            )
+            return ""
 
     @staticmethod
     def apply_nodata_mask(
