@@ -55,6 +55,15 @@ class PipelineRunner(QThread):
     def engine(self) -> AsyncPipelineEngine | None:
         return self._engine
 
+    def cancel(self) -> None:
+        """
+        Cancela a execução da pipeline em andamento.
+        Delega para AsyncPipelineEngine.cancel() que faz cancelamento
+        cooperativo (marca flag + cancela task atual).
+        """
+        if self._engine is not None:
+            self._engine.cancel()
+
     def run(self) -> None:
         """Executa a pipeline em background thread."""
         ctx = ExecutionContext(self._context_data)
