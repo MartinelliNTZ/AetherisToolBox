@@ -41,8 +41,8 @@ from resources.widgets.GroupDiv import GroupDiv                          # ✅ c
 class MinhaFerramentaWidget(BasePlugin):
     def __init__(self, parent=None):
         super().__init__(tool_key="MinhaFerramenta", parent=parent)
-        self._build_ui()
-        self.load_prefs()
+        # ⚠️ NÃO chame self._build_ui() nem self.load_prefs() aqui!
+        # BasePlugin.__init__ já chama ambos automaticamente.
         self.logger.info("Ferramenta inicializada com sucesso!", code="TOOL_READY")
 
     def _build_ui(self):

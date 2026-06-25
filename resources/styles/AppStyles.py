@@ -619,3 +619,40 @@ class AppStyles(BaseStyle):
             f"  color: {t.TEXT_MEDIUM};"
             f"}}"
         )
+
+    # ────────────────────────────────────────────────────────────────────
+    # TOOLBAR (tamanhos de ícones e botões)
+    # ────────────────────────────────────────────────────────────────────
+
+    @classmethod
+    def toolbar_icon_size(cls) -> int:
+        """Tamanho do ícone na toolbar (px)."""
+        return ct.theme.TOOLBAR_ICON_SIZE
+
+    @classmethod
+    def toolbar_btn_size(cls) -> int:
+        """Tamanho do botão na toolbar (px)."""
+        return ct.theme.TOOLBAR_BTN_SIZE
+
+    @classmethod
+    def toolbar_btn_border_radius(cls) -> int:
+        """Border-radius do botão da toolbar (px). Usa BORDER_RADIUS_TOOLBAR_BTN do tema."""
+        return ct.theme.BORDER_RADIUS_TOOLBAR_BTN
+
+    @classmethod
+    def toolbar_btn_style(cls) -> str:
+        """QSS completo para botão da toolbar. Zero hardcoded — tudo do tema."""
+        t = ct.theme
+        return (
+            f"QToolButton {{"
+            f"  background-color: transparent;"
+            f"  border: none;"
+            f"  border-radius: {t.BORDER_RADIUS_TOOLBAR_BTN}px;"
+            f"}}"
+            f"QToolButton:hover {{"
+            f"  background-color: {t.SURFACE_4};"
+            f"}}"
+            f"QToolButton:pressed {{"
+            f"  background-color: {t.SURFACE_2};"
+            f"}}"
+        )

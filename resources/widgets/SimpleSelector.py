@@ -11,6 +11,11 @@ O botão 📂 (suggested_path) funciona da seguinte forma:
   - Quando o botão 📂 é clicado, o SimpleSelector busca o root_folder
     do projeto ativo via ProjectUtil.get_root_folder()
   - Concatena root_folder + path_relativo e insere no QLineEdit
+
+Callbacks (atributos públicos, sobrescreva para conectar lógica externa):
+    selector.on_path_change = meu_callback    # recebe (new_path)
+    selector.on_browse_click = meu_callback   # recebe ()
+    selector.on_suggest_click = meu_callback  # recebe ()
 """
 
 from __future__ import annotations
@@ -47,6 +52,11 @@ class SimpleSelector(QWidget):
                              browse_mode="open_file")
         sel.path()  # retorna o caminho atual
         layout.addWidget(sel)
+
+        # Callbacks opcionais
+        sel.on_path_change = self._quando_path_mudar
+        sel.on_browse_click = self._quando_browse
+        sel.on_suggest_click = self._quando_suggest
     """
 
     def __init__(
@@ -65,10 +75,15 @@ class SimpleSelector(QWidget):
 
         self._file_filter = file_filter
         self._browse_mode = browse_mode
-        self._suggested_rel_path: str = ""  # path relativo recebido do plugin
+        self._suggested_rel_path: str = ""
 
         # Logger para rastreio
         self._logger = LogUtils(tool="SimpleSelector", class_name="SimpleSelector")
+
+        # Callbacks públicos — plugin pode sobrescrever
+        self.on_path_change = None    # callback(new_path)
+        self.on_browse_click = None   # callback()
+        self.on_suggest_click = None  # callback()
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -88,6 +103,9 @@ class SimpleSelector(QWidget):
             self.edit.setToolTip(tooltip)
         layout.addWidget(self.edit, 1)
 
+        # Conecta log + callback no textChanged
+        self.edit.textChanged.connect(self._on_text_changed)
+
         # ── Botão "..." (selecionar) ──
         self.btn = SimpleSecondaryButton("...")
         self.btn.setFixedWidth(30)
@@ -96,8 +114,6 @@ class SimpleSelector(QWidget):
         layout.addWidget(self.btn)
 
         # ── Botão de Caminho Padrão (depois do "...") ──
-        # Sempre criado e sempre conectado ao callback.
-        # Invisível por padrão — fica visível quando set_suggested_path() for chamado.
         self._btn_suggest = SimpleSecondaryButton("📂")
         self._btn_suggest.setFixedWidth(30)
         self._btn_suggest.setVisible(bool(suggested_path))
@@ -117,11 +133,26 @@ class SimpleSelector(QWidget):
             )
         layout.addWidget(self._btn_suggest)
 
+    # ── Handlers internos (log + callback externo) ─────────────────────
+
+    def _on_text_changed(self, text: str):
+        """Loga mudança de path e chama callback externo se existir."""
+        self._logger.info(
+            f"path alterado: \"{text[:100]}\"",
+            code="PATH_CHANGED",
+        )
+        if self.on_path_change:
+            self.on_path_change(text)
+
     # ── Lógica do seletor ─────────────────────────────────────────────
 
     def _browse(self):
         current = self.edit.text().strip()
         initial_dir = ExplorerUtils.resolve_initial_dir(current)
+
+        self._logger.info("botão '...' clicado", code="BROWSE_CLICKED")
+        if self.on_browse_click:
+            self.on_browse_click()
 
         if self._browse_mode == "save_file":
             path = ExplorerUtils.save_file(
@@ -162,9 +193,11 @@ class SimpleSelector(QWidget):
         Busca o root_folder do projeto ativo e concatena com o path relativo.
         """
         self._logger.info(
-            f"Botão 📂 clicado. Path relativo: {self._suggested_rel_path}",
+            f"botão '📂' clicado. Path relativo: {self._suggested_rel_path}",
             code="SUGGEST_CLICKED",
         )
+        if self.on_suggest_click:
+            self.on_suggest_click()
 
         if not self._suggested_rel_path:
             self._logger.warning(

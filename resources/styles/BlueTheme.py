@@ -24,12 +24,13 @@ from __future__ import annotations
 from resources.styles.BaseTheme import BaseTheme
 
 
-class BlueTheme(BaseTheme):# Ajustes principais em relação à versão anterior:
-# - Paleta mais clara e vibrante (azuis luminosos)
-# - Menos padding
-# - Heights mais compactos
-# - Border radius moderado
-# - Visual mais próximo do dashboard da referência
+class BlueTheme(BaseTheme):
+    # Ajustes principais em relação à versão anterior:
+    # - Paleta mais clara e vibrante (azuis luminosos)
+    # - Menos padding
+    # - Heights mais compactos
+    # - Border radius moderado
+    # - Visual mais próximo do dashboard da referência
 
 
     # ==========================================================
@@ -114,6 +115,80 @@ class BlueTheme(BaseTheme):# Ajustes principais em relação à versão anterior
     SPACE_3XL = 40
 
     # ==========================================================
+    # ICON — Tamanhos de ícone (pixels)
+    # ==========================================================
+    ICON_XS = 12
+    ICON_SM = 16
+    ICON_MD = 20
+    ICON_LG = 24
+    ICON_XL = 32
+    TOOLBAR_ICON_SIZE = 22
+
+    # ==========================================================
+    # ANIMATION
+    # ==========================================================
+    ANIMATION_FAST = 120
+    ANIMATION_NORMAL = 180
+    ANIMATION_SLOW = 260
+    EASING_STANDARD = "cubic-bezier(0.4, 0, 0.2, 1)"
+
+    # ==========================================================
+    # OPACITY
+    # ==========================================================
+    OPACITY_DISABLED = 0.35
+    OPACITY_MUTED = 0.60
+    OPACITY_HOVER = 0.85
+    OPACITY_ACTIVE = 1.0
+
+    # ==========================================================
+    # LAYOUT
+    # ==========================================================
+    PAGE_PADDING = 18
+    SECTION_GAP = 18
+    GRID_GAP = 14
+    CONTENT_MAX_WIDTH = 1600
+
+    # ==========================================================
+    # ELEVATION
+    # ==========================================================
+    ELEVATION_FLAT = 0
+    ELEVATION_LOW = 1
+    ELEVATION_MEDIUM = 2
+    ELEVATION_HIGH = 3
+
+    # ==========================================================
+    # OVERLAY / Glass
+    # ==========================================================
+    OVERLAY_BG = "rgba(0, 0, 0, 0.60)"
+    BACKDROP_BLUR = "6px"
+
+    # ==========================================================
+    # FOCUS_RING
+    # ==========================================================
+    FOCUS_RING_COLOR = "#1EA7FF"
+    FOCUS_RING_WIDTH = "2px"
+    FOCUS_RING_OFFSET = "1px"
+
+    # ==========================================================
+    # STATUS
+    # ==========================================================
+    COLOR_SUCCESS = "#22C55E"
+    COLOR_SUCCESS_HOVER = "#34D399"
+    COLOR_SUCCESS_DIM = "#14532D"
+
+    COLOR_WARNING = "#F59E0B"
+    COLOR_WARNING_HOVER = "#FBBF24"
+    COLOR_WARNING_DIM = "#78350F"
+
+    COLOR_DANGER = "#EF4444"
+    COLOR_DANGER_HOVER = "#F87171"
+    COLOR_DANGER_DIM = "#7F1D1D"
+
+    COLOR_INFO = "#38BDF8"
+    COLOR_INFO_HOVER = "#7DD3FC"
+    COLOR_INFO_DIM = "#0C4A6E"
+
+    # ==========================================================
     # FONT
     # ==========================================================
     FONT_FAMILY_DEFAULT = "'Segoe UI', 'Inter', sans-serif"
@@ -150,33 +225,7 @@ class BlueTheme(BaseTheme):# Ajustes principais em relação à versão anterior
     TITLE_BTN_FONT_SIZE = 13
     GROUP_MARGIN_TOP = 14
     SPLITTER_HANDLE_WIDTH = 3
-
-    # ==========================================================
-    # LAYOUT
-    # ==========================================================
-    PAGE_PADDING = 18
-    SECTION_GAP = 18
-    GRID_GAP = 14
-    CONTENT_MAX_WIDTH = 1600
-
-    # ==========================================================
-    # STATUS
-    # ==========================================================
-    COLOR_SUCCESS = "#22C55E"
-    COLOR_SUCCESS_HOVER = "#34D399"
-    COLOR_SUCCESS_DIM = "#14532D"
-
-    COLOR_WARNING = "#F59E0B"
-    COLOR_WARNING_HOVER = "#FBBF24"
-    COLOR_WARNING_DIM = "#78350F"
-
-    COLOR_DANGER = "#EF4444"
-    COLOR_DANGER_HOVER = "#F87171"
-    COLOR_DANGER_DIM = "#7F1D1D"
-
-    COLOR_INFO = "#38BDF8"
-    COLOR_INFO_HOVER = "#7DD3FC"
-    COLOR_INFO_DIM = "#0C4A6E"
+    TOOLBAR_BTN_SIZE = 36
 
     # ==========================================================
     # SPECIFIC RADII
@@ -204,7 +253,7 @@ class BlueTheme(BaseTheme):# Ajustes principais em relação à versão anterior
     MENUBAR_ITEM_BORDER_RADIUS = "6px"
 
     # ==========================================================
-    # PADDINGS
+    # PADDINGS / SPECIFICS
     # ==========================================================
     BADGE_PADDING_V = "2px"
     BADGE_PADDING_H = "8px"
