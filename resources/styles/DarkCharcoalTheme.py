@@ -119,7 +119,7 @@ class DarkCharcoalTheme(BaseTheme):
     ICON_MD = 20
     ICON_LG = 24
     ICON_XL = 32
-    TOOLBAR_ICON_SIZE = 48
+    TOOLBAR_ICON_SIZE = 256
 
     # ═══════════════════════════════════════════════════════════════════
     # 9. ANIMATION
