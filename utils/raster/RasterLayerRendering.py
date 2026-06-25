@@ -5,7 +5,7 @@ RasterLayerRendering — Simbologia e visualizacao de rasters (estilo QML)
 Responsavel pela simbologia e visualizacao de rasters: estilo QML,
 rampas de cor, transparencia, percentis.
 
-Uso:
+Uso:f
     from utils.raster.RasterLayerRendering import RasterLayerRendering
     result = RasterLayerRendering.generate_percentil_multiband_style(
         raster_path="mosaico.tif", band_indices=[1,2,3], tool_key=...
