@@ -8,7 +8,7 @@ Implementar um sistema de governança de memória RAM para evitar que processos 
 
 ```
 core/governor/
-├── __init__.py                 — Exporta ResourceGovernor, RamGovernor, RamLimitPolicy
+├── __init__.py                 — Exporta ResourceGovernor, RamGovernor, RamLimitPolicy nao use init para importar pq fica propenso a circular import
 ├── RamLimitPolicy.py           — Estratégias de limite (90% global, 50% dedicado)
 ├── RamGovernor.py              — Monitoramento de RAM (psutil)
 └── ResourceGovernor.py         — Orquestrador principal (consulta + decisão)
@@ -43,15 +43,16 @@ class RamGovernor:
 ```
 
 **Métodos auxiliares:**
-- `format_bytes(bytes) -> str` — exibição legível (KB, MB, GB)
 - `percent_used() -> float` — % de RAM do sistema em uso
 - `percent_process() -> float` — % de RAM do processo atual
+
+> **Nota:** Para formatação legível de bytes (KB, MB, GB), usar `FormatUtils.format_size()` do `utils/FormatUtils.py` (Contrato 22). Não criar `format_bytes()` próprio.
 
 ### 2. `RamLimitPolicy` — Estratégias de Limite
 
 ```python
 class RamLimitMode(Enum):
-    GLOBAL_90 = "global_90"   # 90% do total, considerando todos os processos
+    GLOBAL_90 = "global_90"   # 90% do total, considerando todos os processos nao use 90 OU 50 pq se eu mudar esse valor no futuro vai perder legibilidade
     DEDICATED_50 = "dedicated_50"  # 50% do total, dedicado ao app
 
 class RamLimitPolicy:
@@ -174,7 +175,7 @@ Analisando o fluxo:
 | Bloquear execução se RAM insuficiente | Média |
 | Reduzir tile size dinamicamente baseado em RAM disponível | Média |
 | Logging estruturado de warnings de memória | Baixa |
-| HUD com indicador de memória (via SignalManager) | Média |
+| HUD com indicador de memória (via SignalManager) | Média | 
 | Estratégia configurável (90% global vs 50% dedicado) | Baixa |
 
 ### ❌ NÃO Realizável / Não Recomendado
@@ -202,10 +203,49 @@ core/governor/
 
 ---
 
+## ✅ Análise de Quebra de Contratos
+
+### Nenhum contrato existente é quebrado
+
+| Contrato | Análise |
+|----------|---------|
+| **C1** (QMessageBox) | ResourceGovernor não usa QMessageBox. Plugin usa `MessageBox`. ✅ |
+| **C2** (Tratamento exceções) | Todo except captura `as e` e loga. ✅ |
+| **C3** (Logger) | Usa `self.logger` do BasePlugin ou LogUtils. ✅ |
+| **C4** (Preferences) | Não instancia Preferences manualmente. ✅ |
+| **C5** (ToolRegistry) | Governor não registra tools. ✅ |
+| **C6** (Estrutura Plugin) | Governor não é plugin. ✅ |
+| **C7** (Sinais) | Governor não acopla plugins. Comunicação via SignalManager se necessário. ✅ |
+| **C8** (Dependências) | `psutil` já está em requirements.txt. Nenhuma nova dependência. ✅ |
+| **C9** (Código morto) | Todas as classes têm uso definido. ✅ |
+| **C10** (Categorias) | Governor não é tool. ✅ |
+| **C11** (Widgets) | Governor não tem UI. ✅ |
+| **C12** (Doc reflexiva) | Este plano já documenta. Skill `SKILL_ASYNC_PIPELINE.md` será atualizada. ✅ |
+| **C13** (ToolRegistry) | Governor não modifica tools. ✅ |
+| **C14** (MenuManager) | Governor não mexe em menu. ✅ |
+| **C15** (MenuCategory) | Governor não é tool. ✅ |
+| **C16** (WorkspaceManager) | Governor não mexe em workspace. ✅ |
+| **C17** (ExplorerUtils) | Governor não usa QFileDialog. ✅ |
+| **C18** (ExecutionButtons) | Governor não tem UI. ✅ |
+| **C19** (Estilos) | Governor não tem UI. ✅ |
+| **C20** (Progress/HUD) | Governor usa SignalManager para HUD se necessário. ✅ |
+| **C21** (JsonUtil) | Governor não cria JSONs temporários. ✅ |
+| **C22** (FormatUtils) | **Correção no plano**: `RamGovernor` NÃO terá `format_bytes()` próprio. Usará `FormatUtils.format_size()`. ✅ |
+| **C23** (Utils compartilhados) | Governor segue o padrão — cria novo pacote em `core/pipeline/governor/`. ✅ |
+| **C24** (SignalManager) | Governor só usa SignalManager para eventos de sistema (progresso, HUD). ✅ |
+| **C25** (I/O vetorial/raster) | Governor não lê dados geoespaciais. ✅ |
+| **C26** (ToolKey) | Governor não usa ToolKey (não faz logging próprio — delega ao plugin). ✅ |ERRADO GOVERNOR USA LOGGING SIM INCLUSIVE DEVE USAR COM TOOLKEY  SYSTEM
+
+### Conclusão: **Nenhum contrato precisa ser quebrado.**
+
+O plano foi ajustado para remover `format_bytes()` próprio (violava o Contrato 22 — `FormatUtils.format_size()` já existe). Demais contratos são respeitados integralmente.
+
+---
+
 ## 📝 Checklist de Implementação
 
 - [ ] Criar `core/governor/` com `__init__.py`
-- [ ] Implementar `RamGovernor` (monitoramento psutil)
+- [ ] Implementar `RamGovernor` (monitoramento psutil, sem `format_bytes` — usar `FormatUtils.format_size()`)
 - [ ] Implementar `RamLimitPolicy` (estratégias 90% global / 50% dedicado)
 - [ ] Implementar `ResourceGovernor` (orquestrador + `can_execute`, `recommended_tile_size`)
 - [ ] Criar `ResourceExceededError` custom exception
@@ -217,7 +257,6 @@ core/governor/
 - [ ] Integration: `IdwInterpolatorPlugin._on_executar()` consultar governor antes
 - [ ] Logging estruturado em todos os pontos (Contrato 2)
 - [ ] Atualizar `docs/skills/SKILL_ASYNC_PIPELINE.md` com novo componente
-- [ ] Atualizar `docs/skills/SKILL_PLUGIN_CONTRACT.md` se necessário
 - [ ] Testar com LAS grande que estourava RAM
 
 ---
