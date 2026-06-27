@@ -39,6 +39,8 @@ class PointBoundaryStep(BaseStep):
             n_amostras=context.get("n_amostras", 100_000),
             crs=context.get("crs", "EPSG:31982"),
             output_dir=context.get("output_dir", ""),
+            output_path=context.get("output_path", ""),
+            salvar_intermediarios=context.get("salvar_intermediarios", False),
             tool_key=context.get("tool_key", "Untraceable"),
             csv_x_field=context.get("csv_x_field", "x"),
             csv_y_field=context.get("csv_y_field", "y"),

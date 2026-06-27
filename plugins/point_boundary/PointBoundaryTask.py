@@ -7,8 +7,8 @@ Executa em QThread dedicada o fluxo completo:
   2. Amostragem
   3. Loop iterativo do concave hull com detecção de escada
   4. Suavização
-  5. Exportação GPKG por iteração + final
-  6. Geração JSON
+  5. Exportação GPKG final ( + intermediários opcional)
+  6. JSON via botão no plugin (não automático)
 
 ATENÇÃO: Emite progresso via SignalManager durante _run().
 Os sinais Qt são thread-safe — funcionam de dentro da QThread.
@@ -58,6 +58,8 @@ class PointBoundaryTask(BaseTask):
         n_amostras: int = 100_000,
         crs: str = "EPSG:31982",
         output_dir: str = "",
+        output_path: str = "",
+        salvar_intermediarios: bool = False,
         tool_key: str = ToolKey.UNTRACEABLE.value,
         csv_x_field: str = "x",
         csv_y_field: str = "y",
@@ -72,6 +74,8 @@ class PointBoundaryTask(BaseTask):
         self._n_amostras = n_amostras
         self._crs = crs
         self._output_dir = output_dir
+        self._output_path = output_path
+        self._salvar_intermediarios = salvar_intermediarios
         self._tool_key = tool_key
         self._csv_x_field = csv_x_field
         self._csv_y_field = csv_y_field
@@ -167,13 +171,14 @@ class PointBoundaryTask(BaseTask):
             ratios.append(ratio)
             hulls.append(hull)
 
-            # Salva GPKG da iteração
-            gpkg_path = os.path.join(
-                output_dir, f"boundary_r{ratio:.3f}.gpkg"
-            )
-            self._salvar_gpkg(hull, gpkg_path, crs_efetivo,
-                              f"boundary_r{ratio:.3f}")
-            gpkg_iteracoes.append(gpkg_path)
+            # Salva GPKG da iteração (condicional)
+            if self._salvar_intermediarios:
+                gpkg_path = os.path.join(
+                    output_dir, "intermediarios", f"boundary_r{ratio:.3f}.gpkg"
+                )
+                self._salvar_gpkg(hull, gpkg_path, crs_efetivo,
+                                  f"boundary_r{ratio:.3f}")
+                gpkg_iteracoes.append(gpkg_path)
 
             logger.debug(
                 f"  ratio={ratio:.3f}: area={area:.4f} m2",
@@ -229,7 +234,7 @@ class PointBoundaryTask(BaseTask):
         signals.progress_update.emit(90.0)
 
         # GPKG final suavizado
-        gpkg_final = os.path.join(
+        gpkg_final = self._output_path or os.path.join(
             output_dir,
             f"boundary_r{ratio_ideal:.3f}_suavizado.gpkg"
         )
@@ -260,11 +265,6 @@ class PointBoundaryTask(BaseTask):
             "resultados_iteracoes": resultados_iteracoes,
         }
 
-        json_path = os.path.join(output_dir, "resultado_boundary.json")
-        with open(json_path, "w", encoding="utf-8") as f:
-            json.dump(hull_summary, f, indent=2, ensure_ascii=False)
-        hull_summary["json_path"] = json_path
-
         signals.hud_update.emit({
             "message": "Limite gerado com sucesso!",
             "progress": 100.0,
@@ -294,15 +294,8 @@ class PointBoundaryTask(BaseTask):
             area_suavizada=round(hull_suavizado.area, 4),
             encontrou_escada=encontrou_escada,
             gpkg_final=gpkg_final,
-            json_path=json_path,
         )
 
-        signals.console_message.emit(
-            f"[PointBoundary] Limite gerado: ratio={ratio_ideal:.3f}, "
-            f"area={hull_final.area:.2f}m², "
-            f"suavizado={hull_suavizado.area:.2f}m², "
-            f"escada={'sim' if encontrou_escada else 'nao'}"
-        )
         return True
 
     @staticmethod
