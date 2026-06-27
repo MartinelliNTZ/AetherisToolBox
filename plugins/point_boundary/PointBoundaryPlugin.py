@@ -477,19 +477,20 @@ class PointBoundaryPlugin(BasePlugin):
             if gpkg_final:
                 pasta = os.path.dirname(gpkg_final)
                 encoded = pasta.replace("\\", "/")
-                msg = (
+                html_msg = (
                     f"[PointBoundary] Limite gerado: "
                     f"area={hull_summary.get('area_hull', '?')}, "
                     f"ratio={hull_summary.get('ratio_ideal', '?')} | "
                     f'<a href="file:///{encoded}" style="color:#3B82F6;">Abrir pasta</a>'
                 )
+                SignalManager.instance().console_html.emit(html_msg)
             else:
                 msg = (
                     f"[PointBoundary] Limite gerado: "
                     f"area={hull_summary.get('area_hull', '?')}, "
                     f"ratio={hull_summary.get('ratio_ideal', '?')}"
                 )
-            SignalManager.instance().console_message.emit(msg)
+                SignalManager.instance().console_message.emit(msg)
 
         SignalManager.instance().execution_finished.emit(self.tool_key)
 
