@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import json
 import os
-import traceback
 
 from core.enum.ToolKey import ToolKey
 from core.manager.SignalManager import SignalManager
@@ -32,6 +31,7 @@ from resources.widgets.GridLabel import GridLabel
 from resources.widgets.GridLineEdit import GridLineEdit
 from resources.widgets.GroupPainel import GroupPainel
 from resources.widgets.SelectorGrid import SelectorGrid
+from resources.widgets.SimpleSelector import SimpleSelector
 from resources.widgets.SimpleLabel import SimpleLabel
 from utils.ExplorerUtils import ExplorerUtils
 from utils.LasUtil import LasUtil
@@ -64,7 +64,6 @@ class PointBoundaryPlugin(BasePlugin):
         self._current_metadata: dict = {}
         self._hull_result: dict | None = None
         self._runner: PipelineRunner | None = None
-        self._csv_fields_widgets: list = []  # widgets extras para CSV
         super().__init__(
             tool_key=ToolKey.POINT_BOUNDARY.value,
             parent=parent,
@@ -139,6 +138,17 @@ class PointBoundaryPlugin(BasePlugin):
         })
         self._csv_grid.setVisible(False)
         grupo_entrada.group_layout.addWidget(self._csv_grid)
+
+        # ── GroupPainel "Arquivo de Saída" ──────────────────────────
+        grupo_saida = GroupPainel("Arquivo de Saída")
+        self.main_layout.addWidget(grupo_saida)
+        self._sel_output = SimpleSelector(
+            label_text="GPKG de Saída",
+            file_filter="GeoPackage (*.gpkg)",
+            browse_mode="save_file",
+            placeholder="Salvar boundary como GPKG...",
+        )
+        grupo_saida.group_layout.addWidget(self._sel_output)
 
         # ── GroupPainel "Parâmetros" ────────────────────────────────
         grupo_params = GroupPainel("Parâmetros")
@@ -260,7 +270,7 @@ class PointBoundaryPlugin(BasePlugin):
             elif ext in (".shp", ".gpkg", ".kml", ".geojson", ".csv"):
                 # Usa VectorLayerSource para metadados básicos
                 _, _, metadata = VectorLayerSource.extract_point_coordinates(
-                    path, tool_key=self.tool_key, sample=0,
+                    path, tool_key=self.tool_key, sample=1,
                 )
                 n_pontos = metadata["n_total"]
                 has_rgb = False
@@ -391,8 +401,9 @@ class PointBoundaryPlugin(BasePlugin):
             f"{os.path.basename(self._current_path)}"
         )
 
-        # Diretório de saída (mesmo do arquivo de entrada)
-        output_dir = os.path.dirname(self._current_path)
+        # Diretório de saída (do selector ou padrão)
+        output_path = self._sel_output.path()
+        output_dir = os.path.dirname(output_path) if output_path else os.path.dirname(self._current_path)
 
         # Cria step
         step = PointBoundaryStep()
@@ -582,6 +593,7 @@ class PointBoundaryPlugin(BasePlugin):
         """Carrega preferências salvas."""
         self.logger.info("Carregando preferencias", code="PB_PREFS_LOAD")
         last_path = self.preferences.get("last_path", "")
+        last_output_gpkg = self.preferences.get("output_gpkg", "")
         params = self.preferences.get("params", {})
         crs = self.preferences.get("crs", "EPSG:31982")
         csv_fields = self.preferences.get("csv_fields", {})
@@ -602,11 +614,15 @@ class PointBoundaryPlugin(BasePlugin):
         if csv_fields:
             self._csv_grid.set_values(csv_fields)
 
+        if last_output_gpkg:
+            self._sel_output.set_path(last_output_gpkg)
+
         self.logger.info("Preferencias carregadas", code="PB_PREFS_LOADED")
 
     def save_prefs(self) -> None:
         """Salva preferências atuais no cache de memória."""
         self.preferences["last_path"] = self._current_path
+        self.preferences["output_gpkg"] = self._sel_output.path()
         self.preferences["params"] = self._params_grid.values
         self.preferences["crs"] = self._crs_grid.get("crs")
         if self._csv_grid.isVisible():
