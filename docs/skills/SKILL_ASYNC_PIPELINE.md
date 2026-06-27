@@ -247,6 +247,59 @@ engine.start()
 
 ---
 
+## 🧠 ResourceGovernor — Governança de Recursos
+
+O `ResourceGovernor` é um sistema de governança de memória RAM integrado ao pipeline para evitar OOM (Out Of Memory).
+
+### Arquitetura
+
+```
+core/governor/
+├── __init__.py                 — (vazio, sem exports para evitar circular imports)
+├── RamGovernor.py              — Monitora RAM (sistema, processo) via psutil
+├── RamLimitPolicy.py           — Estratégias de limite (GLOBAL 90%, DEDICATED 50%)
+└── ResourceGovernor.py         — Orquestrador: can_execute(), recommended_tile_size()
+```
+
+### Componentes
+
+| Classe | Responsabilidade |
+|--------|-----------------|
+| `RamGovernor` | Coleta RAM total/usada/disponível do sistema + RAM do processo. |
+| `RamLimitPolicy` | Estratégia: `GLOBAL` (90% do total) ou `DEDICATED` (50% fixo). |
+| `ResourceGovernor` | Consultas: `can_execute()`, `recommended_tile_size()`, `snapshot()`. |
+
+### Como usar no plugin (transparente)
+
+O `PipelineRunner` **cria automaticamente** um `ResourceGovernor` interno.
+**O plugin, step e task não precisam saber da existência do governor.**
+
+```python
+from core.papeline import PipelineRunner
+
+# O runner já cria o governor internamente — plugin não precisa fazer nada
+runner = PipelineRunner(steps=[MeuStep()], context=ctx, parent=self)
+runner.finished_ok.connect(self._on_done)
+runner.failed.connect(self._on_error)
+runner.start()
+```
+
+### Onde o governor atua (totalmente transparente para o plugin)
+
+1. **`PipelineRunner.run()`** — cria `ResourceGovernor` com política `GLOBAL 90%`
+2. **`AsyncPipelineEngine._run_loop()`** — antes de cada task, checa `governor.can_execute()`
+3. **`BaseTask.run()`** — verifica governor antes de executar `_run()`
+
+Se a memória estourar o limite configurado, o pipeline falha com erro e o plugin recebe
+o sinal `failed` normalmente — sem nenhuma alteração no código do plugin.
+
+### Logging
+
+O governor usa `BaseUtil._get_logger()` com `ToolKey` (Contrato 26) e logs:
+- `GOV_SNAPSHOT` — debug: snapshot completo a cada inicialização
+- `GOV_LOW_MEMORY` — warning: quando memória insuficiente
+- `GOV_THROTTLED` — error: múltiplos warnings consecutivos
+
 ## 🔧 Tasks Concretas
 
 ### `MrkSinglePipelineTask` — `core/papeline/task/MrkSinglePipelineTask.py`
