@@ -8,13 +8,13 @@ com botões de ícone para cada ferramenta da categoria.
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt, Signal, QSize
-from PySide6.QtWidgets import QWidget, QHBoxLayout, QToolButton
+from PySide6.QtCore import Signal
+from PySide6.QtWidgets import QWidget, QHBoxLayout
 
 from core.enum.ToolType import ToolType
 from core.model.Tool import Tool
-from resources.styles.AppStyles import AppStyles
 from resources.widgets.ToolSeparator import ToolSeparator
+from resources.widgets.buttons.ToolbarButton import ToolbarButton
 
 
 class ToolGroup(QWidget):
@@ -41,18 +41,8 @@ class ToolGroup(QWidget):
 
         # ── Botões de cada ferramenta (apenas ícone) ──
         for tool in tools:
-            btn = QToolButton()
-            btn.setIcon(tool.icon)
-            btn.setToolTip(tool.tooltip or tool.title)
-            btn.setObjectName("toolgroup_btn")
-            btn.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
-            btn.setCursor(Qt.CursorShape.PointingHandCursor)
-            btn_size = AppStyles.toolbar_btn_size()
-            icon_size = AppStyles.toolbar_icon_size()
-            btn.setFixedSize(btn_size, btn_size)
-            btn.setIconSize(QSize(icon_size, icon_size))
-            btn.setStyleSheet(AppStyles.toolbar_btn_style())
-            btn.clicked.connect(lambda checked, name=tool.name: self.tool_clicked.emit(name))
+            btn = ToolbarButton(tool)
+            btn.tool_clicked.connect(self.tool_clicked.emit)
             layout.addWidget(btn)
 
         # ── Separador decorativo ──
