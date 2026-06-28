@@ -285,12 +285,23 @@ class MainWindow(QMainWindow):
         self._workspace_manager.open_tool(tool_name)
 
     @property
+    def left_workspace(self):
+        """Retorna o SideWorkspace esquerdo (FileManager fixo)."""
+        return self._workspace_manager.left_workspace
+
+    @property
     def central_workspace(self):
         return self._workspace_manager.central_workspace
 
     @property
+    def right_workspace(self):
+        """Retorna o SideWorkspace direito (Console fixo)."""
+        return self._workspace_manager.right_workspace
+
+    @property
     def side_workspace(self):
-        return self._workspace_manager.side_workspace
+        """Compatibilidade: retorna o right workspace."""
+        return self._workspace_manager.right_workspace
 
     def get_tool(self, name: str) -> Optional[Tool]:
         return self._workspace_manager.get_tool(name)

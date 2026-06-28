@@ -16,6 +16,8 @@ class CategoryTool(str, Enum):
     """Categoria de exibição da ferramenta."""
 
     CENTRAL = "central"
-    SIDE = "side"
+    SIDE = "side"            # mantido para compatibilidade — tratado como RIGHT_SIDE
+    LEFT_SIDE = "left_side"
+    RIGHT_SIDE = "right_side"
     BOTH = "both"
     INSTANT = "instant"
