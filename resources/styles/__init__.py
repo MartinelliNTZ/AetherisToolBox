@@ -18,6 +18,7 @@ Uso exclusivo (fora de resources/styles/):
 Nenhum módulo fora de resources/styles/ pode importar temas diretamente.
 """
 
+from resources.styles.AnimationManager import AnimationManager
 from resources.styles.AppStyles import AppStyles
 from resources.styles.BaseStyle import BaseStyle
 from resources.styles.BaseTheme import BaseTheme

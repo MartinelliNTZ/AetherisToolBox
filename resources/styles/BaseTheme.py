@@ -326,6 +326,7 @@ class BaseTheme:
     TITLE_BTN_WIDTH: int = 0
     TITLE_BTN_FONT_SIZE: int = 0
     TOOLBAR_BTN_SIZE: int = 0
+    TOOLBAR_BTN_HOVER_GROW: int = 0   # pixels extras no hover (animação grow)
     GROUP_MARGIN_TOP: int = 0
     SPLITTER_HANDLE_WIDTH: int = 0
 

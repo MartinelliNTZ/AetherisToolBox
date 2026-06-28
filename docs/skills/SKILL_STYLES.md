@@ -13,8 +13,12 @@ BaseTheme (abstrato) ← DarkCharcoalTheme, ZeroGrausTheme, BlueTheme
        ↑
 ThemeManager (singleton) — carrega o tema ativo das preferências
        ↑
-BaseStyle (estilos globais QSS) ← AppStyles (botões, badges, menus, logs)
+BaseStyle (estilos globais QSS) ← AppStyles (botões, badges, menus, logs, toolbar)
+       ↑
+AnimationManager (animações via QPropertyAnimation — hover grow, bounce)
 ```
+
+**Novidade:** `AnimationManager` é o gerenciador central de animações Qt. Ele cria animações de hover grow, bounce e qualquer transição de propriedade numérica. Atualmente usado pelo `ToolbarButton` para animar o crescimento no hover.
 
 **Princípios:**
 - **Zero valores hardcoded** — todo QSS usa tokens do tema via `ct.theme.ATRIBUTO`
@@ -28,13 +32,14 @@ BaseStyle (estilos globais QSS) ← AppStyles (botões, badges, menus, logs)
 
 ```
 resources/styles/
-├── __init__.py               — Exporta classes públicas (AppStyles, BaseStyle, BaseTheme, DarkCharcoalTheme, ThemeManager, ct)
+├── __init__.py               — Exporta classes públicas (AnimationManager, AppStyles, BaseStyle, BaseTheme, DarkCharcoalTheme, ThemeManager, ct)
 ├── BaseTheme.py              — Classe base abstrata com TODOS os tokens semânticos (18 grupos)
 ├── DarkCharcoalTheme.py      — Tema concreto: Dark Charcoal + Gold (padrão)
 ├── ZeroGrausTheme.py         — Tema concreto: Ice Glass / Frozen Crystal
 ├── BlueTheme.py              — Tema concreto: Modern Dashboard (azul elétrico)
 ├── BaseStyle.py              — Gera QSS global usando o tema ativo
-├── AppStyles.py              — Herda BaseStyle + estilos de botões, badges, logs, menus, tabs
+├── AppStyles.py              — Herda BaseStyle + estilos de botões, badges, logs, menus, tabs, toolbar
+├── AnimationManager.py       — Gerenciador central de animações Qt (hover grow, bounce, QPropertyAnimation)
 └── ThemeManager.py           — Singleton que mantém o tema ativo e gerencia troca de temas
 ```
 

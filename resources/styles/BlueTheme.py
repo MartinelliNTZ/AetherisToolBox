@@ -226,6 +226,7 @@ class BlueTheme(BaseTheme):
     GROUP_MARGIN_TOP = 14
     SPLITTER_HANDLE_WIDTH = 3
     TOOLBAR_BTN_SIZE = 36
+    TOOLBAR_BTN_HOVER_GROW = 6
 
     # ==========================================================
     # SPECIFIC RADII

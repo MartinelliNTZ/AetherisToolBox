@@ -19,14 +19,15 @@ from PySide6.QtWidgets import QToolButton
 
 from core.model.Tool import Tool
 from resources.styles.AppStyles import AppStyles
+from resources.styles.AnimationManager import AnimationManager
 
 
 class ToolbarButton(QToolButton):
     """
     Botão de ícone para uma ferramenta na toolbar.
 
-    Configura automaticamente ícone, tooltip, tamanho e estilo
-    a partir do objeto Tool e dos tokens visuais do tema ativo.
+    Configura automaticamente ícone, tooltip, tamanho, estilo
+    e animação hover grow (aumenta ao passar o mouse).
     """
 
     tool_clicked = Signal(str)  # tool.name
@@ -48,6 +49,12 @@ class ToolbarButton(QToolButton):
         self.setStyleSheet(AppStyles.toolbar_btn_style())
 
         self.clicked.connect(lambda: self.tool_clicked.emit(tool.name))
+
+        # ── Animação hover grow (aumenta no hover) ──
+        AnimationManager.animate_hover_grow(
+            self,
+            grow_px=AppStyles.toolbar_btn_hover_grow(),
+        )
 
     @property
     def tool(self) -> Tool:

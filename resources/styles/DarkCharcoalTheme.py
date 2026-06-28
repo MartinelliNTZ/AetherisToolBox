@@ -119,7 +119,7 @@ class DarkCharcoalTheme(BaseTheme):
     ICON_MD = 20
     ICON_LG = 24
     ICON_XL = 32
-    TOOLBAR_ICON_SIZE = 256
+    TOOLBAR_ICON_SIZE = 30#nao meche
 
     # ═══════════════════════════════════════════════════════════════════
     # 9. ANIMATION
@@ -229,6 +229,7 @@ class DarkCharcoalTheme(BaseTheme):
     GROUP_MARGIN_TOP = 8
     SPLITTER_HANDLE_WIDTH = 4
     TOOLBAR_BTN_SIZE = 32
+    TOOLBAR_BTN_HOVER_GROW = 4
 
     # ═══════════════════════════════════════════════════════════════════
     # 18. SPECIFICS — BORDER_RADIUS (usam RADIUS semântico como base)
@@ -243,7 +244,7 @@ class DarkCharcoalTheme(BaseTheme):
     BORDER_RADIUS_PROGRESS = 5
     BORDER_RADIUS_TABLE = 8        # ≈ RADIUS_SM*2
     BORDER_RADIUS_TITLE_BTN = 3
-    BORDER_RADIUS_TOOLBAR_BTN = 40  # ≈ RADIUS_SM
+    BORDER_RADIUS_TOOLBAR_BTN = 4   # ≈ RADIUS_SM
     BORDER_RADIUS_GHOST = 5
     BORDER_RADIUS_TOOL_SELECTOR = 6  # ≈ RADIUS_MD
     BORDER_RADIUS_SCROLLBAR = 3
