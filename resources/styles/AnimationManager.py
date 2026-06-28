@@ -107,7 +107,11 @@ class AnimationManager:
         # Se grow_icon_px nao foi passado, calcula como original + grow_px
         icon_hover = grow_icon_px if grow_icon_px else original_icon.width() + grow_px
 
-        def _enter():
+        # Salva os event handlers originais ANTES de sobrescrever
+        original_enter = widget.enterEvent
+        original_leave = widget.leaveEvent
+
+        def _enter(event):
             w = original.width() + grow_px
             h = original.height() + grow_px
             cls.animate_property(
@@ -122,8 +126,11 @@ class AnimationManager:
                 widget, b"iconSize", widget.iconSize(), QSize(icon_hover, icon_hover),
                 duration=duration,
             )
+            # Propaga o evento para o handler original (tooltip, etc.)
+            if original_enter:
+                original_enter(event)
 
-        def _leave():
+        def _leave(event):
             w = original.width()
             h = original.height()
             cls.animate_property(
@@ -138,11 +145,12 @@ class AnimationManager:
                 widget, b"iconSize", widget.iconSize(), QSize(original_icon.width(), original_icon.height()),
                 duration=duration,
             )
+            # Propaga o evento para o handler original
+            if original_leave:
+                original_leave(event)
 
-        widget._hover_grow_enter = lambda e=None: _enter() if e is None or e.type() == QEvent.Type.Enter else None
-        widget._hover_grow_leave = lambda e=None: _leave() if e is None or e.type() == QEvent.Type.Leave else None
-        widget.enterEvent = widget._hover_grow_enter
-        widget.leaveEvent = widget._hover_grow_leave
+        widget.enterEvent = _enter
+        widget.leaveEvent = _leave
 
     # ── Bounce ────────────────────────────────────────────────────
 
