@@ -16,6 +16,7 @@ from __future__ import annotations
 import threading
 from typing import Any, Callable, List, Optional
 
+from core.governor.ResourceGovernor import ResourceGovernor
 from .ExecutionContext import ExecutionContext
 from .BaseStep import BaseStep
 from .BaseTask import BaseTask
@@ -40,6 +41,7 @@ class AsyncPipelineEngine:
         on_finished: Optional[Callable[[ExecutionContext], None]] = None,
         on_error: Optional[Callable[[List[Exception]], None]] = None,
         on_cancelled: Optional[Callable[[ExecutionContext], None]] = None,
+        governor: Optional[ResourceGovernor] = None,
     ):
         self._steps = steps
         self._context = context
@@ -52,6 +54,7 @@ class AsyncPipelineEngine:
         self._is_running: bool = False
         self._is_cancelled: bool = False
         self._lock = threading.Lock()
+        self._governor = governor
 
     # ── Propriedades ───────────────────────────────────────────────
 
@@ -109,6 +112,14 @@ class AsyncPipelineEngine:
             if self._context.is_cancelled():
                 self._finish_cancelled()
                 return
+
+            # Verifica recursos do sistema (governor)
+            if self._governor is not None:
+                can, reason = self._governor.can_execute()
+                if not can:
+                    self._context.add_error(RuntimeError(reason))
+                    self._finish_error()
+                    return
 
             # Verifica se acabaram os steps
             if self._current_index >= len(self._steps):

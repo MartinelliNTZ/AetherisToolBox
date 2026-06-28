@@ -14,6 +14,7 @@ from plugins.BasePlugin import BasePlugin
 from core.manager.SignalManager import SignalManager
 from resources.widgets.ExecutionButtons import ExecutionButtons
 from resources.widgets.ReadOnlyTextBrowser import ReadOnlyTextBrowser
+from PySide6.QtGui import QDesktopServices
 from utils.ColorProvider import ColorProvider
 
 
@@ -87,9 +88,11 @@ class ConsolePlugin(BasePlugin):
     def _connect_signals(self) -> None:
         """Conecta sinais globais do SignalManager aos handlers do console."""
         SignalManager.instance().console_message.connect(self._on_console_message)
+        SignalManager.instance().console_html.connect(self._on_console_html)
+        self.txt_log.anchorClicked.connect(self._on_anchor_clicked)
 
     def _on_console_message(self, message: str) -> None:
-        """Recebe uma mensagem do SignalManager e exibe no console."""
+        """Recebe uma mensagem de texto do SignalManager (escapada)."""
         import html as html_mod
 
         timestamp = datetime.now().strftime("%H:%M:%S")
@@ -101,6 +104,21 @@ class ConsolePlugin(BasePlugin):
             f'<span style="color:{ts_color};">[{timestamp}]</span> '
             f'{safe}</span>'
         )
+
+    def _on_console_html(self, html: str) -> None:
+        """Recebe HTML formatado do SignalManager (sem escapar)."""
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        text_color = ColorProvider.text_primary()
+        ts_color = ColorProvider.tool_color("System")
+        self.append_log(
+            f'<span style="color:{text_color};font-family:Consolas,monospace;">'
+            f'<span style="color:{ts_color};">[{timestamp}]</span> '
+            f'{html}</span>'
+        )
+
+    def _on_anchor_clicked(self, url):
+        """Abre links clicados no console usando o sistema (Explorer/padrao)."""
+        QDesktopServices.openUrl(url)
 
     @property
     def anchorClicked(self):

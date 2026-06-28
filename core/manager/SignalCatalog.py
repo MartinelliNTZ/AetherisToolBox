@@ -36,7 +36,8 @@ class SignalCatalog(QObject):
     tool_focused:         Signal = Signal(str)   # emitido quando uma ferramenta ganha foco
     app_startup:          Signal = Signal()      # emitido quando a aplicação inicia
     app_shutdown:         Signal = Signal()      # emitido quando a aplicação encerra
-    console_message:      Signal = Signal(str)   # emitido para exibir mensagem no console
+    console_message:      Signal = Signal(str)   # emitido para exibir mensagem no console (texto seguro, escapado)
+    console_html:         Signal = Signal(str)   # emitido para exibir HTML formatado no console (links, cores, nao escapado)
     progress_update:      Signal = Signal(float) # emitido para atualizar a barra de progresso (0-100)
     progress_reset:       Signal = Signal()      # emitido para resetar a barra de progresso
     project_changed:      Signal = Signal()      # emitido quando o projeto ativo é salvo/criado

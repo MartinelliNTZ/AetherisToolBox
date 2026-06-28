@@ -35,7 +35,8 @@ O `SignalManager` é o canal oficial para mensagens entre plugins e entre plugin
 | `tool_focused` | `Signal(str)` | Notificação de foco em ferramenta |
 | `app_startup` | `Signal()` | Aplicação iniciou |
 | `app_shutdown` | `Signal()` | Aplicação encerrando |
-| `console_message` | `Signal(str)` | Mensagem orientada ao usuário (ConsolePlugin) |
+| `console_message` | `Signal(str)` | Mensagem orientada ao usuário (ConsolePlugin) — texto seguro, HTML escapado |
+| `console_html` | `Signal(str)` | Mensagem HTML formatada para o ConsolePlugin — NÃO escapa, aceita tags `<a>`, `<span>`, etc. |
 | `progress_update` | `Signal(float)` | Progresso global (0.0–100.0) para a ProgressBar da `MainWindow` |
 | `progress_reset` | `Signal()` | Reseta a barra de progresso para 0% |
 | `project_changed` | `Signal()` | Projeto ativo foi salvo/criado |

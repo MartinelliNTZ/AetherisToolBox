@@ -14,6 +14,8 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Optional
 
+from core.governor.ResourceGovernor import ResourceGovernor
+
 
 class BaseTask(ABC):
     """
@@ -35,13 +37,18 @@ class BaseTask(ABC):
         on_success: Callback opcional: on_success(result)
         on_error: Callback opcional: on_error(exception)
     """
-    def __init__(self, description: str):
+    def __init__(
+        self,
+        description: str,
+        governor: Optional[ResourceGovernor] = None,
+    ):
         self.description: str = description
         self.exception: Optional[Exception] = None
         self.result: Any = None
         self.on_success: Optional[Callable[[Any], None]] = None
         self.on_error: Optional[Callable[[Exception], None]] = None
         self._is_cancelled: bool = False
+        self._governor: Optional[ResourceGovernor] = governor
 
     @abstractmethod
     def _run(self) -> bool:
@@ -56,10 +63,20 @@ class BaseTask(ABC):
         """
         Método principal executado em thread separada.
         Não sobrescrever — sobrescreva _run().
+        Verifica governor e cancelamento antes de executar.
         """
         try:
+            # Verifica cancelamento
             if self._is_cancelled:
                 return False
+
+            # Verifica recursos do sistema (governor)
+            if self._governor is not None:
+                can, reason = self._governor.can_execute()
+                if not can:
+                    self.exception = RuntimeError(reason)
+                    return False
+
             success = self._run()
             return success
         except Exception as e:
