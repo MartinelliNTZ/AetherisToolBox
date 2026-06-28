@@ -119,7 +119,9 @@ class DarkCharcoalTheme(BaseTheme):
     ICON_MD = 20
     ICON_LG = 24
     ICON_XL = 32
-    TOOLBAR_ICON_SIZE = 30#nao meche
+    TOOLBAR_ICON_SIZE = 34
+    TOOLBAR_BTN_SIZE = 40
+    TOOLBAR_BTN_HOVER_GROW = 4
 
     # ═══════════════════════════════════════════════════════════════════
     # 9. ANIMATION
@@ -228,8 +230,6 @@ class DarkCharcoalTheme(BaseTheme):
     TITLE_BTN_FONT_SIZE = 11
     GROUP_MARGIN_TOP = 8
     SPLITTER_HANDLE_WIDTH = 4
-    TOOLBAR_BTN_SIZE = 32
-    TOOLBAR_BTN_HOVER_GROW = 4
 
     # ═══════════════════════════════════════════════════════════════════
     # 18. SPECIFICS — BORDER_RADIUS (usam RADIUS semântico como base)

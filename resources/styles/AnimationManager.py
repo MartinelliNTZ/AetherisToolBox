@@ -3,13 +3,13 @@
 AnimationManager — Gerenciador central de animações Qt
 ========================================================
 Cria e gerencia animações via QPropertyAnimation com suporte
-a hover grow, bounce, opacidade e qualquer propriedade numérica.
+a hover grow, bounce e qualquer propriedade numérica.
 
 Uso:
     from resources.styles.AnimationManager import AnimationManager
 
-    # Hover grow em qualquer widget
-    AnimationManager.animate_hover_grow(meu_botao)
+    # Hover grow com aumento do icone
+    AnimationManager.animate_hover_grow(meu_botao, grow_px=4, grow_icon_px=24)
 
     # Animação custom
     anim = AnimationManager.animate_property(
@@ -68,35 +68,44 @@ class AnimationManager:
 
     # ── Hover Grow ────────────────────────────────────────────────
 
-    _HOVER_GROW_REGISTRY: dict[int, list[QPropertyAnimation]] = {}
-
     @classmethod
     def animate_hover_grow(
         cls,
         widget: QWidget,
         grow_px: int | None = None,
+        grow_icon_px: int | None = None,
         duration: int | None = None,
     ) -> None:
         """
-        Configura animação de aumentar o widget ao passar o mouse.
+        Configura animação de aumentar o widget + icone ao passar o mouse.
 
-        Instala event filters de enter/leave no widget para animar
-        o tamanho de ``base_size`` para ``base_size + grow_px``.
+        Instala os eventos enter/leave no widget para animar
+        minimumSize, maximumSize e iconSize simultaneamente.
 
         Args:
-            widget: Widget alvo (deve ter setFixedSize()).
-            grow_px: Quantos pixels aumentar. Se None, usa TOOLBAR_BTN_HOVER_GROW do tema.
+            widget: Widget alvo.
+            grow_px: Quantos pixels aumentar o widget. Se None, usa
+                     TOOLBAR_BTN_HOVER_GROW do tema.
+            grow_icon_px: Tamanho do icone no hover. Se None, calcula
+                          como base_icon + grow_px.
             duration: Duração em ms. Se None, usa ANIMATION_FAST do tema.
         """
         grow_px = grow_px if grow_px is not None else ct.theme.TOOLBAR_BTN_HOVER_GROW
         duration = duration if duration is not None else ct.theme.ANIMATION_FAST
         from PySide6.QtCore import QEvent
-        from PySide6.QtCore import QTimer  # noqa: F401
 
         original = widget.property("_hover_base_size")
         if original is None:
             original = widget.size()
             widget.setProperty("_hover_base_size", original)
+
+        original_icon = widget.property("_hover_base_icon")
+        if original_icon is None:
+            original_icon = widget.iconSize()
+            widget.setProperty("_hover_base_icon", original_icon)
+
+        # Se grow_icon_px nao foi passado, calcula como original + grow_px
+        icon_hover = grow_icon_px if grow_icon_px else original_icon.width() + grow_px
 
         def _enter():
             w = original.width() + grow_px
@@ -107,6 +116,10 @@ class AnimationManager:
             )
             cls.animate_property(
                 widget, b"maximumSize", widget.maximumSize(), QSize(w, h),
+                duration=duration,
+            )
+            cls.animate_property(
+                widget, b"iconSize", widget.iconSize(), QSize(icon_hover, icon_hover),
                 duration=duration,
             )
 
@@ -121,8 +134,11 @@ class AnimationManager:
                 widget, b"maximumSize", widget.maximumSize(), QSize(w, h),
                 duration=duration,
             )
+            cls.animate_property(
+                widget, b"iconSize", widget.iconSize(), QSize(original_icon.width(), original_icon.height()),
+                duration=duration,
+            )
 
-        # Usa event filter via lambda para não precisar subclasse
         widget._hover_grow_enter = lambda e=None: _enter() if e is None or e.type() == QEvent.Type.Enter else None
         widget._hover_grow_leave = lambda e=None: _leave() if e is None or e.type() == QEvent.Type.Leave else None
         widget.enterEvent = widget._hover_grow_enter
@@ -142,8 +158,6 @@ class AnimationManager:
     ) -> list[QPropertyAnimation]:
         """
         Cria uma animação bounce (vai ao pico e retorna).
-
-        Retorna lista com duas animações: forward e backward.
         """
         duration = duration or ct.theme.ANIMATION_SLOW
         half = duration // 2
@@ -170,7 +184,7 @@ class AnimationManager:
 
     @classmethod
     def clear_hover_grow(cls, widget: QWidget) -> None:
-        """Remove a animação hover grow do widget (restaura event handlers)."""
+        """Remove a animação hover grow do widget."""
         if hasattr(widget, "_hover_grow_enter"):
             del widget._hover_grow_enter
         if hasattr(widget, "_hover_grow_leave"):

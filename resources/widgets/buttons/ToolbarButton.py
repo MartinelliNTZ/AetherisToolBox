@@ -26,8 +26,9 @@ class ToolbarButton(QToolButton):
     """
     Botão de ícone para uma ferramenta na toolbar.
 
-    Configura automaticamente ícone, tooltip, tamanho, estilo
-    e animação hover grow (aumenta ao passar o mouse).
+    Configura icone, tooltip, tamanho, estilo e animacao hover grow.
+    O tamanho inicial e definido via min/max (nao setFixedSize)
+    para permitir que a animacao redimensione o botao + icone.
     """
 
     tool_clicked = Signal(str)  # tool.name
@@ -35,6 +36,8 @@ class ToolbarButton(QToolButton):
     def __init__(self, tool: Tool, parent=None):
         super().__init__(parent)
         self._tool = tool
+        self._base_btn_size = AppStyles.toolbar_btn_size()
+        self._base_icon_size = AppStyles.toolbar_icon_size()
 
         self.setIcon(tool.icon)
         self.setToolTip(tool.tooltip or tool.title)
@@ -42,23 +45,25 @@ class ToolbarButton(QToolButton):
         self.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
 
-        btn_size = AppStyles.toolbar_btn_size()
-        icon_size = AppStyles.toolbar_icon_size()
-        self.setFixedSize(btn_size, btn_size)
-        self.setIconSize(QSize(icon_size, icon_size))
+        # Usa min/max em vez de setFixedSize para animacao funcionar
+        size = self._base_btn_size
+        self.setMinimumSize(size, size)
+        self.setMaximumSize(size, size)
+        self.setIconSize(QSize(self._base_icon_size, self._base_icon_size))
         self.setStyleSheet(AppStyles.toolbar_btn_style())
 
         self.clicked.connect(lambda: self.tool_clicked.emit(tool.name))
 
-        # ── Animação hover grow (aumenta no hover) ──
+        # ── Animacao hover grow (aumenta botao + icone) ──
         AnimationManager.animate_hover_grow(
             self,
             grow_px=AppStyles.toolbar_btn_hover_grow(),
+            grow_icon_px=self._base_icon_size + AppStyles.toolbar_btn_hover_grow(),
         )
 
     @property
     def tool(self) -> Tool:
-        """Retorna o objeto Tool associado a este botão."""
+        """Retorna o objeto Tool associado a este botao."""
         return self._tool
 
     @property
