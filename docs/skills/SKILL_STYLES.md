@@ -188,6 +188,67 @@ app.setStyleSheet(AppStyles.global_stylesheet())
 
 ---
 
+### `AnimationManager` — `resources/styles/AnimationManager.py`
+
+Gerenciador central de animações Qt via `QPropertyAnimation`. Cria animações reutilizáveis sem necessidade de subclasses ou event filters manuais.
+
+Atualmente usado pelo `ToolbarButton` para animar hover grow (botão + ícone aumentam ao passar o mouse).
+
+```python
+from resources.styles.AnimationManager import AnimationManager
+```
+
+**Métodos:**
+
+| Método | Descrição |
+|--------|-----------|
+| `animate_property(widget, prop, start, end, duration, easing)` | Animação genérica de qualquer propriedade Qt |
+| `animate_hover_grow(widget, grow_px, grow_icon_px, duration)` | Configura hover grow (enter/leave) no widget |
+| `animate_bounce(widget, prop, start, peak, end, duration)` | Animação bounce (vai ao pico e retorna) |
+| `clear_hover_grow(widget)` | Remove animação hover grow |
+
+**Uso — Hover Grow (padrão para ToolbarButton):**
+
+```python
+from resources.styles.AnimationManager import AnimationManager
+
+# Hover grow com valores default do tema
+AnimationManager.animate_hover_grow(widget)
+
+# Custom:
+AnimationManager.animate_hover_grow(
+    widget,
+    grow_px=4,          # botão aumenta 4px
+    grow_icon_px=24,    # ícone vai para 24x24 no hover
+    duration=120,       # duração em ms
+)
+```
+
+**Uso — Animação genérica:**
+
+```python
+anim = AnimationManager.animate_property(
+    widget,
+    b"minimumSize",
+    QSize(32, 32),
+    QSize(52, 52),
+    duration=180,
+    easing=QEasingCurve.Type.OutCubic,
+)
+```
+
+**Como funciona `animate_hover_grow`:**
+1. Salva os handlers `enterEvent`/`leaveEvent` originais do widget
+2. No Enter: anima `minimumSize`, `maximumSize` e `iconSize` para valores maiores
+3. No Leave: anima de volta para os valores originais
+4. Propaga o evento para o handler original (preservando tooltip, cursor, etc.)
+
+**Tokens do tema usados:**
+- `TOOLBAR_BTN_HOVER_GROW` — pixels extras no hover
+- `ANIMATION_FAST` — duração da animação (ms)
+
+---
+
 ### `AppStyles` — `resources/styles/AppStyles.py`
 
 Herda de `BaseStyle` e adiciona estilos específicos da aplicação: botões, badges, logs, menus, tabs e diálogos.
