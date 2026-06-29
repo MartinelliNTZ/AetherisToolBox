@@ -15,7 +15,7 @@ from plugins.BasePlugin import BasePlugin
 from resources.styles.ThemeManager import THEMES
 from resources.widgets.ExecutionButtons import ExecutionButtons
 from resources.widgets.GroupPainel import GroupPainel
-from resources.widgets.SimpleComboBox import SimpleComboBox
+from resources.widgets.simple.SimpleComboBox import SimpleComboBox
 
 
 class ConfigurationPlugin(BasePlugin):

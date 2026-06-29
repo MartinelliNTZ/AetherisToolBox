@@ -29,7 +29,7 @@ from resources.widgets.grid.GridDoubleSpinBox import GridDoubleSpinBox
 from resources.widgets.grid.GridLabel import GridLabel
 from resources.widgets.GroupPainel import GroupPainel
 from resources.widgets.grid.GridSelector import SelectorGrid
-from resources.widgets.SimpleSelector import SimpleSelector
+from resources.widgets.simple.SimpleSelector import SimpleSelector
 from utils.ExplorerUtils import ExplorerUtils
 from utils.LasUtil import LasUtil
 from utils.MessageBox import MessageBox

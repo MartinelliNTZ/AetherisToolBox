@@ -28,9 +28,9 @@ from plugins.BasePlugin import BasePlugin
 from resources.widgets.ExecutionButtons import ExecutionButtons
 from resources.widgets.FileListView import FileListView
 from resources.widgets.PreviewPanel import PreviewPanel
-from resources.widgets.SimpleSelector import SimpleSelector
+from resources.widgets.simple.SimpleSelector import SimpleSelector
 from resources.widgets.grid.GridCheckBox import GridCheckBox
-from resources.widgets.SimpleLabel import SimpleLabel
+from resources.widgets.simple.SimpleLabel import SimpleLabel
 from resources.widgets.grid.GridGroupPainel import GridGroupPainel
 from resources.widgets.GroupPainel import GroupPainel
 from utils.DictManager import IMAGE_EXTENSIONS

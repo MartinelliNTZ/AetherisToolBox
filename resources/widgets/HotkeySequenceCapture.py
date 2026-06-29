@@ -30,9 +30,9 @@ from PySide6.QtWidgets import (
 )
 
 from resources.widgets.HotkeyCaptureLine import HotkeyCaptureLine, _to_display
-from resources.widgets.SimpleGhostButton import SimpleGhostButton
-from resources.widgets.SimpleLabel import SimpleLabel
-from resources.widgets.SimpleRemoveButton import SimpleRemoveButton
+from resources.widgets.simple.SimpleGhostButton import SimpleGhostButton
+from resources.widgets.simple.SimpleLabel import SimpleLabel
+from resources.widgets.simple.SimpleRemoveButton import SimpleRemoveButton
 
 
 class HotkeySequenceCapture(QWidget):

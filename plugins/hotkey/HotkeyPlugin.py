@@ -36,7 +36,7 @@ from resources.widgets.GroupPainel import GroupPainel
 from resources.widgets.SectionPanel import SectionPanel
 from resources.widgets.grid.GridDoubleSpinBox import GridDoubleSpinBox
 from resources.widgets.grid.GridLineEdit import GridLineEdit
-from resources.widgets.SimpleComboBox import SimpleComboBox
+from resources.widgets.simple.SimpleComboBox import SimpleComboBox
 
 
 class HotkeyPlugin(BasePlugin):

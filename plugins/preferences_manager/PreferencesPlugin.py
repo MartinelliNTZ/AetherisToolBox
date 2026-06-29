@@ -23,7 +23,7 @@ from core.enum.ToolKey import ToolKey
 from plugins.BasePlugin import BasePlugin
 from resources.widgets.ExecutionButtons import ExecutionButtons
 from resources.widgets.grid.GridPreferenceItem import PreferenceItemGrid
-from resources.widgets.SimpleComboBox import SimpleComboBox
+from resources.widgets.simple.SimpleComboBox import SimpleComboBox
 from utils.Preferences import Preferences
 
 

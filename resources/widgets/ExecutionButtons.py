@@ -99,10 +99,10 @@ def _apply_uniform_style(btn: QPushButton, btn_type: str) -> None:
 
 def _create_button(text: str, btn_type: str) -> QPushButton:
     """Cria um botão do tipo apropriado com o texto dado e styling uniforme."""
-    from resources.widgets.SimplePrimaryButton import SimplePrimaryButton
-    from resources.widgets.SimpleSecondaryButton import SimpleSecondaryButton
-    from resources.widgets.SimpleDangerButton import SimpleDangerButton
-    from resources.widgets.SimpleGhostButton import SimpleGhostButton
+    from resources.widgets.simple.SimplePrimaryButton import SimplePrimaryButton
+    from resources.widgets.simple.SimpleSecondaryButton import SimpleSecondaryButton
+    from resources.widgets.simple.SimpleDangerButton import SimpleDangerButton
+    from resources.widgets.simple.SimpleGhostButton import SimpleGhostButton
 
     _CLASSES = {
         "primary": SimplePrimaryButton,

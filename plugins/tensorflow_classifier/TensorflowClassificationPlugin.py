@@ -13,10 +13,10 @@ from plugins.BasePlugin import BasePlugin
 from core.enum.ToolKey import ToolKey
 from resources.widgets.ExecutionButtons import ExecutionButtons
 from resources.widgets.GroupPainel import GroupPainel
-from resources.widgets.SimpleSecondaryButton import SimpleSecondaryButton
-from resources.widgets.SimpleSelector import SimpleSelector
+from resources.widgets.simple.SimpleSecondaryButton import SimpleSecondaryButton
+from resources.widgets.simple.SimpleSelector import SimpleSelector
 from resources.widgets.grid.GridSelector import SelectorGrid
-from resources.widgets.SimpleComboBox import SimpleComboBox
+from resources.widgets.simple.SimpleComboBox import SimpleComboBox
 from resources.widgets.grid.GridGroupPainel import GridGroupPainel
 from resources.widgets.ItemTable import ItemTable
 from resources.widgets.grid.GridLineEdit import GridLineEdit

@@ -59,7 +59,7 @@ class LogDetailDialog(BaseDialog):
         """)
         self.main_layout.addWidget(self.text_edit, 1)
 
-        from resources.widgets.SimpleGhostButton import SimpleGhostButton
+        from resources.widgets.simple.SimpleGhostButton import SimpleGhostButton
 
         btn_layout = QHBoxLayout()
         btn_layout.addStretch()

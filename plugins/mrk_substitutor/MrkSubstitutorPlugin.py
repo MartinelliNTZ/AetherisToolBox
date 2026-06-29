@@ -22,7 +22,7 @@ from resources.widgets.grid.GridFieldMapping import GridFieldMapping
 from resources.widgets.grid.GridRadio import GridRadio
 from resources.widgets.GroupPainel import GroupPainel
 from resources.widgets.grid.GridGroupPainel import GridGroupPainel
-from resources.widgets.SimpleSelector import SimpleSelector
+from resources.widgets.simple.SimpleSelector import SimpleSelector
 from utils.ExplorerUtils import ExplorerUtils
 from utils.MessageBox import MessageBox
 

@@ -40,7 +40,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, Signal
 
-from resources.widgets.SimpleDangerButton import SimpleDangerButton
+from resources.widgets.simple.SimpleDangerButton import SimpleDangerButton
 from utils.Preferences import Preferences
 from core.enum.ToolKey import ToolKey
 

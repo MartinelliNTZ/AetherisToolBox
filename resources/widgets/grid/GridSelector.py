@@ -10,7 +10,7 @@ from __future__ import annotations
 from typing import Optional
 
 from PySide6.QtWidgets import QWidget, QGridLayout, QVBoxLayout
-from resources.widgets.SimpleSelector import SimpleSelector
+from resources.widgets.simple.SimpleSelector import SimpleSelector
 from resources.widgets.GroupPainel import GroupPainel
 
 

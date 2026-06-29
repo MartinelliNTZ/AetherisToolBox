@@ -21,7 +21,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QVBoxLayout, QWidget
 
 from resources.styles.AppStyles import AppStyles
-from resources.widgets.SimpleLabel import SimpleLabel
+from resources.widgets.simple.SimpleLabel import SimpleLabel
 
 
 class CollapsibleParams(QWidget):
