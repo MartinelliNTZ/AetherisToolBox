@@ -25,8 +25,8 @@ from core.papeline.PipelineRunner import PipelineRunner
 from core.papeline.step import LasCheckStep
 from plugins.BasePlugin import BasePlugin
 from resources.widgets.ExecutionButtons import ExecutionButtons
-from resources.widgets.GridCheckBox import GridCheckBox
-from resources.widgets.GridLabel import GridLabel
+from resources.widgets.grid.GridCheckBox import GridCheckBox
+from resources.widgets.grid.GridLabel import GridLabel
 from resources.widgets.GroupPainel import GroupPainel
 from resources.widgets.SelectorGrid import SelectorGrid
 from utils.ExplorerUtils import ExplorerUtils

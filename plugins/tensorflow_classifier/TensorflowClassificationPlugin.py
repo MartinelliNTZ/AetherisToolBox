@@ -17,11 +17,11 @@ from resources.widgets.SimpleSecondaryButton import SimpleSecondaryButton
 from resources.widgets.SimpleSelector import SimpleSelector
 from resources.widgets.SelectorGrid import SelectorGrid
 from resources.widgets.SimpleComboBox import SimpleComboBox
-from resources.widgets.GridGroupPainel import GridGroupPainel
+from resources.widgets.grid.GridGroupPainel import GridGroupPainel
 from resources.widgets.ItemTable import ItemTable
-from resources.widgets.GridLineEdit import GridLineEdit
-from resources.widgets.GridDoubleSpinBox import GridDoubleSpinBox
-from resources.widgets.GridCheckBox import GridCheckBox
+from resources.widgets.grid.GridLineEdit import GridLineEdit
+from resources.widgets.grid.GridDoubleSpinBox import GridDoubleSpinBox
+from resources.widgets.grid.GridCheckBox import GridCheckBox
 from plugins.tensorflow_classifier.tensor_utils.ui_field_specs import UI_FIELD_SPECS
 
 

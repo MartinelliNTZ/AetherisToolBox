@@ -15,8 +15,8 @@ from plugins.BasePlugin import BasePlugin
 from core.papeline.PipelineRunner import PipelineRunner
 from core.papeline.step import DoclingConvertStep
 from resources.widgets.ExecutionButtons import ExecutionButtons
-from resources.widgets.GridCheckBox import GridCheckBox
-from resources.widgets.GridDoubleSpinBox import GridDoubleSpinBox
+from resources.widgets.grid.GridCheckBox import GridCheckBox
+from resources.widgets.grid.GridDoubleSpinBox import GridDoubleSpinBox
 from resources.widgets.GroupPainel import GroupPainel
 from resources.widgets.ReadOnlyTextBrowser import ReadOnlyTextBrowser
 from resources.widgets.SelectorGrid import SelectorGrid

@@ -31,11 +31,11 @@ from resources.widgets.ExecutionButtons import ExecutionButtons
 from resources.widgets.HotkeyCaptureLine import HotkeyCaptureLine, _to_display
 from resources.widgets.HotkeySequenceCapture import HotkeySequenceCapture
 from resources.widgets.MouseButtonCapture import MouseButtonCapture
-from resources.widgets.GridCheckBox import GridCheckBox
+from resources.widgets.grid.GridCheckBox import GridCheckBox
 from resources.widgets.GroupPainel import GroupPainel
 from resources.widgets.SectionPanel import SectionPanel
-from resources.widgets.GridDoubleSpinBox import GridDoubleSpinBox
-from resources.widgets.GridLineEdit import GridLineEdit
+from resources.widgets.grid.GridDoubleSpinBox import GridDoubleSpinBox
+from resources.widgets.grid.GridLineEdit import GridLineEdit
 from resources.widgets.SimpleComboBox import SimpleComboBox
 
 

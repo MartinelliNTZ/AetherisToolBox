@@ -27,9 +27,9 @@ from core.papeline.PipelineRunner import PipelineRunner
 from plugins.BasePlugin import BasePlugin
 from plugins.idw_interpolator.IdwInterpolatorStep import IdwInterpolatorStep
 from resources.widgets.ExecutionButtons import ExecutionButtons
-from resources.widgets.GridCheckBox import GridCheckBox
-from resources.widgets.GridDoubleSpinBox import GridDoubleSpinBox
-from resources.widgets.GridLabel import GridLabel
+from resources.widgets.grid.GridCheckBox import GridCheckBox
+from resources.widgets.grid.GridDoubleSpinBox import GridDoubleSpinBox
+from resources.widgets.grid.GridLabel import GridLabel
 from resources.widgets.GroupPainel import GroupPainel
 from resources.widgets.SelectorGrid import SelectorGrid
 from resources.widgets.SimpleLabel import SimpleLabel
