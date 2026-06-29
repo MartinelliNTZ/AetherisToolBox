@@ -152,8 +152,24 @@ btn = SimpleRemoveButton("Remover")
 
 ---
 
+### `ToolbarButton` — `buttons/ToolbarButton.py`
+Botão de ícone individual para a toolbar principal. Herda de `QToolButton` e configura automaticamente ícone, tooltip, tamanho e estilo a partir do objeto `Tool` e dos tokens visuais do tema ativo.
+
+Cada `ToolbarButton` emite `tool_clicked(str)` com o nome da ferramenta ao ser clicado.
+
+```python
+from resources.widgets.buttons.ToolbarButton import ToolbarButton
+
+btn = ToolbarButton(tool)
+btn.tool_clicked.connect(self._on_tool_activated)
+btn.tool        # objeto Tool
+btn.tool_name   # tool.name
+```
+
+---
+
 ### `ToolGroup` — `ToolGroup.py`
-Grupo horizontal de botões de ferramentas na toolbar principal. Cria botões com ícone para cada ferramenta de uma categoria.
+Grupo horizontal de botões de ferramentas na toolbar principal. Cria instâncias de `ToolbarButton` para cada ferramenta de uma categoria.
 
 ```python
 from resources.widgets.ToolGroup import ToolGroup

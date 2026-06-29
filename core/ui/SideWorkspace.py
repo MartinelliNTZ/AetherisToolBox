@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 """
-SideWorkspace — Painel lateral direito expansível
-===================================================
-Gerencia ferramentas do tipo SIDE (ex: Console).
+SideWorkspace — Painel lateral expansível (esquerdo ou direito)
+=================================================================
+Gerencia ferramentas do tipo SIDE (esquerdo ou direito).
 Funciona com largura controlada: W_TABS (colapsado, mostra só as abas)
 ou largura definida pelo usuário (expandido, mostra conteúdo).
 
-Usa QSplitter no MainWindow para redimensionamento.
+Para side="right": abas à direita, conteúdo à esquerda.
+Para side="left":  abas à esquerda, conteúdo à direita.
 """
 
 from __future__ import annotations
@@ -18,13 +19,14 @@ from PySide6.QtWidgets import (
 )
 
 from core.config.LogUtils import LogUtils
+from core.enum.CategoryTool import CategoryTool
 from core.model.Tool import Tool
 from resources.widgets.VerticalTab import VerticalTab
 
 
 class SideWorkspace(QWidget):
     """
-    Painel lateral com abas verticais à direita.
+    Painel lateral com abas verticais.
 
     O conteúdo SEMPRE existe dentro do widget.
     Quando colapsado, mostra só a aba vertical.
@@ -39,20 +41,35 @@ class SideWorkspace(QWidget):
     W_TABS     = 24   # largura das abas verticais (fixa)
     W_DEFAULT  = 400  # largura padrão do conteúdo quando expandido
 
-    def __init__(self, parent=None):
+    def __init__(self, side: str = "right", parent=None):
+        """
+        Parâmetros:
+            side: "left" ou "right" — define onde as abas ficam
+        """
         super().__init__(parent)
+        self._side = side  # "left" ou "right"
         self._tools: dict[str, Tool] = {}
         self._tabs:  dict[str, VerticalTab] = {}
         self._expanded = False
         self._current_name: str | None = None
         self._log = LogUtils(tool="System", class_name="SideWorkspace")
 
-        self.setObjectName("side_workspace")
+        self.setObjectName(f"side_workspace_{side}")
 
         # Layout principal: conteúdo + abas
         mlo = QHBoxLayout(self)
         mlo.setContentsMargins(0, 0, 0, 0)
         mlo.setSpacing(0)
+
+        # ── Abas verticais ─────────────────────────────────────────
+        self._tab_box = QWidget()
+        self._tab_box.setObjectName(f"side_tabs_container_{side}")
+        self._tab_box.setFixedWidth(self.W_TABS)
+        tbl = QVBoxLayout(self._tab_box)
+        tbl.setContentsMargins(0, 0, 0, 0)
+        tbl.setSpacing(2)
+        tbl.setAlignment(Qt.AlignmentFlag.AlignTop)
+        self._tabs_layout = tbl
 
         # ── Conteúdo (stack) ──────────────────────────────────────
         self._content = QWidget()
@@ -74,21 +91,24 @@ class SideWorkspace(QWidget):
         self.stack = QStackedWidget()
         clo.addWidget(self.stack, 1)
 
-        mlo.addWidget(self._content, 1)
-
-        # ── Abas verticais ─────────────────────────────────────────
-        self._tab_box = QWidget()
-        self._tab_box.setObjectName("side_tabs_container")
-        self._tab_box.setFixedWidth(self.W_TABS)
-        tbl = QVBoxLayout(self._tab_box)
-        tbl.setContentsMargins(0, 0, 0, 0)
-        tbl.setSpacing(2)
-        tbl.setAlignment(Qt.AlignmentFlag.AlignTop)
-        self._tabs_layout = tbl
-        mlo.addWidget(self._tab_box)
+        # Ordem de adição conforme o lado
+        if side == "left":
+            # Abas à esquerda, conteúdo à direita
+            mlo.addWidget(self._tab_box)
+            mlo.addWidget(self._content, 1)
+        else:
+            # Conteúdo à esquerda, abas à direita (padrão)
+            mlo.addWidget(self._content, 1)
+            mlo.addWidget(self._tab_box)
 
         # Inicializa colapsado
         self._content.setVisible(False)
+
+    # ── Propriedades ─────────────────────────────────────────────────
+
+    @property
+    def side(self) -> str:
+        return self._side
 
     # ── API ──────────────────────────────────────────────────────────
 
@@ -98,10 +118,6 @@ class SideWorkspace(QWidget):
             return name
         self._tools[name] = tool
 
-        # Placeholder no stack — o widget real só é criado sob demanda
-        # (lazy loading) em _load_tool(), quando a aba é expandida.
-        # Isso evita que BasePlugin.__init__() dispare tool_opened
-        # prematuramente durante o startup.
         placeholder = QWidget()
         self.stack.addWidget(placeholder)
 
@@ -169,13 +185,10 @@ class SideWorkspace(QWidget):
             return
         idx = keys.index(name)
 
-        # Obtem o widget (lazy: cria só agora, na primeira expansão)
         widget = tool.widget
 
-        # Substitui o placeholder pelo widget real
         old = self.stack.widget(idx)
         if old is widget:
-            # Já está no lugar certo, apenas muda o índice
             pass
         else:
             self._log.info(f"Carregando tool SIDE (lazy): {name}", code="SIDE_LOAD")
@@ -198,8 +211,7 @@ class SideWorkspace(QWidget):
         if name not in self._tools:
             return
         tool = self._tools[name]
-        from core.enum.CategoryTool import CategoryTool
-        if tool.category == CategoryTool.BOTH:
+        if tool.category in (CategoryTool.BOTH, CategoryTool.SIDE):
             self.tool_request_move_to_central.emit(name)
 
     def remove_tool(self, name: str):
@@ -207,7 +219,6 @@ class SideWorkspace(QWidget):
             return
         tool = self._tools[name]
 
-        # Se estava expandido e ativo, recolhe
         if self._expanded and self._current_name == name:
             self._set_collapsed()
 

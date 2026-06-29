@@ -257,6 +257,19 @@ class AppStyles(BaseStyle):
         )
 
     @classmethod
+    def tool_group_label_style(cls) -> str:
+        """Estilo do label de título de um ToolGroup na toolbar."""
+        t = ct.theme
+        return (
+            f"QLabel {{"
+            f"  color: {t.TEXT_GOLD};"
+            f"  font-size: {t.FONT_SIZE_TINY}px;"
+            f"  padding: 0px;"
+            f"  margin: 0px;"
+            f"}}"
+        )
+
+    @classmethod
     def badge_success(cls) -> str:
         return cls.badge_style(ct.theme.COLOR_SUCCESS)
 
@@ -621,7 +634,8 @@ class AppStyles(BaseStyle):
         )
 
     # ────────────────────────────────────────────────────────────────────
-    # TOOLBAR (tamanhos de ícones e botões)
+    # TOOLBAR — tokens centralizados de tamanhos e estilos
+    # Todos os métodos usam ct.theme, zero hardcoded.
     # ────────────────────────────────────────────────────────────────────
 
     @classmethod
@@ -640,8 +654,17 @@ class AppStyles(BaseStyle):
         return ct.theme.BORDER_RADIUS_TOOLBAR_BTN
 
     @classmethod
+    def toolbar_btn_hover_grow(cls) -> int:
+        """Pixels extras no hover para animação grow."""
+        return ct.theme.TOOLBAR_BTN_HOVER_GROW
+
+    @classmethod
     def toolbar_btn_style(cls) -> str:
-        """QSS completo para botão da toolbar. Zero hardcoded — tudo do tema."""
+        """
+        QSS completo para botão da toolbar (QToolButton).
+        Zero hardcoded — border-radius, cores de hover/pressed vêm do tema.
+        A animação de hover grow é feita via AnimationManager, não via QSS.
+        """
         t = ct.theme
         return (
             f"QToolButton {{"

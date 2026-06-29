@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 """
-WorkspaceManager — Gestor dos workspaces Central + Side
-=========================================================
+WorkspaceManager — Gestor dos workspaces Central + Side Esquerdo + Side Direito
+=================================================================================
 Responsabilidades:
-  1. Criar e gerenciar o QSplitter entre CentralWorkspace e SideWorkspace
-  2. Registrar ferramentas no workspace correto (CENTRAL, SIDE, BOTH)
+  1. Criar e gerenciar o QSplitter entre LeftSide, CentralWorkspace e RightSide
+  2. Registrar ferramentas no workspace correto (LEFT_SIDE, RIGHT_SIDE, CENTRAL, BOTH)
   3. Roteamento de ativação de ferramentas para o workspace adequado
   4. Movimentação de ferramentas BOTH entre workspaces
-  5. Persistência do tamanho do SideWorkspace
+  5. Persistência do tamanho dos SideWorkspaces
   6. Gerenciamento do redimensionamento do splitter
 
 A MainWindow recebe o widget pronto e só o posiciona no layout.
@@ -15,7 +15,7 @@ A MainWindow recebe o widget pronto e só o posiciona no layout.
 
 from __future__ import annotations
 
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtWidgets import QWidget, QSplitter, QVBoxLayout
@@ -31,19 +31,21 @@ from utils.Preferences import Preferences
 
 class WorkspaceManager(QWidget):
     """
-    Gerencia CentralWorkspace + SideWorkspace.
+    Gerencia 3 workspaces: LeftSide | CentralWorkspace | RightSide.
 
     Uso:
         manager = WorkspaceManager(tools)
-        manager.build()
         root_layout.addWidget(manager)
-                                    # ^ é o próprio splitter
 
     Sinais:
         tool_activated — emitido quando uma ferramenta é ativada
     """
 
     tool_activated = Signal(str)
+
+    # Larguras padrão
+    SIDE_MIN_COLLAPSED = 24  # W_TABS
+    SIDE_W_DEFAULT = 280    # largura padrão do conteúdo lateral
 
     def __init__(self, tools: List[Tool], parent=None):
         super().__init__(parent)
@@ -53,13 +55,16 @@ class WorkspaceManager(QWidget):
         self.logger = LogUtils(tool="System", class_name="WorkspaceManager")
 
         # Widgets internos
+        self._left_workspace: Optional[SideWorkspace] = None
         self._central_workspace: Optional[CentralWorkspace] = None
-        self._side_workspace: Optional[SideWorkspace] = None
+        self._right_workspace: Optional[SideWorkspace] = None
         self._splitter: Optional[QSplitter] = None
 
-        # Estado do side
-        self._side_content_width: int = SideWorkspace.W_DEFAULT
-        self._drag_lock: bool = True
+        # Estado dos sides
+        self._left_content_width: int = self.SIDE_W_DEFAULT
+        self._right_content_width: int = self.SIDE_W_DEFAULT
+        self._left_drag_lock: bool = True
+        self._right_drag_lock: bool = True
 
         self._build()
 
@@ -68,7 +73,7 @@ class WorkspaceManager(QWidget):
     # ────────────────────────────────────────────────────────────────
 
     def _build(self) -> None:
-        """Constrói o splitter com os workspaces e registra as ferramentas."""
+        """Constrói o splitter com 3 workspaces e registra as ferramentas."""
         log = LogUtils(tool="System", class_name="WorkspaceManager")
         log.info("Construindo workspaces", code="WS_BUILD", num_tools=len(self._tools))
 
@@ -83,50 +88,85 @@ class WorkspaceManager(QWidget):
         layout.setSpacing(0)
         layout.addWidget(self._splitter, 1)
 
-        # Central
+        # ── Left Side ──
+        self._left_workspace = SideWorkspace(side="left")
+        self._left_workspace.setObjectName("left_side_workspace")
+        self._splitter.addWidget(self._left_workspace)
+
+        # ── Central ──
         self._central_workspace = CentralWorkspace()
         self._splitter.addWidget(self._central_workspace)
 
-        # Side
-        self._side_workspace = SideWorkspace()
-        self._splitter.addWidget(self._side_workspace)
+        # ── Right Side ──
+        self._right_workspace = SideWorkspace(side="right")
+        self._right_workspace.setObjectName("right_side_workspace")
+        self._splitter.addWidget(self._right_workspace)
 
-        # Restaura largura salva
-        saved = self._sys_prefs.get("side_content_width", SideWorkspace.W_DEFAULT)
-        self._side_content_width = saved
+        # Restaura larguras salvas
+        saved_left = self._sys_prefs.get("left_side_content_width", self.SIDE_W_DEFAULT)
+        self._left_content_width = saved_left
+        saved_right = self._sys_prefs.get("right_side_content_width", self.SIDE_W_DEFAULT)
+        self._right_content_width = saved_right
 
-        # Inicializa colapsado
-        self._side_workspace.collapse()
+        # Inicializa colapsados
+        self._left_workspace.collapse()
+        self._right_workspace.collapse()
         QTimer.singleShot(0, self._init_splitter_sizes)
-        self._drag_lock = True
+        self._left_drag_lock = True
+        self._right_drag_lock = True
 
-        # Conecta sinais do side
-        self._side_workspace.size_changed.connect(self._on_side_size_changed)
+        # Conecta sinais dos sides
+        self._left_workspace.size_changed.connect(self._on_left_size_changed)
+        self._right_workspace.size_changed.connect(self._on_right_size_changed)
         self._splitter.splitterMoved.connect(self._on_splitter_moved)
 
         # Conecta movimentação BOTH
         self._central_workspace.tool_request_move_to_side.connect(self._move_tool_to_side)
-        self._side_workspace.tool_request_move_to_central.connect(self._move_tool_to_central)
+        self._left_workspace.tool_request_move_to_central.connect(self._move_tool_to_central)
+        self._right_workspace.tool_request_move_to_central.connect(self._move_tool_to_central)
 
         # Registra ferramentas nos workspaces
         for tool in self._tools:
-            if tool.category == CategoryTool.INSTANT:
-                # Ferramentas INSTANT não são registradas em workspaces
-                # Elas são auto-destrutivas (criam widget, executam, se destroem)
-                pass
-            elif tool.category == CategoryTool.SIDE:
-                self._side_workspace.register_tool(tool)
-            elif tool.category == CategoryTool.BOTH:
-                self._side_workspace.register_tool(tool)
+            cat = tool.category
+
+            if cat == CategoryTool.INSTANT:
+                pass  # auto-destrutivas
+
+            elif cat == CategoryTool.LEFT_SIDE:
+                self._left_workspace.register_tool(tool)
+
+            elif cat in (CategoryTool.SIDE, CategoryTool.RIGHT_SIDE):
+                self._right_workspace.register_tool(tool)
+
+            elif cat == CategoryTool.BOTH:
+                # BOTH vai para o right side por padrão
+                self._right_workspace.register_tool(tool)
+
             elif tool.name == "Home":
                 self._central_workspace.register_tool(tool, focus=False)
 
-        # Abre Home
+        # Abre Home no central
         self._central_workspace.set_current_tool("Home")
+
+        # Abre FileManager fixo na esquerda se registrado
+        fm_name = ToolKey.FILE_MANAGER.value
+        if self._left_workspace.is_tool_open(fm_name):
+            self._left_workspace.expand(fm_name, self._left_content_width)
+
+        # Abre Console fixo na direita se registrado
+        console_name = ToolKey.CONSOLE.value
+        if self._right_workspace.is_tool_open(console_name):
+            self._right_workspace.expand(console_name, self._right_content_width)
 
     # ────────────────────────────────────────────────────────────────
     # API pública para a MainWindow
     # ────────────────────────────────────────────────────────────────
+
+    @property
+    def left_workspace(self) -> SideWorkspace:
+        if self._left_workspace is None:
+            raise RuntimeError("WorkspaceManager não foi construído.")
+        return self._left_workspace
 
     @property
     def central_workspace(self) -> CentralWorkspace:
@@ -135,10 +175,17 @@ class WorkspaceManager(QWidget):
         return self._central_workspace
 
     @property
-    def side_workspace(self) -> SideWorkspace:
-        if self._side_workspace is None:
+    def right_workspace(self) -> SideWorkspace:
+        if self._right_workspace is None:
             raise RuntimeError("WorkspaceManager não foi construído.")
-        return self._side_workspace
+        return self._right_workspace
+
+    # ── Compatibilidade com código legado ───────────────────────────
+
+    @property
+    def side_workspace(self) -> SideWorkspace:
+        """Retorna o right workspace (compatibilidade)."""
+        return self.right_workspace
 
     def get_tool(self, name: str) -> Optional[Tool]:
         """Retorna uma tool pelo nome."""
@@ -153,20 +200,23 @@ class WorkspaceManager(QWidget):
         if not tool:
             return
 
-        if tool.category == CategoryTool.INSTANT:
-            # Ferramentas INSTANT são auto-executáveis:
-            # o widget cria, executa a ação e se auto-destrói.
-            # Acessamos tool.widget para disparar o lazy loading,
-            # mas não registramos em nenhum workspace.
+        cat = tool.category
+
+        if cat == CategoryTool.INSTANT:
             _ = tool.widget
             self.tool_activated.emit(tool_name)
             return
 
-        if tool.category == CategoryTool.SIDE:
-            self._side_workspace.open_tool(tool)
-        elif tool.category == CategoryTool.BOTH:
-            if self._side_workspace.is_tool_open(tool_name):
-                self._side_workspace.open_tool(tool)
+        if cat == CategoryTool.LEFT_SIDE:
+            self._left_workspace.open_tool(tool)
+        elif cat in (CategoryTool.SIDE, CategoryTool.RIGHT_SIDE):
+            self._right_workspace.open_tool(tool)
+        elif cat == CategoryTool.BOTH:
+            # Tenta no side em que está aberta; senão, abre no central
+            if self._right_workspace.is_tool_open(tool_name):
+                self._right_workspace.open_tool(tool)
+            elif self._left_workspace.is_tool_open(tool_name):
+                self._left_workspace.open_tool(tool)
             else:
                 self._central_workspace.open_tool(tool)
         else:
@@ -179,8 +229,11 @@ class WorkspaceManager(QWidget):
         if self._central_workspace.is_tool_open(name):
             self._central_workspace.set_current_tool(name)
             return True
-        if self._side_workspace.is_tool_open(name):
-            self._side_workspace.expand(name, self._side_content_width)
+        if self._right_workspace.is_tool_open(name):
+            self._right_workspace.expand(name, self._right_content_width)
+            return True
+        if self._left_workspace.is_tool_open(name):
+            self._left_workspace.expand(name, self._left_content_width)
             return True
         return False
 
@@ -193,50 +246,99 @@ class WorkspaceManager(QWidget):
     # ────────────────────────────────────────────────────────────────
 
     def _init_splitter_sizes(self):
-        """Força o splitter para estado colapsado."""
+        """Força o splitter para estado inicial com sides colapsados."""
         if self._splitter is None:
             return
         try:
-            self._splitter.setSizes([
-                max(100, self._splitter.width() - SideWorkspace.W_TABS),
-                SideWorkspace.W_TABS,
-            ])
+            total = max(300, self._splitter.width())
+            tabs = SideWorkspace.W_TABS
+            central = total - 2 * tabs
+            self._splitter.setSizes([tabs, central, tabs])
         except Exception as e:
-            self.logger.error("Falha ao inicializar tamanhos do splitter", code="SPLIT_INIT_ERR", error=str(e))
+            self.logger.error("Falha ao inicializar tamanhos do splitter",
+                              code="SPLIT_INIT_ERR", error=str(e))
 
-    def _on_side_size_changed(self, total_width: int):
-        """Ajusta os tamanhos do splitter conforme SideWorkspace."""
+    def _on_left_size_changed(self, total_width: int):
+        """Ajusta os tamanhos do splitter conforme LeftSideWorkspace."""
         if self._splitter is None:
             return
 
         if total_width <= SideWorkspace.W_TABS:
-            self._drag_lock = True
-            self._splitter.setSizes([
-                self._splitter.width() - SideWorkspace.W_TABS,
-                SideWorkspace.W_TABS,
-            ])
-            self._sys_prefs["side_collapsed"] = True
-            self._sys_prefs["side_content_width"] = self._side_content_width
+            self._left_drag_lock = True
+            sizes = self._splitter.sizes()
+            if len(sizes) >= 3:
+                self._splitter.setSizes([
+                    SideWorkspace.W_TABS,
+                    sizes[1] + (sizes[0] - SideWorkspace.W_TABS),
+                    sizes[2],
+                ])
+            self._sys_prefs["left_side_collapsed"] = True
+            self._sys_prefs["left_side_content_width"] = self._left_content_width
             Preferences.save_tool_prefs(ToolKey.SYSTEM, self._sys_prefs)
         else:
-            self._drag_lock = False
-            self._splitter.setSizes([
-                self._splitter.width() - total_width,
-                total_width,
-            ])
+            self._left_drag_lock = False
+            sizes = self._splitter.sizes()
+            if len(sizes) >= 3:
+                # Distribui: tira do central
+                extra = total_width - sizes[0]
+                self._splitter.setSizes([
+                    total_width,
+                    max(100, sizes[1] - extra),
+                    sizes[2],
+                ])
+
+    def _on_right_size_changed(self, total_width: int):
+        """Ajusta os tamanhos do splitter conforme RightSideWorkspace."""
+        if self._splitter is None:
+            return
+
+        if total_width <= SideWorkspace.W_TABS:
+            self._right_drag_lock = True
+            sizes = self._splitter.sizes()
+            if len(sizes) >= 3:
+                self._splitter.setSizes([
+                    sizes[0],
+                    sizes[1] + (sizes[2] - SideWorkspace.W_TABS),
+                    SideWorkspace.W_TABS,
+                ])
+            self._sys_prefs["right_side_collapsed"] = True
+            self._sys_prefs["right_side_content_width"] = self._right_content_width
+            Preferences.save_tool_prefs(ToolKey.SYSTEM, self._sys_prefs)
+        else:
+            self._right_drag_lock = False
+            sizes = self._splitter.sizes()
+            if len(sizes) >= 3:
+                extra = total_width - sizes[2]
+                self._splitter.setSizes([
+                    sizes[0],
+                    max(100, sizes[1] - extra),
+                    total_width,
+                ])
 
     def _on_splitter_moved(self, pos: int, idx: int):
         """Salva a largura do conteúdo side quando o usuário arrasta."""
-        if self._drag_lock or self._splitter is None:
+        if self._splitter is None:
             return
         sizes = self._splitter.sizes()
-        if len(sizes) >= 2:
-            side_total = sizes[1]
+        if len(sizes) < 3:
+            return
+
+        # idx 0 = left handle, idx 1 = right handle
+        if idx == 0 and not self._left_drag_lock:
+            side_total = sizes[0]
             content_w = side_total - SideWorkspace.W_TABS
             if content_w > 20:
-                self._side_content_width = content_w
-                self._sys_prefs["side_collapsed"] = False
-                self._sys_prefs["side_content_width"] = content_w
+                self._left_content_width = content_w
+                self._sys_prefs["left_side_collapsed"] = False
+                self._sys_prefs["left_side_content_width"] = content_w
+                Preferences.save_tool_prefs(ToolKey.SYSTEM, self._sys_prefs)
+        elif idx == 1 and not self._right_drag_lock:
+            side_total = sizes[2]
+            content_w = side_total - SideWorkspace.W_TABS
+            if content_w > 20:
+                self._right_content_width = content_w
+                self._sys_prefs["right_side_collapsed"] = False
+                self._sys_prefs["right_side_content_width"] = content_w
                 Preferences.save_tool_prefs(ToolKey.SYSTEM, self._sys_prefs)
 
     # ────────────────────────────────────────────────────────────────
@@ -244,20 +346,33 @@ class WorkspaceManager(QWidget):
     # ────────────────────────────────────────────────────────────────
 
     def _move_tool_to_side(self, tool_name: str):
-        """Move uma ferramenta BOTH do Central para o Side."""
+        """Move uma ferramenta BOTH do Central para o Side (direito por padrão)."""
         tool = self._tool_map.get(tool_name)
         if not tool:
             return
         self._central_workspace.remove_tool_by_name(tool_name, keep_widget=True)
-        if not self._side_workspace.is_tool_open(tool_name):
-            self._side_workspace.register_tool(tool)
-        self._side_workspace.expand(tool_name, self._side_content_width)
+
+        # Tenta mover pro side em que já estava, senão vai pro direito
+        if self._right_workspace.is_tool_open(tool_name):
+            self._right_workspace.expand(tool_name, self._right_content_width)
+        elif self._left_workspace.is_tool_open(tool_name):
+            self._left_workspace.expand(tool_name, self._left_content_width)
+        else:
+            if not self._right_workspace.is_tool_open(tool_name):
+                self._right_workspace.register_tool(tool)
+            self._right_workspace.expand(tool_name, self._right_content_width)
 
     def _move_tool_to_central(self, tool_name: str):
-        """Move uma ferramenta BOTH do Side para o Central."""
+        """Move uma ferramenta BOTH de qualquer side para o Central."""
         tool = self._tool_map.get(tool_name)
         if not tool:
             return
-        self._side_workspace.remove_tool(tool_name)
+
+        # Remove de qualquer side
+        if self._right_workspace.is_tool_open(tool_name):
+            self._right_workspace.remove_tool(tool_name)
+        elif self._left_workspace.is_tool_open(tool_name):
+            self._left_workspace.remove_tool(tool_name)
+
         if not self._central_workspace.is_tool_open(tool_name):
             self._central_workspace.open_tool(tool)

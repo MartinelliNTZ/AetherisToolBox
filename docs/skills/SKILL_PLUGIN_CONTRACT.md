@@ -94,10 +94,19 @@ Remove imports mortos antes de finalizar. Não deixe `print()`, comentários de 
 ## 🔴 Contrato 10 — Categorias de Ferramentas
 
 ```
-CENTRAL → abas no topo. SIDE → painel lateral. BOTH → pode ir para ambos.
+CENTRAL    → abas no topo (CentralWorkspace)
+LEFT_SIDE  → painel lateral esquerdo fixo
+RIGHT_SIDE → painel lateral direito fixo
+SIDE       → compatibilidade: tratado como RIGHT_SIDE
+BOTH       → pode ir para CENTRAL ou qualquer SIDE
+INSTANT    → auto-destrutiva (não fica em workspace)
 ```
 
 Definido em `CategoryTool` e no registro do `ToolRegistry`. Siga o padrão das ferramentas existentes.
+- `FileManager` = `LEFT_SIDE` (fixo na esquerda)
+- `Console` = `RIGHT_SIDE` (fixo na direita)
+- Demais ferramentas de painel lateral usam `LEFT_SIDE` ou `RIGHT_SIDE` conforme necessidade
+- `BOTH` registra no right side por padrão, mas pode ser movido para o central ou left side
 
 ## 🔴 Contrato 11 — Widgets Reutilizáveis (Composição Obrigatória)
 
@@ -230,7 +239,7 @@ Ferramentas SEM menu_category não vão para o menu.
 - `MenuCategory.HELP` → menu "Ajuda" (futuro)
 - Ferramentas com `show_in_toolbar=False` + `menu_category=MenuCategory.SYSTEM` só aparecem no menu, nunca na toolbar.
 
-## 🔴 Contrato 16 — WorkspaceManager Encapsula Central + Side
+## 🔴 Contrato 16 — WorkspaceManager Encapsula 3 Workspaces (Left | Central | Right)
 
 ```
 WorkspaceManager é o ÚNICO responsável por gerenciar os workspaces.
@@ -238,11 +247,15 @@ A MainWindow não conhece CentralWorkspace nem SideWorkspace diretamente.
 ```
 
 **Regras:**
-- `WorkspaceManager` instancia o `QSplitter`, o `CentralWorkspace` e o `SideWorkspace`.
-- `WorkspaceManager` registra cada tool no workspace correto (CENTRAL, SIDE, BOTH).
-- `WorkspaceManager` gerencia todo o redimensionamento e persistência do SideWorkspace.
+- `WorkspaceManager` instancia o `QSplitter` com 3 painéis: `LeftSide | CentralWorkspace | RightSide`.
+- `WorkspaceManager` registra cada tool no workspace correto:
+  - `LEFT_SIDE` → left (ex: FileManager)
+  - `RIGHT_SIDE` / `SIDE` (legado) → right (ex: Console)
+  - `CENTRAL` → central (ex: Home, Renamer)
+  - `BOTH` → registra no right por padrão, pode ser movido
+- `WorkspaceManager` gerencia todo o redimensionamento e persistência dos SideWorkspaces (largura salva em sys_prefs).
 - `WorkspaceManager` gerencia a movimentação de tools BOTH entre workspaces.
-- A `MainWindow` apenas adiciona o `WorkspaceManager` ao layout e expõe properties delegadas.
+- A `MainWindow` expõe `left_workspace`, `central_workspace`, `right_workspace` (e `side_workspace` por compatibilidade).
 
 ```python
 # ✅ Correto

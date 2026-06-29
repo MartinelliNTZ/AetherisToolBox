@@ -235,6 +235,7 @@ class ZeroGrausTheme(BaseTheme):
     GROUP_MARGIN_TOP = 8
     SPLITTER_HANDLE_WIDTH = 4
     TOOLBAR_BTN_SIZE = 32
+    TOOLBAR_BTN_HOVER_GROW = 4
 
     # ═══════════════════════════════════════════════════════════════════
     # 18. SPECIFICS — Border Radius (mapeados dos RADIUS semânticos)

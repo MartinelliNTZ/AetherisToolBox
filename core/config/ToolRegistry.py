@@ -90,7 +90,7 @@ class ToolRegistry:
             ),
             tooltip="Console de execucao compartilhado",
             tool_type=ToolType.SYSTEM,
-            category=CategoryTool.SIDE,
+            category=CategoryTool.RIGHT_SIDE,
             show_in_toolbar=False,
         ),
         ToolKey.LOGVIEWER.value: Tool(
@@ -184,7 +184,7 @@ class ToolRegistry:
             ),
             tooltip="Explorador de arquivos interno do projeto",
             tool_type=ToolType.FOLDER,
-            category=CategoryTool.SIDE,
+            category=CategoryTool.LEFT_SIDE,
             show_in_toolbar=True,
         ),
         ToolKey.ICO_CONVERTER.value: Tool(
