@@ -257,6 +257,19 @@ class AppStyles(BaseStyle):
         )
 
     @classmethod
+    def tool_group_label_style(cls) -> str:
+        """Estilo do label de título de um ToolGroup na toolbar."""
+        t = ct.theme
+        return (
+            f"QLabel {{"
+            f"  color: {t.TEXT_GOLD};"
+            f"  font-size: {t.FONT_SIZE_TINY}px;"
+            f"  padding: 0px;"
+            f"  margin: 0px;"
+            f"}}"
+        )
+
+    @classmethod
     def badge_success(cls) -> str:
         return cls.badge_style(ct.theme.COLOR_SUCCESS)
 
