@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """
 UI Principal — Aetheris ToolBox
 ================================
@@ -69,6 +69,9 @@ class MainWindow(QMainWindow):
 
         self._build_ui(tools)
         self._setup_resize_mode()
+
+        # ── Startup: console pronto e sinais de inicialização ──
+        self._emit_startup_signals()
 
     # ── Resize mode ────────────────────────────────────────────────
 
@@ -275,6 +278,27 @@ class MainWindow(QMainWindow):
         SignalManager.instance().execution_cancelled.connect(self._on_execution_cancelled)
 
     # ── Handlers ───────────────────────────────────────────────────
+
+    def _emit_startup_signals(self) -> None:
+        """
+        Emite sinais de inicializacao e mensagem de boas-vindas no console.
+        O ConsolePlugin ja foi pre-carregado pelo WorkspaceManager,
+        portanto ja esta ouvindo os sinais console_message / console_html.
+        """
+        logger = LogUtils(tool="System", class_name="MainWindow")
+        logger.info(
+            "Aplicacao iniciada — emitindo sinais de startup",
+            code="STARTUP_EMIT",
+        )
+        signals = SignalManager.instance()
+        signals.app_startup.emit()
+        signals.console_html.emit(
+            '<b style="color:#10B981;">Aetheris ToolBox</b> '
+            '<span style="color:#78716C;">iniciado — console pronto.</span>'
+        )
+        signals.console_message.emit(
+            "Selecione uma ferramenta no menu para comecar."
+        )
 
     def _show_about(self):
         from core.dialogs.AboutDialog import AboutDialog
