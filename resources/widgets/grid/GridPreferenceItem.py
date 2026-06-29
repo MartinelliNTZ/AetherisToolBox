@@ -25,7 +25,7 @@ Configuração via dicionário:
     }
 
 Uso:
-    grid = PreferenceItemGrid(config_dict, section="MinhaFerramenta")
+    grid = GridPreferenceItem(config_dict, section="MinhaFerramenta")
     grid.load_values()
     grid.save_values()
 """
@@ -40,7 +40,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, Signal
 
-from resources.widgets.SimpleDangerButton import SimpleDangerButton
+from resources.widgets.simple.SimpleDangerButton import SimpleDangerButton
 from utils.Preferences import Preferences
 from core.enum.ToolKey import ToolKey
 
@@ -132,7 +132,7 @@ class PreferenceRow(QWidget):
         return self._key
 
 
-class PreferenceItemGrid(QScrollArea):
+class GridPreferenceItem(QScrollArea):
     """
     Grade rolável de itens de preferência configurados por dicionário.
 

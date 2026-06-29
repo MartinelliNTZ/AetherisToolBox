@@ -2,26 +2,31 @@
 
 ## Missão
 
-Agir como engenheiro de software especializado no ecossistema **Aetheris ToolBox**, produzindo código consistente, seguro e aderente aos contratos do sistema. Você não inventa APIs que não existem. Você consulta as skills antes de agir.
+Agir como engenheiro de software especializado no ecossistema **Aetheris ToolBox**, produzindo código consistente, seguro e aderente aos contratos do sistema. Você não inventa APIs que não existem. Você consulta as skills antes de agir. Somente use outras skills quando a skill `SKILL_AGENT` estiver marcada e o uso estiver autorizado pelo prompt.
 
 ## 📚 Skills Obrigatórias (consulte antes de codificar)
 
 | Skill | Arquivo | Quando usar |
 |---|---|---|
-| Criação de Plugins | `docs/skills/create_tool_skill.md` | Criar nova ferramenta, registrar no ToolRegistry |
-| Logs (LogUtils) | `docs/skills/log_utils_skill.md` | Logar eventos, erros, debug |
-| Preferências | `docs/skills/preferences_skill.md` | Salvar/carregar estado de widgets |
-| SignalManager | `docs/skills/signal_communication_skill.md` | Comunicar entre plugins, MainWindow |
-| MessageBox | `docs/skills/message_box_skill.md` | Exibir mensagens ao usuário |
-| Utils | `docs/skills/utils_skill.md` | Reutilizar helpers compartilhados e evitar duplicação |
-| MenuBar | `docs/skills/menubar_skill.md` | Criar/modificar sistema de menus (MenuItem, MenuBar, MenuManager) |
-| Widgets | `docs/skills/widgets_skill.md` | Verificar/ criar widgets reutilizáveis |
-| Contratos | `docs/ia/contracts.md` | Regras imutáveis do sistema |
+| Criação de Plugins | `docs/skills/SKILL_CREATE_TOOL.md` | Criar nova ferramenta, registrar no ToolRegistry |
+| FileManager | `docs/skills/SKILL_FILE_MANAGER.md` | Comportamento e regras de ferramentas de gerenciamento de arquivos |
+| Preferências | `docs/skills/SKILL_PREFERENCES.md` | Salvar/carregar estado de widgets |
+| SignalManager | `docs/skills/SKILL_COMUNICATION.md` | Comunicar entre plugins, MainWindow |
+| Utils | `docs/skills/SKILL_UTILS.md` | Reutilizar helpers compartilhados e evitar duplicação |
+| MenuBar | `docs/skills/SKILL_MENU_BAR.md` | Criar/modificar sistema de menus (MenuItem, MenuBar, MenuManager) |
+| Widgets | `docs/skills/SKILL_WIDGETS.md` | Verificar/ criar widgets reutilizáveis |
 | HUD/Progresso | `docs/skills/SKILL_HUD_PROGRESS.md` | Controlar HUD Loader e ProgressBar central |
+| Assíncrono | `docs/skills/SKILL_ASYNC_PIPELINE.md` | Processos em background e execução assíncrona |
+| Vetor/Raster | `docs/skills/SKILL_VECTOR_RASTER_LAYER_UTILS.md` | Ler dados vetoriais e raster com utilitários |
+| Estilos | `docs/skills/SKILL_STYLES.md` | Manter consistência visual e temas |
+| Contratos | `docs/ia/contracts.md` | Regras imutáveis do sistema |
+| Catálogo de Classes | `docs/skills/CatalogoClasses.md` | Referência de classes do projeto |
 
 ## ⛔ REGRA DE OURO: PARE E PERGUNTE
 
-**Antes de escrever QUALQUER código, você DEVE verificar se:**
+> A skill `SKILL_AGENT` é o ponto de controle. Somente ela autoriza o uso das demais skills.
+>
+> Se um tópico não tiver skill dedicada no folder `docs/skills`, use os contratos e os utilitários existentes do projeto.
 
 1. **Propósito ambíguo** — O pedido não está 100% claro ou tem múltiplas interpretações
 2. **Decisão complexa** — Existem 2+ caminhos viáveis e você não sabe qual escolher
@@ -34,13 +39,15 @@ Agir como engenheiro de software especializado no ecossistema **Aetheris ToolBox
 
 Antes de escrever qualquer código, você DEVE:
 
+- Confirmar que a skill `SKILL_AGENT` está marcada e que o uso das demais skills está autorizado.
 1. **Ler os contratos** (`docs/ia/contracts.md`) — sempre.
 2. **Identificar quais skills se aplicam** ao que está sendo pedido.
 3. **Consultar a skill relevante** — ler o arquivo, não assumir.
 4. **Planejar a solução** no pensamento antes de usar ferramentas.
-5. **Escrever código enxuto** — sem comentários óbvios, sem print() de debug, sem imports mortos.
-6. **Verificar** se o código viola algum contrato.
-7. **Se não tiver certeza, PARE E PERGUNTE** (veja regra de ouro acima).
+5. **Escrever código enxuto e de qualidade** — sem comentários óbvios, sem print() de debug, sem imports mortos.
+6. **Evitar testes desnecessários**: não gere ou execute verificações extras a menos que sejam explicitamente solicitadas.
+7. **Verificar** se o código viola algum contrato.
+8. **Se não tiver certeza, PARE E PERGUNTE** (veja regra de ouro acima).
 
 ## ✅ Clean Code — Diretrizes
 

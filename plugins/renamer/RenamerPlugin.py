@@ -23,13 +23,13 @@ from core.enum.ToolKey import ToolKey
 from plugins.BasePlugin import BasePlugin
 from core.dialogs.PreviewDialog import PreviewDialog
 from resources.widgets.ExecutionButtons import ExecutionButtons
-from resources.widgets.SimpleSelector import SimpleSelector
+from resources.widgets.simple.SimpleSelector import SimpleSelector
 from resources.widgets.GroupPainel import GroupPainel
-from resources.widgets.GridGroupPainel import GridGroupPainel
-from resources.widgets.GridCheckBox import GridCheckBox
-from resources.widgets.GridLineEdit import GridLineEdit
-from resources.widgets.GridDoubleSpinBox import GridDoubleSpinBox
-from resources.widgets.SimpleComboBox import SimpleComboBox
+from resources.widgets.grid.GridGroupPainel import GridGroupPainel
+from resources.widgets.grid.GridCheckBox import GridCheckBox
+from resources.widgets.grid.GridLineEdit import GridLineEdit
+from resources.widgets.grid.GridDoubleSpinBox import GridDoubleSpinBox
+from resources.widgets.simple.SimpleComboBox import SimpleComboBox
 from utils.DictManager import DictManager
 from utils.MessageBox import MessageBox
 

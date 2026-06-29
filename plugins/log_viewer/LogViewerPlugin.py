@@ -89,7 +89,7 @@ class LogViewerPlugin(BasePlugin):
 
     def _build_ui(self) -> None:
         from utils.ColorProvider import ColorProvider
-        from resources.widgets.SimpleGhostButton import SimpleGhostButton
+        from resources.widgets.simple.SimpleGhostButton import SimpleGhostButton
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(8, 8, 8, 8)

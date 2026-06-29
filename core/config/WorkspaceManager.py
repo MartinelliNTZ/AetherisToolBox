@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """
 WorkspaceManager — Gestor dos workspaces Central + Side Esquerdo + Side Direito
 =================================================================================
@@ -111,6 +111,17 @@ class WorkspaceManager(QWidget):
         # Inicializa colapsados
         self._left_workspace.collapse()
         self._right_workspace.collapse()
+
+        # Pré-carrega o Console para que ele já esteja ouvindo sinais
+        # desde o startup (ex: console_message, app_startup)
+        console_tool = self._tool_map.get(ToolKey.CONSOLE.value)
+        if console_tool:
+            _ = console_tool.widget  # Força a instanciação do widget
+            log.info(
+                "Console pre-carregado para startup",
+                code="CONSOLE_PRELOAD",
+            )
+
         QTimer.singleShot(0, self._init_splitter_sizes)
         self._left_drag_lock = True
         self._right_drag_lock = True
@@ -148,15 +159,15 @@ class WorkspaceManager(QWidget):
         # Abre Home no central
         self._central_workspace.set_current_tool("Home")
 
-        # Abre FileManager fixo na esquerda se registrado
-        fm_name = ToolKey.FILE_MANAGER.value
-        if self._left_workspace.is_tool_open(fm_name):
-            self._left_workspace.expand(fm_name, self._left_content_width)
-
-        # Abre Console fixo na direita se registrado
-        console_name = ToolKey.CONSOLE.value
-        if self._right_workspace.is_tool_open(console_name):
-            self._right_workspace.expand(console_name, self._right_content_width)
+        # Ambos os workspaces laterais ficam recolhidos por padrão.
+        # O utilizador expande clicando nas abas verticais.
+        # fm_name = ToolKey.FILE_MANAGER.value
+        # if self._left_workspace.is_tool_open(fm_name):
+        #     self._left_workspace.expand(fm_name, self._left_content_width)
+        #
+        # console_name = ToolKey.CONSOLE.value
+        # if self._right_workspace.is_tool_open(console_name):
+        #     self._right_workspace.expand(console_name, self._right_content_width)
 
     # ────────────────────────────────────────────────────────────────
     # API pública para a MainWindow

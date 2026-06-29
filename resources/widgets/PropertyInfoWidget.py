@@ -30,7 +30,7 @@ from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget
 
 from core.config.LogUtils import LogUtils
 from core.enum.ToolKey import ToolKey
-from resources.widgets.GridLabel import GridLabel
+from resources.widgets.grid.GridLabel import GridLabel
 
 _logger = LogUtils(tool=ToolKey.UNTRACEABLE.value, class_name="PropertyInfoWidget")
 

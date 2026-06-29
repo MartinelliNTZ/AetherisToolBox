@@ -23,7 +23,7 @@ from core.config.LogUtils import LogUtils
 from core.dialogs.BaseDialog import BaseDialog
 from core.enum.ToolKey import ToolKey
 from resources.widgets.CollapsibleParams import CollapsibleParams
-from resources.widgets.SimpleLabel import SimpleLabel
+from resources.widgets.simple.SimpleLabel import SimpleLabel
 
 _logger = LogUtils(tool=ToolKey.SYSTEM.value, class_name="PreviewDialog")
 

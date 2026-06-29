@@ -26,14 +26,14 @@ from core.papeline.PipelineRunner import PipelineRunner
 from plugins.BasePlugin import BasePlugin
 from plugins.point_boundary.PointBoundaryStep import PointBoundaryStep
 from resources.widgets.ExecutionButtons import ExecutionButtons
-from resources.widgets.GridDoubleSpinBox import GridDoubleSpinBox
-from resources.widgets.GridCheckBox import GridCheckBox
-from resources.widgets.GridLabel import GridLabel
-from resources.widgets.GridLineEdit import GridLineEdit
+from resources.widgets.grid.GridDoubleSpinBox import GridDoubleSpinBox
+from resources.widgets.grid.GridCheckBox import GridCheckBox
+from resources.widgets.grid.GridLabel import GridLabel
+from resources.widgets.grid.GridLineEdit import GridLineEdit
 from resources.widgets.GroupPainel import GroupPainel
-from resources.widgets.SelectorGrid import SelectorGrid
-from resources.widgets.SimpleSelector import SimpleSelector
-from resources.widgets.SimpleLabel import SimpleLabel
+from resources.widgets.grid.GridSelector import GridSelector
+from resources.widgets.simple.SimpleSelector import SimpleSelector
+from resources.widgets.simple.SimpleLabel import SimpleLabel
 from utils.ExplorerUtils import ExplorerUtils
 from utils.LasUtil import LasUtil
 from utils.MessageBox import MessageBox
@@ -103,7 +103,7 @@ class PointBoundaryPlugin(BasePlugin):
         grupo_entrada = GroupPainel("Arquivo de Entrada")
         self.main_layout.addWidget(grupo_entrada)
 
-        self._selector_grid = SelectorGrid(
+        self._selector_grid = GridSelector(
             {
                 "Arquivo de Pontos": {
                     "file_filter": SUPPORTED_EXTENSIONS,

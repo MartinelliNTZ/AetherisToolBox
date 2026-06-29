@@ -41,7 +41,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 
-from resources.widgets.SimpleRemoveButton import SimpleRemoveButton
+from resources.widgets.simple.SimpleRemoveButton import SimpleRemoveButton
 
 
 class ItemTable(QTableWidget):

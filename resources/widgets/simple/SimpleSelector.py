@@ -27,7 +27,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QWidget, QHBoxLayout, QLabel, QLineEdit
 
 from core.config.LogUtils import LogUtils
-from resources.widgets.SimpleSecondaryButton import SimpleSecondaryButton
+from resources.widgets.simple.SimpleSecondaryButton import SimpleSecondaryButton
 from utils.ExplorerUtils import ExplorerUtils
 from utils.ProjectUtil import ProjectUtil
 

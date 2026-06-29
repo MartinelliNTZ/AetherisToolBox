@@ -17,12 +17,12 @@ from core.papeline.PipelineRunner import PipelineRunner
 from core.papeline.step import MrkLoadDataStep, MrkProcessStep, MrkFindDataStep
 from plugins.BasePlugin import BasePlugin
 from resources.widgets.ExecutionButtons import ExecutionButtons
-from resources.widgets.GridCheckBox import GridCheckBox
-from resources.widgets.GridFieldMapping import GridFieldMapping
-from resources.widgets.GridRadio import GridRadio
+from resources.widgets.grid.GridCheckBox import GridCheckBox
+from resources.widgets.grid.GridFieldMapping import GridFieldMapping
+from resources.widgets.grid.GridRadio import GridRadio
 from resources.widgets.GroupPainel import GroupPainel
-from resources.widgets.GridGroupPainel import GridGroupPainel
-from resources.widgets.SimpleSelector import SimpleSelector
+from resources.widgets.grid.GridGroupPainel import GridGroupPainel
+from resources.widgets.simple.SimpleSelector import SimpleSelector
 from utils.ExplorerUtils import ExplorerUtils
 from utils.MessageBox import MessageBox
 

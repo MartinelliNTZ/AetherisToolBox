@@ -34,7 +34,7 @@ from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QListWidget, QListWidgetItem,
 )
 
-from resources.widgets.SimpleSecondaryButton import SimpleSecondaryButton
+from resources.widgets.simple.SimpleSecondaryButton import SimpleSecondaryButton
 from utils.ExplorerUtils import ExplorerUtils
 
 

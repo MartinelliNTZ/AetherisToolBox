@@ -13,15 +13,15 @@ from plugins.BasePlugin import BasePlugin
 from core.enum.ToolKey import ToolKey
 from resources.widgets.ExecutionButtons import ExecutionButtons
 from resources.widgets.GroupPainel import GroupPainel
-from resources.widgets.SimpleSecondaryButton import SimpleSecondaryButton
-from resources.widgets.SimpleSelector import SimpleSelector
-from resources.widgets.SelectorGrid import SelectorGrid
-from resources.widgets.SimpleComboBox import SimpleComboBox
-from resources.widgets.GridGroupPainel import GridGroupPainel
+from resources.widgets.simple.SimpleSecondaryButton import SimpleSecondaryButton
+from resources.widgets.simple.SimpleSelector import SimpleSelector
+from resources.widgets.grid.GridSelector import GridSelector
+from resources.widgets.simple.SimpleComboBox import SimpleComboBox
+from resources.widgets.grid.GridGroupPainel import GridGroupPainel
 from resources.widgets.ItemTable import ItemTable
-from resources.widgets.GridLineEdit import GridLineEdit
-from resources.widgets.GridDoubleSpinBox import GridDoubleSpinBox
-from resources.widgets.GridCheckBox import GridCheckBox
+from resources.widgets.grid.GridLineEdit import GridLineEdit
+from resources.widgets.grid.GridDoubleSpinBox import GridDoubleSpinBox
+from resources.widgets.grid.GridCheckBox import GridCheckBox
 from plugins.tensorflow_classifier.tensor_utils.ui_field_specs import UI_FIELD_SPECS
 
 
@@ -58,7 +58,7 @@ class TensorflowClassificationPlugin(BasePlugin):
 
         # TOP ROW
         grp_img = GroupPainel("Imagens & Saida")
-        sel_grid = SelectorGrid({
+        sel_grid = GridSelector({
             "Imagem Treino": {"file_filter": "GeoTIFF (*.tif *.tiff)", "default_path": "dados/imagemTreino.tif"},
             "Imagem Classif.": {"file_filter": "GeoTIFF (*.tif *.tiff)", "default_path": "dados/imagemCompleta.tif"},
             "Saida GeoTIFF": {"file_filter": "GeoTIFF (*.tif *.tiff)", "default_path": "resultado/mapa_classificado_ui.tif", "browse_mode": "save_file"},
