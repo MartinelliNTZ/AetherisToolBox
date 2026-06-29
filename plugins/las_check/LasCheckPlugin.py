@@ -28,7 +28,7 @@ from resources.widgets.ExecutionButtons import ExecutionButtons
 from resources.widgets.grid.GridCheckBox import GridCheckBox
 from resources.widgets.grid.GridLabel import GridLabel
 from resources.widgets.GroupPainel import GroupPainel
-from resources.widgets.SelectorGrid import SelectorGrid
+from resources.widgets.grid.GridSelector import SelectorGrid
 from utils.ExplorerUtils import ExplorerUtils
 from utils.LasUtil import LasUtil
 from utils.MessageBox import MessageBox

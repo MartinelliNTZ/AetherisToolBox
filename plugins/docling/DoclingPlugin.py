@@ -19,7 +19,7 @@ from resources.widgets.grid.GridCheckBox import GridCheckBox
 from resources.widgets.grid.GridDoubleSpinBox import GridDoubleSpinBox
 from resources.widgets.GroupPainel import GroupPainel
 from resources.widgets.ReadOnlyTextBrowser import ReadOnlyTextBrowser
-from resources.widgets.SelectorGrid import SelectorGrid
+from resources.widgets.grid.GridSelector import SelectorGrid
 from utils.ExplorerUtils import ExplorerUtils
 from utils.MessageBox import MessageBox
 

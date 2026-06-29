@@ -15,7 +15,7 @@ from resources.widgets.ExecutionButtons import ExecutionButtons
 from resources.widgets.GroupPainel import GroupPainel
 from resources.widgets.SimpleSecondaryButton import SimpleSecondaryButton
 from resources.widgets.SimpleSelector import SimpleSelector
-from resources.widgets.SelectorGrid import SelectorGrid
+from resources.widgets.grid.GridSelector import SelectorGrid
 from resources.widgets.SimpleComboBox import SimpleComboBox
 from resources.widgets.grid.GridGroupPainel import GridGroupPainel
 from resources.widgets.ItemTable import ItemTable

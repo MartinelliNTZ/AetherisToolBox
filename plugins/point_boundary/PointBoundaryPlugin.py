@@ -31,7 +31,7 @@ from resources.widgets.grid.GridCheckBox import GridCheckBox
 from resources.widgets.grid.GridLabel import GridLabel
 from resources.widgets.grid.GridLineEdit import GridLineEdit
 from resources.widgets.GroupPainel import GroupPainel
-from resources.widgets.SelectorGrid import SelectorGrid
+from resources.widgets.grid.GridSelector import SelectorGrid
 from resources.widgets.SimpleSelector import SimpleSelector
 from resources.widgets.SimpleLabel import SimpleLabel
 from utils.ExplorerUtils import ExplorerUtils
