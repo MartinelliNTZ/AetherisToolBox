@@ -31,7 +31,7 @@ from resources.widgets.grid.GridCheckBox import GridCheckBox
 from resources.widgets.grid.GridDoubleSpinBox import GridDoubleSpinBox
 from resources.widgets.grid.GridLabel import GridLabel
 from resources.widgets.GroupPainel import GroupPainel
-from resources.widgets.grid.GridSelector import SelectorGrid
+from resources.widgets.grid.GridSelector import GridSelector
 from resources.widgets.simple.SimpleLabel import SimpleLabel
 from utils.LasUtil import LasUtil
 from utils.MessageBox import MessageBox
@@ -125,7 +125,7 @@ class IdwInterpolatorPlugin(BasePlugin):
         grupo_entrada = GroupPainel("Arquivo de Entrada")
         self.main_layout.addWidget(grupo_entrada)
 
-        self._selector_grid = SelectorGrid({
+        self._selector_grid = GridSelector({
             "LAS/LAZ de Entrada": {
                 "file_filter": self._LAS_FILTER,
                 "browse_mode": "open_file",

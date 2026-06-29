@@ -19,7 +19,7 @@ from resources.widgets.grid.GridCheckBox import GridCheckBox
 from resources.widgets.grid.GridDoubleSpinBox import GridDoubleSpinBox
 from resources.widgets.GroupPainel import GroupPainel
 from resources.widgets.ReadOnlyTextBrowser import ReadOnlyTextBrowser
-from resources.widgets.grid.GridSelector import SelectorGrid
+from resources.widgets.grid.GridSelector import GridSelector
 from utils.ExplorerUtils import ExplorerUtils
 from utils.MessageBox import MessageBox
 
@@ -67,7 +67,7 @@ class DoclingPlugin(BasePlugin):
         })
         self.main_layout.addWidget(self._btns)
 
-        self._sel_grid = SelectorGrid(
+        self._sel_grid = GridSelector(
             specs={
                 "Documento": {
                     "file_filter": DOCUMENT_FILTER,

@@ -14,14 +14,14 @@ from resources.widgets.simple.SimpleSelector import SimpleSelector
 from resources.widgets.GroupPainel import GroupPainel
 
 
-class SelectorGrid(QWidget):
+class GridSelector(QWidget):
     """
     Grade de SimpleSelectors configurados por dicionário.
 
     Cada entrada do dict vira uma linha (ou coluna) na grade.
 
     Uso:
-        grid = SelectorGrid({
+        grid = GridSelector({
             "Imagem Treino":   {"file_filter": "GeoTIFF (*.tif *.tiff)", "default_path": "dados/treino.tif"},
             "Imagem Classif.": {"file_filter": "GeoTIFF (*.tif *.tiff)", "default_path": "dados/classif.tif"},
             "Saída":           {"file_filter": "GeoTIFF (*.tif *.tiff)", "browse_mode": "save_file"},

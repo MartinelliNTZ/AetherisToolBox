@@ -25,7 +25,7 @@ Configuração via dicionário:
     }
 
 Uso:
-    grid = PreferenceItemGrid(config_dict, section="MinhaFerramenta")
+    grid = GridPreferenceItem(config_dict, section="MinhaFerramenta")
     grid.load_values()
     grid.save_values()
 """
@@ -132,7 +132,7 @@ class PreferenceRow(QWidget):
         return self._key
 
 
-class PreferenceItemGrid(QScrollArea):
+class GridPreferenceItem(QScrollArea):
     """
     Grade rolável de itens de preferência configurados por dicionário.
 

@@ -15,7 +15,7 @@ from resources.widgets.ExecutionButtons import ExecutionButtons
 from resources.widgets.GroupPainel import GroupPainel
 from resources.widgets.simple.SimpleSecondaryButton import SimpleSecondaryButton
 from resources.widgets.simple.SimpleSelector import SimpleSelector
-from resources.widgets.grid.GridSelector import SelectorGrid
+from resources.widgets.grid.GridSelector import GridSelector
 from resources.widgets.simple.SimpleComboBox import SimpleComboBox
 from resources.widgets.grid.GridGroupPainel import GridGroupPainel
 from resources.widgets.ItemTable import ItemTable
@@ -58,7 +58,7 @@ class TensorflowClassificationPlugin(BasePlugin):
 
         # TOP ROW
         grp_img = GroupPainel("Imagens & Saida")
-        sel_grid = SelectorGrid({
+        sel_grid = GridSelector({
             "Imagem Treino": {"file_filter": "GeoTIFF (*.tif *.tiff)", "default_path": "dados/imagemTreino.tif"},
             "Imagem Classif.": {"file_filter": "GeoTIFF (*.tif *.tiff)", "default_path": "dados/imagemCompleta.tif"},
             "Saida GeoTIFF": {"file_filter": "GeoTIFF (*.tif *.tiff)", "default_path": "resultado/mapa_classificado_ui.tif", "browse_mode": "save_file"},

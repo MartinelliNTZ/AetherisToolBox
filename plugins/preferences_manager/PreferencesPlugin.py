@@ -22,7 +22,7 @@ from PySide6.QtWidgets import QWidget, QVBoxLayout
 from core.enum.ToolKey import ToolKey
 from plugins.BasePlugin import BasePlugin
 from resources.widgets.ExecutionButtons import ExecutionButtons
-from resources.widgets.grid.GridPreferenceItem import PreferenceItemGrid
+from resources.widgets.grid.GridPreferenceItem import GridPreferenceItem
 from resources.widgets.simple.SimpleComboBox import SimpleComboBox
 from utils.Preferences import Preferences
 
@@ -75,7 +75,7 @@ class PreferencesPlugin(BasePlugin):
         super()._build_ui()
 
         self._current_section: str = ""
-        self._grid: PreferenceItemGrid | None = None
+        self._grid: GridPreferenceItem | None = None
 
         # ── Action Buttons ──
         self._btns = ExecutionButtons(self)
@@ -158,7 +158,7 @@ class PreferencesPlugin(BasePlugin):
                 w.deleteLater()
 
         config = _build_dynamic_config(self._current_section)
-        self._grid = PreferenceItemGrid(config, section=self._current_section)
+        self._grid = GridPreferenceItem(config, section=self._current_section)
         self._grid_layout.addWidget(self._grid)
 
     def _on_save(self):
