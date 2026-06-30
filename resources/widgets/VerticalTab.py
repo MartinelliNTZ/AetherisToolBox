@@ -163,7 +163,7 @@ class VerticalTab(QWidget):
             self.double_clicked.emit()
             event.accept()
         else:
-            super().mouseDoubleClickEvent(event)
+            super().mouseDoubleClickEvent(event)#
 
     def enterEvent(self, event):
         self._hovered = True
