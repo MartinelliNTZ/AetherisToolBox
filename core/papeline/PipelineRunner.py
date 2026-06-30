@@ -57,12 +57,17 @@ class PipelineRunner(QThread):
         context: Optional[Dict[str, Any]] = None,
         *,
         parent=None,
+        governor: Optional[ResourceGovernor] = None,
+        governor_mode: RamLimitMode = _DEFAULT_MODE,
+        governor_fraction: float = _DEFAULT_FRACTION,
     ):
         super().__init__(parent)
         self._steps = steps
         self._context_data = context or {}
         self._engine: AsyncPipelineEngine | None = None
-        self._governor: ResourceGovernor | None = None
+        self._governor: Optional[ResourceGovernor] = governor
+        self._governor_mode = governor_mode
+        self._governor_fraction = governor_fraction
 
     @property
     def engine(self) -> AsyncPipelineEngine | None:
@@ -81,14 +86,23 @@ class PipelineRunner(QThread):
         """Executa a pipeline em background thread."""
         ctx = ExecutionContext(self._context_data)
 
-        # Cria ResourceGovernor interno para monitorar RAM
-        # Política padrão: GLOBAL 90% (pode ser alterada futuramente)
-        self._governor = ResourceGovernor(
-            policy=RamLimitPolicy(
-                mode=self._DEFAULT_MODE,
-                fraction=self._DEFAULT_FRACTION,
-            ),
-        )
+        # Injeta referencia do governor no contexto para steps/tasks
+        # A task concreta pode extrair via context.get("_governor") e usar:
+        #   - can_execute(estimated_ram) para bloqueio proativo
+        #   - check_during_execution() para verificacao periodica
+        #   - recommended_tile_size() para ajustar tiles
+
+        # Cria ResourceGovernor (custom ou padrao GLOBAL 90%)
+        if self._governor is None:
+            self._governor = ResourceGovernor(
+                policy=RamLimitPolicy(
+                    mode=self._governor_mode,
+                    fraction=self._governor_fraction,
+                ),
+            )
+
+        # Disponibiliza governor para steps/tasks via contexto
+        ctx.set("_governor", self._governor)
 
         self._engine = AsyncPipelineEngine(
             steps=self._steps,

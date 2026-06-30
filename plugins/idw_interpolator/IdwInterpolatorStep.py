@@ -1,16 +1,22 @@
 # -*- coding: utf-8 -*-
 """
-IdwInterpolatorStep — Step que orquestra a interpolação IDW
+IdwInterpolatorStep — Step que orquestra a interpolacao IDW
 =============================================================
-Valida parâmetros, cria a IdwInterpolatorTask e coleta resultados.
+Valida parametros, cria a IdwInterpolatorTask com governor
+extraido do contexto (injetado pelo PipelineRunner).
+
+Melhorias:
+- Extrai ResourceGovernor do contexto e passa para a task
+- Task recebe governor para can_execute(), recommended_tile_size(), etc.
 """
 
 from __future__ import annotations
 
-import os
+import os as _os
 from typing import Any, Optional
 
 from core.enum.ToolKey import ToolKey
+from core.governor.ResourceGovernor import ResourceGovernor
 from core.papeline.BaseStep import BaseStep
 from core.papeline.BaseTask import BaseTask
 from core.papeline.ExecutionContext import ExecutionContext
@@ -19,11 +25,7 @@ from utils.BaseUtil import BaseUtil
 
 
 class IdwInterpolatorStep(BaseStep):
-    """
-    Step que orquestra a IdwInterpolatorTask.
-
-    Valida parâmetros de entrada, instancia a task e coleta resultados.
-    """
+    """Step que orquestra a IdwInterpolatorTask com governor."""
 
     def __init__(self):
         self._logger = BaseUtil._get_logger(ToolKey.UNTRACEABLE.value, "IdwInterpolatorStep")
@@ -32,9 +34,8 @@ class IdwInterpolatorStep(BaseStep):
         return "IdwInterpolatorStep"
 
     def should_run(self, context: ExecutionContext) -> bool:
-        """Só executa se houver arquivo LAS e bandas selecionadas."""
         file_path = context.get("file_path", "")
-        if not file_path or not os.path.isfile(file_path):
+        if not file_path or not _os.path.isfile(file_path):
             self._logger.warning("Arquivo LAS nao encontrado", code="IDW_STEP_NO_FILE")
             return False
 
@@ -43,33 +44,29 @@ class IdwInterpolatorStep(BaseStep):
             self._logger.warning("Nenhuma banda selecionada", code="IDW_STEP_NO_BANDS")
             return False
 
-        # Valida mosaico: se não separar bandas, precisa de RGB completo
         separate = context.get("separate_bands", False)
         if not separate:
             has_rgb = target.get("r", False) and target.get("g", False) and target.get("b", False)
             has_any_rgb = target.get("r", False) or target.get("g", False) or target.get("b", False)
             if not has_rgb and has_any_rgb:
-                self._logger.warning(
-                    "Mosaico requer R, G e B simultaneamente",
-                    code="IDW_STEP_MOSAIC_INCOMPLETE",
-                )
+                self._logger.warning("Mosaico requer R, G e B", code="IDW_STEP_MOSAIC_INCOMPLETE")
                 return False
 
         return True
 
     def create_task(self, context: ExecutionContext) -> Optional[BaseTask]:
-        """Cria a IdwInterpolatorTask com os parâmetros do contexto."""
-        return IdwInterpolatorTask(context.data)
+        """Cria IdwInterpolatorTask com governor extraido do contexto."""
+        governor: Optional[ResourceGovernor] = context.get("_governor", None)
+        task = IdwInterpolatorTask(context.data, governor=governor)
+
+        if governor is not None:
+            self._logger.debug("Governor injetado na task", code="IDW_STEP_GOV_ATTACHED")
+
+        return task
 
     def on_success(self, context: ExecutionContext, result: Any) -> None:
-        """Callback após task bem-sucedida — armazena resultado no contexto."""
         self._logger.info("IDW concluido com sucesso", code="IDW_STEP_DONE")
         context["idw_result"] = result
 
     def on_error(self, context: ExecutionContext, exception: Exception) -> None:
-        """Tratamento de erro do step."""
-        self._logger.error(
-            "Erro na interpolacao IDW",
-            code="IDW_STEP_ERR",
-            error=str(exception),
-        )
+        self._logger.error("Erro na interpolacao IDW", code="IDW_STEP_ERR", error=str(exception))

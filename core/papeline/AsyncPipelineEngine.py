@@ -113,11 +113,10 @@ class AsyncPipelineEngine:
                 self._finish_cancelled()
                 return
 
-            # Verifica recursos do sistema (governor)
-            if self._governor is not None:
-                can, reason = self._governor.can_execute()
-                if not can:
-                    self._context.add_error(RuntimeError(reason))
+            # Verifica recursos (governor) — check leve sem estimated_ram
+            # A Task pode usar can_execute(estimated_ram) com estimativa real
+            if self._governor is not None and not self._governor.check_during_execution():
+                    self._context.add_error(RuntimeError("Memoria insuficiente"))
                     self._finish_error()
                     return
 
