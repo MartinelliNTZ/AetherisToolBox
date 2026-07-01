@@ -66,7 +66,7 @@ class IdwInterpolatorStep(BaseStep):
 
     def on_success(self, context: ExecutionContext, result: Any) -> None:
         self._logger.info("IDW concluido com sucesso", code="IDW_STEP_DONE")
-        context["idw_result"] = result
+        context.set("idw_result", result)
 
     def on_error(self, context: ExecutionContext, exception: Exception) -> None:
         self._logger.error("Erro na interpolacao IDW", code="IDW_STEP_ERR", error=str(exception))

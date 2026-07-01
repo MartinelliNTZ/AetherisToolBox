@@ -22,47 +22,30 @@ from ..task.MrkSinglePipelineTask import MrkSinglePipelineTask
 
 class MrkLoadDataStep(BaseStep):
     """
-    Step que carrega dados de um arquivo vetorial (CSV/SHP/GPKG)
-    e armazena no ExecutionContext.
+    Step que valida que o arquivo de dados existe.
+    NAO carrega dados em memoria - a carga e feita pelo MrkProcessStep
+    que le diretamente do arquivo.
 
     Context requer:
         - "data_path": Caminho do arquivo de dados
-        - "tool_key": ToolKey para logging
 
     Context produz:
-        - "data": Lista de dicts com registros carregados
+        - (apenas valida, nao carrega nada em memoria)
     """
     def name(self) -> str:
         return "mrk_load_data"
 
-    def create_task(self, context: ExecutionContext) -> BaseTask:
-        return MrkLoadDataTask(
-            data_path=str(context.get("data_path")),
-            tool_key=str(context.get("tool_key", "MrkPipeline")),
-        )
+    def create_task(self, context: ExecutionContext) -> None:
+        return None  # Sincrono
+
+    def run_inline(self, context: ExecutionContext) -> Optional[bool]:
+        data_path = str(context.get("data_path", ""))
+        if not data_path or not Path(data_path).is_file():
+            return False
+        return True
 
     def on_success(self, context: ExecutionContext, result: Any) -> None:
-        context.set("data", result)
-
-
-class MrkLoadDataTask(BaseTask):
-    """
-    Task para carregar dados vetoriais em background.
-    """
-    def __init__(self, data_path: str, tool_key: str):
-        super().__init__(description=f"Carregar dados: {Path(data_path).name}")
-        self._data_path = data_path
-        self._tool_key = tool_key
-
-    def _run(self) -> bool:
-        try:
-            from utils.vector.VectorLayerSource import VectorLayerSource
-            data = VectorLayerSource.read(self._data_path, tool_key=self._tool_key)
-            self.result = data
-            return True
-        except Exception as e:
-            self.exception = e
-            return False
+        pass  # Dados serao carregados pelo MrkProcessStep direto do disco
 
 
 class MrkProcessStep(BaseStep):
@@ -83,12 +66,12 @@ class MrkProcessStep(BaseStep):
         return "mrk_process"
 
     def should_run(self, context: ExecutionContext) -> bool:
-        return context.has("data") and context.has("mrk_path")
+        return context.has("data_path") and context.has("mrk_path")
 
     def create_task(self, context: ExecutionContext) -> MrkSinglePipelineTask:
         return MrkSinglePipelineTask(
             mrk_path=str(context.get("mrk_path")),
-            data=context.get("data", []),
+            data_path=str(context.get("data_path", "")),
             mapping=context.get("mapping", {}),
             output_dir=str(context.get("output_dir")),
             emit_console=True,

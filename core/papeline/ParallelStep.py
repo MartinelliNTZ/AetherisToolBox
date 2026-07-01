@@ -26,6 +26,7 @@ from typing import Any, Callable, Dict, List, Optional
 
 from .ExecutionContext import ExecutionContext
 from .BaseStep import BaseStep
+from core.governor.CpuGovernor import CpuGovernor
 from .BaseTask import BaseTask
 
 
@@ -49,7 +50,10 @@ class ParallelTask(BaseTask):
         super().__init__(description=description)
         self._steps = steps
         self._context = context
-        self._max_workers = max_workers or len(steps)
+        self._max_workers = min(
+            max_workers or len(steps),
+            CpuGovernor.max_workers(),
+        )
         self._propagate_errors = propagate_errors
 
     def _run(self) -> bool:

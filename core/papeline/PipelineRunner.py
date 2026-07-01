@@ -25,6 +25,7 @@ from typing import Any, Dict, List, Optional
 from PySide6.QtCore import QThread, Signal
 
 from core.governor.RamLimitPolicy import RamLimitPolicy, RamLimitMode
+from core.governor.CpuGovernor import CpuGovernor
 from core.governor.ResourceGovernor import ResourceGovernor
 from .ExecutionContext import ExecutionContext
 from .BaseStep import BaseStep
@@ -103,6 +104,9 @@ class PipelineRunner(QThread):
 
         # Disponibiliza governor para steps/tasks via contexto
         ctx.set("_governor", self._governor)
+
+        # Disponibiliza CpuGovernor para steps/tasks que queiram consultar
+        ctx.set("_cpu_governor", CpuGovernor)
 
         self._engine = AsyncPipelineEngine(
             steps=self._steps,

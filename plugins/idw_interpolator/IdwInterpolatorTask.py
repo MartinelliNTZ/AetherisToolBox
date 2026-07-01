@@ -21,6 +21,7 @@ import numpy as np
 from joblib import Parallel, delayed
 
 from core.enum.ToolKey import ToolKey
+from core.governor.CpuGovernor import CpuGovernor
 from core.governor.ResourceGovernor import ResourceGovernor
 from core.manager.SignalManager import SignalManager
 from core.papeline.BaseTask import BaseTask
@@ -121,8 +122,7 @@ class IdwInterpolatorTask(BaseTask):
         """Ajusta pontos_por_tile via governor com fator paralelo."""
         if self._governor is None:
             return pontos_por_tile
-        import os
-        n_cpus = os.cpu_count() or 4
+        n_cpus = CpuGovernor.max_workers()
         ram_por_tile = max(self._n_pontos, 1) * self.BYTES_PER_POINT
         ram_paralela = ram_por_tile * min(n_cpus, 8)
         return self._governor.recommended_tile_size(
@@ -196,7 +196,7 @@ class IdwInterpolatorTask(BaseTask):
             return False
 
         # --- Verificacao de RAM por pixel do grid (anti-OOM meshgrid) ---
-        n_cpus = _os.cpu_count() or 4
+        n_cpus = CpuGovernor.max_workers()
         n_bandas = sum(1 for b in ('r', 'g', 'b', 'z') if target.get(b, False))
         n_bandas = max(1, n_bandas)
         if not self._check_pixel_ram(width, height, n_cpus, n_bandas):
@@ -257,7 +257,7 @@ class IdwInterpolatorTask(BaseTask):
             pz = _os.path.join(dir_z, f"tile_{tag}.tif") if target.get("z", False) else None
             tile_jobs.append((idx, tag, (x0, x1, y0, y1), pr, pg, pb, pz))
 
-        results = Parallel(n_jobs=-1, verbose=0)(
+        results = Parallel(n_jobs=CpuGovernor.n_jobs(), verbose=0)(
             delayed(InterpolatorUtils.idw_tile_para_disco)(
                 idx, total_tiles, tag, tb, grid_bounds, resol_m,
                 x_pts, y_pts, r_pts, g_pts, b_pts, z_pts,
@@ -299,7 +299,7 @@ class IdwInterpolatorTask(BaseTask):
         if target.get("b"): _add_merge("B", dir_b, np.uint8)
         if target.get("z"): _add_merge("Z", dir_z, np.float32)
 
-        Parallel(n_jobs=-1, verbose=0)(
+        Parallel(n_jobs=CpuGovernor.n_jobs(), verbose=0)(
             delayed(InterpolatorUtils.mesclar_banda)(
                 nome, paths, height, width, transform, crs_str,
                 out_path, dtype, self._tool_key,
