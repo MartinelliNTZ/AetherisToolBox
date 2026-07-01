@@ -34,6 +34,8 @@ class IdwInterpolatorTask(BaseTask):
     """Task IDW com protecao de RAM via ResourceGovernor."""
 
     BYTES_PER_POINT: int = 32
+    MAX_TILE_PIXELS: int = 10_000_000
+    BYTES_PER_TILE_PIXEL: int = 64
 
     def __init__(self, context: dict, governor: ResourceGovernor | None = None):
         super().__init__(
@@ -54,10 +56,10 @@ class IdwInterpolatorTask(BaseTask):
         n = max(self._n_pontos, self._ctx.get("pontos_por_tile", 10_000_000))
         return n * self.BYTES_PER_POINT
 
-    def _log_memory_status(self, stage: str) -> None:
+    def _log_memory_status(self, stage: str, estimated_ram_extra: int = 0) -> None:
         """Loga status de RAM via governor."""
         if self._governor is not None:
-            snap = self._governor.snapshot(estimated_ram=self.estimated_ram)
+            snap = self._governor.snapshot(estimated_ram=self.estimated_ram + estimated_ram_extra)
             self._logger.debug(
                 f"[RAM] {stage}: "
                 f"Sys {snap.get('used_system_human', '?')}/"
@@ -67,6 +69,53 @@ class IdwInterpolatorTask(BaseTask):
                 f"Pressao {snap.get('memory_pressure', 0):.2f}",
                 code="IDW_TASK_RAM", stage=stage,
             )
+
+    def _estimar_ram_por_tile(self, tile_pixels: int, n_bandas: int) -> int:
+        """
+        Estima RAM necessaria para processar UM tile via idw_tile_para_disco.
+        Inclui meshgrid, query_pts, cKDTree dist/idx, pesos, arrays de banda.
+
+        Args:
+            tile_pixels: tile_h * tile_w (numero de pixels do tile)
+            n_bandas: numero de bandas a interpolar (1-4)
+
+        Returns:
+            RAM estimada em bytes para um tile.
+        """
+        k = self._ctx.get('idw_k', 5)
+        bytes_por_pixel = 8 + 8 + 16 + k * 8 + k * 8 + k * 8
+        bytes_por_pixel += n_bandas * k * 8
+        return tile_pixels * bytes_por_pixel
+
+    def _check_pixel_ram(self, width: int, height: int, n_cpus: int, n_bandas: int) -> bool:
+        """
+        Verifica se ha RAM suficiente para processar tiles no grid.
+        Calcula o tile pixel size minimo (MAX_TILE_PIXELS) e estima RAM
+        total com paralelismo.
+
+        Returns:
+            True se ok, False se RAM insuficiente.
+        """
+        if self._governor is None:
+            return True
+        total_pixels = width * height
+        n_tiles_min = max(1, (total_pixels + self.MAX_TILE_PIXELS - 1) // self.MAX_TILE_PIXELS)
+        tile_pixels = (total_pixels + n_tiles_min - 1) // n_tiles_min
+        ram_por_tile = self._estimar_ram_por_tile(tile_pixels, n_bandas)
+        ram_paralela = ram_por_tile * min(n_cpus, 8)
+        can, reason = self._governor.can_execute(estimated_ram=ram_paralela)
+        if not can:
+            self._logger.error(
+                "RAM insuficiente para tiles no grid",
+                code="IDW_TASK_OOM_PIXEL",
+                width=width, height=height,
+                tile_pixels=tile_pixels,
+                ram_por_tile=ram_por_tile,
+                ram_paralela=ram_paralela,
+                reason=reason,
+            )
+            return False
+        return True
 
     def _ajustar_tile_size(self, pontos_por_tile: int) -> int:
         """Ajusta pontos_por_tile via governor com fator paralelo."""
@@ -146,6 +195,14 @@ class IdwInterpolatorTask(BaseTask):
         if not self._check_during_execution():
             return False
 
+        # --- Verificacao de RAM por pixel do grid (anti-OOM meshgrid) ---
+        n_cpus = _os.cpu_count() or 4
+        n_bandas = sum(1 for b in ('r', 'g', 'b', 'z') if target.get(b, False))
+        n_bandas = max(1, n_bandas)
+        if not self._check_pixel_ram(width, height, n_cpus, n_bandas):
+            self._logger.error("RAM insuficiente para processar grid", code="IDW_TASK_OOM_GRID")
+            return False
+
         # --- Estagio 3: Divisao em Tiles (com governor) ---
         self._signals.hud_update.emit({"message": "Dividindo tiles...", "progress": 8.0})
         self._signals.progress_update.emit(8.0)
@@ -159,6 +216,7 @@ class IdwInterpolatorTask(BaseTask):
         tiles = InterpolatorUtils.calcular_tiles_por_densidade(
             x_pts, y_pts, min_x_g, max_x_g, min_y_g, max_y_g,
             resol_m, pontos_por_tile, tool_key=self._tool_key,
+            max_tile_pixels=self.MAX_TILE_PIXELS,
         )
         total_tiles = len(tiles)
         self._log_memory_status("apos_tiles")

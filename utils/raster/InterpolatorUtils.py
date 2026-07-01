@@ -77,19 +77,47 @@ class InterpolatorUtils(BaseUtil):
         resol: float,
         pontos_por_chunk: int,
         tool_key: str = ToolKey.UNTRACEABLE.value,
+        max_tile_pixels: int = 0,
     ) -> list:
         """
         Divide a area em tiles com ~pontos_por_chunk pontos cada.
+
+        Quando `max_tile_pixels > 0`, a grade tambem considera o numero maximo
+        de pixels por tile para evitar OOM em np.meshgrid (idw_tile_para_disco).
+        O numero final de tiles eh o maior entre o necessario por pontos e por pixels.
+
+        Args:
+            max_tile_pixels: Limite maximo de pixels (tile_h * tile_w) por tile.
+                             0 = desabilitado (comportamento anterior).
 
         Returns:
             Lista de (x0, x1, y0, y1, row, col) — bounds geograficos + indices.
         """
         logger = BaseUtil._get_logger(tool_key, "InterpolatorUtils")
         n_total = len(x_pts)
-        n_alvo = max(1, int(math.ceil(n_total / pontos_por_chunk)))
-        lado = max(1, int(math.ceil(math.sqrt(n_alvo))))
+
+        # Tiles baseados em pontos
+        n_alvo_pontos = max(1, int(math.ceil(n_total / pontos_por_chunk)))
+        lado = max(1, int(math.ceil(math.sqrt(n_alvo_pontos))))
         n_cols = lado
-        n_rows = int(math.ceil(n_alvo / n_cols))
+        n_rows = int(math.ceil(n_alvo_pontos / n_cols))
+
+        # Tiles baseados em pixels
+        if max_tile_pixels > 0 and resol > 0:
+            grid_w = max(1, int(math.ceil((max_x_g - min_x_g) / resol)))
+            grid_h = max(1, int(math.ceil((max_y_g - min_y_g) / resol)))
+            total_pixels = grid_w * grid_h
+            n_alvo_pixels = max(1, int(math.ceil(total_pixels / max_tile_pixels)))
+
+            if n_alvo_pixels > n_alvo_pontos:
+                n_cols = int(math.ceil(math.sqrt(n_alvo_pixels)))
+                n_rows = int(math.ceil(n_alvo_pixels / n_cols))
+                logger.info(
+                    f"Pixel-constrained tiles: {n_alvo_pixels} tiles "
+                    f"(pts: {n_alvo_pontos}) | "
+                    f"grid: {grid_w}x{grid_h} px | "
+                    f"max_pixels/tile: {max_tile_pixels:,}",
+                )
 
         dx = (max_x_g - min_x_g) / n_cols
         dy = (max_y_g - min_y_g) / n_rows
@@ -103,9 +131,11 @@ class InterpolatorUtils(BaseUtil):
                 y1 = min_y_g + (row + 1) * dy
                 tiles.append((x0, x1, y0, y1, row, col))
 
+        px_per_tile = (int(math.ceil(dx / resol)), int(math.ceil(dy / resol)))
         logger.info(
             f"Grade de tiles calculada: {n_cols}x{n_rows} = {len(tiles)} tiles, "
-            f"{pontos_por_chunk:,} pts/tile",
+            f"{pontos_por_chunk:,} pts/tile, "
+            f"~{px_per_tile[0]}x{px_per_tile[1]} px/tile",
         )
         return tiles
 
