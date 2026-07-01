@@ -190,7 +190,7 @@ class LasUtil(BaseUtil):
                 "z_min": float(np.min(las_read.z)),
                 "z_max": float(np.max(las_read.z)),
             }
-            logger.info("Bounding box calculada", code="LAS_BBOX", **bbox)
+            logger.info(f"Bounding box calculada: x[{bbox['x_min']:.2f}, {bbox['x_max']:.2f}] y[{bbox['y_min']:.2f}, {bbox['y_max']:.2f}]")
             return bbox
 
         except Exception as e:

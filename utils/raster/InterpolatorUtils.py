@@ -62,10 +62,7 @@ class InterpolatorUtils(BaseUtil):
                 dst.write(arr, 1)
         except Exception as e:
             logger.error(
-                "Erro ao salvar tile GeoTIFF",
-                code="IDW_SAVE_TILE_ERR",
-                path=path,
-                error=str(e),
+                f"Erro ao salvar tile GeoTIFF: {path} -> {e}",
             )
             raise
 
@@ -107,12 +104,8 @@ class InterpolatorUtils(BaseUtil):
                 tiles.append((x0, x1, y0, y1, row, col))
 
         logger.info(
-            "Grade de tiles calculada",
-            code="IDW_TILES_GRID",
-            cols=n_cols,
-            rows=n_rows,
-            total=len(tiles),
-            pontos_por_tile=pontos_por_chunk,
+            f"Grade de tiles calculada: {n_cols}x{n_rows} = {len(tiles)} tiles, "
+            f"{pontos_por_chunk:,} pts/tile",
         )
         return tiles
 
@@ -165,9 +158,7 @@ class InterpolatorUtils(BaseUtil):
             elapsed = time.perf_counter() - t0
             logger = BaseUtil._get_logger(tool_key, "InterpolatorUtils")
             logger.info(
-                f"Tile {chunk_idx+1:>4}/{total_chunks} [{tile_tag}] | PULADO",
-                code="IDW_TILE_SKIP",
-                elapsed_s=round(elapsed, 1),
+                f"Tile {chunk_idx+1:>4}/{total_chunks} [{tile_tag}] | PULADO ({elapsed:.1f}s)",
             )
             return (chunk_idx, tile_tag, row0, row1, col0, col1, 'PULADO')
 
@@ -270,9 +261,6 @@ class InterpolatorUtils(BaseUtil):
         logger = BaseUtil._get_logger(tool_key, "InterpolatorUtils")
         logger.info(
             f"Tile {chunk_idx+1:>4}/{total_chunks} [{tile_tag}] | pts={n_locais:>8} | {elapsed:.1f}s",
-            code="IDW_TILE_OK",
-            elapsed_s=round(elapsed, 1),
-            n_locais=n_locais,
         )
         return (chunk_idx, tile_tag, row0, row1, col0, col1, 'OK')
 
@@ -294,7 +282,7 @@ class InterpolatorUtils(BaseUtil):
         """
         tic = time.perf_counter()
         logger = BaseUtil._get_logger(tool_key, "InterpolatorUtils")
-        logger.info(f"[{nome_banda}] Mesclando {len(tile_paths)} tiles", code="IDW_MERGE_START")
+        logger.info(f"[{nome_banda}] Mesclando {len(tile_paths)} tiles")
 
         bin_path = out_path.replace(".tif", ".bin")
         mm = np.memmap(bin_path, dtype=dtype, mode="w+", shape=(height, width))
@@ -342,8 +330,6 @@ class InterpolatorUtils(BaseUtil):
 
         elapsed = time.perf_counter() - tic
         logger.info(
-            f"[{nome_banda}] Mesclagem concluida",
-            code="IDW_MERGE_DONE",
-            elapsed_s=round(elapsed, 1),
+            f"[{nome_banda}] Mesclagem concluida ({elapsed:.1f}s)",
         )
         return out_path
