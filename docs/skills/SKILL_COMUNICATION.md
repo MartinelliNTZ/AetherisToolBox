@@ -191,12 +191,67 @@ SignalManager.instance().hud_stage_done.emit(3)  # stage 3 concluido -> pula par
 - Registrar exceções e contexto (`logger.error("msg", code="COD", error=str(e))`).
 - Registrar variáveis, estados e entradas/saídas críticas.
 
-Princípios:
-- **Console ≠ Log**: Console mostra mensagens para o usuário; `LogUtils` registra dados estruturados para investigação.
-- Evite `except:` sem `as e` e log — sempre capture a exceção e use `logger.error` com o `error=str(e)`.
-- Não logar tudo: prefira logs significativos que ajudem em reproduzir/fixar bugs.
+### Assinatura dos métodos
 
-Exemplo mínimo:
+Todos os métodos de log (`debug`, `info`, `warning`, `error`, `critical`) seguem o mesmo padrão:
+
+```python
+def info(self, msg: str, *, code: str | None = None, **data: Any) -> None:
+```
+
+**Importante:** O `*` na assinatura significa que `code` e `**data` são **keyword-only** — ou seja, devem ser passados **sempre como argumentos nomeados**. Apenas `self` e `msg` são posicionais.
+
+### ✅ Forma CORRETA — f-strings + keyword args
+
+Sempre use **f-strings** para interpolar variáveis na mensagem, e passe dados extras como argumentos nomeados em `**data`:
+
+```python
+# ✅ Certo: f-string + keyword-only code + keyword-only data
+self._logger.info(f"LAS lido: {n_pontos} pontos", code="IDW_TASK_LAS_READ")
+self._logger.info(f"Grid: {width}x{height} px", code="IDW_TASK_GRID")
+self._logger.info(f"IDW OK: {n_ok}, Pulado: {n_pulado}", code="IDW_TASK_IDW_DONE")
+
+# ✅ Certo: dados extras via **data
+self._logger.info(
+    "Metadados LAS obtidos",
+    code="LAS_INFO",
+    path=path,
+    point_count=point_count,
+    has_rgb=has_rgb,
+)
+
+# ✅ Certo: logger.error com code e error
+self._logger.error("Erro ao carregar LAS", code="IDW_LAS_LOAD_ERR", error=str(e))
+```
+
+### ❌ Forma ERRADA — printf-style (`%d`, `%s`) com argumentos posicionais
+
+NUNCA use formatação estilo `%d`/`%s` com argumentos posicionais — o `LogUtils` **não aceita** `*args` posicionais além de `msg`:
+
+```python
+# ❌ ERRADO! "takes 2 positional arguments but 3 were given"
+self._logger.info("LAS lido: %d pontos", n_pontos, code="IDW_TASK_LAS_READ")
+self._logger.info("Grid: %dx%d px", width, height, code="IDW_TASK_GRID")
+self._logger.info("IDW OK: %d, Pulado: %d", n_ok, n_pulado, code="IDW_TASK_IDW_DONE")
+```
+
+Isso causa o erro:
+```
+LogUtils.info() takes 2 positional arguments but 3 positional arguments
+(and 1 keyword-only argument) were given
+```
+
+### ⚠️ Atenção: código legado
+
+Se encontrar chamadas como as abaixo no código, **corrija-as imediatamente** trocando para f-strings:
+
+| ❌ Errado (printf positional) | ✅ Correto (f-string) |
+|---|---|
+| `logger.info("LAS lido: %d pontos", n)` | `logger.info(f"LAS lido: {n} pontos")` |
+| `logger.info("Grid: %dx%d px", w, h, code="GRID")` | `logger.info(f"Grid: {w}x{h} px", code="GRID")` |
+| `logger.info("OK: %d, Pul: %d", ok, pul, code="DONE")` | `logger.info(f"OK: {ok}, Pul: {pul}", code="DONE")` |
+
+### Exemplo mínimo
 
 ```python
 try:
@@ -206,6 +261,17 @@ except Exception as e:
     SignalManager.instance().console_message.emit("Erro ao processar arquivo")
     MessageBox.show_error("Erro durante o processamento", detail=traceback.format_exc())
 ```
+
+### Resumo de regras para LogUtils
+
+| Regra | Descrição |
+|---|---|
+| **Mensagem** | Use f-string (`f"..."`) para interpolar variáveis na `msg` |
+| **Código** | Use `code="MEU_CODIGO"` como argumento nomeado |
+| **Dados extras** | Passe via `**data` como argumentos nomeados (`path=x, n=y`) |
+| **Posicionais** | Apenas `self` e `msg` — NUNCA passe valores posicionais extras |
+| **printf-style** | ❌ Proibido: `%d`, `%s`, `%f` com argumentos separados |
+| **Erro** | Sempre `logger.error("msg", code="COD", error=str(e))` — nunca `except:` sem `as e` |
 
 ## Uso de `print()`
 

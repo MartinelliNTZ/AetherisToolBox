@@ -124,7 +124,7 @@ class IdwInterpolatorTask(BaseTask):
         b_pts = arrays["blue"]
         z_pts = arrays["z"]
 
-        self._logger.info("LAS lido: %d pontos", n_pontos, code="IDW_TASK_LAS_READ")
+        self._logger.info(f"LAS lido: {n_pontos} pontos", code="IDW_TASK_LAS_READ")
         self._log_memory_status("apos_leitura")
 
         if not self._check_during_execution():
@@ -141,7 +141,7 @@ class IdwInterpolatorTask(BaseTask):
 
         from rasterio.transform import from_origin
         transform = from_origin(min_x_g, max_y_g, resol_m, resol_m)
-        self._logger.info("Grid: %dx%d px", width, height, code="IDW_TASK_GRID")
+        self._logger.info(f"Grid: {width}x{height} px", code="IDW_TASK_GRID")
 
         if not self._check_during_execution():
             return False
@@ -152,8 +152,8 @@ class IdwInterpolatorTask(BaseTask):
 
         tile_size_ajustado = self._ajustar_tile_size(pontos_por_tile)
         if tile_size_ajustado != pontos_por_tile:
-            self._logger.info("Tile ajustado: %d -> %d (por RAM)",
-                              pontos_por_tile, tile_size_ajustado, code="IDW_TASK_TILE_ADJ")
+            self._logger.info(f"Tile ajustado: {pontos_por_tile} -> {tile_size_ajustado} (por RAM)",
+                              code="IDW_TASK_TILE_ADJ")
             pontos_por_tile = tile_size_ajustado
 
         tiles = InterpolatorUtils.calcular_tiles_por_densidade(
@@ -211,7 +211,7 @@ class IdwInterpolatorTask(BaseTask):
 
         n_ok = sum(1 for r in results if r[6] == 'OK')
         n_pulado = sum(1 for r in results if r[6] == 'PULADO')
-        self._logger.info("IDW OK: %d, Pulado: %d", n_ok, n_pulado, code="IDW_TASK_IDW_DONE")
+        self._logger.info(f"IDW OK: {n_ok}, Pulado: {n_pulado}", code="IDW_TASK_IDW_DONE")
         self._log_memory_status("apos_idw")
 
         if self.is_cancelled or not self._check_during_execution():
