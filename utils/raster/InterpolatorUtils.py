@@ -312,7 +312,7 @@ class InterpolatorUtils(BaseUtil):
         """
         tic = time.perf_counter()
         logger = BaseUtil._get_logger(tool_key, "InterpolatorUtils")
-        logger.info(f"[{nome_banda}] Mesclando {len(tile_paths)} tiles")
+        logger.info(f"[{nome_banda}] Mesclando {len(tile_paths)} tiles", code="IDW_MERGE_START", banda=nome_banda, n_tiles=len(tile_paths), output=out_path)
 
         bin_path = out_path.replace(".tif", ".bin")
         mm = np.memmap(bin_path, dtype=dtype, mode="w+", shape=(height, width))
@@ -361,5 +361,9 @@ class InterpolatorUtils(BaseUtil):
         elapsed = time.perf_counter() - tic
         logger.info(
             f"[{nome_banda}] Mesclagem concluida ({elapsed:.1f}s)",
+            code="IDW_MERGE_DONE",
+            banda=nome_banda,
+            elapsed_s=round(elapsed, 1),
+            output=out_path,
         )
         return out_path

@@ -201,9 +201,15 @@ def info(self, msg: str, *, code: str | None = None, **data: Any) -> None:
 
 **Importante:** O `*` na assinatura significa que `code` e `**data` são **keyword-only** — ou seja, devem ser passados **sempre como argumentos nomeados**. Apenas `self` e `msg` são posicionais.
 
-### ✅ Forma CORRETA — f-strings + keyword args
+### ✅ Forma RECOMENDADA — f-strings + keyword args
 
-Sempre use **f-strings** para interpolar variáveis na mensagem, e passe dados extras como argumentos nomeados em `**data`:
+**f-strings sao RECOMENDADAS** para interpolar variaveis na mensagem.
+
+> **Nota:** f-string nao e proibida — printf-style (`%d`, `%s`) SIM e proibido.
+> Use f-string quando a mensagem tiver variaveis; string simples quando for estatica.
+> Nunca passe variaveis como argumentos posicionais extras — o `LogUtils` **nao aceita** `*args`.
+
+Exemplos:
 
 ```python
 # ✅ Certo: f-string + keyword-only code + keyword-only data

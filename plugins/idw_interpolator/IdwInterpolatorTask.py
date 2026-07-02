@@ -131,11 +131,30 @@ class IdwInterpolatorTask(BaseTask):
         )
 
     def _limpar_temp(self):
-        if self._temp_dir and _os.path.exists(self._temp_dir):
-            try:
-                shutil.rmtree(self._temp_dir, ignore_errors=True)
-            except Exception as e:
-                self._logger.warning("Erro temp", code="IDW_TASK_TEMP_ERR", error=str(e))
+        """Remove apenas as subpastas de tiles, mantendo as bandas mescladas."""
+        if not self._temp_dir or not _os.path.isdir(self._temp_dir):
+            return
+        for sub in ("r", "g", "b", "z"):
+            subp = _os.path.join(self._temp_dir, sub)
+            if _os.path.isdir(subp):
+                try:
+                    shutil.rmtree(subp, ignore_errors=True)
+                    self._logger.debug(
+                        f"Subpasta de tiles removida: {sub}",
+                        code="IDW_TASK_TILE_CLEAN",
+                        subfolder=sub,
+                    )
+                except Exception as e:
+                    self._logger.warning(
+                        f"Falha ao limpar subpasta {sub}",
+                        code="IDW_TASK_TILE_CLEAN_ERR",
+                        error=str(e),
+                    )
+        self._logger.info(
+            f"Tiles temporarios removidos",
+            code="IDW_TASK_TEMP_CLEAN_DONE",
+            temp_dir=self._temp_dir,
+        )
 
     def _run(self) -> bool:
         """Pipeline IDW completo com verificacoes de RAM entre estagios."""
@@ -224,20 +243,30 @@ class IdwInterpolatorTask(BaseTask):
         if not self._check_during_execution():
             return False
 
-        # --- Pasta de saida com subpastas por banda ---
-        # Tiles temporarios e bandas intermediarias vao para "Interpolator/"
-        # O arquivo FINAL usa o output_path exato do usuario (nao vai para subpasta)
+        # --- Pasta de saida com subpastas por banda (MINUSCULAS) ---
+        # Tiles temporarios:     Interpolator/r/tile_*.tif
+        # Bandas mescladas:       Interpolator/{basename}_R.tif
+        # Mosaico (opcional):     output_path (so se merge + RGB)
+        basename_out = _os.path.splitext(_os.path.basename(output_path))[0]
         output_dir = _os.path.dirname(output_path)
         interp_dir = _os.path.join(output_dir, "Interpolator")
         self._temp_dir = interp_dir
-        for banda in ("R", "G", "B", "Z"):
-            _os.makedirs(_os.path.join(interp_dir, banda), exist_ok=True)
+        for banda in ("r", "g", "b", "z"):
+            banda_dir = _os.path.join(interp_dir, banda)
+            _os.makedirs(banda_dir, exist_ok=True)
+            self._logger.info(
+                f"Pasta criada: {banda_dir}",
+                code="IDW_TASK_DIR_CREATED",
+                banda=banda,
+                path=banda_dir,
+            )
 
         self._logger.info(
             f"Pastas de saida preparadas",
             code="IDW_TASK_OUTPUT_DIRS",
             output_final=output_path,
             tiles_temp=interp_dir,
+            basename=basename_out,
         )
 
         grid_bounds = (min_x_g, max_x_g, min_y_g, max_y_g)
@@ -253,10 +282,10 @@ class IdwInterpolatorTask(BaseTask):
             self._limpar_temp()
             return False
 
-        dir_r = _os.path.join(self._temp_dir, "R")
-        dir_g = _os.path.join(self._temp_dir, "G")
-        dir_b = _os.path.join(self._temp_dir, "B")
-        dir_z = _os.path.join(self._temp_dir, "Z")
+        dir_r = _os.path.join(self._temp_dir, "r")
+        dir_g = _os.path.join(self._temp_dir, "g")
+        dir_b = _os.path.join(self._temp_dir, "b")
+        dir_z = _os.path.join(self._temp_dir, "z")
 
         tile_jobs = []
         for idx, (x0, x1, y0, y1, t_row, t_col) in enumerate(tiles):
@@ -295,12 +324,12 @@ class IdwInterpolatorTask(BaseTask):
         band_files = []
         merge_jobs = []
 
-        def _add_merge(nome, src_dir, dtype):
+        def _add_merge(modo, src_dir, dtype):
             paths = sorted(glob.glob(_os.path.join(src_dir, "tile_*.tif")))
             if not paths:
                 return
-            out = _os.path.join(interp_dir, f"banda_{nome}.tif")
-            merge_jobs.append((nome, paths, out, dtype))
+            out = _os.path.join(interp_dir, f"{basename_out}_{modo}.tif")
+            merge_jobs.append((modo, paths, out, dtype))
             band_files.append(out)
 
         if target.get("r"): _add_merge("R", dir_r, np.uint8)
@@ -326,26 +355,30 @@ class IdwInterpolatorTask(BaseTask):
 
         has_rgb = target.get("r") and target.get("g") and target.get("b")
         has_z = target.get("z", False)
-        final_outputs = []
+        # Bandas individuais sempre fazem parte da saida
+        final_outputs = list(band_files)
 
-        if not merge_bands:
-            final_outputs = band_files[:]
-        elif has_rgb and has_z:
+        # Mosaico RGB: SOMENTE se merge ativo + R, G, B checados
+        # Z NUNCA entra no mosaico (regra de negocio explicita)
+        if merge_bands and has_rgb:
             merged_path = output_path
-            RasterLayerProcessing.compose_multiband_raster(
-                band_files[:3] + [band_files[3]], merged_path, tool_key=self._tool_key,
-            )
-            final_outputs.append(merged_path)
-        elif has_rgb:
-            merged_path = output_path
+            _os.makedirs(_os.path.dirname(merged_path), exist_ok=True)
             RasterLayerProcessing.compose_multiband_raster(
                 band_files[:3], merged_path, tool_key=self._tool_key,
             )
             final_outputs.append(merged_path)
-        elif has_z:
-            merged_path = output_path
-            shutil.copy2(band_files[0], merged_path)
-            final_outputs.append(merged_path)
+            self._logger.info(
+                f"Mosaico RGB gerado",
+                code="IDW_TASK_MOSAIC_DONE",
+                output=merged_path,
+                bandas="R,G,B",
+            )
+        elif merge_bands and not has_rgb:
+            self._logger.warning(
+                f"Mosaico nao gerado: requer R, G e B simultaneamente",
+                code="IDW_TASK_MOSAIC_SKIP",
+                target_checked=[k for k, v in target.items() if v],
+            )
 
         # --- Estagio 7: Metadados ---
         metadata = {
@@ -381,9 +414,16 @@ class IdwInterpolatorTask(BaseTask):
         SignalManager.instance().console_message.emit(
             f"[IDW] Sucesso! Saida: {_os.path.dirname(output_path)}"
         )
+        # Link para diretorio do mosaico (output_dir) e diretorio das bandas (interp_dir)
+        out_link = output_dir.replace(chr(92), "/")
+        band_link = interp_dir.replace(chr(92), "/")
         SignalManager.instance().console_html.emit(
-            f"[IDW] OK - <a href='file:///{output_dir.replace(chr(92), '/')}'" +
-            f" style='color:#4FC3F7;'>{output_dir}</a>"
+            f"<span style='color:#4FC3F7;'>&#x2713; Mosaico: </span>"
+            f"<a href='file:///{out_link}' style='color:#4FC3F7;'>{output_dir}</a>"
+        )
+        SignalManager.instance().console_html.emit(
+            f"<span style='color:#4FC3F7;'>&#x2713; Bandas: </span>"
+            f"<a href='file:///{band_link}' style='color:#4FC3F7;'>{interp_dir}</a>"
         )
         self._log_memory_status("final")
 

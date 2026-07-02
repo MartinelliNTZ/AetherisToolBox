@@ -64,7 +64,7 @@ TARGET_CONFIG: dict[str, dict] = {
 MESCLAR_CONFIG: dict[str, dict] = {
     "merge": {
         "label": "Mesclar Bandas?",
-        "description": "Se true: mosaico_rgb.tif. Se false: banda_R/G/B/Z.tif individuais",
+        "description": "Se true: gera mosaico RGB (so R,G,B). Se false: bandas individuais .tif",
         "default": True,
     },
 }
@@ -297,13 +297,15 @@ class IdwInterpolatorPlugin(BasePlugin):
         merge = self._mesclar_grid.is_item_checked("merge")
 
         has_rgb = "r" in target and "g" in target and "b" in target
-        has_any_rgb = "r" in target or "g" in target or "b" in target
+        has_any = bool(target)
 
-        if merge and has_any_rgb and not has_rgb:
+        if merge and has_any and not has_rgb:
             self._result_label.set("status",
-                "Mosaico requer R, G e B. Desmarque 'Mesclar Bandas?' "
-                "para bandas individuais."
+                "Mosaico requer R, G e B simultaneamente (Z nao entra no mosaico). "
+                "Desmarque 'Mesclar Bandas?' para bandas individuais."
             )
+        elif merge and has_rgb:
+            self._result_label.set("status", "Pronto (mosaico RGB + bandas individuais)")
         else:
             self._result_label.set("status", "Pronto")
 
@@ -373,20 +375,6 @@ class IdwInterpolatorPlugin(BasePlugin):
                 title="Interpolacao IDW",
             )
 
-    def _resolver_output_path(self, base_path: str, has_z: bool) -> str:
-        """
-        Resolve o caminho de saída.
-        Se Z estiver ativo e o nome base não contiver '_Z', adiciona o sufixo.
-        """
-        if not has_z:
-            return base_path
-        dir_name = os.path.dirname(base_path)
-        basename = os.path.splitext(os.path.basename(base_path))[0]
-        ext = os.path.splitext(base_path)[1] or ".tif"
-        if not basename.endswith("_Z"):
-            basename += "_Z"
-        return os.path.join(dir_name, f"{basename}{ext}")
-
     def _on_executar(self):
         """Executa a interpolação IDW via PipelineRunner em background."""
         self.logger.info("Botao EXECUTAR pressionado", code="IDW_EXEC_BTN")
@@ -429,15 +417,22 @@ class IdwInterpolatorPlugin(BasePlugin):
 
         if merge and has_any_rgb and not has_rgb:
             MessageBox.show_warning(
-                "Para gerar mosaico, e necessario selecionar R, G e B simultaneamente.\n"
+                "Mosaico requer R, G e B simultaneamente (Z nao entra no mosaico).\n"
                 "Desmarque 'Mesclar Bandas?' para bandas individuais.",
                 title="Interpolacao IDW",
             )
-            self.logger.warning("Nenhuma banda selecionada", code="IDW_NO_TARGET")
+            self.logger.warning("Mosaico requer R,G,B juntos", code="IDW_MOSAIC_INCOMPLETE")
             return
 
-        # Resolve output path com sufixo _Z se Z ativo
-        output_path = self._resolver_output_path(output_path, has_z)
+        # output_path do usuario = caminho do mosaico (so gerado se merge+RGB)
+        # Bandas individuais vao para: Interpolator/{basename}_R.tif etc.
+        self.logger.info(
+            "Output definido",
+            code="IDW_OUTPUT_PATH",
+            mosaic_path=output_path,
+            target=list(target.keys()),
+            merge=merge,
+        )
 
         # Coleta parâmetros
         params = self._params_grid.values
