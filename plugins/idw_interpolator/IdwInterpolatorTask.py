@@ -181,8 +181,8 @@ class IdwInterpolatorTask(BaseTask):
         self._log_memory_status("inicio")
 
         # --- Estagio 1: Leitura do LAS ---
-        self._signals.hud_update.emit({"message": "Lendo LAS...", "progress": 2.0})
-        self._signals.progress_update.emit(2.0)
+        self._signals.hud_update.emit({"message": "Lendo LAS..."})
+        self._signals.progress_update.emit(0.0)
 
         if not self._check_during_execution():
             self._logger.error("RAM insuficiente - leitura LAS", code="IDW_TASK_OOM_STAGE1")
@@ -201,12 +201,16 @@ class IdwInterpolatorTask(BaseTask):
         self._logger.info(f"LAS lido: {n_pontos} pontos", code="IDW_TASK_LAS_READ")
         self._log_memory_status("apos_leitura")
 
+        # Stage 1 complete -> releases Stage 2
+        self._signals.hud_stage_done.emit(0)
+        self._signals.progress_update.emit(15.0)
+        self._signals.hud_update.emit({"message": "Calculando grid..."})
+
         if not self._check_during_execution():
             return False
 
         # --- Estagio 2: Calculo do Grid Global ---
-        self._signals.hud_update.emit({"message": "Calculando grid...", "progress": 5.0})
-        self._signals.progress_update.emit(5.0)
+        self._signals.hud_update.emit({"message": "Calculando grid..."})
 
         min_x_g, max_x_g = float(np.min(x_pts)), float(np.max(x_pts))
         min_y_g, max_y_g = float(np.min(y_pts)), float(np.max(y_pts))
@@ -216,6 +220,11 @@ class IdwInterpolatorTask(BaseTask):
         from rasterio.transform import from_origin
         transform = from_origin(min_x_g, max_y_g, resol_m, resol_m)
         self._logger.info(f"Grid: {width}x{height} px", code="IDW_TASK_GRID")
+
+        # Stage 2 complete -> releases Stage 3
+        self._signals.hud_stage_done.emit(1)
+        self._signals.progress_update.emit(28.0)
+        self._signals.hud_update.emit({"message": "Dividindo tiles..."})
 
         if not self._check_during_execution():
             return False
@@ -229,8 +238,7 @@ class IdwInterpolatorTask(BaseTask):
             return False
 
         # --- Estagio 3: Divisao em Tiles (com governor) ---
-        self._signals.hud_update.emit({"message": "Dividindo tiles...", "progress": 8.0})
-        self._signals.progress_update.emit(8.0)
+        self._signals.hud_update.emit({"message": "Dividindo tiles..."})
 
         tile_size_ajustado = self._ajustar_tile_size(pontos_por_tile)
         if tile_size_ajustado != pontos_por_tile:
@@ -275,14 +283,16 @@ class IdwInterpolatorTask(BaseTask):
             basename=basename_out,
         )
 
+        # Stage 3 complete -> releases Stage 4
+        self._signals.hud_stage_done.emit(2)
+        self._signals.progress_update.emit(42.0)
+        self._signals.hud_update.emit({"message": "Interpolando tiles (IDW)..."})
+
         grid_bounds = (min_x_g, max_x_g, min_y_g, max_y_g)
 
         # --- Estagio 4: IDW Paralelo ---
-        self._signals.hud_update.emit({
-            "message": "Interpolando tiles (IDW)...",
-            "stages": [total_tiles * 5, total_tiles],
-        })
-        self._signals.progress_update.emit(10.0)
+        self._signals.hud_update.emit({"message": "Interpolando tiles (IDW)..."})
+        self._signals.progress_update.emit(45.0)
 
         if not self._check_during_execution():
             self._limpar_temp()
@@ -317,13 +327,17 @@ class IdwInterpolatorTask(BaseTask):
         self._logger.info(f"IDW OK: {n_ok}, Pulado: {n_pulado}", code="IDW_TASK_IDW_DONE")
         self._log_memory_status("apos_idw")
 
+        # Stage 4 complete -> releases Stage 5
+        self._signals.hud_stage_done.emit(3)
+        self._signals.progress_update.emit(57.0)
+        self._signals.hud_update.emit({"message": "Mesclando bandas..."})
+
         if self.is_cancelled or not self._check_during_execution():
             self._limpar_temp()
             return False
 
         # --- Estagio 5: Merge ---
-        self._signals.hud_update.emit({"message": "Mesclando bandas...", "progress": 80.0})
-        self._signals.progress_update.emit(80.0)
+        self._signals.hud_update.emit({"message": "Mesclando bandas..."})
 
         # output_dir ja foi definido como interp_dir acima
 
@@ -352,13 +366,17 @@ class IdwInterpolatorTask(BaseTask):
             for nome, paths, out_path, dtype in merge_jobs
         )
 
+        # Stage 5 complete -> releases Stage 6
+        self._signals.hud_stage_done.emit(4)
+        self._signals.progress_update.emit(71.0)
+        self._signals.hud_update.emit({"message": "Montando saida..."})
+
         if self.is_cancelled or not self._check_during_execution():
             self._limpar_temp()
             return False
 
         # --- Estagio 6: Montagem ---
-        self._signals.hud_update.emit({"message": "Montando saida...", "progress": 90.0})
-        self._signals.progress_update.emit(90.0)
+        self._signals.hud_update.emit({"message": "Montando saida..."})
 
         has_rgb = target.get("r") and target.get("g") and target.get("b")
         has_z = target.get("z", False)
@@ -387,6 +405,11 @@ class IdwInterpolatorTask(BaseTask):
                 code="IDW_TASK_MOSAIC_SKIP",
                 target_checked=[k for k, v in target.items() if v],
             )
+
+        # Stage 6 complete -> releases Stage 7
+        self._signals.hud_stage_done.emit(5)
+        self._signals.progress_update.emit(85.0)
+        self._signals.hud_update.emit({"message": "Salvando metadados..."})
 
         # --- Estagio 7: Metadados ---
         metadata = {
@@ -435,7 +458,10 @@ class IdwInterpolatorTask(BaseTask):
         )
         self._log_memory_status("final")
 
-        self._limpar_temp()
-        self._signals.hud_update.emit({"message": "Concluido!", "progress": 100.0})
+        # Stage 7 complete -> 100%
+        self._signals.hud_stage_done.emit(6)
         self._signals.progress_update.emit(100.0)
+        self._signals.hud_update.emit({"message": "Concluido!"})
+
+        self._limpar_temp()
         return True

@@ -35,6 +35,7 @@ from resources.widgets.grid.GridSelector import GridSelector
 from resources.widgets.simple.SimpleLabel import SimpleLabel
 from utils.LasUtil import LasUtil
 from utils.MessageBox import MessageBox
+from utils.ProcessStatisticsUtil import ProcessStatisticsUtil
 
 
 # ── Config unificada de opcoes ────────────────────────────────
@@ -453,6 +454,19 @@ class IdwInterpolatorPlugin(BasePlugin):
             "status": "Processando...",
         })
 
+        # ── Estatísticas e estimativa de tempo baseada no número de pontos ──
+        n_pontos = self._current_metadata.get("n_pontos", 0)
+        self.statistics.start(
+            n=0,
+            ntype=ProcessStatisticsUtil.POINTS,
+            ntotal=n_pontos,
+        )
+        total_estimate = self.statistics.remaining_time
+        if self.statistics.usages == 0 and n_pontos > 1_000_000:
+            # Sem histórico: estima ~60s a cada 500k pontos, mínimo 30s
+            total_estimate = max(30.0, n_pontos / 500_000 * 60.0)
+        total_estimate = min(total_estimate, 3600.0)  # Máx 1 hora
+
         self.logger.info(
             "Iniciando interpolacao IDW",
             code="IDW_EXEC_START",
@@ -461,16 +475,19 @@ class IdwInterpolatorPlugin(BasePlugin):
             target=target,
             merge=merge,
             resol_cm=resol_cm,
+            n_pontos=n_pontos,
+            tempo_estimado_s=round(total_estimate, 1),
         )
 
         SignalManager.instance().execution_started.emit(self.tool_key)
         SignalManager.instance().hud_show.emit({
-            "message": "Interpolacao IDW em andamento...",
-            "stages": [60.0, 7],
+            "message": f"Interpolacao IDW ({n_pontos:,} pontos)...",
+            "stages": [total_estimate, 7],
         })
         SignalManager.instance().console_message.emit(
             f"[IDW] Iniciando interpolacao de "
-            f"{os.path.basename(self._current_path)}"
+            f"{os.path.basename(self._current_path)} "
+            f"({n_pontos:,} pontos, estimativa ~{total_estimate:.0f}s)"
         )
 
         # Cria step e runner
@@ -545,6 +562,9 @@ class IdwInterpolatorPlugin(BasePlugin):
         first_file = str(arquivos[0]) if arquivos else ""
         self._result_label.set("output_path", first_file)
         self._result_label.set("status", "Concluido")
+
+        # Registra tempo de execução no histórico de estatísticas
+        self.statistics.end()
 
         SignalManager.instance().execution_finished.emit(self.tool_key)
         SignalManager.instance().progress_update.emit(100.0)
