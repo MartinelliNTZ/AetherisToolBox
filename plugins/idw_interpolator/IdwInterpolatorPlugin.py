@@ -521,16 +521,23 @@ class IdwInterpolatorPlugin(BasePlugin):
 
     def _on_done(self, context):
         """Callback de sucesso da pipeline."""
-        self.logger.info("Pipeline IDW finalizada com sucesso", code="IDW_PIPELINE_DONE")
-
         idw_result = context.get("idw_result", {})
-        if not idw_result:
-            return
-
         grid = idw_result.get("grid", {})
         params = idw_result.get("parametros", {})
         tiles = idw_result.get("tiles", {})
         arquivos = idw_result.get("arquivos_gerados", [])
+
+        self.logger.info(
+            "Pipeline IDW executada com sucesso",
+            code="IDW_PIPELINE_DONE",
+            grid=f"{grid.get('width_px', 0)}x{grid.get('height_px', 0)}",
+            tiles_total=tiles.get("total", 0),
+            tiles_ok=tiles.get("ok", 0),
+            output_files=arquivos,
+        )
+
+        if not idw_result:
+            return
 
         self._result_label.set("grid_dims",
             f"{grid.get('width_px', 0):,} x {grid.get('height_px', 0):,} px"
@@ -543,8 +550,9 @@ class IdwInterpolatorPlugin(BasePlugin):
         self._result_label.set("status", "Concluido")
 
         SignalManager.instance().execution_finished.emit(self.tool_key)
+        SignalManager.instance().progress_update.emit(100.0)
         SignalManager.instance().console_message.emit(
-            f"[IDW] Interpolacao concluida! "
+            f"[IDW] Interpolacao concluida com sucesso! "
             f"Grid: {grid.get('width_px', 0)}x{grid.get('height_px', 0)} px, "
             f"Tiles: {tiles.get('total', 0)}"
         )
@@ -553,7 +561,6 @@ class IdwInterpolatorPlugin(BasePlugin):
         if first_file:
             import pathlib
             output_dir_link = str(pathlib.Path(first_file).parent)
-            # URL file:/// precisa de forward slashes mesmo no Windows
             url_path = output_dir_link.replace("\\", "/")
             SignalManager.instance().console_html.emit(
                 f'[IDW] Saida: <a href="file:///{url_path}"'

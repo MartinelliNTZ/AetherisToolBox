@@ -225,12 +225,20 @@ class IdwInterpolatorTask(BaseTask):
             return False
 
         # --- Pasta de saida com subpastas por banda ---
+        # Tiles temporarios e bandas intermediarias vao para "Interpolator/"
+        # O arquivo FINAL usa o output_path exato do usuario (nao vai para subpasta)
         output_dir = _os.path.dirname(output_path)
         interp_dir = _os.path.join(output_dir, "Interpolator")
         self._temp_dir = interp_dir
-        self._interp_dir = interp_dir
         for banda in ("R", "G", "B", "Z"):
             _os.makedirs(_os.path.join(interp_dir, banda), exist_ok=True)
+
+        self._logger.info(
+            f"Pastas de saida preparadas",
+            code="IDW_TASK_OUTPUT_DIRS",
+            output_final=output_path,
+            tiles_temp=interp_dir,
+        )
 
         grid_bounds = (min_x_g, max_x_g, min_y_g, max_y_g)
 
@@ -323,25 +331,25 @@ class IdwInterpolatorTask(BaseTask):
         if not merge_bands:
             final_outputs = band_files[:]
         elif has_rgb and has_z:
-            merged_path = _os.path.join(interp_dir, _os.path.basename(output_path))
+            merged_path = output_path
             RasterLayerProcessing.compose_multiband_raster(
                 band_files[:3] + [band_files[3]], merged_path, tool_key=self._tool_key,
             )
             final_outputs.append(merged_path)
         elif has_rgb:
-            merged_path = _os.path.join(interp_dir, _os.path.basename(output_path))
+            merged_path = output_path
             RasterLayerProcessing.compose_multiband_raster(
                 band_files[:3], merged_path, tool_key=self._tool_key,
             )
             final_outputs.append(merged_path)
         elif has_z:
-            merged_path = _os.path.join(interp_dir, _os.path.basename(output_path))
+            merged_path = output_path
             shutil.copy2(band_files[0], merged_path)
             final_outputs.append(merged_path)
 
         # --- Estagio 7: Metadados ---
         metadata = {
-            "arquivo_las": file_path, "output_path": str(_os.path.join(interp_dir, _os.path.basename(output_path))),
+            "arquivo_las": file_path, "output_path": str(output_path),
             "parametros": {
                 "resolucao_m": resol_m, "resolucao_cm": round(resol_m * 100, 2),
                 "idw_k": k, "idw_power": power,
@@ -362,7 +370,21 @@ class IdwInterpolatorTask(BaseTask):
             json.dump(metadata, f, indent=2, ensure_ascii=False)
 
         self.result = metadata
-        self._logger.info("Pipeline IDW concluido", code="IDW_TASK_DONE")
+        self._logger.info(
+            f"Pipeline IDW concluido com sucesso",
+            code="IDW_TASK_DONE",
+            output_paths=final_outputs,
+            grid_size=f"{width}x{height}",
+            tiles_total=total_tiles,
+            tiles_ok=n_ok,
+        )
+        SignalManager.instance().console_message.emit(
+            f"[IDW] Sucesso! Saida: {_os.path.dirname(output_path)}"
+        )
+        SignalManager.instance().console_html.emit(
+            f"[IDW] OK - <a href='file:///{output_dir.replace(chr(92), '/')}'" +
+            f" style='color:#4FC3F7;'>{output_dir}</a>"
+        )
         self._log_memory_status("final")
 
         self._limpar_temp()
