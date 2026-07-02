@@ -37,8 +37,8 @@ from utils.LasUtil import LasUtil
 from utils.MessageBox import MessageBox
 
 
-# ── Config dos checks de bandas ────────────────────────────────
-TARGET_CONFIG: dict[str, dict] = {
+# ── Config unificada de opcoes ────────────────────────────────
+ALL_CONFIG: dict[str, dict] = {
     "r": {
         "label": "R (Vermelho)",
         "description": "Interpola banda vermelha da nuvem",
@@ -59,21 +59,14 @@ TARGET_CONFIG: dict[str, dict] = {
         "description": "Interpola altitude Z",
         "default": False,
     },
-}
-
-ELIMINAR_TILES_CONFIG: dict[str, dict] = {
-    "eliminar_tiles": {
-        "label": "Eliminar Tiles",
-        "description": "Remove pastas de tiles apos processamento. Se desmarcado mantem os tiles.",
-        "default": True,
-    },
-}
-
-
-MESCLAR_CONFIG: dict[str, dict] = {
     "merge": {
         "label": "Mesclar Bandas?",
         "description": "Se true: gera mosaico RGB (so R,G,B). Se false: bandas individuais .tif",
+        "default": True,
+    },
+    "eliminar_tiles": {
+        "label": "Eliminar Tiles",
+        "description": "Remove pastas de tiles apos processamento. Se desmarcado mantem os tiles.",
         "default": True,
     },
 }
@@ -173,16 +166,9 @@ class IdwInterpolatorPlugin(BasePlugin):
         grupo_target = GroupPainel("Target da Interpolacao")
         self.main_layout.addWidget(grupo_target)
 
-        self._target_grid = GridCheckBox(TARGET_CONFIG, num_columns=4)
-        self._target_grid.changed.connect(self._on_target_changed)
-        grupo_target.group_layout.addWidget(self._target_grid)
-
-        self._mesclar_grid = GridCheckBox(MESCLAR_CONFIG, num_columns=1)
-        self._mesclar_grid.changed.connect(self._on_target_changed)
-        grupo_target.group_layout.addWidget(self._mesclar_grid)
-
-        self._eliminar_tiles_grid = GridCheckBox(ELIMINAR_TILES_CONFIG, num_columns=1)
-        grupo_target.group_layout.addWidget(self._eliminar_tiles_grid)
+        self._opts_grid = GridCheckBox(ALL_CONFIG, num_columns=4)
+        self._opts_grid.changed.connect(self._on_target_changed)
+        grupo_target.group_layout.addWidget(self._opts_grid)
 
         # ── GroupPainel "Parâmetros IDW" ────────────────────────────
         grupo_params = GroupPainel("Parametros IDW")
@@ -305,8 +291,9 @@ class IdwInterpolatorPlugin(BasePlugin):
 
     def _on_target_changed(self):
         """Disparado quando qualquer checkbox de target ou separar muda."""
-        target = self._target_grid.checked
-        merge = self._mesclar_grid.is_item_checked("merge")
+        checked = self._opts_grid.checked
+        target = {k: v for k, v in checked.items() if k in ("r", "g", "b", "z")}
+        merge = self._opts_grid.is_item_checked("merge")
 
         has_rgb = "r" in target and "g" in target and "b" in target
         has_any = bool(target)
@@ -413,7 +400,8 @@ class IdwInterpolatorPlugin(BasePlugin):
             self.logger.warning("Nenhum caminho de saída selecionado", code="IDW_NO_OUTPUT")
             return
 
-        target = self._target_grid.checked
+        checked = self._opts_grid.checked
+        target = {k: v for k, v in checked.items() if k in ("r", "g", "b", "z")}
         if not target:
             MessageBox.show_warning(
                 "Selecione ao menos uma banda para interpolar.",
@@ -422,7 +410,7 @@ class IdwInterpolatorPlugin(BasePlugin):
             self.logger.warning("Nenhuma banda selecionada", code="IDW_NO_TARGET")
             return
 
-        merge = self._mesclar_grid.is_item_checked("merge")
+        merge = self._opts_grid.is_item_checked("merge")
         has_rgb = "r" in target and "g" in target and "b" in target
         has_any_rgb = "r" in target or "g" in target or "b" in target
         has_z = "z" in target
@@ -488,7 +476,7 @@ class IdwInterpolatorPlugin(BasePlugin):
         # Cria step e runner
         step = IdwInterpolatorStep()
         crs_str = "EPSG:31982"
-        eliminar_tiles = self._eliminar_tiles_grid.is_item_checked("eliminar_tiles")
+        eliminar_tiles = self._opts_grid.is_item_checked("eliminar_tiles")
         runner = PipelineRunner(
             steps=[step],
             context={
@@ -630,8 +618,8 @@ class IdwInterpolatorPlugin(BasePlugin):
 
             # Se não tem RGB, desmarca R, G, B
             if not has_rgb:
-                current_z = self._target_grid.is_item_checked("z")
-                self._target_grid.set_all({
+                current_z = self._opts_grid.is_item_checked("z")
+                self._opts_grid.set_all({
                     "r": False,
                     "g": False,
                     "b": False,
@@ -673,9 +661,7 @@ class IdwInterpolatorPlugin(BasePlugin):
 
         last_path = self.preferences.get("last_path", "")
         last_output = self.preferences.get("last_output", "")
-        target = self.preferences.get("target", {})
-        merge = self.preferences.get("merge", {})
-        eliminar_tiles = self.preferences.get("eliminar_tiles", {})
+        opts = self.preferences.get("opts", {})
         params = self.preferences.get("params", {})
 
         if last_path:
@@ -688,14 +674,8 @@ class IdwInterpolatorPlugin(BasePlugin):
         if last_output:
             self._selector_grid["Salvar Raster em"].set_path(last_output)
 
-        if target:
-            self._target_grid.set_all(target)
-
-        if merge:
-            self._mesclar_grid.set_all(merge)
-
-        if eliminar_tiles:
-            self._eliminar_tiles_grid.set_all(eliminar_tiles)
+        if opts:
+            self._opts_grid.set_all(opts)
 
         if params:
             self._params_grid.set_values(params)
@@ -706,8 +686,6 @@ class IdwInterpolatorPlugin(BasePlugin):
         """Salva preferências atuais no cache de memória."""
         self.preferences["last_path"] = self._current_path
         self.preferences["last_output"] = self._selector_grid["Salvar Raster em"].path()
-        self.preferences["target"] = self._target_grid.all
-        self.preferences["merge"] = self._mesclar_grid.all
-        self.preferences["eliminar_tiles"] = self._eliminar_tiles_grid.all
+        self.preferences["opts"] = self._opts_grid.all
         self.preferences["params"] = self._params_grid.values
         self.logger.info("Preferencias salvas no cache", code="IDW_PREFS_SAVED")
