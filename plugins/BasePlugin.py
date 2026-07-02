@@ -158,6 +158,28 @@ class BasePlugin(QWidget):
             tool_key=toolkey,
         )
 
+    # ── ETA utility ─────────────────────────────────────────────────
+
+    def get_eta_seconds(self) -> float:
+        """
+        Retorna o tempo total estimado em segundos baseado no historico
+        do ProcessStatisticsUtil.
+
+        O plugin deve chamar self.statistics.start() antes para que o ETA
+        seja calculado corretamente.
+
+        Returns:
+            Segundos totais estimados (min 30s se nao houver historico).
+        """
+        if hasattr(self, 'statistics') and self.statistics is not None:
+            eta = self.statistics.remaining_time
+            if eta > 0:
+                return eta
+            # Fallback se statistics foi iniciado mas nao tem historico
+            if self.statistics.usages == 0:
+                return 30.0
+        return 30.0
+
     # ── Preferences (override nos filhos) ────────────────────────────
 
     def load_prefs(self) -> None:

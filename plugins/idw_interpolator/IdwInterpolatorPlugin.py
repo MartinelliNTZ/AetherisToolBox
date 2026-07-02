@@ -483,6 +483,7 @@ class IdwInterpolatorPlugin(BasePlugin):
         SignalManager.instance().hud_show.emit({
             "message": f"Interpolacao IDW ({n_pontos:,} pontos)...",
             "timer": total_estimate,
+            "eta": total_estimate,
         })
         SignalManager.instance().console_message.emit(
             f"[IDW] Iniciando interpolacao de "
