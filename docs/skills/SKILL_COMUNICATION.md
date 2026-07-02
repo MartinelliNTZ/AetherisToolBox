@@ -41,8 +41,8 @@ O `SignalManager` é o canal oficial para mensagens entre plugins e entre plugin
 | `progress_reset` | `Signal()` | Reseta a barra de progresso para 0% |
 | `project_changed` | `Signal()` | Projeto ativo foi salvo/criado |
 | `recent_projects_changed` | `Signal(list)` | Lista de projetos recentes foi alterada: `list[dict]` com chaves path, name, active. Emitido após add_recent/remove_recent. FileMenuItem conecta-se a este sinal para atualizar o submenu "Abrir Recente" em tempo real. |
-| `hud_show` | `Signal(dict)` | Exibe HUD Loader. Dict pode conter: `"message"`, `"timer"` (segundos, modo 2), `"stages"` (lista [segundos, num_etapas], modo 3) |
-| `hud_update` | `Signal(dict)` | Atualiza HUD: `{"message": str, "progress": float}` |
+| `hud_show` | `Signal(dict)` | Exibe HUD Loader. Dict pode conter: `"message"`, `"timer"` (segundos, modo 2), `"stages"` (lista [segundos, num_etapas], modo 3). Aceita `"eta"` (segundos totais) para exibir tempo decorrido/restante. |
+| `hud_update` | `Signal(dict)` | Atualiza HUD: `{"message": str, "progress": float}`. Aceita `"eta"` (float) para re-estimar ETA durante execução. |
 | `hud_hide` | `Signal()` | Esconde HUD Loader |
 | `hud_stage_done` | `Signal(int)` | Notifica que uma etapa externa foi concluída (modo 3): `stage_index` |
 | `execution_started` | `Signal(str)` | Plugin iniciou execução: `tool_name` |
@@ -126,7 +126,7 @@ Use 0.0–100.0 como intervalo. A responsabilidade de transformar um avanço em 
 
 Para resetar a barra para 0%, emita `SignalManager.instance().progress_reset.emit()`.
 
-## HUDLoader — Indicador para operações longas (3 modos)
+## HUDLoader — Indicador para operações longas (3 modos + ETA)
 
 O `HUDLoader` é um indicador visual para operações demoradas e pode exibir status mais detalhado que a ProgressBar. Possui 3 modos de funcionamento:
 
@@ -182,6 +182,7 @@ SignalManager.instance().hud_stage_done.emit(3)  # stage 3 concluido -> pula par
 - Usar `SignalManager` (sinais `hud_show`, `hud_update`, `hud_hide`) para controlar o HUD a partir de workers.
 - Preferir HUD para operações que bloqueiam/ocupam muito tempo ou exigem indicação destacada ao usuário.
 - O dicionário do `hud_update` aceita a chave `"progress"` (float, 0.0–100.0) para sincronizar o percentual com a ProgressBar.
+- O dicionário do `hud_show` e `hud_update` aceita `"eta"` (float, segundos totais) para exibir "Decorrido | ETA (horario) | Restante" no topo do HUD.
 - Não existe proibição estrita similar à ProgressBar, mas prefira reutilizar `HUDLoader` central quando disponível em vez de criar implementações locais.
 
 ## LogUtils — Logs estruturados para desenvolvedores
@@ -294,7 +295,7 @@ except Exception as e:
 - **SignalManager**: exclusivo para comunicação entre ferramentas e atualização de componentes centrais.
 - **ConsolePlugin**: mensagens legíveis para o usuário; use `console_message`.
 - **ProgressBar (ui_main)**: única barra oficial; atualize com `progress_update` — nunca crie barras locais.
-- **HUDLoader**: use para operações longas; controle via sinais HUD quando disponível.
+- **HUDLoader**: use para operações longas; controle via sinais HUD quando disponível. Passe `"eta"` (segundos) no `hud_show` para exibir "Decorrido | ETA | Restante" no topo.
 - **Ciclo de vida**: use `execution_started`/`execution_finished`/`execution_cancelled` para iniciar/parar indicadores visuais.
 - **Progresso combinado**: propague progresso para ProgressBar **e** HUD simultaneamente via `_on_progress_both()`.
 - **LogUtils**: registro estruturado e diagnóstico; erros sempre com `as e` e `logger.error(..., error=str(e))`.
