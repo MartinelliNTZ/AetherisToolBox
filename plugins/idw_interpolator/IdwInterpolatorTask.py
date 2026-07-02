@@ -143,7 +143,7 @@ class IdwInterpolatorTask(BaseTask):
         file_path = ctx["file_path"]
         output_path = ctx["output_path"]
         target = ctx["target_bands"]
-        separate = ctx.get("separate_bands", False)
+        merge_bands = ctx.get("merge_bands", True)
         resol_m = ctx["resol_m"]
         k = ctx.get("idw_k", 5)
         power = ctx.get("idw_power", 2.0)
@@ -224,11 +224,13 @@ class IdwInterpolatorTask(BaseTask):
         if not self._check_during_execution():
             return False
 
-        # --- Pasta temporaria ---
-        config_dir = ExplorerUtils.get_plugin_config_dir("idw_interpolator")
-        self._temp_dir = tempfile.mkdtemp(dir=config_dir, prefix="tiles_")
+        # --- Pasta de saida com subpastas por banda ---
+        output_dir = _os.path.dirname(output_path)
+        interp_dir = _os.path.join(output_dir, "Interpolator")
+        self._temp_dir = interp_dir
+        self._interp_dir = interp_dir
         for banda in ("R", "G", "B", "Z"):
-            _os.makedirs(_os.path.join(self._temp_dir, banda), exist_ok=True)
+            _os.makedirs(_os.path.join(interp_dir, banda), exist_ok=True)
 
         grid_bounds = (min_x_g, max_x_g, min_y_g, max_y_g)
 
@@ -280,8 +282,7 @@ class IdwInterpolatorTask(BaseTask):
         self._signals.hud_update.emit({"message": "Mesclando bandas...", "progress": 80.0})
         self._signals.progress_update.emit(80.0)
 
-        output_dir = _os.path.dirname(output_path)
-        _os.makedirs(output_dir, exist_ok=True)
+        # output_dir ja foi definido como interp_dir acima
 
         band_files = []
         merge_jobs = []
@@ -290,7 +291,7 @@ class IdwInterpolatorTask(BaseTask):
             paths = sorted(glob.glob(_os.path.join(src_dir, "tile_*.tif")))
             if not paths:
                 return
-            out = _os.path.join(output_dir, f"banda_{nome}.tif")
+            out = _os.path.join(interp_dir, f"banda_{nome}.tif")
             merge_jobs.append((nome, paths, out, dtype))
             band_files.append(out)
 
@@ -319,31 +320,34 @@ class IdwInterpolatorTask(BaseTask):
         has_z = target.get("z", False)
         final_outputs = []
 
-        if separate:
+        if not merge_bands:
             final_outputs = band_files[:]
         elif has_rgb and has_z:
+            merged_path = _os.path.join(interp_dir, _os.path.basename(output_path))
             RasterLayerProcessing.compose_multiband_raster(
-                band_files[:3] + [band_files[3]], output_path, tool_key=self._tool_key,
+                band_files[:3] + [band_files[3]], merged_path, tool_key=self._tool_key,
             )
-            final_outputs.append(output_path)
+            final_outputs.append(merged_path)
         elif has_rgb:
+            merged_path = _os.path.join(interp_dir, _os.path.basename(output_path))
             RasterLayerProcessing.compose_multiband_raster(
-                band_files[:3], output_path, tool_key=self._tool_key,
+                band_files[:3], merged_path, tool_key=self._tool_key,
             )
-            final_outputs.append(output_path)
+            final_outputs.append(merged_path)
         elif has_z:
-            shutil.copy2(band_files[0], output_path)
-            final_outputs.append(output_path)
+            merged_path = _os.path.join(interp_dir, _os.path.basename(output_path))
+            shutil.copy2(band_files[0], merged_path)
+            final_outputs.append(merged_path)
 
         # --- Estagio 7: Metadados ---
         metadata = {
-            "arquivo_las": file_path, "output_path": output_path,
+            "arquivo_las": file_path, "output_path": str(_os.path.join(interp_dir, _os.path.basename(output_path))),
             "parametros": {
                 "resolucao_m": resol_m, "resolucao_cm": round(resol_m * 100, 2),
                 "idw_k": k, "idw_power": power,
                 "idw_raio_max_m": raio_max, "idw_overlap_m": overlap,
                 "pontos_por_tile": pontos_por_tile,
-                "crs": crs_str, "separate_bands": separate, "target_bands": target,
+                "crs": crs_str, "merge_bands": merge_bands, "target_bands": target,
             },
             "grid": {"width_px": width, "height_px": height,
                      "bounds": {"x_min": min_x_g, "x_max": max_x_g,
@@ -353,7 +357,7 @@ class IdwInterpolatorTask(BaseTask):
             "arquivos_gerados": final_outputs,
         }
 
-        meta_path = _os.path.join(output_dir, "metadata.json")
+        meta_path = _os.path.join(interp_dir, "metadata.json")
         with open(meta_path, "w", encoding="utf-8") as f:
             json.dump(metadata, f, indent=2, ensure_ascii=False)
 

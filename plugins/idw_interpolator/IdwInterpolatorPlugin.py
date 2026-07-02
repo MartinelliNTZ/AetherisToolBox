@@ -61,11 +61,11 @@ TARGET_CONFIG: dict[str, dict] = {
     },
 }
 
-SEPARAR_CONFIG: dict[str, dict] = {
-    "separate": {
-        "label": "Separar Bandas?",
-        "description": "Se true: banda_R/G/B/Z.tif individuais. Se false: mosaico_rgb.tif",
-        "default": False,
+MESCLAR_CONFIG: dict[str, dict] = {
+    "merge": {
+        "label": "Mesclar Bandas?",
+        "description": "Se true: mosaico_rgb.tif. Se false: banda_R/G/B/Z.tif individuais",
+        "default": True,
     },
 }
 
@@ -168,9 +168,9 @@ class IdwInterpolatorPlugin(BasePlugin):
         self._target_grid.changed.connect(self._on_target_changed)
         grupo_target.group_layout.addWidget(self._target_grid)
 
-        self._separar_grid = GridCheckBox(SEPARAR_CONFIG, num_columns=1)
-        self._separar_grid.changed.connect(self._on_target_changed)
-        grupo_target.group_layout.addWidget(self._separar_grid)
+        self._mesclar_grid = GridCheckBox(MESCLAR_CONFIG, num_columns=1)
+        self._mesclar_grid.changed.connect(self._on_target_changed)
+        grupo_target.group_layout.addWidget(self._mesclar_grid)
 
         # ── GroupPainel "Parâmetros IDW" ────────────────────────────
         grupo_params = GroupPainel("Parametros IDW")
@@ -294,14 +294,14 @@ class IdwInterpolatorPlugin(BasePlugin):
     def _on_target_changed(self):
         """Disparado quando qualquer checkbox de target ou separar muda."""
         target = self._target_grid.checked
-        separate = self._separar_grid.is_item_checked("separate")
+        merge = self._mesclar_grid.is_item_checked("merge")
 
         has_rgb = "r" in target and "g" in target and "b" in target
         has_any_rgb = "r" in target or "g" in target or "b" in target
 
-        if not separate and has_any_rgb and not has_rgb:
+        if merge and has_any_rgb and not has_rgb:
             self._result_label.set("status",
-                "Mosaico requer R, G e B. Marque 'Separar Bandas?' "
+                "Mosaico requer R, G e B. Desmarque 'Mesclar Bandas?' "
                 "para bandas individuais."
             )
         else:
@@ -422,15 +422,15 @@ class IdwInterpolatorPlugin(BasePlugin):
             self.logger.warning("Nenhuma banda selecionada", code="IDW_NO_TARGET")
             return
 
-        separate = self._separar_grid.is_item_checked("separate")
+        merge = self._mesclar_grid.is_item_checked("merge")
         has_rgb = "r" in target and "g" in target and "b" in target
         has_any_rgb = "r" in target or "g" in target or "b" in target
         has_z = "z" in target
 
-        if not separate and has_any_rgb and not has_rgb:
+        if merge and has_any_rgb and not has_rgb:
             MessageBox.show_warning(
                 "Para gerar mosaico, e necessario selecionar R, G e B simultaneamente.\n"
-                "Marque 'Separar Bandas?' para bandas individuais.",
+                "Desmarque 'Mesclar Bandas?' para bandas individuais.",
                 title="Interpolacao IDW",
             )
             self.logger.warning("Nenhuma banda selecionada", code="IDW_NO_TARGET")
@@ -464,7 +464,7 @@ class IdwInterpolatorPlugin(BasePlugin):
             path=self._current_path,
             output=output_path,
             target=target,
-            separate=separate,
+            merge=merge,
             resol_cm=resol_cm,
         )
 
@@ -487,7 +487,7 @@ class IdwInterpolatorPlugin(BasePlugin):
                 "file_path": self._current_path,
                 "output_path": output_path,
                 "target_bands": target,
-                "separate_bands": separate,
+                "merge_bands": merge,
                 "resol_m": resol_m,
                 "idw_k": params.get("k", 5),
                 "idw_power": params.get("power", 2.0),
@@ -538,7 +538,8 @@ class IdwInterpolatorPlugin(BasePlugin):
         resol_cm = params.get("resolucao_cm", 0)
         self._result_label.set("resolucao", f"{resol_cm:.2f} cm")
         self._result_label.set("n_tiles", str(tiles.get("total", 0)))
-        self._result_label.set("output_path", str(arquivos[0]) if arquivos else "—")
+        first_file = str(arquivos[0]) if arquivos else ""
+        self._result_label.set("output_path", first_file)
         self._result_label.set("status", "Concluido")
 
         SignalManager.instance().execution_finished.emit(self.tool_key)
@@ -547,6 +548,17 @@ class IdwInterpolatorPlugin(BasePlugin):
             f"Grid: {grid.get('width_px', 0)}x{grid.get('height_px', 0)} px, "
             f"Tiles: {tiles.get('total', 0)}"
         )
+
+        # Exibe pasta de saida com link clicavel no Console
+        if first_file:
+            import pathlib
+            output_dir_link = str(pathlib.Path(first_file).parent)
+            # URL file:/// precisa de forward slashes mesmo no Windows
+            url_path = output_dir_link.replace("\\", "/")
+            SignalManager.instance().console_html.emit(
+                f'[IDW] Saida: <a href="file:///{url_path}"'
+                f' style="color:#4FC3F7;">{output_dir_link}</a>'
+            )
 
     def _on_error(self, message: str):
         """Callback de erro da pipeline."""
@@ -646,7 +658,7 @@ class IdwInterpolatorPlugin(BasePlugin):
         last_path = self.preferences.get("last_path", "")
         last_output = self.preferences.get("last_output", "")
         target = self.preferences.get("target", {})
-        separate = self.preferences.get("separate", {})
+        merge = self.preferences.get("merge", {})
         params = self.preferences.get("params", {})
 
         if last_path:
@@ -662,8 +674,8 @@ class IdwInterpolatorPlugin(BasePlugin):
         if target:
             self._target_grid.set_all(target)
 
-        if separate:
-            self._separar_grid.set_all(separate)
+        if merge:
+            self._mesclar_grid.set_all(merge)
 
         if params:
             self._params_grid.set_values(params)
@@ -675,6 +687,6 @@ class IdwInterpolatorPlugin(BasePlugin):
         self.preferences["last_path"] = self._current_path
         self.preferences["last_output"] = self._selector_grid["Salvar Raster em"].path()
         self.preferences["target"] = self._target_grid.all
-        self.preferences["separate"] = self._separar_grid.all
+        self.preferences["merge"] = self._mesclar_grid.all
         self.preferences["params"] = self._params_grid.values
         self.logger.info("Preferencias salvas no cache", code="IDW_PREFS_SAVED")

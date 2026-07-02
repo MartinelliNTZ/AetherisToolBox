@@ -44,8 +44,8 @@ class IdwInterpolatorStep(BaseStep):
             self._logger.warning("Nenhuma banda selecionada", code="IDW_STEP_NO_BANDS")
             return False
 
-        separate = context.get("separate_bands", False)
-        if not separate:
+        merge = context.get("merge_bands", True)
+        if merge:
             has_rgb = target.get("r", False) and target.get("g", False) and target.get("b", False)
             has_any_rgb = target.get("r", False) or target.get("g", False) or target.get("b", False)
             if not has_rgb and has_any_rgb:
