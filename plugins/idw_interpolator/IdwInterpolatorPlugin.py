@@ -61,6 +61,15 @@ TARGET_CONFIG: dict[str, dict] = {
     },
 }
 
+ELIMINAR_TILES_CONFIG: dict[str, dict] = {
+    "eliminar_tiles": {
+        "label": "Eliminar Tiles",
+        "description": "Remove pastas de tiles apos processamento. Se desmarcado mantem os tiles.",
+        "default": True,
+    },
+}
+
+
 MESCLAR_CONFIG: dict[str, dict] = {
     "merge": {
         "label": "Mesclar Bandas?",
@@ -171,6 +180,9 @@ class IdwInterpolatorPlugin(BasePlugin):
         self._mesclar_grid = GridCheckBox(MESCLAR_CONFIG, num_columns=1)
         self._mesclar_grid.changed.connect(self._on_target_changed)
         grupo_target.group_layout.addWidget(self._mesclar_grid)
+
+        self._eliminar_tiles_grid = GridCheckBox(ELIMINAR_TILES_CONFIG, num_columns=1)
+        grupo_target.group_layout.addWidget(self._eliminar_tiles_grid)
 
         # ── GroupPainel "Parâmetros IDW" ────────────────────────────
         grupo_params = GroupPainel("Parametros IDW")
@@ -476,6 +488,7 @@ class IdwInterpolatorPlugin(BasePlugin):
         # Cria step e runner
         step = IdwInterpolatorStep()
         crs_str = "EPSG:31982"
+        eliminar_tiles = self._eliminar_tiles_grid.is_item_checked("eliminar_tiles")
         runner = PipelineRunner(
             steps=[step],
             context={
@@ -491,6 +504,7 @@ class IdwInterpolatorPlugin(BasePlugin):
                 "pontos_por_tile": int(params.get("pontos_por_tile", 10_000_000)),
                 "crs_str": crs_str,
                 "tool_key": self.tool_key,
+                "eliminar_tiles": eliminar_tiles,
             },
             parent=self,
         )
@@ -661,6 +675,7 @@ class IdwInterpolatorPlugin(BasePlugin):
         last_output = self.preferences.get("last_output", "")
         target = self.preferences.get("target", {})
         merge = self.preferences.get("merge", {})
+        eliminar_tiles = self.preferences.get("eliminar_tiles", {})
         params = self.preferences.get("params", {})
 
         if last_path:
@@ -679,6 +694,9 @@ class IdwInterpolatorPlugin(BasePlugin):
         if merge:
             self._mesclar_grid.set_all(merge)
 
+        if eliminar_tiles:
+            self._eliminar_tiles_grid.set_all(eliminar_tiles)
+
         if params:
             self._params_grid.set_values(params)
 
@@ -690,5 +708,6 @@ class IdwInterpolatorPlugin(BasePlugin):
         self.preferences["last_output"] = self._selector_grid["Salvar Raster em"].path()
         self.preferences["target"] = self._target_grid.all
         self.preferences["merge"] = self._mesclar_grid.all
+        self.preferences["eliminar_tiles"] = self._eliminar_tiles_grid.all
         self.preferences["params"] = self._params_grid.values
         self.logger.info("Preferencias salvas no cache", code="IDW_PREFS_SAVED")

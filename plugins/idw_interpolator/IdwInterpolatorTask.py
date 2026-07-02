@@ -131,8 +131,14 @@ class IdwInterpolatorTask(BaseTask):
         )
 
     def _limpar_temp(self):
-        """Remove apenas as subpastas de tiles, mantendo as bandas mescladas."""
+        """Remove as subpastas de tiles se eliminar_tiles estiver ativo."""
         if not self._temp_dir or not _os.path.isdir(self._temp_dir):
+            return
+        if not self._ctx.get("eliminar_tiles", True):
+            self._logger.info(
+                "Tiles mantidos (eliminar_tiles=desligado)",
+                code="IDW_TASK_KEEP_TILES",
+            )
             return
         for sub in ("r", "g", "b", "z"):
             subp = _os.path.join(self._temp_dir, sub)
@@ -341,6 +347,7 @@ class IdwInterpolatorTask(BaseTask):
             delayed(InterpolatorUtils.mesclar_banda)(
                 nome, paths, height, width, transform, crs_str,
                 out_path, dtype, self._tool_key,
+                nodata=0 if dtype == np.uint8 else -9999.0,
             )
             for nome, paths, out_path, dtype in merge_jobs
         )
@@ -365,6 +372,7 @@ class IdwInterpolatorTask(BaseTask):
             _os.makedirs(_os.path.dirname(merged_path), exist_ok=True)
             RasterLayerProcessing.compose_multiband_raster(
                 band_files[:3], merged_path, tool_key=self._tool_key,
+                nodata=0,
             )
             final_outputs.append(merged_path)
             self._logger.info(

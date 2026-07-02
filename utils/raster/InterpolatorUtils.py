@@ -40,16 +40,19 @@ class InterpolatorUtils(BaseUtil):
         transform,
         crs_str: str,
         tool_key: str = ToolKey.UNTRACEABLE.value,
+        nodata: Optional[float] = None,
     ):
         """
         Salva array 2D como GeoTIFF de 1 banda.
         BIGTIFF=YES para suportar arquivos >4GB.
+
+        Args:
+            nodata: Valor nodata para o GeoTIFF. Se None, nao define.
         """
         logger = BaseUtil._get_logger(tool_key, "InterpolatorUtils")
         os.makedirs(os.path.dirname(path), exist_ok=True)
         try:
-            with rasterio.open(
-                path, "w",
+            profile = dict(
                 driver="GTiff",
                 height=arr.shape[0],
                 width=arr.shape[1],
@@ -58,7 +61,10 @@ class InterpolatorUtils(BaseUtil):
                 crs=crs_str,
                 transform=transform,
                 BIGTIFF="YES",
-            ) as dst:
+            )
+            if nodata is not None:
+                profile["nodata"] = nodata
+            with rasterio.open(path, "w", **profile) as dst:
                 dst.write(arr, 1)
         except Exception as e:
             logger.error(
@@ -229,14 +235,14 @@ class InterpolatorUtils(BaseUtil):
         if n_locais < k:
             z = np.zeros((tile_h, tile_w), dtype=np.uint8)
             if path_r_out:
-                InterpolatorUtils.salvar_tile_tif(path_r_out, z, tile_transform, crs_str)
+                InterpolatorUtils.salvar_tile_tif(path_r_out, z, tile_transform, crs_str, nodata=0)
             if path_g_out:
-                InterpolatorUtils.salvar_tile_tif(path_g_out, z, tile_transform, crs_str)
+                InterpolatorUtils.salvar_tile_tif(path_g_out, z, tile_transform, crs_str, nodata=0)
             if path_b_out:
-                InterpolatorUtils.salvar_tile_tif(path_b_out, z, tile_transform, crs_str)
+                InterpolatorUtils.salvar_tile_tif(path_b_out, z, tile_transform, crs_str, nodata=0)
             if path_z_out:
                 z_f32 = np.zeros((tile_h, tile_w), dtype=np.float32)
-                InterpolatorUtils.salvar_tile_tif(path_z_out, z_f32, tile_transform, crs_str)
+                InterpolatorUtils.salvar_tile_tif(path_z_out, z_f32, tile_transform, crs_str, nodata=-9999.0)
             return (chunk_idx, tile_tag, row0, row1, col0, col1, 'VAZIO')
 
         # IDW
@@ -263,21 +269,21 @@ class InterpolatorUtils(BaseUtil):
             r_interp = (pesos_norm * r_vals).sum(axis=1)
             r_interp[~valido] = 0
             r_tile = np.clip(r_interp, 0, 255).astype(np.uint8).reshape(tile_h, tile_w)
-            InterpolatorUtils.salvar_tile_tif(path_r_out, r_tile, tile_transform, crs_str)
+            InterpolatorUtils.salvar_tile_tif(path_r_out, r_tile, tile_transform, crs_str, nodata=0)
 
         if path_g_out and g_pts is not None:
             g_vals = g_pts[mask][idx].astype(np.float64)
             g_interp = (pesos_norm * g_vals).sum(axis=1)
             g_interp[~valido] = 0
             g_tile = np.clip(g_interp, 0, 255).astype(np.uint8).reshape(tile_h, tile_w)
-            InterpolatorUtils.salvar_tile_tif(path_g_out, g_tile, tile_transform, crs_str)
+            InterpolatorUtils.salvar_tile_tif(path_g_out, g_tile, tile_transform, crs_str, nodata=0)
 
         if path_b_out and b_pts is not None:
             b_vals = b_pts[mask][idx].astype(np.float64)
             b_interp = (pesos_norm * b_vals).sum(axis=1)
             b_interp[~valido] = 0
             b_tile = np.clip(b_interp, 0, 255).astype(np.uint8).reshape(tile_h, tile_w)
-            InterpolatorUtils.salvar_tile_tif(path_b_out, b_tile, tile_transform, crs_str)
+            InterpolatorUtils.salvar_tile_tif(path_b_out, b_tile, tile_transform, crs_str, nodata=0)
 
         # Interpola Z (float32)
         if path_z_out and z_pts is not None:
@@ -285,7 +291,7 @@ class InterpolatorUtils(BaseUtil):
             z_interp = (pesos_norm * z_vals).sum(axis=1)
             z_interp[~valido] = np.nan
             z_tile = z_interp.astype(np.float32).reshape(tile_h, tile_w)
-            InterpolatorUtils.salvar_tile_tif(path_z_out, z_tile, tile_transform, crs_str)
+            InterpolatorUtils.salvar_tile_tif(path_z_out, z_tile, tile_transform, crs_str, nodata=-9999.0)
 
         elapsed = time.perf_counter() - t0
         logger = BaseUtil._get_logger(tool_key, "InterpolatorUtils")
@@ -305,6 +311,7 @@ class InterpolatorUtils(BaseUtil):
         out_path: str,
         dtype: np.dtype = np.uint8,
         tool_key: str = ToolKey.UNTRACEABLE.value,
+        nodata: Optional[float] = None,
     ) -> str:
         """
         Le todos os tiles de uma banda e os escreve num GeoTIFF completo via memmap.
@@ -336,8 +343,7 @@ class InterpolatorUtils(BaseUtil):
 
         mm.flush()
 
-        with rasterio.open(
-            out_path, "w",
+        profile = dict(
             driver="GTiff",
             height=height, width=width,
             count=1, dtype=dtype,
@@ -345,7 +351,10 @@ class InterpolatorUtils(BaseUtil):
             compress="lzw", predictor=2,
             tiled=True, blockxsize=512, blockysize=512,
             BIGTIFF="YES",
-        ) as dst:
+        )
+        if nodata is not None:
+            profile["nodata"] = nodata
+        with rasterio.open(out_path, "w", **profile) as dst:
             chunk_linhas = 2048
             for rs in range(0, height, chunk_linhas):
                 re = min(rs + chunk_linhas, height)
