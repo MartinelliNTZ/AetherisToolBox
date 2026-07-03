@@ -410,16 +410,174 @@ engine.start()
 | **Contexto é o estado** | Steps comunicam-se exclusivamente via `ExecutionContext` |
 | **Em plugins, use QtPipelineEngine** | Nunca use AsyncPipelineEngine em plugins (bloqueia UI) |
 
+## 🔄 Reuso de Steps e Tasks entre Plugins
+
+Steps e tasks DEVEM ser **genéricos, independentes e reutilizáveis**. Um step NUNCA sabe qual step vem antes ou depois. Cada step:
+1. Le do `ExecutionContext` os dados que precisa
+2. Executa sua task
+3. Escreve no `ExecutionContext` o resultado que produziu
+
+O `PipelineRunner` (ou `QtPipelineEngine`) orquestra a sequencia.
+
+### Fluxo Correto: Steps Independentes
+
+```
+Plugin prepara context inicial
+       ↓
+PipelineRunner executa steps em sequencia
+       ↓
+Step 1 (ex: LasTilerStep)
+  → Le: file_path, output_dir, pontos_por_parte
+  → Produz: split_result = {"arquivos": [...], "n_partes": N, ...}
+       ↓
+Step 2 (ex: IdwInterpolatorStep)
+  → Le: split_result["arquivos"] (NAO sabe quem produziu)
+  → Le: output_path, target_bands, resol_m, ...
+  → Produz: idw_result = {"grid": {...}, "arquivos_gerados": [...], ...}
+       ↓
+Plugin recebe context final via callback finished_ok
+```
+
+### Regra: Steps em `core/papeline/step/` são PÚBLICOS
+
+Steps registrados em `core/papeline/step/__init__.py` podem ser importados por QUALQUER plugin:
+
+```python
+from core.papeline.step.LasTilerStep import LasTilerStep
+
+# Reutilizado no pipeline do IDW — o LasTilerStep NAO sabe que o IDW existe
+runner = PipelineRunner(
+    steps=[LasTilerStep(), IdwInterpolatorStep()],
+    context={...},
+)
+```
+
+### Regra: Tasks em `core/papeline/task/` são PÚBLICAS
+
+Tasks registradas em `core/papeline/task/__init__.py` podem ser usadas por qualquer step:
+
+```python
+from core.papeline.task.LasTilerTask import LasTilerTask
+
+# Usado tanto pelo LasTilerStep quanto por outros steps que precisam dividir LAS
+task = LasTilerTask(file_path=path, output_dir=out, pontos_por_parte=pts)
+```
+
+### Padrão: Step extrai params do contexto, Task recebe params individuais
+
+```python
+# ❌ ERRADO — Task recebe dict bruto
+class MinhaTask(BaseTask):
+    def __init__(self, context: dict):
+        self._file_path = context["file_path"]  # fragil, sem defaults
+
+# ✅ CORRETO — Task recebe parametros nomeados
+class MinhaTask(BaseTask):
+    def __init__(self, file_path: str, output_dir: str = ""):
+        self._file_path = file_path
+        self._output_dir = output_dir
+```
+
+```python
+# ❌ ERRADO — Step usa logger proprio no __init__
+class MeuStep(BaseStep):
+    def __init__(self):
+        self._logger = BaseUtil._get_logger(...)  # sem tool_key do contexto
+
+# ✅ CORRETO — Step usa get_logger(context)
+class MeuStep(BaseStep):
+    def should_run(self, context):
+        logger = self.get_logger(context)  # tool_key extraida do contexto
+```
+
+### Padrão: Step busca dados de MULTIPLAS fontes no contexto
+
+Um step NAO deve assumir que um step anterior produziu uma chave especifica.
+Deve buscar dados de forma flexivel:
+
+```python
+class MeuStep(BaseStep):
+    def _obter_arquivos(self, context) -> list[str]:
+        # 1. Tenta resultado de step anterior
+        resultado = context.get("resultado_anterior", {})
+        if resultado.get("arquivos"):
+            return resultado["arquivos"]
+        # 2. Tenta chave direta no contexto
+        if context.get("arquivos"):
+            return context["arquivos"]
+        # 3. Tenta pasta como fallback
+        pasta = context.get("pasta", "")
+        if pasta:
+            return glob.glob(os.path.join(pasta, "*.las"))
+        return []
+```
+
+### Exemplo: Pipeline IDW (2 steps independentes)
+
+```python
+# Plugin prepara o context com TUDO que ambos steps precisam
+tiles_dir = os.path.join(
+    os.path.dirname(output_path),
+    os.path.splitext(os.path.basename(las_path))[0]
+)
+
+runner = PipelineRunner(
+    steps=[LasTilerStep(), IdwInterpolatorStep()],
+    context={
+        # LasTilerStep le (divide o LAS):
+        "file_path": "/dados/nuvem.las",
+        "output_dir": tiles_dir,
+        "pontos_por_parte": 5_000_000,
+        # IdwInterpolatorStep le (interpola a pasta):
+        "input_dir": tiles_dir,
+        "output_path": "/dados/raster.tif",
+        "target_bands": {"r": True, "g": True, "b": True, "z": False},
+        "merge_bands": True,
+        "resol_m": 0.01,
+        "idw_k": 5,
+        "idw_power": 2.0,
+        "idw_raio_max": 0.5,
+        "idw_overlap": 3.0,
+        "crs_str": "EPSG:31982",
+        "eliminar_tiles": True,
+        "salvar_las": False,
+        # Ambos usam:
+        "tool_key": ToolKey.IDW_INTERPOLATOR.value,
+    },
+    parent=self,
+)
+# LasTilerStep produz: context["split_result"] = {"arquivos": [...], ...}
+# IdwInterpolatorStep le: context["input_dir"] (pasta com .las)
+# IdwInterpolatorStep produz: context["idw_result"] = {...}
+```
+
+### Lista de Steps/Tasks Públicos
+
+| Step | Task | Proposito | Produz no Context |
+|------|------|-----------|-------------------|
+| `LasTilerStep` | `LasTilerTask` | Divide LAS/LAZ em partes | `split_result` |
+| `LasCheckStep` | `LasCheckTask` | Valida arquivos LAS | `check_result` |
+| `LasBlackFilterStep` | `LasBlackFilterTask` | Filtra pontos pretos | `filter_result` |
+| `DoclingConvertStep` | `DoclingPipelineTask` | Converte documentos | `docling_result` |
+| `MrkLoadDataStep` | `MrkSinglePipelineTask` | Carrega dados MRK | `mrk_data` |
+| `MrkProcessStep` | — | Processa MRK contra dados | `mrk_result` |
+
 ## ✅ Checklist ao criar nova Pipeline
 
 - [ ] Criei as tasks em `core/papeline/task/` herdando de `BaseTask`?
 - [ ] Criei os steps em `core/papeline/step/` herdando de `BaseStep`?
 - [ ] Atualizei os `__init__.py` correspondentes?
 - [ ] Usei `super().__init__(description=...)` nas tasks?
+- [ ] Task recebe parametros nomeados (NAO dict bruto)?
+- [ ] Step usa `get_logger(context)` (NAO logger proprio)?
+- [ ] Step NAO sabe qual step vem antes ou depois?
+- [ ] Step busca dados de multiplas fontes no contexto (fallback)?
 - [ ] O `on_success` atualiza o `ExecutionContext` com os resultados?
 - [ ] Tratei exceções dentro de `_run()` retornando `False`?
+- [ ] Ja existe um step/task em `core/papeline/step/` ou `core/papeline/task/` que faz o que preciso? Reutilize!
 
 ## 🔗 Referências
 
 - Documentação de análise: `docs/implementacoes/analise_sistema_pipeline_assincrono.md`
 - Contratos do sistema: `docs/skills/SKILL_PLUGIN_CONTRACT.md`
+- Catálogo de steps/tasks: `core/papeline/step/__init__.py` e `core/papeline/task/__init__.py`
