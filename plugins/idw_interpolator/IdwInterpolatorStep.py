@@ -1,22 +1,18 @@
 # -*- coding: utf-8 -*-
 """
-IdwInterpolatorStep — Step que orquestra a interpolacao IDW
-=============================================================
-Step que executa a interpolacao IDW em background.
+IdwInterpolatorStep — Step que interpola arquivos LAS via IDW
+================================================================
+Step que recebe um diretorio com arquivos LAS (de quem quer que os
+tenha produzido) e executa interpolacao IDW, gerando rasters.
+
+NAO sabe o que sao tiles. So le do contexto:
+    - "input_dir": Diretorio com arquivos .las/.laz a interpolar
 
 Context requer:
-    - "file_path": Caminho do arquivo LAS/LAZ de entrada
+    - "input_dir": Diretorio com arquivos LAS
     - "output_path": Caminho do GeoTIFF de saida
     - "target_bands": Dict com bandas alvo (r, g, b, z)
-    - "merge_bands": Se True, gera mosaico RGB
     - "resol_m": Resolucao em metros
-    - "idw_k": Numero de vizinhos
-    - "idw_power": Potencia IDW
-    - "idw_raio_max": Raio maximo de busca (m)
-    - "idw_overlap": Sobreposicao entre tiles (m)
-    - "pontos_por_tile": Pontos maximos por tile
-    - "crs_str": CRS de saida
-    - "eliminar_tiles": Se True, remove tiles apos processar
 
 Context produz:
     - "idw_result": Dict com resultado completo da interpolacao
@@ -24,6 +20,7 @@ Context produz:
 
 from __future__ import annotations
 
+import glob
 import os as _os
 from typing import Any, Optional
 
@@ -35,7 +32,7 @@ from plugins.idw_interpolator.IdwInterpolatorTask import IdwInterpolatorTask
 
 
 class IdwInterpolatorStep(BaseStep):
-    """Step que orquestra a interpolacao IDW."""
+    """Step que interpola arquivos LAS via IDW."""
 
     def name(self) -> str:
         return "idw_interpolator"
@@ -43,9 +40,17 @@ class IdwInterpolatorStep(BaseStep):
     def should_run(self, context: ExecutionContext) -> bool:
         logger = self.get_logger(context)
 
-        file_path = context.get("file_path", "")
-        if not file_path or not _os.path.isfile(file_path):
-            logger.warning("Arquivo LAS nao encontrado", code="IDW_STEP_NO_FILE")
+        input_dir = context.get("input_dir", "")
+        if not input_dir or not _os.path.isdir(input_dir):
+            logger.warning("Diretorio de entrada nao encontrado", code="IDW_STEP_NO_DIR")
+            return False
+
+        las_files = sorted(
+            glob.glob(_os.path.join(input_dir, "*.las"))
+            + glob.glob(_os.path.join(input_dir, "*.laz"))
+        )
+        if not las_files:
+            logger.warning("Nenhum arquivo LAS encontrado no diretorio", code="IDW_STEP_NO_FILES")
             return False
 
         target = context.get("target_bands", {})
@@ -64,11 +69,11 @@ class IdwInterpolatorStep(BaseStep):
         return True
 
     def create_task(self, context: ExecutionContext) -> Optional[BaseTask]:
-        """Cria IdwInterpolatorTask com parametros individuais do contexto."""
+        """Cria IdwInterpolatorTask a partir do diretorio de entrada."""
         governor: Optional[ResourceGovernor] = context.get("_governor", None)
 
         return IdwInterpolatorTask(
-            file_path=str(context.get("file_path")),
+            input_dir=str(context.get("input_dir")),
             output_path=str(context.get("output_path")),
             target_bands=context.get("target_bands", {}),
             merge_bands=context.get("merge_bands", True),
@@ -77,9 +82,9 @@ class IdwInterpolatorStep(BaseStep):
             idw_power=float(context.get("idw_power", 2.0)),
             idw_raio_max=float(context.get("idw_raio_max", 0.5)),
             idw_overlap=float(context.get("idw_overlap", 3.0)),
-            pontos_por_tile=int(context.get("pontos_por_tile", 10_000_000)),
             crs_str=str(context.get("crs_str", "EPSG:31982")),
             eliminar_tiles=bool(context.get("eliminar_tiles", True)),
+            salvar_las=bool(context.get("salvar_las", False)),
             governor=governor,
         )
 

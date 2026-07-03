@@ -24,6 +24,7 @@ import os
 from core.enum.ToolKey import ToolKey
 from core.manager.SignalManager import SignalManager
 from core.papeline.PipelineRunner import PipelineRunner
+from core.papeline.step.LasTilerStep import LasTilerStep
 from plugins.BasePlugin import BasePlugin
 from plugins.idw_interpolator.IdwInterpolatorStep import IdwInterpolatorStep
 from resources.widgets.ExecutionButtons import ExecutionButtons
@@ -65,9 +66,14 @@ ALL_CONFIG: dict[str, dict] = {
         "description": "Se true: gera mosaico RGB (so R,G,B). Se false: bandas individuais .tif",
         "default": True,
     },
+    "salvar_las_tiles": {
+        "label": "Salvar LAS Tiles",
+        "description": "Mantem os arquivos .las divididos apos processamento",
+        "default": False,
+    },
     "eliminar_tiles": {
-        "label": "Eliminar Tiles",
-        "description": "Remove pastas de tiles apos processamento. Se desmarcado mantem os tiles.",
+        "label": "Eliminar Tiles Raster",
+        "description": "Remove pastas de tiles raster apos processamento. Se desmarcado mantem os tiles.",
         "default": True,
     },
 }
@@ -491,14 +497,33 @@ class IdwInterpolatorPlugin(BasePlugin):
             f"({n_pontos:,} pontos, estimativa ~{total_estimate:.0f}s)"
         )
 
-        # Cria step e runner
-        step = IdwInterpolatorStep()
+        # Cria steps e runner (multi-step: LasTilerStep + IdwInterpolatorStep)
         crs_str = "EPSG:31982"
         eliminar_tiles = self._opts_grid.is_item_checked("eliminar_tiles")
+        salvar_las = self._opts_grid.is_item_checked("salvar_las_tiles")
+        pontos_por_tile = int(params.get("pontos_por_tile", 10_000_000))
+
+        # Diretorio onde o LasTilerStep salvara os tiles LAS
+        tiles_dir = os.path.join(
+            os.path.dirname(output_path),
+            os.path.splitext(os.path.basename(self._current_path))[0]
+        )
+
+        # Step 1: Divide o LAS em tiles (independente, nao sabe do IDW)
+        las_tiler_step = LasTilerStep()
+
+        # Step 2: Interpola os .las da pasta via IDW (independente, nao sabe quem dividiu)
+        idw_step = IdwInterpolatorStep()
+
         runner = PipelineRunner(
-            steps=[step],
+            steps=[las_tiler_step, idw_step],
             context={
+                # LasTilerStep le:
                 "file_path": self._current_path,
+                "output_dir": tiles_dir,
+                "pontos_por_parte": pontos_por_tile,
+                # IdwInterpolatorStep le (via input_dir):
+                "input_dir": tiles_dir,
                 "output_path": output_path,
                 "target_bands": target,
                 "merge_bands": merge,
@@ -507,10 +532,11 @@ class IdwInterpolatorPlugin(BasePlugin):
                 "idw_power": params.get("power", 2.0),
                 "idw_raio_max": params.get("raio_max", 0.5),
                 "idw_overlap": params.get("overlap", 3.0),
-                "pontos_por_tile": int(params.get("pontos_por_tile", 10_000_000)),
                 "crs_str": crs_str,
-                "tool_key": self.tool_key,
                 "eliminar_tiles": eliminar_tiles,
+                "salvar_las": salvar_las,
+                # Ambos usam:
+                "tool_key": self.tool_key,
             },
             parent=self,
         )

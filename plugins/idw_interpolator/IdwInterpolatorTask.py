@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-IdwInterpolatorTask — Task para interpolacao IDW de nuvens LAS/LAZ
-====================================================================
-Task que executa a interpolacao IDW em grid regular.
+IdwInterpolatorTask — Task para interpolacao IDW de arquivos LAS
+==================================================================
+Task que recebe um diretorio com arquivos LAS, le todos e executa
+interpolacao IDW, gerando rasters.
 
 Utiliza InterpolatorUtils internamente.
 """
@@ -27,15 +28,14 @@ from utils.raster.RasterLayerProcessing import RasterLayerProcessing
 
 
 class IdwInterpolatorTask(BaseTask):
-    """Task IDW com protecao de RAM via ResourceGovernor."""
+    """Task IDW que interpola todos os .las/.laz de um diretorio."""
 
     BYTES_PER_POINT: int = 32
     MAX_TILE_PIXELS: int = 10_000_000
-    BYTES_PER_TILE_PIXEL: int = 64
 
     def __init__(
         self,
-        file_path: str,
+        input_dir: str,
         output_path: str,
         target_bands: dict,
         merge_bands: bool = True,
@@ -44,16 +44,16 @@ class IdwInterpolatorTask(BaseTask):
         idw_power: float = 2.0,
         idw_raio_max: float = 0.5,
         idw_overlap: float = 3.0,
-        pontos_por_tile: int = 10_000_000,
         crs_str: str = "EPSG:31982",
         eliminar_tiles: bool = True,
+        salvar_las: bool = False,
         governor: Optional[ResourceGovernor] = None,
     ):
         super().__init__(
-            description=f"IDW: {_os.path.basename(file_path)}",
+            description=f"IDW: {_os.path.basename(input_dir)}",
             governor=governor,
         )
-        self._file_path = file_path
+        self._input_dir = input_dir
         self._output_path = output_path
         self._target_bands = target_bands
         self._merge_bands = merge_bands
@@ -62,17 +62,24 @@ class IdwInterpolatorTask(BaseTask):
         self._idw_power = idw_power
         self._idw_raio_max = idw_raio_max
         self._idw_overlap = idw_overlap
-        self._pontos_por_tile = pontos_por_tile
         self._crs_str = crs_str
         self._eliminar_tiles = eliminar_tiles
+        self._salvar_las = salvar_las
         self._temp_dir: str | None = None
-        self._n_pontos: int = 0
+        self._n_pontos_total: int = 0
 
     @property
     def estimated_ram(self) -> int:
         """RAM estimada: n_pontos * 32 bytes."""
-        n = max(self._n_pontos, self._pontos_por_tile)
+        n = max(self._n_pontos_total, 1_000_000)
         return n * self.BYTES_PER_POINT
+
+    def _obter_arquivos_las(self) -> list[str]:
+        """Escaneia o diretorio de entrada por arquivos .las/.laz."""
+        return sorted(
+            glob.glob(_os.path.join(self._input_dir, "*.las"))
+            + glob.glob(_os.path.join(self._input_dir, "*.laz"))
+        )
 
     def _log_memory_status(self, stage: str, estimated_ram_extra: int = 0) -> None:
         """Loga status de RAM via governor."""
@@ -89,31 +96,14 @@ class IdwInterpolatorTask(BaseTask):
             )
 
     def _estimar_ram_por_tile(self, tile_pixels: int, n_bandas: int) -> int:
-        """
-        Estima RAM necessaria para processar UM tile via idw_tile_para_disco.
-        Inclui meshgrid, query_pts, cKDTree dist/idx, pesos, arrays de banda.
-
-        Args:
-            tile_pixels: tile_h * tile_w (numero de pixels do tile)
-            n_bandas: numero de bandas a interpolar (1-4)
-
-        Returns:
-            RAM estimada em bytes para um tile.
-        """
+        """Estima RAM necessaria para processar UM tile raster."""
         k = self._idw_k
         bytes_por_pixel = 8 + 8 + 16 + k * 8 + k * 8 + k * 8
         bytes_por_pixel += n_bandas * k * 8
         return tile_pixels * bytes_por_pixel
 
     def _check_pixel_ram(self, width: int, height: int, n_cpus: int, n_bandas: int) -> bool:
-        """
-        Verifica se ha RAM suficiente para processar tiles no grid.
-        Calcula o tile pixel size minimo (MAX_TILE_PIXELS) e estima RAM
-        total com paralelismo.
-
-        Returns:
-            True se ok, False se RAM insuficiente.
-        """
+        """Verifica se ha RAM suficiente para processar tiles no grid."""
         if self._governor is None:
             return True
         total_pixels = width * height
@@ -135,56 +125,50 @@ class IdwInterpolatorTask(BaseTask):
             return False
         return True
 
-    def _ajustar_tile_size(self, pontos_por_tile: int) -> int:
-        """Ajusta pontos_por_tile via governor com fator paralelo."""
-        if self._governor is None:
-            return pontos_por_tile
-        n_cpus = CpuGovernor.max_workers()
-        ram_por_tile = max(self._n_pontos, 1) * self.BYTES_PER_POINT
-        ram_paralela = ram_por_tile * min(n_cpus, 8)
-        return self._governor.recommended_tile_size(
-            max_tile_points=pontos_por_tile,
-            estimated_ram=ram_paralela,
-        )
-
     def _limpar_temp(self):
-        """Remove as subpastas de tiles se eliminar_tiles estiver ativo."""
+        """Remove pastas de tiles raster."""
         if not self._temp_dir or not _os.path.isdir(self._temp_dir):
             return
         if not self._eliminar_tiles:
-            self.get_logger().info(
-                "Tiles mantidos (eliminar_tiles=desligado)",
-                code="IDW_TASK_KEEP_TILES",
-            )
+            self.get_logger().info("Tiles raster mantidos", code="IDW_TASK_KEEP_TILES")
             return
         for sub in ("r", "g", "b", "z"):
             subp = _os.path.join(self._temp_dir, sub)
             if _os.path.isdir(subp):
                 try:
                     shutil.rmtree(subp, ignore_errors=True)
-                    self.get_logger().debug(
-                        f"Subpasta de tiles removida: {sub}",
-                        code="IDW_TASK_TILE_CLEAN",
-                        subfolder=sub,
-                    )
                 except Exception as e:
                     self.get_logger().warning(
                         f"Falha ao limpar subpasta {sub}",
-                        code="IDW_TASK_TILE_CLEAN_ERR",
-                        error=str(e),
+                        code="IDW_TASK_TILE_CLEAN_ERR", error=str(e),
                     )
-        self.get_logger().info(
-            f"Tiles temporarios removidos",
-            code="IDW_TASK_TEMP_CLEAN_DONE",
-            temp_dir=self._temp_dir,
-        )
+        self.get_logger().info("Tiles raster removidos", code="IDW_TASK_TEMP_CLEAN_DONE")
+
+    def _limpar_las(self):
+        """Remove os arquivos .las originais se salvar_las=False."""
+        if self._salvar_las:
+            return
+        las_files = self._obter_arquivos_las()
+        for path in las_files:
+            try:
+                if _os.path.isfile(path):
+                    _os.remove(path)
+                    self.get_logger().debug(
+                        f"LAS removido: {path}",
+                        code="IDW_TASK_LAS_REMOVED",
+                    )
+            except Exception as e:
+                self.get_logger().warning(
+                    f"Falha ao remover LAS {path}",
+                    code="IDW_TASK_LAS_REMOVE_ERR", error=str(e),
+                )
 
     def _run(self) -> bool:
-        """Pipeline IDW completo com verificacoes de RAM entre estagios."""
+        """Pipeline IDW: le arquivos LAS do diretorio e interpola."""
         logger = self.get_logger()
         signals = SignalManager.instance()
 
-        file_path = self._file_path
+        input_dir = self._input_dir
         output_path = self._output_path
         target = self._target_bands
         merge_bands = self._merge_bands
@@ -193,34 +177,76 @@ class IdwInterpolatorTask(BaseTask):
         power = self._idw_power
         raio_max = self._idw_raio_max
         overlap = self._idw_overlap
-        pontos_por_tile = self._pontos_por_tile
         crs_str = self._crs_str
 
-        logger.info("Iniciando pipeline IDW", code="IDW_TASK_START", path=file_path)
+        las_files = self._obter_arquivos_las()
+        if not las_files:
+            logger.error(
+                "Nenhum arquivo LAS encontrado no diretorio",
+                code="IDW_TASK_NO_FILES",
+                input_dir=input_dir,
+            )
+            return False
+
+        logger.info(
+            "Iniciando interpolacao IDW",
+            code="IDW_TASK_START",
+            n_files=len(las_files),
+            input_dir=input_dir,
+        )
         self._log_memory_status("inicio")
 
-        # --- Estagio 1: Leitura do LAS ---
-        signals.hud_update.emit({"message": "Lendo LAS..."})
+        # --- Estagio 1: Leitura dos LAS ---
+        signals.hud_update.emit({"message": "Lendo arquivos LAS..."})
         signals.progress_update.emit(0.0)
 
         if not self._check_during_execution():
-            logger.error("RAM insuficiente - leitura LAS", code="IDW_TASK_OOM_STAGE1")
             return False
 
         from utils.LasUtil import LasUtil
-        arrays = LasUtil.extract_point_arrays(file_path, target, tool_key=self._tool_key)
-        n_pontos = arrays["n_points"]
-        self._n_pontos = n_pontos
-        x_pts, y_pts = arrays["x"], arrays["y"]
-        r_pts = arrays["red"]
-        g_pts = arrays["green"]
-        b_pts = arrays["blue"]
-        z_pts = arrays["z"]
 
-        logger.info(f"LAS lido: {n_pontos} pontos", code="IDW_TASK_LAS_READ")
+        all_x, all_y = [], []
+        all_r, all_g, all_b, all_z = [], [], [], []
+        n_pontos_total = 0
+
+        for i, las_path in enumerate(las_files):
+            if not self._check_during_execution():
+                return False
+
+            signals.hud_update.emit({
+                "message": f"Lendo {_os.path.basename(las_path)} ({i+1}/{len(las_files)})..."
+            })
+
+            arrays = LasUtil.extract_point_arrays(
+                las_path, target, tool_key=self._tool_key,
+            )
+            n = arrays["n_points"]
+            n_pontos_total += n
+            all_x.append(arrays["x"])
+            all_y.append(arrays["y"])
+            if target.get("r"): all_r.append(arrays["red"])
+            if target.get("g"): all_g.append(arrays["green"])
+            if target.get("b"): all_b.append(arrays["blue"])
+            if target.get("z"): all_z.append(arrays["z"])
+
+            logger.debug(
+                f"Lido: {_os.path.basename(las_path)} ({n} pts)",
+                code="IDW_TASK_FILE_READ", file=i+1, pontos=n,
+            )
+
+        self._n_pontos_total = n_pontos_total
+
+        x_pts = np.concatenate(all_x)
+        y_pts = np.concatenate(all_y)
+        r_pts = np.concatenate(all_r) if all_r else np.array([], dtype=np.uint16)
+        g_pts = np.concatenate(all_g) if all_g else np.array([], dtype=np.uint16)
+        b_pts = np.concatenate(all_b) if all_b else np.array([], dtype=np.uint16)
+        z_pts = np.concatenate(all_z) if all_z else np.array([], dtype=np.float64)
+
+        logger.info(f"Total: {n_pontos_total} pontos", code="IDW_TASK_LAS_READ")
         self._log_memory_status("apos_leitura")
 
-        signals.hud_update.emit({"message": "Calculando grid..."})
+        del all_x, all_y, all_r, all_g, all_b, all_z
 
         if not self._check_during_execution():
             return False
@@ -237,12 +263,10 @@ class IdwInterpolatorTask(BaseTask):
         transform = from_origin(min_x_g, max_y_g, resol_m, resol_m)
         logger.info(f"Grid: {width}x{height} px", code="IDW_TASK_GRID")
 
-        signals.hud_update.emit({"message": "Dividindo tiles..."})
-
         if not self._check_during_execution():
             return False
 
-        # --- Verificacao de RAM por pixel do grid (anti-OOM meshgrid) ---
+        # --- Verificacao de RAM ---
         n_cpus = CpuGovernor.max_workers()
         n_bandas = sum(1 for b in ('r', 'g', 'b', 'z') if target.get(b, False))
         n_bandas = max(1, n_bandas)
@@ -250,15 +274,10 @@ class IdwInterpolatorTask(BaseTask):
             logger.error("RAM insuficiente para processar grid", code="IDW_TASK_OOM_GRID")
             return False
 
-        # --- Estagio 3: Divisao em Tiles (com governor) ---
-        signals.hud_update.emit({"message": "Dividindo tiles..."})
+        # --- Estagio 3: Divisao em Tiles Raster ---
+        signals.hud_update.emit({"message": "Dividindo tiles raster..."})
 
-        tile_size_ajustado = self._ajustar_tile_size(pontos_por_tile)
-        if tile_size_ajustado != pontos_por_tile:
-            logger.info(f"Tile ajustado: {pontos_por_tile} -> {tile_size_ajustado} (por RAM)",
-                        code="IDW_TASK_TILE_ADJ")
-            pontos_por_tile = tile_size_ajustado
-
+        pontos_por_tile = max(1_000_000, n_pontos_total // max(1, n_cpus * 2))
         tiles = InterpolatorUtils.calcular_tiles_por_densidade(
             x_pts, y_pts, min_x_g, max_x_g, min_y_g, max_y_g,
             resol_m, pontos_por_tile, tool_key=self._tool_key,
@@ -270,7 +289,7 @@ class IdwInterpolatorTask(BaseTask):
         if not self._check_during_execution():
             return False
 
-        # --- Pasta de saida com subpastas por banda (MINUSCULAS) ---
+        # --- Pastas de saida ---
         basename_out = _os.path.splitext(_os.path.basename(output_path))[0]
         output_dir = _os.path.dirname(output_path)
         interp_dir = _os.path.join(output_dir, "Interpolator")
@@ -278,27 +297,11 @@ class IdwInterpolatorTask(BaseTask):
         for banda in ("r", "g", "b", "z"):
             banda_dir = _os.path.join(interp_dir, banda)
             _os.makedirs(banda_dir, exist_ok=True)
-            logger.info(
-                f"Pasta criada: {banda_dir}",
-                code="IDW_TASK_DIR_CREATED",
-                banda=banda,
-                path=banda_dir,
-            )
-
-        logger.info(
-            f"Pastas de saida preparadas",
-            code="IDW_TASK_OUTPUT_DIRS",
-            output_final=output_path,
-            tiles_temp=interp_dir,
-            basename=basename_out,
-        )
-
-        signals.hud_update.emit({"message": "Interpolando tiles (IDW)..."})
 
         grid_bounds = (min_x_g, max_x_g, min_y_g, max_y_g)
 
         # --- Estagio 4: IDW Paralelo ---
-        signals.hud_update.emit({"message": "Interpolando tiles (IDW)..."})
+        signals.hud_update.emit({"message": "Interpolando (IDW)..."})
         signals.progress_update.emit(45.0)
 
         if not self._check_during_execution():
@@ -378,7 +381,6 @@ class IdwInterpolatorTask(BaseTask):
         signals.hud_update.emit({"message": "Montando saida..."})
 
         has_rgb = target.get("r") and target.get("g") and target.get("b")
-        has_z = target.get("z", False)
         final_outputs = list(band_files)
 
         if merge_bands and has_rgb:
@@ -389,35 +391,29 @@ class IdwInterpolatorTask(BaseTask):
                 nodata=0,
             )
             final_outputs.append(merged_path)
-            logger.info(
-                f"Mosaico RGB gerado",
-                code="IDW_TASK_MOSAIC_DONE",
-                output=merged_path,
-                bandas="R,G,B",
-            )
+            logger.info("Mosaico RGB gerado", code="IDW_TASK_MOSAIC_DONE")
         elif merge_bands and not has_rgb:
             logger.warning(
-                f"Mosaico nao gerado: requer R, G e B simultaneamente",
+                "Mosaico nao gerado: requer R, G e B",
                 code="IDW_TASK_MOSAIC_SKIP",
-                target_checked=[k for k, v in target.items() if v],
             )
 
         signals.hud_update.emit({"message": "Salvando metadados..."})
 
         # --- Estagio 7: Metadados ---
         metadata = {
-            "arquivo_las": file_path, "output_path": str(output_path),
+            "input_dir": input_dir,
+            "output_path": str(output_path),
             "parametros": {
                 "resolucao_m": resol_m, "resolucao_cm": round(resol_m * 100, 2),
                 "idw_k": k, "idw_power": power,
                 "idw_raio_max_m": raio_max, "idw_overlap_m": overlap,
-                "pontos_por_tile": pontos_por_tile,
                 "crs": crs_str, "merge_bands": merge_bands, "target_bands": target,
             },
             "grid": {"width_px": width, "height_px": height,
                      "bounds": {"x_min": min_x_g, "x_max": max_x_g,
                                 "y_min": min_y_g, "y_max": max_y_g}},
-            "nuvem": {"n_pontos": n_pontos},
+            "nuvem": {"n_pontos": n_pontos_total},
             "tiles": {"total": total_tiles, "ok": n_ok, "pulado": n_pulado},
             "arquivos_gerados": final_outputs,
         }
@@ -428,16 +424,14 @@ class IdwInterpolatorTask(BaseTask):
 
         self.result = metadata
         logger.info(
-            f"Pipeline IDW concluido com sucesso",
+            "Pipeline IDW concluido com sucesso",
             code="IDW_TASK_DONE",
             output_paths=final_outputs,
             grid_size=f"{width}x{height}",
             tiles_total=total_tiles,
             tiles_ok=n_ok,
         )
-        SignalManager.instance().console_message.emit(
-            f"[IDW] Sucesso! Saida: {_os.path.dirname(output_path)}"
-        )
+
         out_link = output_dir.replace(chr(92), "/")
         band_link = interp_dir.replace(chr(92), "/")
         SignalManager.instance().console_html.emit(
@@ -454,4 +448,6 @@ class IdwInterpolatorTask(BaseTask):
         signals.hud_update.emit({"message": "Concluido!"})
 
         self._limpar_temp()
+        self._limpar_las()
+
         return True
