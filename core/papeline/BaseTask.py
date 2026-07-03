@@ -17,6 +17,8 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Optional
 
+from core.config.LogUtils import LogUtils
+from core.enum.ToolKey import ToolKey
 from core.governor.ResourceGovernor import ResourceGovernor
 
 
@@ -40,6 +42,7 @@ class BaseTask(ABC):
         self,
         description: str,
         governor: Optional[ResourceGovernor] = None,
+        tool_key: str = ToolKey.UNTRACEABLE.value,
     ):
         self.description: str = description
         self.exception: Optional[Exception] = None
@@ -49,6 +52,16 @@ class BaseTask(ABC):
         self._is_cancelled: bool = False
         self._governor: Optional[ResourceGovernor] = governor
         self._estimated_ram: int = 0  # bytes, subclasse pode setar
+        self._tool_key: str = tool_key
+
+    def get_logger(self) -> LogUtils:
+        """
+        Retorna um LogUtils configurado com a tool_key da task.
+
+        A tool_key é definida no __init__ (default ToolKey.UNTRACEABLE).
+        O class_name usado é o nome da classe concreta da task.
+        """
+        return LogUtils(tool=self._tool_key, class_name=self.__class__.__name__)
 
     @property
     def estimated_ram(self) -> int:

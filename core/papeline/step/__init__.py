@@ -17,6 +17,7 @@ from .MrkSteps import MrkLoadDataStep, MrkProcessStep, MrkFindDataStep
 from .DoclingSteps import DoclingConvertStep, DoclingSaveStep
 from .LasBlackFilterSteps import LasBlackFilterStep
 from .LasCheckStep import LasCheckStep
+from .LasTilerStep import LasTilerStep
 
 __all__ = [
     "MrkLoadDataStep",
@@ -26,4 +27,5 @@ __all__ = [
     "DoclingSaveStep",
     "LasBlackFilterStep",
     "LasCheckStep",
+    "LasTilerStep",
 ]

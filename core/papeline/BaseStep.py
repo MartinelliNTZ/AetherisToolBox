@@ -23,12 +23,26 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Any, Optional
 
+from core.config.LogUtils import LogUtils
+from core.enum.ToolKey import ToolKey
 from .ExecutionContext import ExecutionContext
 from .BaseTask import BaseTask
 
 
 class BaseStep(ABC):
     """Contrato que define uma etapa da pipeline."""
+
+    def get_logger(self, context: ExecutionContext) -> LogUtils:
+        """
+        Retorna um LogUtils configurado com a tool_key do contexto.
+
+        A tool_key é extraída do ExecutionContext via:
+            context.get("tool_key", ToolKey.UNTRACEABLE.value)
+
+        O class_name usado é o nome da classe concreta do step.
+        """
+        tool_key = context.get("tool_key", ToolKey.UNTRACEABLE.value)
+        return LogUtils(tool=tool_key, class_name=self.__class__.__name__)
 
     # ── Obrigatórios ────────────────────────────────────────────────
 
