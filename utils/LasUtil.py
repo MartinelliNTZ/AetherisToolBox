@@ -15,6 +15,7 @@ Uso:
 
 from __future__ import annotations
 
+import math
 import os
 from typing import Any, Dict, Optional
 
@@ -534,6 +535,120 @@ class LasUtil(BaseUtil):
             densidade=densidade,
         )
         return result
+
+    # ══════════════════════════════════════════════════════════════════
+    # API — Split de LAS em partes iguais
+    # ══════════════════════════════════════════════════════════════════
+
+    @staticmethod
+    def split_las(
+        path: str,
+        output_dir: str,
+        pontos_por_parte: int = 10_000_000,
+        tool_key: str = ToolKey.UNTRACEABLE.value,
+    ) -> dict:
+        """
+        Divide um arquivo LAS/LAZ em varios arquivos menores.
+
+        Cada parte tera ate `pontos_por_parte` pontos (a ultima pode ter menos).
+        Os arquivos de saida seguem o padrao:
+            {output_dir}/{basename}_part_{n:04d}.las
+
+        Args:
+            path: Caminho do arquivo LAS/LAZ de entrada.
+            output_dir: Pasta onde os arquivos serão salvos.
+            pontos_por_parte: Maximo de pontos por arquivo.
+            tool_key: ToolKey para logging.
+
+        Returns:
+            {
+                "n_total": int,
+                "n_partes": int,
+                "pontos_por_parte": int,
+                "arquivos": list[str],
+                "error": str | None,
+            }
+        """
+        logger = BaseUtil._get_logger(tool_key, "LasUtil")
+        logger.info(
+            "Iniciando split do LAS",
+            code="LAS_SPLIT_START",
+            path=path,
+            pontos_por_parte=pontos_por_parte,
+        )
+
+        # Validações
+        path = path.strip()
+        if not os.path.isfile(path):
+            raise FileNotFoundError(f"Arquivo nao encontrado: {path}")
+
+        ext = os.path.splitext(path)[1].lower()
+        if ext not in (".las", ".laz"):
+            raise ValueError(f"Extensao invalida '{ext}'. Esperado .las ou .laz.")
+
+        try:
+            las = laspy.read(path)
+            n_total = len(las.points)
+            basename = os.path.splitext(os.path.basename(path))[0]
+
+            os.makedirs(output_dir, exist_ok=True)
+
+            n_partes = max(1, int(math.ceil(n_total / pontos_por_parte)))
+            arquivos: list[str] = []
+
+            for i in range(n_partes):
+                ini = i * pontos_por_parte
+                fim = min(ini + pontos_por_parte, n_total)
+                mask = np.zeros(n_total, dtype=bool)
+                mask[ini:fim] = True
+
+                nome_out = f"{basename}_part_{i+1:04d}.las"
+                out_path = os.path.join(output_dir, nome_out)
+
+                n_salvos = LasUtil.create_filtered_las(
+                    las, mask, out_path, tool_key=tool_key,
+                )
+                if n_salvos is not None and n_salvos > 0:
+                    arquivos.append(out_path)
+                    logger.info(
+                        f"Parte {i+1}/{n_partes} salva: {nome_out} ({n_salvos} pontos)",
+                        code="LAS_SPLIT_PART",
+                        parte=i+1,
+                        total=n_partes,
+                        n_pontos=n_salvos,
+                        arquivo=out_path,
+                    )
+
+            result = {
+                "n_total": n_total,
+                "n_partes": n_partes,
+                "pontos_por_parte": pontos_por_parte,
+                "arquivos": arquivos,
+                "error": None,
+            }
+
+            logger.info(
+                "Split concluido",
+                code="LAS_SPLIT_DONE",
+                n_total=n_total,
+                n_partes=n_partes,
+                arquivos=len(arquivos),
+            )
+            return result
+
+        except Exception as e:
+            logger.error(
+                "Erro ao dividir LAS",
+                code="LAS_SPLIT_ERR",
+                error=str(e),
+            )
+            return {
+                "n_total": 0,
+                "n_partes": 0,
+                "pontos_por_parte": pontos_por_parte,
+                "arquivos": [],
+                "error": str(e),
+            }
 
     # ══════════════════════════════════════════════════════════════════
     # API — Extração de Coordenadas (PointBoundaryPlugin)

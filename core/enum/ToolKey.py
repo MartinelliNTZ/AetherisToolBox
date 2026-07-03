@@ -35,6 +35,7 @@ class ToolKey(str, Enum):
     STATISTICS = "Statistics"
     POINT_BOUNDARY = "PointBoundary"
     IDW_INTERPOLATOR = "IdwInterpolator"
+    LAS_TILER = "LasTiler"
 
     # ── Método utilitário ──────────────────────────────────────────────
 
