@@ -48,7 +48,7 @@ class BaseStep(ABC):
     """Output subfolder name (e.g. 'lascheck', 'lasblackfilter').
     Used to create output_path/subfolder/ automatically."""
 
-    advance_input: bool = True
+    _advance_input: bool = True
     """
     If True (default): step TRANSFORMS data -> calls advance_input() in on_success()
     If False: step only ANALYZES -> does NOT call advance_input()
@@ -122,7 +122,7 @@ class BaseStep(ABC):
         Default: if advance_input == True, advances input_path.
         Override to map task results to context.
         """
-        if self.advance_input:
+        if self._advance_input:
             self.advance_input(context)
 
     # ── Optional methods ───────────────────────────────────────

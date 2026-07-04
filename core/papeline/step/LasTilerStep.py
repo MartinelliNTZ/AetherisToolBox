@@ -21,12 +21,12 @@ class LasTilerStep(BaseStep):
     """Step that splits LAS/LAZ files into parts."""
 
     subfolder = "lastiler"
-    advance_input = True
+    _advance_input = True
 
     def __init__(self, points_per_part: int = 5_000_000,
                  advance_input: bool = True, input_path: str = ""):
         self._points_per_part = points_per_part
-        self.advance_input = advance_input
+        self._advance_input = advance_input
         self._custom_input_path = input_path
 
     def name(self) -> str:

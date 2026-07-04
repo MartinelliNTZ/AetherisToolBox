@@ -6,8 +6,12 @@ Remove pontos onde R, G e B estão todos abaixo de um limiar configurável.
 Gera novo arquivo com sufixo _filtrado.las/.laz sem alterar o original.
 Opção de salvar os pontos pretos removidos em arquivo separado.
 
+Modos de operação:
+  - "file"   (padrão): seleciona 1 arquivo LAS, mostra info, executa filtro
+  - "folder": seleciona pasta, processa todos os LAS da pasta em lote
+
 Fluxo:
-  - SelectorGrid de entrada detecta mudança no path automaticamente
+  - SimpleSelector de entrada com mode_selector (Arquivo/Pasta)
   - SimpleSelectors de saída com botão 📂 para pasta do projeto
   - ExecutionButtons: USAR ORIGEM + EXECUTAR
   - PipelineRunner + LasBlackFilterStep para execução em background
@@ -40,6 +44,7 @@ from utils.ProcessStatisticsUtil import ProcessStatisticsUtil
 class LasBlackFilterPlugin(BasePlugin):
     """
     Plugin para filtrar pontos pretos de arquivos LAS/LAZ.
+    Suporta modo arquivo único ou pasta (lote).
     """
 
     _LAS_FILTER = "LAS/LAZ (*.las *.laz)"
@@ -50,6 +55,7 @@ class LasBlackFilterPlugin(BasePlugin):
         self._current_path: str = ""
         self._las_info: dict = {}
         self._runner: PipelineRunner | None = None
+        self._mode: str = "file"  # "file" ou "folder"
         super().__init__(
             tool_key=ToolKey.LAS_BLACK_FILTER.value,
             parent=parent,
@@ -71,7 +77,7 @@ class LasBlackFilterPlugin(BasePlugin):
                 "text": "USAR ORIGEM",
                 "callback": self._on_usar_origem,
                 "type": "secondary",
-                "description": "Salvar na pasta do arquivo LAS original",
+                "description": "Salvar na pasta do arquivo/pasta LAS original",
             },
             "executar": {
                 "text": "EXECUTAR",
@@ -83,25 +89,35 @@ class LasBlackFilterPlugin(BasePlugin):
         self._btns.set_enabled("executar", False)
         self.main_layout.addWidget(self._btns)
 
-        # ── GroupPainel "Arquivo de Entrada" ────────────────────────
-        grupo_entrada = GroupPainel("Arquivo de Entrada")
+        # ── GroupPainel "Entrada" ───────────────────────────────────
+        grupo_entrada = GroupPainel("Entrada")
         self.main_layout.addWidget(grupo_entrada)
 
-        self._selector_grid = GridSelector(
-            {
-                "LAS/LAZ de Entrada": {
-                    "file_filter": self._LAS_FILTER,
-                    "browse_mode": "open_file",
-                    "placeholder": "Selecione o arquivo LAS/LAZ...",
+        # SimpleSelector com mode_selector (Arquivo / Pasta)
+        self._sel_entrada = SimpleSelector(
+            label_text="LAS/LAZ de Entrada",
+            file_filter=self._LAS_FILTER,
+            browse_mode="open_file",
+            placeholder="Selecione o arquivo LAS/LAZ...",
+            mode_selector={
+                "file": {
+                    "label": "Arquivo",
+                    "description": "Processar 1 arquivo LAS",
+                    "default": True,
+                },
+                "folder": {
+                    "label": "Pasta",
+                    "description": "Processar todos os LAS de uma pasta",
                 },
             },
         )
-        grupo_entrada.group_layout.addWidget(self._selector_grid)
+        grupo_entrada.group_layout.addWidget(self._sel_entrada)
 
-        # Conecta mudança no texto do selector de entrada
-        sel_entrada = self._selector_grid["LAS/LAZ de Entrada"]
-        sel_entrada.edit.textChanged.connect(self._on_input_path_changed)
+        # Conecta mudança de path e modo
+        self._sel_entrada.on_path_change = self._on_input_path_changed
+        self._sel_entrada.on_mode_change = self._on_mode_changed
 
+        # Info label (só aparece no modo file)
         self._info_label = GridLabel(
             {
                 "pontos": {"label": "Total de Pontos", "value": "—"},
@@ -143,10 +159,12 @@ class LasBlackFilterPlugin(BasePlugin):
         )
         grupo_config.group_layout.addWidget(self._ckb_salvar_pretos)
 
-        # ── GroupPainel "Arquivos de Saída" ─────────────────────────
-        grupo_saida = GroupPainel("Arquivos de Saída")
+        # ── GroupPainel "Saída" ─────────────────────────────────────
+        grupo_saida = GroupPainel("Saída")
         self.main_layout.addWidget(grupo_saida)
 
+        # Modo file: dois SimpleSelectors (filtrado + pretos)
+        # Modo folder: um SimpleSelector para pasta de saída
         self._sel_limpo = SimpleSelector(
             label_text="LAS Filtrado",
             file_filter=self._LAS_FILTER,
@@ -169,19 +187,74 @@ class LasBlackFilterPlugin(BasePlugin):
     # Handlers
     # ══════════════════════════════════════════════════════════════════
 
+    def _on_mode_changed(self, mode_key: str):
+        """Disparado quando o usuário alterna entre Arquivo/Pasta."""
+        self._mode = mode_key
+        self._current_path = ""
+        self._las_info = {}
+
+        if mode_key == "folder":
+            # Modo pasta: esconde info label, adapta saída
+            self._info_label.setVisible(False)
+            self._sel_entrada.edit.setPlaceholderText("Selecione uma pasta com LAS...")
+            self._sel_entrada.set_path("")
+
+            # Saída: mostra apenas pasta de saída
+            self._sel_limpo.label.setText("Pasta de Saída")
+            self._sel_limpo._browse_mode = "directory"
+            self._sel_limpo.edit.setPlaceholderText("Pasta para salvar resultados...")
+            self._sel_limpo.set_path("")
+
+            self._sel_pretos.setVisible(False)
+        else:
+            # Modo arquivo: mostra info label, saída normal
+            self._info_label.setVisible(True)
+            self._sel_entrada.edit.setPlaceholderText("Selecione o arquivo LAS/LAZ...")
+            self._sel_entrada.set_path("")
+
+            self._sel_limpo.label.setText("LAS Filtrado")
+            self._sel_limpo._browse_mode = "save_file"
+            self._sel_limpo.edit.setPlaceholderText("Caminho do LAS filtrado...")
+            self._sel_limpo.set_path("")
+
+            self._sel_pretos.setVisible(True)
+            self._sel_pretos.set_path("")
+
+        self._btns.set_enabled("executar", False)
+        self.page.set_badge(self.page.PRONTA)
+
+        SignalManager.instance().console_message.emit(
+            f"[LasBlackFilter] Modo alterado para: {'Pasta' if mode_key == 'folder' else 'Arquivo'}"
+        )
+
     def _on_input_path_changed(self, text: str):
         """
         Disparado quando o texto do selector de entrada muda.
-        Se o path for um arquivo valido, carrega o LAS automaticamente.
-        Evita chamada recursiva se o path ja estiver carregado.
+        No modo file: carrega metadados do LAS.
+        No modo folder: apenas valida se é uma pasta válida.
         """
         path = text.strip()
         if not path:
             return
+
+        if self._mode == "folder":
+            # Modo pasta: valida se é uma pasta com arquivos LAS
+            if os.path.isdir(path):
+                self._current_path = path
+                self._las_info = {"path": path, "n_pontos": 0, "has_rgb": True}
+                self._btns.set_enabled("executar", True)
+                self.page.set_badge(self.page.PRONTA)
+                self.logger.info(
+                    "Pasta selecionada",
+                    code="FOLDER_SELECTED",
+                    path=path,
+                )
+            return
+
+        # Modo file: valida arquivo LAS
         ext = os.path.splitext(path)[1].lower()
         if ext not in (".las", ".laz") or not os.path.isfile(path):
             return
-        # -- Protecao contra recursao: se ja estamos carregando, ignora --
         if getattr(self, "_loading_las", False):
             return
         if path == self._current_path:
@@ -190,18 +263,26 @@ class LasBlackFilterPlugin(BasePlugin):
 
     def _on_usar_origem(self):
         """
-        Preenche caminhos de saída na pasta do arquivo LAS original.
-        Ex: /pasta/arquivo.las → /pasta/arquivo_filtrado.las
+        Preenche caminhos de saída na pasta do arquivo/pasta LAS original.
         """
         if not self._current_path:
             MessageBox.show_warning(
-                "Nenhum arquivo LAS carregado.\nSelecione um arquivo primeiro.",
+                "Nenhum arquivo/pasta LAS selecionado.\nSelecione primeiro.",
                 title="Filtro Pontos Pretos",
             )
-            self.logger.warning(f"Tentativa de executar sem LAS carregado em :{self._current_path}", code="EXEC_NO_LAS")
-            
             return
 
+        if self._mode == "folder":
+            # Modo pasta: saída = pasta de origem + /lasblackfilter
+            output_dir = os.path.join(self._current_path, "lasblackfilter")
+            self._sel_limpo.set_path(output_dir)
+            self._btns.set_enabled("executar", True)
+            SignalManager.instance().console_message.emit(
+                f"[LasBlackFilter] Destino: {output_dir}"
+            )
+            return
+
+        # Modo file: comportamento original
         caminhos = self._resolver_caminhos_saida(modo="origem")
         self._sel_limpo.set_path(caminhos["limpo"])
         self._sel_pretos.set_path(caminhos["pretos"])
@@ -210,26 +291,6 @@ class LasBlackFilterPlugin(BasePlugin):
         SignalManager.instance().console_message.emit(
             "[LasBlackFilter] Destino: pasta do LAS original"
         )
-
-    def _on_usar_projeto(self):
-        """
-        Preenche caminhos de saída na pasta do projeto ativo.
-        Se não houver projeto ativo, faz fallback para origem.
-        """
-        if not self._current_path:
-            return
-
-        sys_prefs = Preferences.load_tool_prefs(ToolKey.SYSTEM)
-        root_folder = sys_prefs.get("root_folder", "")
-
-        if root_folder and os.path.isdir(root_folder):
-            caminhos = self._resolver_caminhos_saida(modo="projeto")
-            self._sel_limpo.set_path(caminhos["limpo"])
-            self._sel_pretos.set_path(caminhos["pretos"])
-            self._atualizar_suggested_path(modo="projeto")
-            self._btns.set_enabled("executar", True)
-        else:
-            self._on_usar_origem()
 
     def _on_executar(self):
         """Executa o filtro de pontos pretos via PipelineRunner em background."""
@@ -241,12 +302,11 @@ class LasBlackFilterPlugin(BasePlugin):
 
         if not self._current_path:
             MessageBox.show_warning(
-                "Nenhum arquivo LAS carregado.", title="Filtro Pontos Pretos",
+                "Nenhum arquivo/pasta LAS selecionado.", title="Filtro Pontos Pretos",
             )
-            self.logger.warning(f"Tentativa de executar sem LAS carregado em :{self._current_path}", code="EXEC_NO_LAS")
             return
 
-        if not self._las_info.get("has_rgb", False):
+        if self._mode == "file" and not self._las_info.get("has_rgb", False):
             MessageBox.show_warning(
                 "O arquivo LAS não possui bandas RGB.\n"
                 "Não é possível filtrar pontos pretos.",
@@ -257,6 +317,82 @@ class LasBlackFilterPlugin(BasePlugin):
         limiar = self._spin_limiar.get("limiar")
         salvar_pretos = self._ckb_salvar_pretos.checked.get("salvar_pretos", False)
 
+        if self._mode == "folder":
+            # Modo pasta: saída é uma pasta
+            output_dir = self._sel_limpo.path()
+            if not output_dir:
+                MessageBox.show_warning(
+                    "Defina a pasta de saída.\nUse USAR ORIGEM ou preencha manualmente.",
+                    title="Filtro Pontos Pretos",
+                )
+                return
+
+            # Conta total de LAS na pasta para o statistics
+            las_files = [
+                f for f in os.listdir(self._current_path)
+                if f.lower().endswith((".las", ".laz"))
+            ]
+            n_total = len(las_files)
+
+            self.statistics.start(
+                n=0,
+                ntype=ProcessStatisticsUtil.POINTS,
+                ntotal=n_total,
+            )
+
+            SignalManager.instance().console_message.emit(
+                f"[LasBlackFilter] {self.statistics.summary}"
+            )
+
+            self._btns.set_all_enabled(False)
+            self.page.set_badge(self.page.RUNNING)
+
+            total_estimate_seconds = max(
+                self.statistics.remaining_time,
+                self.statistics.total_time,
+                30.0,
+            )
+
+            SignalManager.instance().execution_started.emit(self.tool_key)
+            SignalManager.instance().hud_show.emit({
+                "message": "Filtrando pontos pretos (pasta)...",
+                "stages": [total_estimate_seconds, 4],
+            })
+            SignalManager.instance().console_message.emit(
+                f"[LasBlackFilter] Iniciando filtro em pasta (limiar={limiar})..."
+            )
+
+            self.logger.info(
+                "Iniciando filtro em pasta",
+                code="FILTER_START",
+                path=self._current_path,
+                limiar=limiar,
+                salvar_pretos=salvar_pretos,
+                output_dir=output_dir,
+                n_arquivos=n_total,
+            )
+
+            # Cria step com input_path = pasta
+            step = LasBlackFilterStep(
+                threshold=limiar,
+                save_black_points=salvar_pretos,
+                input_path=self._current_path,
+            )
+            runner = PipelineRunner(
+                steps=[step],
+                input_path=self._current_path,
+                output_path=output_dir,
+                tool_key=self.tool_key,
+                parent=self,
+            )
+            runner.finished_ok.connect(self._on_done_folder)
+            runner.failed.connect(self._on_error)
+            runner.finished.connect(self._on_runner_finished)
+            self._runner = runner
+            runner.start()
+            return
+
+        # ── Modo file (comportamento original) ──────────────────────
         output_limpo = self._sel_limpo.path()
         if not output_limpo:
             MessageBox.show_warning(
@@ -268,12 +404,10 @@ class LasBlackFilterPlugin(BasePlugin):
 
         output_pretos = self._sel_pretos.path() if salvar_pretos else ""
 
-        # Obtem total de pontos via LasUtil para o statistics
         n_total = LasUtil.get_point_count(
             self._current_path, tool_key=self.tool_key
         )
 
-        # Inicia monitoramento de estatisticas (ETA, tempo, etc.)
         self.statistics.start(
             n=0,
             ntype=ProcessStatisticsUtil.POINTS,
@@ -284,19 +418,16 @@ class LasBlackFilterPlugin(BasePlugin):
             f"[LasBlackFilter] {self.statistics.summary}"
         )
 
-        # Prepara UI para execução
         self._btns.set_all_enabled(False)
         self.page.set_badge(self.page.RUNNING)
 
-        # Obtem tempo total estimado do ProcessStatisticsUtil para o HUD
         total_estimate_seconds = max(
             self.statistics.remaining_time,
             self.statistics.total_time,
-            30.0,  # fallback padrao
+            30.0,
         )
 
         SignalManager.instance().execution_started.emit(self.tool_key)
-        # HUD Modo 3 (Stages): 4 etapas com duração total estimada
         SignalManager.instance().hud_show.emit({
             "message": "Filtrando pontos pretos...",
             "stages": [total_estimate_seconds, 4],
@@ -317,17 +448,15 @@ class LasBlackFilterPlugin(BasePlugin):
             total_estimate_seconds=round(total_estimate_seconds, 1),
         )
 
-        # Cria e inicia a pipeline em background via QThread
-        step = LasBlackFilterStep()
+        step = LasBlackFilterStep(
+            threshold=limiar,
+            save_black_points=salvar_pretos,
+        )
         runner = PipelineRunner(
             steps=[step],
-            context={
-                "file_path": self._current_path,
-                "limiar": limiar,
-                "salvar_pretos": salvar_pretos,
-                "output_limpo": output_limpo,
-                "output_pretos": output_pretos,
-            },
+            input_path=os.path.dirname(self._current_path),
+            output_path=os.path.dirname(self._current_path),
+            tool_key=self.tool_key,
             parent=self,
         )
         runner.finished_ok.connect(self._on_done)
@@ -341,15 +470,15 @@ class LasBlackFilterPlugin(BasePlugin):
     # ══════════════════════════════════════════════════════════════════
 
     def _on_done(self, context):
-        """Callback de sucesso da pipeline."""
-        n_removidos = context.get("n_removidos", 0)
-        n_mantidos = context.get("n_mantidos", 0)
-        n_total = context.get("n_total", 0)
-        n_pretos = context.get("n_pretos", 0)
-        output_limpo = context.get("output_limpo", "")
-        output_pretos = context.get("output_pretos", "")
+        """Callback de sucesso da pipeline (modo file)."""
+        results = context.results
+        n_removidos = results.get("n_removed", 0)
+        n_mantidos = results.get("n_kept", 0)
+        n_total = results.get("n_total", 0)
+        n_pretos = results.get("n_black", 0)
+        output_limpo = results.get("output_clean", "")
+        output_pretos = results.get("output_black", "")
 
-        # Finaliza monitoramento de estatisticas
         elapsed = self.statistics.end()
         self.logger.info(
             "Tempo de processamento registrado",
@@ -387,6 +516,53 @@ class LasBlackFilterPlugin(BasePlugin):
 
         MessageBox.show_info(msg, title="Filtro Pontos Pretos")
 
+    def _on_done_folder(self, context):
+        """Callback de sucesso da pipeline (modo pasta)."""
+        results = context.results
+        n_removidos = results.get("n_removed", 0)
+        n_mantidos = results.get("n_kept", 0)
+        n_total = results.get("n_total", 0)
+        n_pretos = results.get("n_black", 0)
+        output_clean_list = results.get("output_clean", [])
+        output_black_list = results.get("output_black", [])
+
+        elapsed = self.statistics.end()
+        self.logger.info(
+            "Tempo de processamento registrado",
+            code="STATS_RECORDED",
+            elapsed_s=round(elapsed, 3),
+            usages=self.statistics.usages,
+        )
+
+        SignalManager.instance().execution_finished.emit(self.tool_key)
+        SignalManager.instance().console_message.emit(
+            f"[LasBlackFilter] Filtro em pasta concluído! "
+            f"{len(output_clean_list)} arquivos processados, "
+            f"{n_removidos:,} pontos removidos."
+        )
+
+        self.logger.info(
+            "Filtro em pasta concluído com sucesso",
+            code="FILTER_DONE",
+            removidos=n_removidos,
+            restantes=n_mantidos,
+            total=n_total,
+            arquivos=len(output_clean_list),
+        )
+
+        msg = (
+            f"Filtro em pasta concluído!\n\n"
+            f"Arquivos processados: {len(output_clean_list)}\n"
+            f"Total de pontos: {n_total:,}\n"
+            f"Pontos removidos: {n_removidos:,}\n"
+            f"Pontos mantidos: {n_mantidos:,}\n\n"
+            f"Resultados salvos em:\n{os.path.dirname(output_clean_list[0]) if output_clean_list else '—'}"
+        )
+        if n_pretos > 0 and output_black_list:
+            msg += f"\n\nPontos pretos salvos em:\n{os.path.dirname(output_black_list[0])}"
+
+        MessageBox.show_info(msg, title="Filtro Pontos Pretos")
+
     def _on_error(self, message: str):
         """Callback de erro da pipeline."""
         SignalManager.instance().execution_cancelled.emit(self.tool_key)
@@ -419,7 +595,6 @@ class LasBlackFilterPlugin(BasePlugin):
 
     def _carregar_las(self, path: str):
         """Carrega metadados do LAS e atualiza a UI."""
-        # -- Protecao contra reentrada, evita recursao via textChanged --
         if getattr(self, "_loading_las", False):
             return
         self._loading_las = True
@@ -442,16 +617,9 @@ class LasBlackFilterPlugin(BasePlugin):
             }
 
             # Atualiza UI
-            # Usa bloqueio de sinais para evitar recursao via textChanged
-            sel_entrada = self._selector_grid["LAS/LAZ de Entrada"]
-            sel_entrada.edit.blockSignals(True)
-            sel_entrada.set_path(path)
-            sel_entrada.edit.blockSignals(False)
-
             self._info_label.set("pontos", f"{n_pontos:,}")
             self._info_label.set("has_rgb", "Sim" if has_rgb else "Não")
 
-            # Bounding box aproximada via LasUtil
             bbox = LasUtil.get_bounding_box(path, tool_key=self.tool_key)
             if bbox:
                 self._info_label.set(
@@ -462,7 +630,6 @@ class LasBlackFilterPlugin(BasePlugin):
             else:
                 self._info_label.set("bbox", "—")
 
-            # Habilita/desabilita botao executar conforme has_rgb
             self._btns.set_enabled("executar", has_rgb)
             self.page.set_badge(self.page.PRONTA if has_rgb else self.page.ERROR)
 
@@ -502,7 +669,7 @@ class LasBlackFilterPlugin(BasePlugin):
 
     def _resolver_caminhos_saida(self, modo: str) -> dict[str, str]:
         """
-        Resolve os caminhos de saída para os arquivos filtrados.
+        Resolve os caminhos de saída para os arquivos filtrados (modo file).
 
         Args:
             modo: "origem" → pasta do LAS original
@@ -537,10 +704,6 @@ class LasBlackFilterPlugin(BasePlugin):
         """
         Atualiza o botao 📂 dos selectors de saida com o PATH RELATIVO.
 
-        O SimpleSelector usará este path relativo e, quando o botão for
-        clicado, buscará o root_folder do projeto ativo via ProjectUtil
-        e concatenará com este path para formar o caminho completo.
-
         modo "projeto" → "las/black_points_filter"
         modo "origem"  → caminho vazio (esconde o botão)
         """
@@ -563,22 +726,33 @@ class LasBlackFilterPlugin(BasePlugin):
         """Carrega preferências salvas."""
         self.logger.info("Carregando preferências", code="PREFS_LOAD")
         last_path = self.preferences.get("last_path", "")
+        last_mode = self.preferences.get("mode", "file")
         limiar = self.preferences.get("limiar", 0)
         salvar_pretos = self.preferences.get("salvar_pretos", False)
         last_output_limpo = self.preferences.get("output_limpo", "")
         last_output_pretos = self.preferences.get("output_pretos", "")
 
-        # Carrega o LAS primeiro (se houver) para setar _current_path
-        if last_path:
-            self._carregar_las(last_path)
+        # Restaura modo
+        if last_mode != self._mode:
+            self._sel_entrada.set_mode(last_mode)
 
-        # Restaura outputs salvos (se existirem) SEM depender de _on_usar_*()
+        # Carrega o LAS/pasta primeiro
+        if last_path:
+            if last_mode == "folder":
+                self._current_path = last_path
+                self._las_info = {"path": last_path, "n_pontos": 0, "has_rgb": True}
+                self._sel_entrada.set_path(last_path)
+                self._btns.set_enabled("executar", True)
+            else:
+                self._carregar_las(last_path)
+
+        # Restaura outputs salvos
         if last_output_limpo:
             self._sel_limpo.set_path(last_output_limpo)
         if last_output_pretos:
             self._sel_pretos.set_path(last_output_pretos)
 
-        # Atualiza suggested_path se output_limpo aponta para pasta do projeto
+        # Atualiza suggested_path
         if last_output_limpo and "black_points_filter" in last_output_limpo:
             self._atualizar_suggested_path(modo="projeto")
         elif self._current_path:
@@ -595,6 +769,7 @@ class LasBlackFilterPlugin(BasePlugin):
     def save_prefs(self) -> None:
         """Salva preferências atuais no cache de memória."""
         self.preferences["last_path"] = self._current_path
+        self.preferences["mode"] = self._mode
         self.preferences["limiar"] = self._spin_limiar.get("limiar")
         self.preferences["salvar_pretos"] = self._ckb_salvar_pretos.checked.get(
             "salvar_pretos", False

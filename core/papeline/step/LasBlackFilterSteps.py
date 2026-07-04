@@ -28,13 +28,13 @@ class LasBlackFilterStep(BaseStep):
     """
 
     subfolder = "lasblackfilter"
-    advance_input = True
+    _advance_input = True
 
     def __init__(self, threshold: int = 0, save_black_points: bool = False,
                  advance_input: bool = True, input_path: str = ""):
         self._threshold = threshold
         self._save_black_points = save_black_points
-        self.advance_input = advance_input
+        self._advance_input = advance_input
         self._custom_input_path = input_path
 
     def name(self) -> str:

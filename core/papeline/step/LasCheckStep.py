@@ -27,7 +27,7 @@ class LasCheckStep(BaseStep):
     """Step that runs quality checks on LAS/LAZ point clouds."""
 
     subfolder = "lascheck"
-    advance_input = False
+    _advance_input = False
 
     _CHECK_NAMES: dict[str, str] = {
         "point_count": "Point Count",
@@ -41,7 +41,7 @@ class LasCheckStep(BaseStep):
     }
 
     def __init__(self, advance_input: bool = False, input_path: str = ""):
-        self.advance_input = advance_input
+        self._advance_input = advance_input
         self._custom_input_path = input_path
 
     def name(self) -> str:

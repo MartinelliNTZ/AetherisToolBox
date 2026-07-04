@@ -32,7 +32,7 @@ class IdwInterpolatorStep(BaseStep):
     """Step that interpolates LAS files via IDW."""
 
     subfolder = "idwtiles"
-    advance_input = True
+    _advance_input = True
 
     def __init__(self, target_bands: dict = None, merge_bands: bool = True,
                  resolution_m: float = 0.01, idw_k: int = 5, idw_power: float = 2.0,
@@ -50,7 +50,7 @@ class IdwInterpolatorStep(BaseStep):
         self._crs_str = crs_str
         self._delete_tiles = delete_tiles
         self._save_las = save_las
-        self.advance_input = advance_input
+        self._advance_input = advance_input
         self._custom_input_path = input_path
 
     def name(self) -> str:
