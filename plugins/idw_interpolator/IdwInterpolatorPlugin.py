@@ -562,7 +562,7 @@ class IdwInterpolatorPlugin(BasePlugin):
 
     def _on_done(self, context):
         """Callback de sucesso da pipeline."""
-        idw_result = context.get("idw_result", {})
+        idw_result = context.get_result("idw_result", {})
         grid = idw_result.get("grid", {})
         params = idw_result.get("parametros", {})
         tiles = idw_result.get("tiles", {})

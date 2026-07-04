@@ -293,15 +293,13 @@ class LasTilerPlugin(BasePlugin):
         )
 
         # Cria PipelineRunner com LasTilerStep
-        step = LasTilerStep()
+        # pontos_por_parte é parâmetro exclusivo do step (Contrato 28)
+        step = LasTilerStep(points_per_part=pontos_por_parte)
         runner = PipelineRunner(
             steps=[step],
-            context={
-                "file_path": self._current_path,
-                "output_dir": output_dir,
-                "pontos_por_parte": pontos_por_parte,
-                "tool_key": self.tool_key,
-            },
+            input_path=os.path.dirname(self._current_path),
+            output_path=output_dir,
+            tool_key=self.tool_key,
             parent=self,
         )
         runner.finished_ok.connect(self._on_done)
@@ -325,7 +323,7 @@ class LasTilerPlugin(BasePlugin):
 
     def _on_done(self, context):
         """Callback de sucesso da pipeline."""
-        split_result = context.get("split_result", {})
+        split_result = context.get_result("split_result", {})
         n_partes = split_result.get("n_partes", 0)
         n_total = split_result.get("n_total", 0)
         pts_por_parte = split_result.get("pontos_por_parte", 0)
