@@ -418,25 +418,27 @@ class PointBoundaryPlugin(BasePlugin):
         output_path = self._sel_output.path()
         output_dir = os.path.dirname(output_path) if output_path else os.path.dirname(self._current_path)
 
-        # Cria step
-        step = PointBoundaryStep()
+        # Cria step com parâmetros exclusivos no construtor (Contrato 28)
+        step = PointBoundaryStep(
+            input_path=self._current_path,
+            tool_key=self.tool_key,
+            output_path=output_path,
+            output_dir=output_dir,
+            ratio_inicial=params.get("ratio_inicial", 0.10),
+            ratio_step=params.get("ratio_step", 0.01),
+            limiar_escada=params.get("limiar_escada", 12.0),
+            suavisacao=params.get("suavisacao", 20.0),
+            n_amostras=int(params.get("n_amostras", 100_000)),
+            crs=crs,
+            salvar_intermediarios=self._ckb_intermediarios.checked.get("salvar_intermediarios", False),
+            csv_x_field=csv_values.get("csv_x_field", "x"),
+            csv_y_field=csv_values.get("csv_y_field", "y"),
+        )
         runner = PipelineRunner(
             steps=[step],
-            context={
-                "file_path": self._current_path,
-                "ratio_inicial": params.get("ratio_inicial", 0.10),
-                "ratio_step": params.get("ratio_step", 0.01),
-                "limiar_escada": params.get("limiar_escada", 12.0),
-                "suavisacao": params.get("suavisacao", 20.0),
-                "n_amostras": int(params.get("n_amostras", 100_000)),
-                "crs": crs,
-                "output_path": output_path,
-                "salvar_intermediarios": self._ckb_intermediarios.checked.get("salvar_intermediarios", False),
-                "output_dir": output_dir,
-                "tool_key": self.tool_key,
-                "csv_x_field": csv_values.get("csv_x_field", "x"),
-                "csv_y_field": csv_values.get("csv_y_field", "y"),
-            },
+            input_path=self._current_path,
+            output_path=output_dir,
+            tool_key=self.tool_key,
             parent=self,
         )
         runner.finished_ok.connect(self._on_done)
@@ -465,8 +467,8 @@ class PointBoundaryPlugin(BasePlugin):
         self.statistics.end()
 
         # Extrai resultados
-        hull_result = context.get("hull_result", {})
-        hull_summary = context.get("hull_summary", {})
+        hull_result = context.get_result("hull_result", {})
+        hull_summary = context.get_result("hull_summary", {})
 
         if hull_summary:
             self._hull_result = hull_result
