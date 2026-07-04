@@ -303,14 +303,13 @@ class LasCheckPlugin(BasePlugin):
         )
 
         # Cria step que executa checks inline na QThread
-        step = LasCheckStep()
+        # checks_enabled é parâmetro exclusivo do step (Contrato 28)
+        step = LasCheckStep(checks_enabled=checks_enabled)
         runner = PipelineRunner(
             steps=[step],
-            context={
-                "file_path": self._current_path,
-                "checks_enabled": checks_enabled,
-                "tool_key": self.tool_key,
-            },
+            input_path=self._current_path,
+            output_path=os.path.dirname(self._current_path),
+            tool_key=self.tool_key,
             parent=self,
         )
         runner.finished_ok.connect(self._on_done)
@@ -335,8 +334,8 @@ class LasCheckPlugin(BasePlugin):
             "Pipeline finalizada com sucesso",
             code="LASCHECK_PIPELINE_DONE",
         )
-        results = context.get("check_results", {})
-        summary = context.get("summary", {})
+        results = context.get_result("check_results", {})
+        summary = context.get_result("summary", {})
 
         pass_count = summary.get("pass", 0)
         warn_count = summary.get("warning", 0)

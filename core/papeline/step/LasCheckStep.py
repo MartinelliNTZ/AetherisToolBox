@@ -40,9 +40,10 @@ class LasCheckStep(BaseStep):
         "intensity": "Intensity",
     }
 
-    def __init__(self, advance_input: bool = False, input_path: str = ""):
+    def __init__(self, advance_input: bool = False, input_path: str = "", checks_enabled: dict[str, bool] | None = None):
         self._advance_input = advance_input
         self._custom_input_path = input_path
+        self._checks_enabled = checks_enabled or {}
 
     def name(self) -> str:
         return "lascheck"
@@ -58,7 +59,7 @@ class LasCheckStep(BaseStep):
         path = self._custom_input_path or context.input_path
         tool_key = context.tool_key or ToolKey.UNTRACEABLE.value
         logger = BaseUtil._get_logger(tool_key, "LasCheckStep")
-        checks_enabled: dict[str, bool] = context.results.get("checks_enabled", {})
+        checks_enabled = self._checks_enabled
 
         signals = SignalManager.instance()
 
