@@ -222,18 +222,17 @@ class LasBlackFilterPlugin(BasePlugin):
         self._sel_limpo.set_path("")
         self._sel_pretos.set_path("")
 
-        # Restaura path salvo nas preferências para o modo selecionado
+        # Restaura path salvo nas preferências para o modo selecionado.
+        # O set_path() já dispara textChanged → _on_input_path_changed automaticamente.
         if mode_key == "folder":
             saved_folder = self.preferences.get("folder_path", "")
             if saved_folder:
                 self._sel_entrada.set_path(saved_folder)
-                self._on_input_path_changed(saved_folder)
         else:
             saved_file = self.preferences.get("file_path", "")
             self.logger.info(f"Modo alterado, restaurando arquivo salvo nas preferências. Path: {saved_file}")
             if saved_file:
                 self._sel_entrada.set_path(saved_file)
-                self._on_input_path_changed(saved_file)
 
         self._btns.set_enabled("executar", False)
         self.page.set_badge(self.page.PRONTA)
@@ -772,7 +771,10 @@ class LasBlackFilterPlugin(BasePlugin):
             self._sel_entrada.set_path(folder_path)
             self._btns.set_enabled("executar", True)
         elif last_mode == "file" and file_path:
-            self._carregar_las(file_path)
+            # Usa set_path() para que o SimpleSelector exiba o path visualmente.
+            # O signal textChanged → _on_input_path_changed → _carregar_las()
+            # será disparado automaticamente, carregando os metadados.
+            self._sel_entrada.set_path(file_path)
 
         # Reconecta callback
         self._sel_entrada.on_mode_change = saved_callback
