@@ -6,14 +6,14 @@ Step that receives a directory with LAS files (from whoever produced them)
 and executes IDW interpolation, generating rasters.
 
 DOES NOT know what tiles are. Only reads from context:
-    - "input_path": Directory with .las/.laz files to interpolate
+    - input_path: Directory with .las/.laz files to interpolate
 
 Context requires:
-    - "input_path": Directory with LAS files
-    - "output_path": Base directory to save results
+    - input_path: Directory with LAS files
+    - output_path: Base directory to save results
 
 Context produces:
-    - "idw_result": Dict with complete interpolation result
+    - results["idw_result"]: Dict with complete interpolation result
 """
 
 from __future__ import annotations
@@ -59,7 +59,6 @@ class IdwInterpolatorStep(BaseStep):
     def should_run(self, context: ExecutionContext) -> bool:
         logger = self.get_logger(context)
         path = self._custom_input_path or context.input_path
-
         if not path or not _os.path.isdir(path):
             logger.warning("Input directory not found", code="IDW_STEP_NO_DIR")
             return False
@@ -80,8 +79,7 @@ class IdwInterpolatorStep(BaseStep):
         return True
 
     def create_task(self, context: ExecutionContext) -> Optional[BaseTask]:
-        """Creates IdwInterpolatorTask from input directory."""
-        governor: Optional[ResourceGovernor] = context.get("_governor", None)
+        governor: Optional[ResourceGovernor] = getattr(context, "_governor", None)
         path = self._custom_input_path or context.input_path
 
         return IdwInterpolatorTask(
@@ -101,20 +99,16 @@ class IdwInterpolatorStep(BaseStep):
         )
 
     def on_success(self, context: ExecutionContext, result: Any) -> None:
-        """Maps task result to ExecutionContext."""
         logger = self.get_logger(context)
-
         if isinstance(result, dict):
-            context.set("idw_result", result)
+            context.set_result("idw_result", result)
             for key in ("grid", "parametros", "tiles", "arquivos_gerados"):
                 if key in result:
-                    context.set(key, result[key])
-
+                    context.set_result(key, result[key])
         logger.info("IDW completed successfully", code="IDW_STEP_DONE")
         self.advance_input(context)
 
     def on_error(self, context: ExecutionContext, exception: Exception) -> None:
-        """Adds error to context."""
         logger = self.get_logger(context)
         logger.error("Error in IDW interpolation", code="IDW_STEP_ERR", error=str(exception))
         context.add_error(exception)

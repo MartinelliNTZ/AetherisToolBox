@@ -4,13 +4,6 @@ LasTilerStep — Step for splitting LAS/LAZ point clouds into parts
 ====================================================================
 Step that splits LAS/LAZ files into multiple smaller files
 based on points per part.
-
-Context requires:
-    - "input_path": Directory with LAS/LAZ files to process
-    - "output_path": Base directory to save results
-
-Context produces:
-    - "split_result": Dict with split results
 """
 
 from __future__ import annotations
@@ -42,23 +35,18 @@ class LasTilerStep(BaseStep):
     def should_run(self, context: ExecutionContext) -> bool:
         logger = self.get_logger(context)
         path = self._custom_input_path or context.input_path
-
         if not path or not _os.path.isdir(path):
             logger.warning("Input directory not found", code="TILER_STEP_NO_DIR", path=path)
             return False
-
         return True
 
     def create_task(self, context: ExecutionContext) -> Optional[BaseTask]:
-        """Creates LasTilerTask with parameters from context and constructor."""
         path = self._custom_input_path or context.input_path
         files = self.resolve_files(context, ".las", ".laz")
-
         if not files:
             logger = self.get_logger(context)
-            logger.warning("No LAS files found in input directory", code="TILER_STEP_NO_FILES")
+            logger.warning("No LAS files found", code="TILER_STEP_NO_FILES")
             return None
-
         return LasTilerTask(
             files=files,
             output_dir=self.output_subdir(context),
@@ -66,20 +54,16 @@ class LasTilerStep(BaseStep):
         )
 
     def on_success(self, context: ExecutionContext, result: Any) -> None:
-        """Maps task result to ExecutionContext."""
         logger = self.get_logger(context)
-
         if isinstance(result, dict):
-            context.set("split_result", result)
+            context.set_result("split_result", result)
             for key in ("n_total", "n_parts", "points_per_part", "files"):
                 if key in result:
-                    context.set(key, result[key])
-
+                    context.set_result(key, result[key])
         logger.info("Split completed successfully", code="TILER_STEP_DONE")
         self.advance_input(context)
 
     def on_error(self, context: ExecutionContext, exception: Exception) -> None:
-        """Adds error to context."""
         logger = self.get_logger(context)
         logger.error("Error in split", code="TILER_STEP_ERR", error=str(exception))
         context.add_error(exception)

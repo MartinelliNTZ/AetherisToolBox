@@ -4,9 +4,6 @@ LasBlackFilterSteps — Concrete steps for LAS black point filter pipeline
 ==========================================================================
 Steps that compose a complete pipeline for filtering black points
 in LAS/LAZ files.
-
-Pipeline:
-    1. LasBlackFilterStep → Filters black points and generates LAS files
 """
 
 from __future__ import annotations
@@ -23,15 +20,15 @@ class LasBlackFilterStep(BaseStep):
     Step that filters black points from LAS/LAZ files.
 
     Context requires:
-        - "input_path": Directory with LAS/LAZ files to process
-        - "output_path": Base directory to save results
+        - input_path: Directory with LAS/LAZ files to process
+        - output_path: Base directory to save results
 
     Context produces:
-        - "filter_result": Dict with filter results
+        - results["filter_result"]: Dict with filter results
     """
 
     subfolder = "lasblackfilter"
-    advance_input = True  # Transforms data
+    advance_input = True
 
     def __init__(self, threshold: int = 0, save_black_points: bool = False,
                  advance_input: bool = True, input_path: str = ""):
@@ -44,7 +41,6 @@ class LasBlackFilterStep(BaseStep):
         return "lasblackfilter"
 
     def create_task(self, context: ExecutionContext) -> LasBlackFilterTask:
-        """Creates filter task with parameters from context and constructor."""
         path = self._custom_input_path or context.input_path
         files = self.resolve_files(context, ".las", ".laz")
         return LasBlackFilterTask(
@@ -55,15 +51,13 @@ class LasBlackFilterStep(BaseStep):
         )
 
     def on_success(self, context: ExecutionContext, result: Any) -> None:
-        """Maps task result to ExecutionContext."""
         if isinstance(result, dict):
-            context.set("filter_result", result)
+            context.set_result("filter_result", result)
             for key in ("n_total", "n_removed", "n_kept", "n_black",
                         "output_clean", "output_black"):
                 if key in result:
-                    context.set(key, result[key])
+                    context.set_result(key, result[key])
         self.advance_input(context)
 
     def on_error(self, context: ExecutionContext, exception: Exception) -> None:
-        """Adds error to context."""
         context.add_error(exception)

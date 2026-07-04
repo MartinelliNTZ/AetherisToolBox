@@ -6,10 +6,14 @@ Container that allows steps to share data without direct coupling.
 Also carries cancellation and error state.
 
 Canonical attributes (direct access):
-    input_path: str    — Input directory with files to process
-    output_path: str   — Base directory where results will be saved
-    files: list[str] | None — Specific file list (None = all in input_path)
-    tool_key: str      — ToolKey for logging
+    context.input_path = "/path/to/data"
+    context.output_path = "/path/to/output"
+    context.tool_key = "my_tool"
+    context.files = ["file1.las", "file2.las"]
+
+Step results (dict access for flexibility):
+    context.results["idw_result"] = {...}
+    context.results["split_result"] = {...}
 """
 
 from __future__ import annotations
@@ -22,24 +26,15 @@ class ExecutionContext:
     Shared state container between all pipeline steps.
 
     Canonical attributes (direct access):
-        input_path: str
-        output_path: str
-        files: list[str] | None
-        tool_key: str
-
-    Legacy methods (kept for compatibility):
-        set(key, value) -> ExecutionContext  (fluent)
-        get(key, default=None) -> Any
-        has(key) -> bool
-        add_error(exc) -> None
-        get_errors() -> list[Exception]
-        has_errors() -> bool
-        cancel() -> None
-        is_cancelled() -> bool
-        clear() -> None
+        input_path: str           — Input directory with files to process
+        output_path: str          — Base directory to save results
+        files: list[str] | None   — Specific file list (None = all in input_path)
+        tool_key: str             — ToolKey for logging
+        errors: list[Exception]   — Error accumulator
+        is_cancelled: bool        — Cancellation flag
+        results: dict             — Step results storage (key: step name)
     """
 
-    # ── Canonical attributes (direct access) ──────────────────────
     input_path: str = ""
     """Input directory with files to process."""
 
@@ -52,62 +47,64 @@ class ExecutionContext:
     tool_key: str = ""
     """ToolKey for logging."""
 
-    def __init__(self, initial_data: dict = None):
-        self._data: dict = initial_data.copy() if initial_data else {}
-        self._errors: list[Exception] = []
-        self._is_cancelled: bool = False
+    def __init__(self, **kwargs):
+        self.errors: list[Exception] = []
+        self.is_cancelled: bool = False
+        self.results: dict[str, Any] = {}
 
+        # Set canonical attributes from keyword arguments
+        for key in ("input_path", "output_path", "files", "tool_key"):
+            if key in kwargs:
+                setattr(self, key, kwargs[key])
 
+    def set_result(self, key: str, value: Any) -> None:
+        """Stores a step result."""
+        self.results[key] = value
 
-   
-    def require(self, keys: list[str]) -> None:
-        """Raises KeyError if any required key is missing."""
-        missing = [k for k in keys if k not in self._data]
-        if missing:
-            raise KeyError(f"Required keys missing: {missing}")
+    def get_result(self, key: str, default: Any = None) -> Any:
+        """Retrieves a step result."""
+        return self.results.get(key, default)
 
     # ── Errors ────────────────────────────────────────────────────
 
     def add_error(self, exc: Exception) -> None:
         """Adds error to the error list."""
-        self._errors.append(exc)
+        self.errors.append(exc)
 
-    def get_errors(self) -> list[Exception]:
-        """Returns a copy of the error list."""
-        return self._errors.copy()
+    def add_errors(self, excs: list[Exception]) -> None:
+        """Adds multiple errors to the error list."""
+        self.errors.extend(excs)
 
     def has_errors(self) -> bool:
         """True if there were any errors."""
-        return len(self._errors) > 0
+        return len(self.errors) > 0
 
     # ── Cancellation ──────────────────────────────────────────────
 
     def cancel(self) -> None:
         """Marks context as cancelled."""
-        self._is_cancelled = True
-
-    def is_cancelled(self) -> bool:
-        """True if cancelled."""
-        return self._is_cancelled
+        self.is_cancelled = True
 
     # ── Reset ─────────────────────────────────────────────────────
 
     def clear(self) -> None:
-        """Resets all state (data, errors, cancellation)."""
-        self._data.clear()
-        self._errors.clear()
-        self._is_cancelled = False
-
-    @property
-    def data(self) -> dict:
-        """Returns internal data dict (legacy compatibility)."""
-        return self._data
+        """Resets all state."""
+        self.input_path = ""
+        self.output_path = ""
+        self.files = None
+        self.tool_key = ""
+        self.errors.clear()
+        self.is_cancelled = False
+        self.results.clear()
 
     def __repr__(self) -> str:
+        n_files = len(self.files) if self.files else 0
         return (
             f"<ExecutionContext "
-            f"data={len(self._data)} keys, "
-            f"errors={len(self._errors)}, "
-            f"cancelled={self._is_cancelled}, "
-            f"input_path='{self.input_path}'>"
+            f"input_path='{self.input_path}', "
+            f"output_path='{self.output_path}', "
+            f"files={n_files}, "
+            f"results={len(self.results)} keys, "
+            f"errors={len(self.errors)}, "
+            f"cancelled={self.is_cancelled}>"
         )

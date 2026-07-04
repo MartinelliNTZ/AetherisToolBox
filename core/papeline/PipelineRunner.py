@@ -1,18 +1,18 @@
 # -*- coding: utf-8 -*-
 """
-PipelineRunner — Executa AsyncPipelineEngine em QThread sem travar UI
-======================================================================
-Wrapper QThread que chama engine.start_non_blocking() em background.
-Fornece sinais Qt para os plugins se conectarem.
+PipelineRunner — Executes AsyncPipelineEngine in QThread without freezing UI
+==============================================================================
+QThread wrapper that calls engine.start_non_blocking() in background.
+Provides Qt signals for plugins to connect.
 
-Cria automaticamente um ResourceGovernor interno para monitorar
-e limitar o uso de RAM, evitando OOM. O plugin não precisa saber
-da existência do governor.
+Creates an internal ResourceGovernor automatically to monitor
+and limit RAM usage, preventing OOM. The plugin doesn't need to know
+about the governor's existence.
 
-Uso no plugin:
+Usage in plugin:
     runner = PipelineRunner(
         steps=[DoclingConvertStep(columnar=True)],
-        context={"file_path": path},
+        context=input_path="/path/to/file",
         parent=self,
     )
     runner.start()
@@ -34,37 +34,41 @@ from .AsyncPipelineEngine import AsyncPipelineEngine
 
 class PipelineRunner(QThread):
     """
-    Executa uma pipeline em QThread, sem travar a UI.
+    Executes a pipeline in QThread, without freezing the UI.
 
-    Cria internamente um ResourceGovernor com política padrão
-    (GLOBAL 90%) que monitora RAM e pode bloquear a execução
-    se os recursos forem insuficientes.
+    Creates an internal ResourceGovernor with default policy
+    (GLOBAL 90%) that monitors RAM and can block execution
+    if resources are insufficient.
 
-    Sinais:
-        finished_ok(object): ExecutionContext ao finalizar com sucesso.
-        failed(str): Mensagem de erro.
+    Signals:
+        finished_ok(object): ExecutionContext on successful completion.
+        failed(str): Error message.
     """
 
     finished_ok = Signal(object)  # ExecutionContext
     failed = Signal(str)
 
-    # Política padrão do governor
+    # Default governor policy
     _DEFAULT_MODE = RamLimitMode.GLOBAL
     _DEFAULT_FRACTION = 0.90
 
     def __init__(
         self,
         steps: List[BaseStep],
-        context: Optional[Dict[str, Any]] = None,
         *,
+        context: Optional[Dict[str, Any]] = None,
         parent=None,
         governor: Optional[ResourceGovernor] = None,
         governor_mode: RamLimitMode = _DEFAULT_MODE,
         governor_fraction: float = _DEFAULT_FRACTION,
+        **kwargs,
     ):
         super().__init__(parent)
         self._steps = steps
-        self._context_data = context or {}
+        # Support both dict context and keyword arguments
+        ctx_data = context or {}
+        ctx_data.update(kwargs)
+        self._context_kwargs = ctx_data
         self._engine: AsyncPipelineEngine | None = None
         self._governor: Optional[ResourceGovernor] = governor
         self._governor_mode = governor_mode
@@ -76,24 +80,18 @@ class PipelineRunner(QThread):
 
     def cancel(self) -> None:
         """
-        Cancela a execução da pipeline em andamento.
-        Delega para AsyncPipelineEngine.cancel() que faz cancelamento
-        cooperativo (marca flag + cancela task atual).
+        Cancels the running pipeline execution.
+        Delegates to AsyncPipelineEngine.cancel() which does cooperative
+        cancellation (marks flag + cancels current task).
         """
         if self._engine is not None:
             self._engine.cancel()
 
     def run(self) -> None:
-        """Executa a pipeline em background thread."""
-        ctx = ExecutionContext(self._context_data)
+        """Executes the pipeline in background thread."""
+        ctx = ExecutionContext(**self._context_kwargs)
 
-        # Injeta referencia do governor no contexto para steps/tasks
-        # A task concreta pode extrair via context.get("_governor") e usar:
-        #   - can_execute(estimated_ram) para bloqueio proativo
-        #   - check_during_execution() para verificacao periodica
-        #   - recommended_tile_size() para ajustar tiles
-
-        # Cria ResourceGovernor (custom ou padrao GLOBAL 90%)
+        # Create ResourceGovernor (custom or default GLOBAL 90%)
         if self._governor is None:
             self._governor = ResourceGovernor(
                 policy=RamLimitPolicy(
@@ -102,24 +100,22 @@ class PipelineRunner(QThread):
                 ),
             )
 
-        # Disponibiliza governor para steps/tasks via contexto
-        ctx.set("_governor", self._governor)
-
-        # Disponibiliza CpuGovernor para steps/tasks que queiram consultar
-        ctx.set("_cpu_governor", CpuGovernor)
+        # Store governor reference for tasks/steps
+        ctx._governor = self._governor
+        ctx._cpu_governor = CpuGovernor
 
         self._engine = AsyncPipelineEngine(
             steps=self._steps,
             context=ctx,
             on_finished=lambda c: self.finished_ok.emit(c),
             on_error=lambda errors: self.failed.emit(
-                str(errors[-1] if errors else "Erro desconhecido")
+                str(errors[-1] if errors else "Unknown error")
             ),
             governor=self._governor,
         )
         self._engine.start_non_blocking()
 
-        # Mantém a thread viva até a pipeline terminar
+        # Keep thread alive until pipeline finishes
         while self._engine.is_running:
             self.msleep(50)
 

@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
 """
-AsyncPipelineEngine — Orquestrador da execução sequencial dos steps
-=====================================================================
-Gerencia a execução sequencial dos steps, controlando o fluxo de
-inicialização, callbacks de sucesso/erro e cancelamento.
+AsyncPipelineEngine — Orchestrator for sequential step execution
+==================================================================
+Manages sequential execution of steps, controlling initialization,
+success/error callbacks and cancellation.
 
-Dois modos de execução:
-  - Blocking (padrão): usa thread.join(), adequado para CLI/testes
-  - Non-blocking: via PipelineRunner, usa QThread + callbacks
-                  sem travar a UI (adequado para plugins Qt)
+Two execution modes:
+  - Blocking (default): uses thread.join(), suitable for CLI/tests
+  - Non-blocking: via PipelineRunner, uses QThread + callbacks
+                  without freezing the UI (suitable for Qt plugins)
 """
 
 from __future__ import annotations
@@ -24,14 +24,14 @@ from .BaseTask import BaseTask
 
 class AsyncPipelineEngine:
     """
-    Orquestrador principal do pipeline assíncrono.
+    Main orchestrator for the async pipeline.
 
     Args:
-        steps: Lista de steps a executar sequencialmente.
-        context: ExecutionContext compartilhado.
-        on_finished: Callback opcional quando pipeline termina com sucesso.
-        on_error: Callback opcional quando ocorre erro.
-        on_cancelled: Callback opcional quando pipeline é cancelada.
+        steps: List of steps to execute sequentially.
+        context: Shared ExecutionContext.
+        on_finished: Optional callback when pipeline finishes successfully.
+        on_error: Optional callback when an error occurs.
+        on_cancelled: Optional callback when pipeline is cancelled.
     """
     def __init__(
         self,
@@ -56,7 +56,7 @@ class AsyncPipelineEngine:
         self._lock = threading.Lock()
         self._governor = governor
 
-    # ── Propriedades ───────────────────────────────────────────────
+    # ── Properties ───────────────────────────────────────────────
 
     @property
     def is_running(self) -> bool:
@@ -66,16 +66,16 @@ class AsyncPipelineEngine:
     def context(self) -> ExecutionContext:
         return self._context
 
-    # ── Início ─────────────────────────────────────────────────────
+    # ── Start ────────────────────────────────────────────────────
 
     def start(self) -> None:
         """
-        Inicia a pipeline em modo BLOCKING.
-        Cada task roda em thread separada, mas a engine espera
-        com join(). Adequado para CLI, testes e scripts.
+        Starts the pipeline in BLOCKING mode.
+        Each task runs in a separate thread, but the engine waits
+        with join(). Suitable for CLI, tests and scripts.
         """
         if self._is_running:
-            raise RuntimeError("Pipeline já está em execução.")
+            raise RuntimeError("Pipeline is already running.")
 
         self._is_running = True
         self._current_index = 0
@@ -84,20 +84,20 @@ class AsyncPipelineEngine:
 
     def start_non_blocking(self) -> None:
         """
-        Inicia a pipeline em modo NON-BLOCKING.
-        A engine NÃO faz join() — as tasks disparam callbacks
-        e a pipeline avança automaticamente.
-        Use com PipelineRunner para rodar em QThread.
+        Starts the pipeline in NON-BLOCKING mode.
+        The engine does NOT join() — tasks fire callbacks
+        and the pipeline advances automatically.
+        Use with PipelineRunner to run in QThread.
         """
         if self._is_running:
-            raise RuntimeError("Pipeline já está em execução.")
+            raise RuntimeError("Pipeline is already running.")
 
         self._is_running = True
         self._current_index = 0
         self._is_cancelled = False
         self._run_loop(blocking=False)
 
-    # ── Loop principal ─────────────────────────────────────────────
+    # ── Main loop ────────────────────────────────────────────────
 
     def _run_loop(self, blocking: bool) -> None:
         """
@@ -109,12 +109,11 @@ class AsyncPipelineEngine:
         """
         while self._is_running and not self._is_cancelled:
             # Check cancellation
-            if self._context.is_cancelled():
+            if self._context.is_cancelled:
                 self._finish_cancelled()
                 return
 
             # Check resources (governor) — light check without estimated_ram
-            # Task can use can_execute(estimated_ram) with real estimate
             if self._governor is not None and not self._governor.check_during_execution():
                     self._context.add_error(RuntimeError("Insufficient memory"))
                     self._finish_error()
@@ -141,7 +140,7 @@ class AsyncPipelineEngine:
                 task = step.create_task(self._context)
 
                 if task is None:
-                    # Step síncrono inline
+                    # Synchronous inline step
                     result = step.run_inline(self._context)
                     if result is not None or True:
                         try:
@@ -153,25 +152,23 @@ class AsyncPipelineEngine:
                             return
                     else:
                         raise RuntimeError(
-                            f"Step '{step.name()}' retornou None de create_task() "
-                            f"e não implementa run_inline()."
+                            f"Step '{step.name()}' returned None from create_task() "
+                            f"and does not implement run_inline()."
                         )
 
-                # Task assíncrona
+                # Async task
                 self._current_task = task
                 task.on_success = lambda result: self._handle_task_success(step, result)
                 task.on_error = lambda exc: self._handle_task_error(step, exc)
 
                 if blocking:
-                    # Modo blocking: executa e espera
+                    # Blocking mode: execute and wait
                     success = task.run()
                     task.finished(success)
                 else:
-                    # Modo non-blocking: dispara thread e sai
-                    # O callback finished() chama _handle_task_success/error
-                    # que por sua vez chama _run_loop() de novo
+                    # Non-blocking mode: fire thread and return
                     self._run_task_non_blocking(task)
-                    return  # Sai do while — callbacks retomam
+                    return  # Exit while — callbacks resume
 
             except Exception as e:
                 self._handle_task_error(step, e)
@@ -179,9 +176,9 @@ class AsyncPipelineEngine:
 
     def _run_task_non_blocking(self, task: BaseTask) -> None:
         """
-        Dispara task em thread separada SEM fazer join().
-        Quando a thread terminar, chama task.finished() que
-        dispara on_success/on_error, que avançam a pipeline.
+        Fires task in a separate thread WITHOUT doing join().
+        When the thread finishes, calls task.finished() which
+        fires on_success/on_error, which advance the pipeline.
         """
         def _worker(t: BaseTask, engine: AsyncPipelineEngine):
             try:
@@ -194,21 +191,21 @@ class AsyncPipelineEngine:
                                   name=f"task-{task.description}")
         thread.start()
 
-    # ── Callbacks de Task (usados em modo non-blocking) ────────────
+    # ── Task callbacks (used in non-blocking mode) ───────────────
 
     def _handle_task_success(self, step: BaseStep, result: Any) -> None:
-        """Callback quando uma task termina com sucesso."""
+        """Callback when a task finishes successfully."""
         try:
             step.on_success(self._context, result)
             self._current_index += 1
             self._current_task = None
-            # Continua o loop
+            # Continue the loop
             self._run_loop(blocking=False)
         except Exception as e:
             self._handle_task_error(step, e)
 
     def _handle_task_error(self, step: Optional[BaseStep], exception: Exception) -> None:
-        """Callback quando uma task falha."""
+        """Callback when a task fails."""
         if step is not None:
             step.on_error(self._context, exception)
 
@@ -216,10 +213,10 @@ class AsyncPipelineEngine:
         self._current_task = None
         self._finish_error()
 
-    # ── Finalizações ───────────────────────────────────────────────
+    # ── Finalizations ────────────────────────────────────────────
 
     def _finish_success(self) -> None:
-        """Pipeline concluída com sucesso."""
+        """Pipeline completed successfully."""
         self._is_running = False
         self._current_task = None
 
@@ -227,25 +224,25 @@ class AsyncPipelineEngine:
             self._on_finished(self._context)
 
     def _finish_error(self) -> None:
-        """Pipeline interrompida por erro."""
+        """Pipeline interrupted by error."""
         self._is_running = False
         self._current_task = None
 
         if self._on_error:
-            self._on_error(self._context.get_errors())
+            self._on_error(self._context.errors)
 
     def _finish_cancelled(self) -> None:
-        """Pipeline cancelada pelo usuário."""
+        """Pipeline cancelled by user."""
         self._is_running = False
         self._current_task = None
 
         if self._on_cancelled:
             self._on_cancelled(self._context)
 
-    # ── Cancelamento ───────────────────────────────────────────────
+    # ── Cancellation ─────────────────────────────────────────────
 
     def cancel(self) -> None:
-        """Cancela a execução da pipeline (cancelamento cooperativo)."""
+        """Cancels pipeline execution (cooperative cancellation)."""
         self._is_cancelled = True
         self._context.cancel()
 
