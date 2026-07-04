@@ -1,19 +1,19 @@
 # -*- coding: utf-8 -*-
 """
-LasCheckStep — Step que executa checks de qualidade em nuvens LAS/LAZ
+LasCheckStep — Step that runs quality checks on LAS/LAZ point clouds
 ======================================================================
-Executa uma bateria de verificações configuráveis via context e retorna
-resultados consolidados no context sob a chave "check_results".
+Runs a configurable battery of checks via context and returns
+consolidated results under "check_results" key.
 
-Checks implementados:
-  1. Contagem de Pontos (point_count)
+Checks implemented:
+  1. Point Count (point_count)
   2. Bounding Box (bbox)
-  3. Bandas RGB (rgb)
-  4. Classificação (classification)
-  5. Coordenadas Zero (zero_coords)
-  6. Duplicatas XY (duplicates)
-  7. Densidade / Gaps (density)
-  8. Intensidade (intensity)
+  3. RGB Bands (rgb)
+  4. Classification (classification)
+  5. Zero Coordinates (zero_coords)
+  6. XY Duplicates (duplicates)
+  7. Density / Gaps (density)
+  8. Intensity (intensity)
 """
 
 from __future__ import annotations
@@ -34,56 +34,63 @@ from utils.LasUtil import LasUtil
 
 
 class LasCheckStep(BaseStep):
-    """Step que executa checks de qualidade em nuvens LAS/LAZ."""
+    """Step that runs quality checks on LAS/LAZ point clouds."""
+
+    subfolder = "lascheck"
+    advance_input = False  # Only analyzes, doesn't transform
 
     _CHECK_NAMES: dict[str, str] = {
-        "point_count": "Contagem de Pontos",
+        "point_count": "Point Count",
         "bbox": "Bounding Box",
-        "rgb": "Bandas RGB",
-        "classification": "Classificação",
-        "zero_coords": "Coordenadas Zero",
-        "duplicates": "Duplicatas XY",
-        "density": "Densidade / Gaps",
-        "intensity": "Intensidade",
+        "rgb": "RGB Bands",
+        "classification": "Classification",
+        "zero_coords": "Zero Coordinates",
+        "duplicates": "XY Duplicates",
+        "density": "Density / Gaps",
+        "intensity": "Intensity",
     }
 
+    def __init__(self, advance_input: bool = False, input_path: str = ""):
+        self.advance_input = advance_input
+        self._custom_input_path = input_path  # Step-specific input_path (optional)
+
     def name(self) -> str:
-        return "LasCheckStep"
+        return "lascheck"
 
     def should_run(self, context: ExecutionContext) -> bool:
-        return bool(context.get("file_path"))
+        path = self._custom_input_path or context.input_path
+        return bool(path)
 
     def create_task(self, context: ExecutionContext) -> None:
         return None
 
     def run_inline(self, context: ExecutionContext) -> dict[str, Any]:
         """
-        Executa todos os checks inline (síncrono) na QThread.
-        Retorna dict com os resultados.
+        Executes all checks inline (synchronous) in QThread.
+        Returns dict with results.
         """
-        tool_key = context.get("tool_key", ToolKey.UNTRACEABLE.value)
+        path = self._custom_input_path or context.input_path
+        tool_key = context.tool_key or ToolKey.UNTRACEABLE.value
         logger = BaseUtil._get_logger(tool_key, "LasCheckStep")
-        file_path: str = context.get("file_path", "")
         checks_enabled: dict[str, bool] = context.get("checks_enabled", {})
 
         signals = SignalManager.instance()
 
         logger.info(
-            "Iniciando checks de qualidade",
+            "Starting quality checks",
             code="LASCHECK_START",
-            path=file_path,
+            path=path,
         )
 
-        # Abre o LAS/LAZ (tenta todos os backends LAZ disponiveis)
+        # Opens LAS/LAZ (tries all available LAZ backends)
         try:
-            # Tupla com todos os backends que o laspy reconhece como disponiveis
             laz_backends = tuple(
                 b for b in laspy.LazBackend
                 if b.name in ("LazrsParallel", "Lazrs", "Laszip")
             )
             if laz_backends:
                 logger.debug(
-                    "Backends LAZ disponiveis",
+                    "Available LAZ backends",
                     code="LASCHECK_LAZ_BACKENDS",
                     backends=[b.name for b in laz_backends],
                 )
@@ -93,59 +100,59 @@ class LasCheckStep(BaseStep):
             laz_backends = None
 
         try:
-            las = laspy.read(file_path, laz_backend=laz_backends)
+            las = laspy.read(path, laz_backend=laz_backends)
             logger.info(
-                "Arquivo aberto com sucesso",
+                "File opened successfully",
                 code="LASCHECK_FILE_OPEN_OK",
-                path=file_path,
-                ext=os.path.splitext(file_path)[1].lower(),
+                path=path,
+                ext=os.path.splitext(path)[1].lower(),
                 total_points=len(las.points),
             )
             signals.console_message.emit(
-                f"[LasCheck] Arquivo aberto: {os.path.basename(file_path)} "
-                f"({len(las.points):,} pontos)"
+                f"[LasCheck] File opened: {os.path.basename(path)} "
+                f"({len(las.points):,} points)"
             )
         except Exception as e:
             error_msg = str(e)
             logger.error(
-                "Falha ao abrir arquivo LAS/LAZ",
+                "Failed to open LAS/LAZ file",
                 code="LASCHECK_FILE_OPEN_ERR",
-                path=file_path,
+                path=path,
                 error=error_msg,
             )
             if ("No LazBackend selected" in error_msg 
                 or "cannot decompress" in error_msg
                 or "is not available" in error_msg):
                 logger.critical(
-                    "Backend LAZ nao disponivel mesmo com lazrs instalado",
+                    "LAZ backend not available even with lazrs installed",
                     code="LASCHECK_LAZ_BACKEND_FAIL",
-                    path=file_path,
+                    path=path,
                 )
                 signals.console_message.emit(
-                    f"[LasCheck] ERRO: Nao foi possivel abrir .LAZ. "
-                    f"Verifique instalacao do lazrs (pip install lazrs)."
+                    f"[LasCheck] ERROR: Could not open .LAZ. "
+                    f"Check lazrs installation (pip install lazrs)."
                 )
                 return {
                     "check_results": {},
                     "summary": {"pass": 0, "warning": 0, "fail": 1, "total": 0, "error": True},
                     "error_type": "laz_backend",
                     "error": (
-                        "Erro ao abrir .LAZ. Instale o backend com:\n"
+                        "Error opening .LAZ. Install backend with:\n"
                         "  pip install lazrs\n\n"
-                        "Ou converta para .LAS primeiro."
+                        "Or convert to .LAS first."
                     ),
                 }
             logger.error(
-                "Erro desconhecido ao abrir arquivo",
+                "Unknown error opening file",
                 code="LASCHECK_FILE_OPEN_UNKNOWN",
-                path=file_path,
+                path=path,
                 error=error_msg,
             )
             raise
 
         n_total = len(las.points)
 
-        # Ordem dos checks + mapeamento
+        # Check order + mapping
         check_order = [
             "point_count", "bbox", "rgb", "classification",
             "zero_coords", "duplicates", "density", "intensity",
@@ -166,14 +173,14 @@ class LasCheckStep(BaseStep):
         results: dict[str, dict] = {}
         n_checks = len(check_order)
 
-        # Constroi lista ordenada de checks habilitados (para stages)
+        # Build ordered list of enabled checks (for stages)
         enabled_check_names: list[str] = [
             name for name in check_order if checks_enabled.get(name, True)
         ]
         n_enabled = len(enabled_check_names)
 
         logger.info(
-            "Iniciando execucao dos checks",
+            "Starting check execution",
             code="LASCHECK_CHECKS_START",
             total_checks=n_checks,
             enabled_checks=list(checks_enabled.keys()),
@@ -185,13 +192,13 @@ class LasCheckStep(BaseStep):
             enabled = checks_enabled.get(check_name, True)
             if not enabled:
                 logger.debug(
-                    f"Check '{check_name}' pulado (desabilitado)",
+                    f"Check '{check_name}' skipped (disabled)",
                     code="LASCHECK_CHECK_SKIPPED",
                     check=check_name,
                 )
                 results[check_name] = {
                     "status": "skipped",
-                    "message": "Check desabilitado pelo usuário",
+                    "message": "Check disabled by user",
                     "detail": "",
                     "suggestion": "",
                 }
@@ -199,7 +206,7 @@ class LasCheckStep(BaseStep):
 
             display = self._CHECK_NAMES.get(check_name, check_name)
             signals.hud_update.emit({
-                "message": f"Verificando: {display}...",
+                "message": f"Checking: {display}...",
             })
 
             method = check_methods[check_name]
@@ -207,7 +214,7 @@ class LasCheckStep(BaseStep):
                 result = method(las, n_total)
                 results[check_name] = result
                 logger.info(
-                    f"Check '{display}' concluido -> {result['status']}",
+                    f"Check '{display}' done -> {result['status']}",
                     code="LASCHECK_CHECK_DONE",
                     check=check_name,
                     status=result["status"],
@@ -215,24 +222,24 @@ class LasCheckStep(BaseStep):
                 )
             except Exception as e:
                 logger.error(
-                    f"Erro ao executar check '{display}'",
+                    f"Error executing check '{display}'",
                     code="LASCHECK_CHECK_EXEC_ERR",
                     check=check_name,
                     error=str(e),
-                    path=file_path,
+                    path=path,
                 )
                 results[check_name] = {
                     "status": "fail",
-                    "message": f"Erro na verificacao: {str(e)}",
+                    "message": f"Error in check: {str(e)}",
                     "detail": str(e),
-                    "suggestion": "Verifique a integridade do arquivo.",
+                    "suggestion": "Check file integrity.",
                 }
 
-            # Notifica HUD que esta etapa foi concluida (Cenário 3 - Stages)
+            # Notify HUD that this stage is done (Scenario 3 - Stages)
             signals.hud_stage_done.emit(stage_idx)
             stage_idx += 1
 
-        # Consolida estatísticas
+        # Consolidate statistics
         pass_count = sum(1 for r in results.values() if r.get("status") == "pass")
         warn_count = sum(1 for r in results.values() if r.get("status") == "warning")
         fail_count = sum(1 for r in results.values() if r.get("status") == "fail")
@@ -240,7 +247,7 @@ class LasCheckStep(BaseStep):
         signals.progress_update.emit(100.0)
 
         logger.info(
-            "Checks concluidos",
+            "Checks completed",
             code="LASCHECK_DONE",
             pass_count=pass_count,
             warn_count=warn_count,
@@ -248,7 +255,7 @@ class LasCheckStep(BaseStep):
             enabled_count=n_enabled,
         )
         signals.console_message.emit(
-            f"[LasCheck] Checks finalizados: "
+            f"[LasCheck] Checks finished: "
             f"{pass_count} ✅ {warn_count} ⚠️ {fail_count} ❌ ({n_enabled} checks)"
         )
 
@@ -263,13 +270,13 @@ class LasCheckStep(BaseStep):
         }
 
     def on_success(self, context: ExecutionContext, result: Any) -> None:
-        """Mescla os resultados no context."""
+        """Merges results into context."""
         if isinstance(result, dict):
             for key, value in result.items():
                 context.set(key, value)
 
     # ══════════════════════════════════════════════════════════════════
-    # Checks individuais
+    # Individual checks
     # ══════════════════════════════════════════════════════════════════
 
     @staticmethod
@@ -277,20 +284,20 @@ class LasCheckStep(BaseStep):
         if n_total == 0:
             return {
                 "status": "fail",
-                "message": "Nenhum ponto encontrado",
+                "message": "No points found",
                 "detail": "0",
-                "suggestion": "Verifique se o arquivo contém dados válidos.",
+                "suggestion": "Check if the file contains valid data.",
             }
         elif n_total < 1000:
             return {
                 "status": "warning",
-                "message": f"Apenas {n_total:,} pontos (nuvem pequena)",
+                "message": f"Only {n_total:,} points (small cloud)",
                 "detail": str(n_total),
-                "suggestion": "Considere unir com outras nuvens para melhor cobertura.",
+                "suggestion": "Consider merging with other clouds for better coverage.",
             }
         return {
             "status": "pass",
-            "message": f"{n_total:,} pontos",
+            "message": f"{n_total:,} points",
             "detail": str(n_total),
             "suggestion": "",
         }
@@ -313,9 +320,9 @@ class LasCheckStep(BaseStep):
         if issues:
             return {
                 "status": "fail",
-                "message": f"BBox inválida nos eixos: {', '.join(issues)}",
+                "message": f"Invalid BBox on axes: {', '.join(issues)}",
                 "detail": f"X[{x_min:.1f}, {x_max:.1f}] Y[{y_min:.1f}, {y_max:.1f}] Z[{z_min:.1f}, {z_max:.1f}]",
-                "suggestion": "Verifique o sistema de coordenadas da nuvem.",
+                "suggestion": "Check the point cloud coordinate system.",
             }
 
         return {
@@ -335,13 +342,13 @@ class LasCheckStep(BaseStep):
         if not has:
             return {
                 "status": "warning",
-                "message": "LAS não possui bandas RGB",
+                "message": "LAS has no RGB bands",
                 "detail": "",
-                "suggestion": "Se precisar de RGB, obtenha dados com câmera fotogramétrica.",
+                "suggestion": "If RGB is needed, get data with a photogrammetric camera.",
             }
         return {
             "status": "pass",
-            "message": "RGB presente",
+            "message": "RGB present",
             "detail": "",
             "suggestion": "",
         }
@@ -351,23 +358,23 @@ class LasCheckStep(BaseStep):
         if not hasattr(las, "classification"):
             return {
                 "status": "warning",
-                "message": "Sem campo de classificação",
+                "message": "No classification field",
                 "detail": "",
-                "suggestion": "Execute um classificador (ex: ground, vegetation) antes de usar.",
+                "suggestion": "Run a classifier (e.g. ground, vegetation) before using.",
             }
         classes = np.unique(las.classification)
         invalid = classes[(classes < 0) | (classes > 255)]
         if len(invalid) > 0:
             return {
                 "status": "fail",
-                "message": f"Códigos inválidos: {invalid.tolist()}",
+                "message": f"Invalid codes: {invalid.tolist()}",
                 "detail": str(invalid.tolist()),
-                "suggestion": "Reclassifique a nuvem com software especializado.",
+                "suggestion": "Reclassify the cloud with specialized software.",
             }
         valid_classes = sorted(classes[classes > 0].tolist())
         return {
             "status": "pass",
-            "message": f"Códigos válidos: {valid_classes}",
+            "message": f"Valid codes: {valid_classes}",
             "detail": str(valid_classes),
             "suggestion": "",
         }
@@ -381,20 +388,20 @@ class LasCheckStep(BaseStep):
         if pct >= 1.0:
             return {
                 "status": "fail",
-                "message": f"{n_zero:,} pontos ({(pct):.3f}%) com X=Y=Z=0",
+                "message": f"{n_zero:,} points ({(pct):.3f}%) with X=Y=Z=0",
                 "detail": f"{n_zero} ({pct:.3f}%)",
-                "suggestion": "Remova pontos com coordenadas zero ou verifique o SRS.",
+                "suggestion": "Remove points with zero coordinates or check SRS.",
             }
         elif pct > 0:
             return {
                 "status": "warning",
-                "message": f"{n_zero:,} pontos ({(pct):.3f}%) com X=Y=Z=0",
+                "message": f"{n_zero:,} points ({(pct):.3f}%) with X=Y=Z=0",
                 "detail": f"{n_zero} ({pct:.3f}%)",
-                "suggestion": "Considere filtrar pontos inválidos.",
+                "suggestion": "Consider filtering invalid points.",
             }
         return {
             "status": "pass",
-            "message": "Nenhum ponto com coordenadas zero",
+            "message": "No points with zero coordinates",
             "detail": "0",
             "suggestion": "",
         }
@@ -416,20 +423,20 @@ class LasCheckStep(BaseStep):
         if pct > 0.1:
             return {
                 "status": "fail",
-                "message": f"{dup:,} duplicatas em amostra ({pct:.3f}%)",
+                "message": f"{dup:,} duplicates in sample ({pct:.3f}%)",
                 "detail": f"{dup} ({pct:.3f}%)",
-                "suggestion": "Execute filtro de duplicatas antes de processar.",
+                "suggestion": "Run duplicate filter before processing.",
             }
         elif dup > 0:
             return {
                 "status": "warning",
-                "message": f"{dup:,} duplicatas em amostra ({pct:.3f}%)",
+                "message": f"{dup:,} duplicates in sample ({pct:.3f}%)",
                 "detail": f"{dup} ({pct:.3f}%)",
                 "suggestion": "",
             }
         return {
             "status": "pass",
-            "message": "Nenhuma duplicata detectada",
+            "message": "No duplicates detected",
             "detail": "0",
             "suggestion": "",
         }
@@ -443,15 +450,15 @@ class LasCheckStep(BaseStep):
         if area <= 0:
             return {
                 "status": "warning",
-                "message": "Área planar zero (pontos coplanares?)",
+                "message": "Zero planar area (coplanar points?)",
                 "detail": "",
-                "suggestion": "Verifique se os pontos têm extensão horizontal.",
+                "suggestion": "Check if points have horizontal extent.",
             }
 
         density = n_total / area
         return {
             "status": "pass",
-            "message": f"Densidade: {density:.2f} pts/m²",
+            "message": f"Density: {density:.2f} pts/m²",
             "detail": f"{density:.2f}",
             "suggestion": "",
         }
@@ -461,9 +468,9 @@ class LasCheckStep(BaseStep):
         if not hasattr(las, "intensity"):
             return {
                 "status": "warning",
-                "message": "Sem campo de intensidade",
+                "message": "No intensity field",
                 "detail": "",
-                "suggestion": "Dados sem intensidade têm menos informação espectral.",
+                "suggestion": "Data without intensity has less spectral information.",
             }
         i_min = int(np.min(las.intensity))
         i_max = int(np.max(las.intensity))
@@ -471,13 +478,13 @@ class LasCheckStep(BaseStep):
         if i_min < 0 or i_max > 65535:
             return {
                 "status": "fail",
-                "message": f"Intensidade fora do range: [{i_min}, {i_max}]",
+                "message": f"Intensity out of range: [{i_min}, {i_max}]",
                 "detail": f"[{i_min}, {i_max}]",
-                "suggestion": "Verifique se os valores de intensidade são consistentes.",
+                "suggestion": "Check if intensity values are consistent.",
             }
         return {
             "status": "pass",
-            "message": f"Range [{i_min}, {i_max}] (válido)",
+            "message": f"Range [{i_min}, {i_max}] (valid)",
             "detail": f"[{i_min}, {i_max}]",
             "suggestion": "",
         }
@@ -485,17 +492,17 @@ class LasCheckStep(BaseStep):
     @staticmethod
     def _check_statistics(las: laspy.LasData, n_total: int) -> dict:
         """
-        Gera JSON completo de estatísticas do LAS.
+        Generates complete LAS statistics JSON.
 
-        Extrai:
+        Extracts:
           - Bounding box X, Y, Z (min/max)
-          - Altimetria Z (min/max, media, P5, P95)
-          - Area e Volume da bbox
-          - RGB stats por banda (min, max, media, P5, P95) — igual à altimetria
-          - Densidade de pontos (bbox)
-          - Pixel ideal baseado na densidade:
-            espacamento = 1 / sqrt(densidade)
-            pixel_ideal = max(espacamento * 0.75, 0.01)
+          - Altimetry Z (min/max, mean, P5, P95)
+          - BBox area and volume
+          - RGB stats per band (min, max, mean, P5, P95)
+          - Point density (bbox)
+          - Ideal pixel based on density:
+            spacing = 1 / sqrt(density)
+            ideal_pixel = max(spacing * 0.75, 0.01)
         """
         import json
 
@@ -508,16 +515,16 @@ class LasCheckStep(BaseStep):
         y_min, y_max = float(np.min(y)), float(np.max(y))
         z_min, z_max = float(np.min(z)), float(np.max(z))
 
-        # ── Altimetria (media, P5, P95) ─────────────────────────────────
-        z_media = float(np.mean(z))
-        z_p5    = float(np.percentile(z, 5))
-        z_p95   = float(np.percentile(z, 95))
+        # ── Altimetry (mean, P5, P95) ─────────────────────────────────
+        z_mean = float(np.mean(z))
+        z_p5   = float(np.percentile(z, 5))
+        z_p95  = float(np.percentile(z, 95))
 
-        # ── Area e Volume da bbox ───────────────────────────────────────
+        # ── BBox area and volume ───────────────────────────────────────
         area_bbox   = (x_max - x_min) * (y_max - y_min)
         volume_bbox = area_bbox * (z_max - z_min)
 
-        # ── RGB stats (min, max, media, P5, P95 por banda) ──────────────
+        # ── RGB stats (min, max, mean, P5, P95 per band) ──────────────
         has_rgb = hasattr(las, "red") and las.red is not None
         rgb_data = None
 
@@ -527,97 +534,97 @@ class LasCheckStep(BaseStep):
             blue  = np.asarray(las.blue,  dtype=np.float64)
 
             rgb_data = {
-                "presente": True,
+                "present": True,
                 "red": {
                     "min":   int(np.min(red)),
                     "max":   int(np.max(red)),
-                    "media": float(np.mean(red)),
+                    "mean":  float(np.mean(red)),
                     "p5":    float(np.percentile(red, 5)),
                     "p95":   float(np.percentile(red, 95)),
                 },
                 "green": {
                     "min":   int(np.min(green)),
                     "max":   int(np.max(green)),
-                    "media": float(np.mean(green)),
+                    "mean":  float(np.mean(green)),
                     "p5":    float(np.percentile(green, 5)),
                     "p95":   float(np.percentile(green, 95)),
                 },
                 "blue": {
                     "min":   int(np.min(blue)),
                     "max":   int(np.max(blue)),
-                    "media": float(np.mean(blue)),
+                    "mean":  float(np.mean(blue)),
                     "p5":    float(np.percentile(blue, 5)),
                     "p95":   float(np.percentile(blue, 95)),
                 },
             }
 
-        # ── Densidade (bbox) e Pixel Ideal ──────────────────────────────
-        densidade_bbox = n_total / area_bbox if area_bbox > 0 else 0.0
+        # ── Density (bbox) and Ideal Pixel ──────────────────────────────
+        density_bbox = n_total / area_bbox if area_bbox > 0 else 0.0
 
-        if densidade_bbox > 0:
-            espacamento_m  = 1.0 / (densidade_bbox ** 0.5)
-            espacamento_cm = espacamento_m * 100
-            pixel_ideal_m  = max(espacamento_m * 0.75, 0.01)
-            pixel_ideal_cm = pixel_ideal_m * 100
-            pixel_ideal_mm = pixel_ideal_m * 1000
+        if density_bbox > 0:
+            spacing_m  = 1.0 / (density_bbox ** 0.5)
+            spacing_cm = spacing_m * 100
+            ideal_pixel_m  = max(spacing_m * 0.75, 0.01)
+            ideal_pixel_cm = ideal_pixel_m * 100
+            ideal_pixel_mm = ideal_pixel_m * 1000
         else:
-            espacamento_m  = 0.0
-            espacamento_cm = 0.0
-            pixel_ideal_m  = 0.01
-            pixel_ideal_cm = 1.0
-            pixel_ideal_mm = 10.0
+            spacing_m  = 0.0
+            spacing_cm = 0.0
+            ideal_pixel_m  = 0.01
+            ideal_pixel_cm = 1.0
+            ideal_pixel_mm = 10.0
 
-        # ── Dados completos para exportação JSON ─────────────────────────
+        # ── Complete data for JSON export ────────────────────────────────
         stats_data = {
-            "numero_de_pontos": n_total,
+            "point_count": n_total,
             "bounding_box": {
                 "x": {"min": round(x_min, 4), "max": round(x_max, 4)},
                 "y": {"min": round(y_min, 4), "max": round(y_max, 4)},
                 "z": {"min": round(z_min, 4), "max": round(z_max, 4)},
             },
-            "altimetria": {
+            "altimetry": {
                 "min":   round(z_min, 4),
                 "max":   round(z_max, 4),
-                "media": round(z_media, 4),
+                "mean":  round(z_mean, 4),
                 "p5":    round(z_p5, 4),
                 "p95":   round(z_p95, 4),
             },
             "area_bbox_m2":   round(area_bbox, 4),
             "volume_bbox_m3": round(volume_bbox, 4),
-            "rgb": rgb_data if has_rgb else {"presente": False},
-            "densidade_pontos_por_m2": {
-                "bounding_box": round(densidade_bbox, 4),
+            "rgb": rgb_data if has_rgb else {"present": False},
+            "density_points_per_m2": {
+                "bounding_box": round(density_bbox, 4),
             },
-            "pixel_ideal": {
-                "espacamento_m":   round(espacamento_m, 6),
-                "espacamento_cm":  round(espacamento_cm, 2),
-                "fator_conversao": 0.75,
-                "pixel_minimo_m":  0.01,
-                "pixel_m":  round(pixel_ideal_m, 6),
-                "pixel_cm": round(pixel_ideal_cm, 2),
-                "pixel_mm": round(pixel_ideal_mm, 1),
+            "ideal_pixel": {
+                "spacing_m":   round(spacing_m, 6),
+                "spacing_cm":  round(spacing_cm, 2),
+                "conversion_factor": 0.75,
+                "min_pixel_m":  0.01,
+                "pixel_m":  round(ideal_pixel_m, 6),
+                "pixel_cm": round(ideal_pixel_cm, 2),
+                "pixel_mm": round(ideal_pixel_mm, 1),
             },
         }
 
-        # JSON em detail para o plugin acessar
+        # JSON in detail for the plugin to access
         detail_json = json.dumps(stats_data, ensure_ascii=False)
 
-        # Mensagem resumida para exibição no GridLabel
+        # Summary message for GridLabel display
         if has_rgb:
-            r_med = rgb_data["red"]["media"]
-            g_med = rgb_data["green"]["media"]
-            b_med = rgb_data["blue"]["media"]
+            r_mean = rgb_data["red"]["mean"]
+            g_mean = rgb_data["green"]["mean"]
+            b_mean = rgb_data["blue"]["mean"]
             msg = (
                 f"Z[{z_min:.2f},{z_max:.2f}] "
-                f"Rmed:{r_med:.0f} Gmed:{g_med:.0f} Bmed:{b_med:.0f} "
-                f"Dens:{densidade_bbox:.2f}pts/m² "
-                f"Pixel:{pixel_ideal_cm:.2f}cm"
+                f"Rmean:{r_mean:.0f} Gmean:{g_mean:.0f} Bmean:{b_mean:.0f} "
+                f"Dens:{density_bbox:.2f}pts/m² "
+                f"Pixel:{ideal_pixel_cm:.2f}cm"
             )
         else:
             msg = (
                 f"Z[{z_min:.2f},{z_max:.2f}] "
-                f"Dens:{densidade_bbox:.2f}pts/m² "
-                f"Pixel:{pixel_ideal_cm:.2f}cm"
+                f"Dens:{density_bbox:.2f}pts/m² "
+                f"Pixel:{ideal_pixel_cm:.2f}cm"
             )
 
         return {

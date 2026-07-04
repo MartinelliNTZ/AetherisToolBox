@@ -1,96 +1,83 @@
-# Plano de Ação: Padronização do ExecutionContext e Fluxo de Pipeline
+# Action Plan: ExecutionContext Standardization and Pipeline Flow
 
-## 1. Problemas Identificados
+## 1. Identified Problems
 
-### 1.1 Acesso a Dados — Dict vs Atributos
-Atualmente o `ExecutionContext` usa acesso estilo dicionário:
+### 1.1 Data Access — Dict vs Attributes
+Currently `ExecutionContext` uses dictionary-style access:
 ```python
 context.get("file_path", "")
 context.get("target_bands", {})
 context.set("split_result", result)
 ```
 
-**Problema:** Sem autocomplete, sem tipagem, sem documentação visível.
+**Problem:** No autocomplete, no typing, no visible documentation.
 
-**Solução:** Variáveis de classe simples no `ExecutionContext`:
+**Solution:** Simple class variables in `ExecutionContext`:
 ```python
-context.input_path       # str — acesso direto a atributo
+context.input_path       # str — direct attribute access
 context.output_path      # str
 context.files            # list[str] | None
 ```
 
-### 1.2 Parâmetros Exclusivos Misturados no Contexto
-Atualmente parâmetros específicos de cada step ficam soltos no context:
+### 1.2 Exclusive Parameters Mixed in Context
+Currently step-specific parameters are loose in the context:
 ```python
-context.get("pontos_por_parte", 5_000_000)
-context.get("limiar", 0)
+context.get("points_per_part", 5_000_000)
+context.get("threshold", 0)
 context.get("target_bands", {})
 ```
 
-**Problema:** Contexto vira uma "sopa de letrinhas" sem separação do que é fluxo vs. específico.
+**Problem:** Context becomes a "soup of keys" with no separation of flow vs. specific params.
 
-**Solução:** Parâmetros exclusivos são passados DIRETAMENTE no construtor do step:
+**Solution:** Exclusive parameters are passed DIRECTLY in the step constructor:
 ```python
 AsyncPipelineEngine(
     steps=[
-        LasCheckStep(modified_path=False),
-        LasBlackFilterStep(limiar=30, salvar_pretos=True),
-        LasTilerStep(pontos_por_parte=5_000_000),
-        IdwInterpolatorStep(target_bands={...}, resol_m=0.01),
-        MergeRastersStep(),
-        RasterCheckStep(modified_path=False),
+        LasCheckStep(advance_input=False),
+        LasBlackFilterStep(threshold=30, save_black_points=True),
+        LasTilerStep(points_per_part=5_000_000),
+        IdwInterpolatorStep(target_bands={...}, resolution_m=0.01),
     ],
     context={...},
 )
 ```
 
-### 1.3 Steps Não Atualizam input_path para o Próximo Step
-Atualmente cada step recebe parâmetros fixos e não propaga seu output como input do próximo.
+### 1.3 Steps Don't Update input_path for Next Step
+Currently each step receives fixed parameters and doesn't propagate its output as the next step's input.
 
-**Solução:** Convenção de fluxo com flag `modified_path`:
-`modified_path=True`  nao preciso passar toda vez somente quandoquero false
-- `modified_path=True` (padrão) → step TRANSFORMA dados → chama `advance_input()` em `on_success()`
-- `modified_path=False` → step só ANALISA → NÃO chama `advance_input()`
+**Solution:** Flow convention with `advance_input` flag:
+- `advance_input=True` (default) → step TRANSFORMS data → calls `advance_input()` in `on_success()`
+- `advance_input=False` → step only ANALYZES → does NOT call `advance_input()`
 
 ```
-input_path = /dados/raiz
-output_path = /dados/raiz
+input_path = /data/root
+output_path = /data/root
 
-Step 1 (LasCheck, modified_path=False):
-  → Lê: input_path
-  → Salva relatório em: output_path/lascheck/
-  → input_path continua = /dados/raiz
+Step 1 (LasCheck, advance_input=False):
+  → Reads: input_path
+  → Saves report to: output_path/lascheck/
+  → input_path stays = /data/root
 
-Step 2 (LasBlackFilter, modified_path=True):
-  → Lê: input_path (= /dados/raiz)
-  → Salva LAS filtrados em: output_path/lasblackfilter/
-  → advance_input: input_path = /dados/raiz/lasblackfilter/
+Step 2 (LasBlackFilter, advance_input=True):
+  → Reads: input_path (= /data/root)
+  → Saves filtered LAS to: output_path/lasblackfilter/
+  → advance_input: input_path = /data/root/lasblackfilter/
 
-Step 3 (LasTiler, modified_path=True):
-  → Lê: input_path (= /dados/raiz/lasblackfilter/)
-  → Salva tiles em: output_path/lastiler/
-  → advance_input: input_path = /dados/raiz/lastiler/
+Step 3 (LasTiler, advance_input=True):
+  → Reads: input_path (= /data/root/lasblackfilter/)
+  → Saves tiles to: output_path/lastiler/
+  → advance_input: input_path = /data/root/lastiler/
 
-Step 4 (IdwInterpolator, modified_path=True):
-  → Lê: input_path (= /dados/raiz/lastiler/)
-  → Salva rasters em: output_path/idwtiles/
-  → advance_input: input_path = /dados/raiz/idwtiles/
-
-Step 5 (Merge, modified_path=True):
-  → Lê: input_path (= /dados/raiz/idwtiles/)
-  → Salva merged em: output_path/merge/
-  → advance_input: input_path = /dados/raiz/merge/
-
-Step 6 (RasterCheck, modified_path=False):
-  → Lê: input_path (= /dados/raiz/merge/)
-  → Salva relatório em: output_path/rastercheck/
-  → input_path continua = /dados/raiz/merge/
+Step 4 (IdwInterpolator, advance_input=True):
+  → Reads: input_path (= /data/root/lastiler/)
+  → Saves rasters to: output_path/idwtiles/
+  → advance_input: input_path = /data/root/idwtiles/
 ```
 
-**Ordem pode ser invertida** — cada step sabe de onde ler e para onde salvar. O pipeline funciona independentemente da ordem dos steps.
+**Order can be inverted** — each step knows where to read from and where to save to. The pipeline works regardless of step order.
 
-### 1.4 input_path Específico por Step (Exceção)
-Em casos específicos, um step pode receber um `input_path` diferente do contexto:
+### 1.4 Step-Specific input_path (Exception)
+In specific cases, a step can receive a different `input_path`:
 
 ```python
 AsyncPipelineEngine(
@@ -98,54 +85,52 @@ AsyncPipelineEngine(
         LasBlackFilterStep(),
         LasTilerStep(),
         IdwInterpolatorStep(),
-        MergeRastersStep(),
-        RasterCheckStep(),
-        LasCheckStep(modified_path=False, input_path="D:/raiz/dados/lasblackfilter/"),
+        LasCheckStep(advance_input=False, input_path="D:/data/root/lasblackfilter/"),
     ],
     ...
 )
 ```
 
-Aqui o último `LasCheckStep` recebe um `input_path` específico para analisar APENAS a pasta filtrada, ignorando o fluxo padrão.
+Here the last `LasCheckStep` receives a specific `input_path` to analyze ONLY the filtered folder, ignoring the standard flow.
 
 ---
 
-## 2. Modificações no ExecutionContext
+## 2. ExecutionContext Modifications
 
-### 2.1 Atributos Canônicos (Variáveis de Classe Simples)
+### 2.1 Canonical Attributes (Simple Class Variables)
 
-Nada de `@property` — variáveis de classe diretas, sem gambiarra:
+No `@property` — direct class variables, no workarounds:
 
 ```python
 class ExecutionContext:
     """
-    Container de estado compartilhado entre todos os steps da pipeline.
+    Shared state container between all pipeline steps.
     
-    Atributos canônicos (acesso direto):
-        input_path: str    — Diretório de entrada com arquivos a processar
-        output_path: str   — Diretório base onde os resultados serão salvos
-        files: list[str] | None — Lista específica de arquivos (None = todos no input_path)
-        tool_key: str      — ToolKey para logging
+    Canonical attributes (direct access):
+        input_path: str    — Input directory with files to process
+        output_path: str   — Base directory where results will be saved
+        files: list[str] | None — Specific file list (None = all in input_path)
+        tool_key: str      — ToolKey for logging
     """
 
     input_path: str = ""
-    """Diretório de entrada com arquivos a processar."""
+    """Input directory with files to process."""
 
     output_path: str = ""
-    """Diretório base onde os resultados serão salvos."""
+    """Base directory where results will be saved."""
 
     files: list[str] | None = None
-    """Lista específica de arquivos a processar. None = todos no input_path."""
+    """Specific file list to process. None = all files in input_path."""
 
     tool_key: str = ""
-    """ToolKey para logging."""
+    """ToolKey for logging."""
 
     def __init__(self, initial_data: dict = None):
         self._data: dict = initial_data.copy() if initial_data else {}
         self._errors: list[Exception] = []
         self._is_cancelled: bool = False
 
-        # Sincroniza _data com atributos de classe
+        # Sync _data with class attributes
         if initial_data:
             if "input_path" in initial_data:
                 self.input_path = initial_data["input_path"]
@@ -157,70 +142,70 @@ class ExecutionContext:
                 self.tool_key = initial_data["tool_key"]
 ```
 
-### 2.2 Manter `get()`/`set()` para Compatibilidade
+### 2.2 Keep `get()`/`set()` for Compatibility
 
 ```python
     def set(self, key: str, value: Any) -> ExecutionContext:
-        """Armazena valor no contexto. Retorna self para fluent interface."""
+        """Stores value in context. Returns self for fluent interface."""
         self._data[key] = value
         return self
 
     def get(self, key: str, default: Any = None) -> Any:
-        """Recupera valor do contexto."""
+        """Retrieves value from context."""
         return self._data.get(key, default)
 ```
 
-### 2.3 Remover Class Variables Obsoletas
+### 2.3 Remove Obsolete Class Variables
 
-Remover:
+Remove:
 ```python
-INPUT_PATH = None   # ❌ REMOVER
-OUTPUT_PATH = None  # ❌ REMOVER
-TOOL_KEY = None     # ❌ REMOVER
+INPUT_PATH = None   # ❌ REMOVE
+OUTPUT_PATH = None  # ❌ REMOVE
+TOOL_KEY = None     # ❌ REMOVE
 ```
 
 ---
 
-## 3. Modificações no BaseStep
+## 3. BaseStep Modifications
 
-### 3.1 Novo Atributo: `modified_path`
+### 3.1 New Attributes
 
 ```python
 class BaseStep(ABC):
-    """Contrato que define uma etapa da pipeline."""
+    """Contract that defines a pipeline step."""
 
-    # ── Atributos de configuração do step ───────────────────────
-    subpasta: str = ""  #SUBFOLDER  nomes de metodos paramtros clases tudo e em ingles  ta nop contrato 
-    """Nome da subpasta de saída (ex: 'lascheck', 'lasblackfilter'). 
-    Usado para criar output_path/subpasta/ automaticamente."""
+    # ── Step configuration attributes ──────────────────────────
+    subfolder: str = ""
+    """Output subfolder name (e.g. 'lascheck', 'lasblackfilter'). 
+    Used to create output_path/subfolder/ automatically."""
 
-    modified_path: bool = True
+    advance_input: bool = True
     """
-    Se True (padrão): step TRANSFORMA dados → chama advance_input() em on_success()
-    Se False: step só ANALISA → NÃO chama advance_input()
+    If True (default): step TRANSFORMS data → calls advance_input() in on_success()
+    If False: step only ANALYZES → does NOT call advance_input()
     """
 ```
 
-### 3.2 Novo Método: `advance_input()`
+### 3.2 New Method: `advance_input()`
 
 ```python
     def advance_input(self, context: ExecutionContext) -> None:
         """
-        Atualiza input_path para apontar para a subpasta de saída do step atual.
-        Chamado automaticamente em on_success() se modified_path == True.
+        Updates input_path to point to the step's output subfolder.
+        Called automatically in on_success() if advance_input == True.
         """
-        if self.subpasta:
-            context.input_path = os.path.join(context.output_path, self.subpasta)
+        if self.subfolder:
+            context.input_path = os.path.join(context.output_path, self.subfolder)
 ```
 
-### 3.3 Novo Método: `resolve_files()`
+### 3.3 New Method: `resolve_files()`
 
 ```python
     def resolve_files(self, context: ExecutionContext, *extensions: str) -> list[str]:
         """
-        Retorna a lista de arquivos a processar.
-        - Se context.files estiver definido, retorna context.files
-        - Senão, lista todos os arquivos com as extensões fornecidas em context.input_path
+        Returns the list of files to process.
+        - If context.files is set, returns context.files
+        - Otherwise, lists all files with given extensions in context.input_path
         """
         if context.files is not None:
             return context.files
@@ -231,64 +216,61 @@ class BaseStep(ABC):
         return sorted(files)
 ```
 
-### 3.4 Novo Método: `output_subdir()`
+### 3.4 New Method: `output_subdir()`
 
 ```python
-    @property
     def output_subdir(self, context: ExecutionContext) -> str:
         """
-        Retorna o caminho completo da subpasta de saída.
-        Ex: output_path + "/" + subpasta
-        Cria a pasta se não existir.
+        Returns the full output subfolder path.
+        E.g.: output_path + "/" + subfolder
+        Creates the folder if it doesn't exist.
         """
-        if not self.subpasta:
+        if not self.subfolder:
             return context.output_path
-        subdir = os.path.join(context.output_path, self.subpasta)
+        subdir = os.path.join(context.output_path, self.subfolder)
         os.makedirs(subdir, exist_ok=True)
         return subdir
 ```
 
-### 3.5 on_success() com advance_input Automático
+### 3.5 on_success() with Automatic advance_input
 
 ```python
     def on_success(self, context: ExecutionContext, result: Any) -> None:
         """
-        Callback padrão: se modified_path == True, avança o input_path.
-        Steps que transformam dados SOBRESCREVEM este método para mapear resultados.
-        Steps que só analisam (modified_path=False) não precisam fazer nada.
+        Default callback: if advance_input == True, advances input_path.
+        Transforming steps OVERRIDE this method to map results.
+        Analyzing steps (advance_input=False) don't need to do anything.
         """
-        if self.modified_path:
+        if self.advance_input:
             self.advance_input(context)
 ```
 
 ---
 
-## 4. Modificações nos Steps Concretos
+## 4. Concrete Step Modifications
 
 ### 4.1 LasCheckStep
 
 ```python
 class LasCheckStep(BaseStep):
-    subpasta = "lascheck"
-    modified_path = False  # Só analisa, não transforma
+    subfolder = "lascheck"
+    advance_input = False  # Only analyzes, doesn't transform
 
-    def __init__(self, modified_path: bool = False, input_path: str = ""):
-        self.modified_path = modified_path
-        self._custom_input_path = input_path  # input_path específico (opcional)
+    def __init__(self, advance_input: bool = False, input_path: str = ""):
+        self.advance_input = advance_input
+        self._custom_input_path = input_path  # Step-specific input_path (optional)
 
     def name(self) -> str:
         return "lascheck"
 
     def should_run(self, context: ExecutionContext) -> bool:
-        # Se tem input_path custom, usa ele
         path = self._custom_input_path or context.input_path
         return bool(path)
 
     def run_inline(self, context: ExecutionContext) -> dict:
         path = self._custom_input_path or context.input_path
         files = self.resolve_files(context, ".las", ".laz")
-        # ... processa cada arquivo ...
-        # Salva relatório em output_subdir
+        # ... process each file ...
         report_path = os.path.join(self.output_subdir(context), "check_report.json")
         return {"check_results": results, "report_path": report_path}
 ```
@@ -297,14 +279,14 @@ class LasCheckStep(BaseStep):
 
 ```python
 class LasBlackFilterStep(BaseStep):
-    subpasta = "lasblackfilter"
-    modified_path = True  # Transforma dados
+    subfolder = "lasblackfilter"
+    advance_input = True  # Transforms data
 
-    def __init__(self, limiar: int = 0, salvar_pretos: bool = False, 
-                 modified_path: bool = True, input_path: str = ""):
-        self._limiar = limiar
-        self._salvar_pretos = salvar_pretos
-        self.modified_path = modified_path
+    def __init__(self, threshold: int = 0, save_black_points: bool = False, 
+                 advance_input: bool = True, input_path: str = ""):
+        self._threshold = threshold
+        self._save_black_points = save_black_points
+        self.advance_input = advance_input
         self._custom_input_path = input_path
 
     def name(self) -> str:
@@ -316,27 +298,27 @@ class LasBlackFilterStep(BaseStep):
         return LasBlackFilterTask(
             files=files,
             output_dir=self.output_subdir(context),
-            limiar=self._limiar,
-            salvar_pretos=self._salvar_pretos,
+            threshold=self._threshold,
+            save_black_points=self._save_black_points,
         )
 
     def on_success(self, context: ExecutionContext, result: Any) -> None:
         if isinstance(result, dict):
             context.set("filter_result", result)
-        self.advance_input(context)  # modified_path = True
+        self.advance_input(context)
 ```
 
 ### 4.3 LasTilerStep
 
 ```python
 class LasTilerStep(BaseStep):
-    subpasta = "lastiler"
-    modified_path = True
+    subfolder = "lastiler"
+    advance_input = True
 
-    def __init__(self, pontos_por_parte: int = 5_000_000,
-                 modified_path: bool = True, input_path: str = ""):
-        self._pontos_por_parte = pontos_por_parte
-        self.modified_path = modified_path
+    def __init__(self, points_per_part: int = 5_000_000,
+                 advance_input: bool = True, input_path: str = ""):
+        self._points_per_part = points_per_part
+        self.advance_input = advance_input
         self._custom_input_path = input_path
 
     def name(self) -> str:
@@ -348,7 +330,7 @@ class LasTilerStep(BaseStep):
         return LasTilerTask(
             files=files,
             output_dir=self.output_subdir(context),
-            pontos_por_parte=self._pontos_por_parte,
+            points_per_part=self._points_per_part,
         )
 
     def on_success(self, context: ExecutionContext, result: Any) -> None:
@@ -361,26 +343,26 @@ class LasTilerStep(BaseStep):
 
 ```python
 class IdwInterpolatorStep(BaseStep):
-    subpasta = "idwtiles"
-    modified_path = True
+    subfolder = "idwtiles"
+    advance_input = True
 
     def __init__(self, target_bands: dict = None, merge_bands: bool = True,
-                 resol_m: float = 0.01, idw_k: int = 5, idw_power: float = 2.0,
-                 idw_raio_max: float = 0.5, idw_overlap: float = 3.0,
-                 crs_str: str = "EPSG:31982", eliminar_tiles: bool = True,
-                 salvar_las: bool = False,
-                 modified_path: bool = True, input_path: str = ""):
+                 resolution_m: float = 0.01, idw_k: int = 5, idw_power: float = 2.0,
+                 idw_max_radius: float = 0.5, idw_overlap: float = 3.0,
+                 crs_str: str = "EPSG:31982", delete_tiles: bool = True,
+                 save_las: bool = False,
+                 advance_input: bool = True, input_path: str = ""):
         self._target_bands = target_bands or {}
         self._merge_bands = merge_bands
-        self._resol_m = resol_m
+        self._resolution_m = resolution_m
         self._idw_k = idw_k
         self._idw_power = idw_power
-        self._idw_raio_max = idw_raio_max
+        self._idw_max_radius = idw_max_radius
         self._idw_overlap = idw_overlap
         self._crs_str = crs_str
-        self._eliminar_tiles = eliminar_tiles
-        self._salvar_las = salvar_las
-        self.modified_path = modified_path
+        self._delete_tiles = delete_tiles
+        self._save_las = save_las
+        self.advance_input = advance_input
         self._custom_input_path = input_path
 
     def name(self) -> str:
@@ -393,14 +375,14 @@ class IdwInterpolatorStep(BaseStep):
             output_path=os.path.join(self.output_subdir(context), "merged.tif"),
             target_bands=self._target_bands,
             merge_bands=self._merge_bands,
-            resol_m=self._resol_m,
+            resolution_m=self._resolution_m,
             idw_k=self._idw_k,
             idw_power=self._idw_power,
-            idw_raio_max=self._idw_raio_max,
+            idw_max_radius=self._idw_max_radius,
             idw_overlap=self._idw_overlap,
             crs_str=self._crs_str,
-            eliminar_tiles=self._eliminar_tiles,
-            salvar_las=self._salvar_las,
+            delete_tiles=self._delete_tiles,
+            save_las=self._save_las,
         )
 
     def on_success(self, context: ExecutionContext, result: Any) -> None:
@@ -409,149 +391,95 @@ class IdwInterpolatorStep(BaseStep):
         self.advance_input(context)
 ```
 
-### 4.5 MergeRastersStep (NOVO)
-
-```python
-class MergeRastersStep(BaseStep):
-    subpasta = "merge"
-    modified_path = True
-
-    def __init__(self, modified_path: bool = True, input_path: str = ""):
-        self.modified_path = modified_path
-        self._custom_input_path = input_path
-
-    def name(self) -> str:
-        return "merge"
-
-    def create_task(self, context: ExecutionContext) -> MergeRastersTask:
-        path = self._custom_input_path or context.input_path
-        return MergeRastersTask(
-            input_dir=path,
-            output_path=os.path.join(self.output_subdir(context), "merged.tif"),
-        )
-
-    def on_success(self, context: ExecutionContext, result: Any) -> None:
-        if isinstance(result, dict):
-            context.set("merge_result", result)
-        self.advance_input(context)
-```
-
-### 4.6 RasterCheckStep (NOVO)
-
-```python
-class RasterCheckStep(BaseStep):
-    subpasta = "rastercheck"
-    modified_path = False  # Só analisa
-
-    def __init__(self, modified_path: bool = False, input_path: str = ""):
-        self.modified_path = modified_path
-        self._custom_input_path = input_path
-
-    def name(self) -> str:
-        return "rastercheck"
-
-    def run_inline(self, context: ExecutionContext) -> dict:
-        path = self._custom_input_path or context.input_path
-        # Valida rasters no input_path
-        # Salva relatório em output_subdir
-        return {"check_results": results}
-```
-
 ---
 
-## 5. Modificações no AsyncPipelineEngine
+## 5. AsyncPipelineEngine Modifications
 
-### 5.1 Injeção Automática de input_path Custom
+### 5.1 Automatic _custom_input_path Injection
 
-Se o step tiver `_custom_input_path`, o engine usa esse valor em vez do `context.input_path`:
+If the step has `_custom_input_path`, the engine uses that value instead of `context.input_path`:
 
 ```python
 def _run_loop(self, blocking: bool) -> None:
     while self._is_running and not self._is_cancelled:
         step = self._steps[self._current_index]
 
-        # Se o step tem input_path custom, sobrescreve no contexto
+        # If step has custom input_path, override in context
         custom_path = getattr(step, "_custom_input_path", None)
         if custom_path:
             self._context.input_path = custom_path
 
-        # ... executa step ...
+        # ... execute step ...
 ```
 
 ---
 
-## 6. Variáveis Canônicas do ExecutionContext
+## 6. Canonical Variables
 
-### 6.1 Definição Final
+### 6.1 ExecutionContext Attributes
 
-| Variável | Tipo | Origem | Descrição |
-|----------|------|--------|-----------|
-| `input_path` | `str` | Plugin / Step anterior | Diretório com arquivos de entrada |
-| `output_path` | `str` | Plugin (config) | Diretório base para salvar resultados |
-| `files` | `list[str] \| None` | Plugin | Lista específica de arquivos (None = todos) |
-| `tool_key` | `str` | Plugin | ToolKey para logging |
+| Variable | Type | Origin | Description |
+|----------|------|--------|-------------|
+| `input_path` | `str` | Plugin / Previous step | Input directory with files |
+| `output_path` | `str` | Plugin (config) | Base directory to save results |
+| `files` | `list[str] \| None` | Plugin | Specific file list (None = all) |
+| `tool_key` | `str` | Plugin | ToolKey for logging |
 
-### 6.2 Atributos do Step (definidos em cada step concreto)
+### 6.2 Step Attributes (defined in each concrete step)
 
-| Atributo | Tipo | Onde define | Descrição |
-|----------|------|-------------|-----------|
-| `subpasta` | `str` | Constante no step | Nome da subpasta de saída |
-| `modified_path` | `bool` | Construtor do step | Se True, chama advance_input() |
-| `_custom_input_path` | `str` | Construtor (opcional) | input_path específico para este step |
+| Attribute | Type | Where defined | Description |
+|-----------|------|---------------|-------------|
+| `subfolder` | `str` | Step constant | Output subfolder name |
+| `advance_input` | `bool` | Step constructor | If True, calls advance_input() |
+| `_custom_input_path` | `str` | Constructor (optional) | Step-specific input_path |
 
-### 6.3 Parâmetros Exclusivos por Step
+### 6.3 Step-Specific Parameters
 
-| Step | Parâmetros (passados no construtor) |
-|------|--------------------------------------|
-| `LasCheckStep` | `modified_path=False`, `input_path=""` |
-| `LasBlackFilterStep` | `limiar: int=0`, `salvar_pretos: bool=False`, `modified_path=True`, `input_path=""` |
-| `LasTilerStep` | `pontos_por_parte: int=5_000_000`, `modified_path=True`, `input_path=""` |
-| `IdwInterpolatorStep` | `target_bands: dict`, `merge_bands: bool=True`, `resol_m: float=0.01`, `idw_k: int=5`, `idw_power: float=2.0`, `idw_raio_max: float=0.5`, `idw_overlap: float=3.0`, `crs_str: str="EPSG:31982"`, `eliminar_tiles: bool=True`, `salvar_las: bool=False`, `modified_path=True`, `input_path=""` |
-| `MergeRastersStep` | `modified_path=True`, `input_path=""` |
-| `RasterCheckStep` | `modified_path=False`, `input_path=""` |
+| Step | Parameters (passed in constructor) |
+|------|-------------------------------------|
+| `LasCheckStep` | `advance_input=False`, `input_path=""` |
+| `LasBlackFilterStep` | `threshold: int=0`, `save_black_points: bool=False`, `advance_input=True`, `input_path=""` |
+| `LasTilerStep` | `points_per_part: int=5_000_000`, `advance_input=True`, `input_path=""` |
+| `IdwInterpolatorStep` | `target_bands: dict`, `merge_bands: bool=True`, `resolution_m: float=0.01`, `idw_k: int=5`, `idw_power: float=2.0`, `idw_max_radius: float=0.5`, `idw_overlap: float=3.0`, `crs_str: str="EPSG:31982"`, `delete_tiles: bool=True`, `save_las: bool=False`, `advance_input=True`, `input_path=""` |
 
 ---
 
-## 7. Exemplo de Pipeline Completa
+## 7. Complete Pipeline Example
 
 ```python
 runner = PipelineRunner(
     steps=[
-        LasCheckStep(modified_path=False),                    # Analisa → /output/lascheck/
-        LasBlackFilterStep(limiar=30, salvar_pretos=True),    # Filtra → /output/lasblackfilter/ → advance
-        LasCheckStep(modified_path=False),                    # Re-analisa filtrados
-        LasTilerStep(pontos_por_parte=5_000_000),             # Tilea → /output/lastiler/ → advance
-        IdwInterpolatorStep(                                  # Interpola → /output/idwtiles/ → advance
+        LasCheckStep(advance_input=False),                    # Analyzes → /output/lascheck/
+        LasBlackFilterStep(threshold=30, save_black_points=True), # Filters → /output/lasblackfilter/ → advance
+        LasCheckStep(advance_input=False),                    # Re-analyzes filtered
+        LasTilerStep(points_per_part=5_000_000),              # Tiles → /output/lastiler/ → advance
+        IdwInterpolatorStep(                                  # Interpolates → /output/idwtiles/ → advance
             target_bands={"r": True, "g": True, "b": True, "z": True},
-            resol_m=0.01,
+            resolution_m=0.01,
         ),
-        MergeRastersStep(),                                   # Merge → /output/merge/ → advance
-        RasterCheckStep(modified_path=False),                 # Valida → /output/rastercheck/
     ],
     context={
-        "input_path": "D:/raiz/dados",
-        "output_path": "D:/raiz",
+        "input_path": "D:/data/root",
+        "output_path": "D:/data/root",
         "tool_key": ToolKey.IDW_INTERPOLATOR.value,
     },
     parent=self,
 )
 ```
 
-### Exemplo com input_path Específico
+### Example with Specific input_path
 
 ```python
 runner = PipelineRunner(
     steps=[
-        LasBlackFilterStep(limiar=30),
-        LasTilerStep(pontos_por_parte=5_000_000),
+        LasBlackFilterStep(threshold=30),
+        LasTilerStep(points_per_part=5_000_000),
         IdwInterpolatorStep(target_bands={"r": True, "g": True, "b": True}),
-        MergeRastersStep(),
-        RasterCheckStep(modified_path=False),
-        LasCheckStep(modified_path=False, input_path="D:/raiz/dados/lasblackfilter/"),
+        LasCheckStep(advance_input=False, input_path="D:/data/root/lasblackfilter/"),
     ],
     context={
-        "input_path": "D:/raiz/dados",
-        "output_path": "D:/raiz",
+        "input_path": "D:/data/root",
+        "output_path": "D:/data/root",
         "tool_key": ToolKey.IDW_INTERPOLATOR.value,
     },
     parent=self,
@@ -560,105 +488,88 @@ runner = PipelineRunner(
 
 ---
 
-## 8. Ordem de Implementação
+## 8. Implementation Order
 
-### Fase 1 — ExecutionContext (core)
-- [ ] 1.1 Adicionar variáveis de classe: `input_path`, `output_path`, `files`, `tool_key`
-- [ ] 1.2 Sincronizar `__init__` para popular as variáveis a partir do dict inicial
-- [ ] 1.3 Manter `get()`/`set()` para compatibilidade com código legado
-- [ ] 1.4 Remover class variables `INPUT_PATH`, `OUTPUT_PATH`, `TOOL_KEY`
+### Phase 1 — ExecutionContext (core)
+- [ ] 1.1 Add class variables: `input_path`, `output_path`, `files`, `tool_key`
+- [ ] 1.2 Sync `__init__` to populate variables from initial dict
+- [ ] 1.3 Keep `get()`/`set()` for legacy compatibility
+- [ ] 1.4 Remove class variables `INPUT_PATH`, `OUTPUT_PATH`, `TOOL_KEY`
 
-### Fase 2 — BaseStep (core)
-- [ ] 2.1 Adicionar atributo `subpasta: str = ""`
-- [ ] 2.2 Adicionar atributo `modified_path: bool = True`
-- [ ] 2.3 Adicionar método `advance_input(context)`
-- [ ] 2.4 Adicionar método `resolve_files(context, *extensions)`
-- [ ] 2.5 Adicionar property `output_subdir(context)`
-- [ ] 2.6 Modificar `on_success()` padrão para chamar `advance_input()` se `modified_path == True`
+### Phase 2 — BaseStep (core)
+- [ ] 2.1 Add attribute `subfolder: str = ""`
+- [ ] 2.2 Add attribute `advance_input: bool = True`
+- [ ] 2.3 Add method `advance_input(context)`
+- [ ] 2.4 Add method `resolve_files(context, *extensions)`
+- [ ] 2.5 Add method `output_subdir(context)`
+- [ ] 2.6 Modify default `on_success()` to call `advance_input()` if `advance_input == True`
 
-### Fase 3 — AsyncPipelineEngine
-- [ ] 3.1 Verificar `_custom_input_path` no step e sobrescrever `context.input_path` se presente
+### Phase 3 — AsyncPipelineEngine
+- [ ] 3.1 Check `_custom_input_path` in step and override `context.input_path` if present
 
-### Fase 4 — Steps (refatorar um por um)
-- [ ] 4.1 `LasCheckStep` → adicionar `subpasta`, `modified_path=False`, `__init__` com parâmetros
-- [ ] 4.2 `LasBlackFilterStep` → adicionar `subpasta`, `__init__` com parâmetros exclusivos
-- [ ] 4.3 `LasTilerStep` → adicionar `subpasta`, `__init__` com parâmetros exclusivos
-- [ ] 4.4 `IdwInterpolatorStep` → adicionar `subpasta`, `__init__` com parâmetros exclusivos
-- [ ] 4.5 `MrkSteps` → manter compatibilidade (não usam pipeline de LAS)
-- [ ] 4.6 `DoclingSteps` → manter compatibilidade (não usam pipeline de LAS)
-
-### Fase 5 — Novos Steps
-- [ ] 5.1 Criar `MergeRastersStep` + `MergeRastersTask`
-- [ ] 5.2 Criar `RasterCheckStep` (run_inline)
-
-### Fase 6 — Plugins (atualizar chamadas)
-- [ ] 6.1 `LasCheckPlugin` → passar parâmetros no construtor do step
-- [ ] 6.2 `LasBlackFilterPlugin` → passar parâmetros no construtor do step
-- [ ] 6.3 `LasTilerPlugin` → passar parâmetros no construtor do step
-- [ ] 6.4 `IdwInterpolatorPlugin` → passar parâmetros no construtor do step
-- [ ] 6.5 `PointBoundaryStep` → adaptar para novo padrão (se aplicável)
-
-### Fase 7 — Documentação
-- [ ] 7.1 Atualizar `SKILL_ASYNC_PIPELINE.md` com novo padrão
-- [ ] 7.2 Atualizar `SKILL_AGENT.md` se necessário
-- [ ] 7.3 Atualizar `contracts.md` se houver novos contratos
+### Phase 4 — Steps (refactor one by one)
+- [x] 4.1 `LasCheckStep` → add `subfolder`, `advance_input=False`, `__init__` with parameters
+- [x] 4.2 `LasBlackFilterStep` → add `subfolder`, `__init__` with exclusive parameters
+- [x] 4.3 `LasTilerStep` → add `subfolder`, `__init__` with exclusive parameters
+- [x] 4.4 `IdwInterpolatorStep` → add `subfolder`, `__init__` with exclusive parameters
+- [ ] 4.5 `MrkSteps` → keep compatibility (don't use LAS pipeline)
 
 ---
 
-## 9. Contratos Novos/Atualizados
+## 9. New/Updated Contracts
 
-### Contrato 27 — Atributos Canônicos do ExecutionContext
+### Contract 27 — ExecutionContext Canonical Attributes
 ```
-O ExecutionContext possui variáveis de classe para acesso direto:
+ExecutionContext has class variables for direct access:
 - input_path, output_path, files, tool_key
 
-NUNCA use @property ou getters/setters para esses atributos.
-Acesso é direto: context.input_path = "/caminho"
+NEVER use @property or getters/setters for these attributes.
+Direct access: context.input_path = "/path"
 ```
 
-### Contrato 28 — Parâmetros Exclusivos no Construtor do Step
+### Contract 28 — Exclusive Parameters in Step Constructor
 ```
-Parâmetros específicos de cada step são passados DIRETAMENTE no construtor:
-    LasBlackFilterStep(limiar=30, salvar_pretos=True)
+Step-specific parameters are passed DIRECTLY in the constructor:
+    LasBlackFilterStep(threshold=30, save_black_points=True)
 
-NUNCA misture parâmetros exclusivos no ExecutionContext.
-O context contém APENAS: input_path, output_path, files, tool_key.
-```
-
-### Contrato 29 — modified_path (Transforma vs Analisa)
-```
-Todo step define modified_path:
-- True (padrão): step TRANSFORMA dados → advance_input() em on_success()
-- False: step só ANALISA → NÃO avança input_path
-
-Steps que transformam: LasBlackFilter, LasTiler, IdwInterpolator, Merge
-Steps que analisam: LasCheck, RasterCheck
+NEVER mix exclusive parameters in ExecutionContext.
+Context contains ONLY: input_path, output_path, files, tool_key.
 ```
 
-### Contrato 30 — subpasta Constante no Step
+### Contract 29 — advance_input (Transform vs Analyze)
 ```
-Cada step define subpasta como constante da classe:
-    subpasta = "lascheck"  # Nome da subpasta de saída
+Every step defines advance_input:
+- True (default): step TRANSFORMS data → advance_input() in on_success()
+- False: step only ANALYZES → does NOT advance input_path
 
-O output_subdir é derivado automaticamente: output_path + "/" + subpasta
+Transforming steps: LasBlackFilter, LasTiler, IdwInterpolator
+Analyzing steps: LasCheck
 ```
 
-### Contrato 31 — input_path Específico (Exceção)
+### Contract 30 — subfolder Constant in Step
 ```
-Um step pode receber input_path próprio no construtor para casos específicos:
-    LasCheckStep(modified_path=False, input_path="D:/raiz/dados/lasblackfilter/")
+Each step defines subfolder as a class constant:
+    subfolder = "lascheck"  # Output subfolder name
 
-Isso sobrescreve context.input_path APENAS para aquele step.
-Use com moderação — o padrão é usar context.input_path.
+output_subdir is derived automatically: output_path + "/" + subfolder
+```
+
+### Contract 31 — Step-Specific input_path (Exception)
+```
+A step can receive its own input_path in the constructor for specific cases:
+    LasCheckStep(advance_input=False, input_path="D:/data/root/lasblackfilter/")
+
+This overrides context.input_path ONLY for that step.
+Use sparingly — the standard is to use context.input_path.
 ```
 
 ---
 
-## 10. Riscos e Mitigações
+## 10. Risks and Mitigations
 
-| Risco | Mitigação |
-|-------|-----------|
-| Quebrar plugins existentes | Manter `get()`/`set()` como fallback; migrar gradualmente |
-| Steps que esperam arquivo único vs diretório | `resolve_files()` retorna lista; step decide se processa 1 ou N |
-| Compatibilidade com MrkSteps/DoclingSteps | Não usam `subpasta`/`modified_path`; manter `get()`/`set()` |
-| Usuário esquecer de passar parâmetro obrigatório | Construtor tem defaults sensatos; validação em `should_run()` |
+| Risk | Mitigation |
+|------|------------|
+| Breaking existing plugins | Keep `get()`/`set()` as fallback; migrate gradually |
+| Steps expecting single file vs directory | `resolve_files()` returns list; step decides if processing 1 or N |
+| Compatibility with MrkSteps/DoclingSteps | Don't use `subfolder`/`advance_input`; keep `get()`/`set()` |
+| User forgetting required parameter | Constructor has sensible defaults; validation in `should_run()` |

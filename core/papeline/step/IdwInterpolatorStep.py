@@ -1,26 +1,23 @@
 # -*- coding: utf-8 -*-
 """
-IdwInterpolatorStep — Step que interpola arquivos LAS via IDW
+IdwInterpolatorStep — Step that interpolates LAS files via IDW
 ================================================================
-Step que recebe um diretorio com arquivos LAS (de quem quer que os
-tenha produzido) e executa interpolacao IDW, gerando rasters.
+Step that receives a directory with LAS files (from whoever produced them)
+and executes IDW interpolation, generating rasters.
 
-NAO sabe o que sao tiles. So le do contexto:
-    - "input_dir": Diretorio com arquivos .las/.laz a interpolar
+DOES NOT know what tiles are. Only reads from context:
+    - "input_path": Directory with .las/.laz files to interpolate
 
-Context requer:
-    - "input_dir": Diretorio com arquivos LAS
-    - "output_path": Caminho do GeoTIFF de saida
-    - "target_bands": Dict com bandas alvo (r, g, b, z)
-    - "resol_m": Resolucao em metros
+Context requires:
+    - "input_path": Directory with LAS files
+    - "output_path": Base directory to save results
 
-Context produz:
-    - "idw_result": Dict com resultado completo da interpolacao
+Context produces:
+    - "idw_result": Dict with complete interpolation result
 """
 
 from __future__ import annotations
 
-import glob
 import os as _os
 from typing import Any, Optional
 
@@ -32,64 +29,79 @@ from core.papeline.task.IdwInterpolatorTask import IdwInterpolatorTask
 
 
 class IdwInterpolatorStep(BaseStep):
-    """Step que interpola arquivos LAS via IDW."""
+    """Step that interpolates LAS files via IDW."""
+
+    subfolder = "idwtiles"
+    advance_input = True
+
+    def __init__(self, target_bands: dict = None, merge_bands: bool = True,
+                 resolution_m: float = 0.01, idw_k: int = 5, idw_power: float = 2.0,
+                 idw_max_radius: float = 0.5, idw_overlap: float = 3.0,
+                 crs_str: str = "EPSG:31982", delete_tiles: bool = True,
+                 save_las: bool = False,
+                 advance_input: bool = True, input_path: str = ""):
+        self._target_bands = target_bands or {}
+        self._merge_bands = merge_bands
+        self._resolution_m = resolution_m
+        self._idw_k = idw_k
+        self._idw_power = idw_power
+        self._idw_max_radius = idw_max_radius
+        self._idw_overlap = idw_overlap
+        self._crs_str = crs_str
+        self._delete_tiles = delete_tiles
+        self._save_las = save_las
+        self.advance_input = advance_input
+        self._custom_input_path = input_path
 
     def name(self) -> str:
-        return "idw_interpolator"
+        return "idwtiles"
 
     def should_run(self, context: ExecutionContext) -> bool:
         logger = self.get_logger(context)
+        path = self._custom_input_path or context.input_path
 
-        input_dir = context.get("input_dir", "")
-        if not input_dir or not _os.path.isdir(input_dir):
-            logger.warning("Diretorio de entrada nao encontrado", code="IDW_STEP_NO_DIR")
+        if not path or not _os.path.isdir(path):
+            logger.warning("Input directory not found", code="IDW_STEP_NO_DIR")
             return False
 
-        las_files = sorted(
-            glob.glob(_os.path.join(input_dir, "*.las"))
-            + glob.glob(_os.path.join(input_dir, "*.laz"))
-        )
-        if not las_files:
-            logger.warning("Nenhum arquivo LAS encontrado no diretorio", code="IDW_STEP_NO_FILES")
-            return False
-
-        target = context.get("target_bands", {})
+        target = self._target_bands
         if not any(target.values()):
-            logger.warning("Nenhuma banda selecionada", code="IDW_STEP_NO_BANDS")
+            logger.warning("No bands selected", code="IDW_STEP_NO_BANDS")
             return False
 
-        merge = context.get("merge_bands", True)
+        merge = self._merge_bands
         if merge:
             has_rgb = target.get("r", False) and target.get("g", False) and target.get("b", False)
             has_any_rgb = target.get("r", False) or target.get("g", False) or target.get("b", False)
             if not has_rgb and has_any_rgb:
-                logger.warning("Mosaico requer R, G e B", code="IDW_STEP_MOSAIC_INCOMPLETE")
+                logger.warning("Mosaic requires R, G and B", code="IDW_STEP_MOSAIC_INCOMPLETE")
                 return False
 
         return True
 
     def create_task(self, context: ExecutionContext) -> Optional[BaseTask]:
-        """Cria IdwInterpolatorTask a partir do diretorio de entrada."""
+        """Creates IdwInterpolatorTask from input directory."""
         governor: Optional[ResourceGovernor] = context.get("_governor", None)
+        path = self._custom_input_path or context.input_path
 
         return IdwInterpolatorTask(
-            input_dir=str(context.get("input_dir")),
-            output_path=str(context.get("output_path")),
-            target_bands=context.get("target_bands", {}),
-            merge_bands=context.get("merge_bands", True),
-            resol_m=context.get("resol_m", 0.01),
-            idw_k=int(context.get("idw_k", 5)),
-            idw_power=float(context.get("idw_power", 2.0)),
-            idw_raio_max=float(context.get("idw_raio_max", 0.5)),
-            idw_overlap=float(context.get("idw_overlap", 3.0)),
-            crs_str=str(context.get("crs_str", "EPSG:31982")),
-            eliminar_tiles=bool(context.get("eliminar_tiles", True)),
-            salvar_las=bool(context.get("salvar_las", False)),
+            input_dir=path,
+            output_path=_os.path.join(self.output_subdir(context), "merged.tif"),
+            target_bands=self._target_bands,
+            merge_bands=self._merge_bands,
+            resolution_m=self._resolution_m,
+            idw_k=self._idw_k,
+            idw_power=self._idw_power,
+            idw_max_radius=self._idw_max_radius,
+            idw_overlap=self._idw_overlap,
+            crs_str=self._crs_str,
+            delete_tiles=self._delete_tiles,
+            save_las=self._save_las,
             governor=governor,
         )
 
     def on_success(self, context: ExecutionContext, result: Any) -> None:
-        """Mapeia o resultado da task para o ExecutionContext."""
+        """Maps task result to ExecutionContext."""
         logger = self.get_logger(context)
 
         if isinstance(result, dict):
@@ -98,10 +110,11 @@ class IdwInterpolatorStep(BaseStep):
                 if key in result:
                     context.set(key, result[key])
 
-        logger.info("IDW concluido com sucesso", code="IDW_STEP_DONE")
+        logger.info("IDW completed successfully", code="IDW_STEP_DONE")
+        self.advance_input(context)
 
     def on_error(self, context: ExecutionContext, exception: Exception) -> None:
-        """Adiciona erro ao contexto."""
+        """Adds error to context."""
         logger = self.get_logger(context)
-        logger.error("Erro na interpolacao IDW", code="IDW_STEP_ERR", error=str(exception))
+        logger.error("Error in IDW interpolation", code="IDW_STEP_ERR", error=str(exception))
         context.add_error(exception)

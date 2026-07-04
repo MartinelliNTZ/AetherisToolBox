@@ -39,14 +39,14 @@ class IdwInterpolatorTask(BaseTask):
         output_path: str,
         target_bands: dict,
         merge_bands: bool = True,
-        resol_m: float = 0.01,
+        resolution_m: float = 0.01,
         idw_k: int = 5,
         idw_power: float = 2.0,
-        idw_raio_max: float = 0.5,
+        idw_max_radius: float = 0.5,
         idw_overlap: float = 3.0,
         crs_str: str = "EPSG:31982",
-        eliminar_tiles: bool = True,
-        salvar_las: bool = False,
+        delete_tiles: bool = True,
+        save_las: bool = False,
         governor: Optional[ResourceGovernor] = None,
     ):
         super().__init__(
@@ -57,14 +57,14 @@ class IdwInterpolatorTask(BaseTask):
         self._output_path = output_path
         self._target_bands = target_bands
         self._merge_bands = merge_bands
-        self._resol_m = resol_m
+        self._resolution_m = resolution_m
         self._idw_k = idw_k
         self._idw_power = idw_power
-        self._idw_raio_max = idw_raio_max
+        self._idw_max_radius = idw_max_radius
         self._idw_overlap = idw_overlap
         self._crs_str = crs_str
-        self._eliminar_tiles = eliminar_tiles
-        self._salvar_las = salvar_las
+        self._delete_tiles = delete_tiles
+        self._save_las = save_las
         self._temp_dir: str | None = None
         self._n_pontos_total: int = 0
 
@@ -129,7 +129,7 @@ class IdwInterpolatorTask(BaseTask):
         """Remove pastas de tiles raster."""
         if not self._temp_dir or not _os.path.isdir(self._temp_dir):
             return
-        if not self._eliminar_tiles:
+        if not self._delete_tiles:
             self.get_logger().info("Tiles raster mantidos", code="IDW_TASK_KEEP_TILES")
             return
         for sub in ("r", "g", "b", "z"):
@@ -145,8 +145,8 @@ class IdwInterpolatorTask(BaseTask):
         self.get_logger().info("Tiles raster removidos", code="IDW_TASK_TEMP_CLEAN_DONE")
 
     def _limpar_las(self):
-        """Remove os arquivos .las originais se salvar_las=False."""
-        if self._salvar_las:
+        """Remove os arquivos .las originais se save_las=False."""
+        if self._save_las:
             return
         las_files = self._obter_arquivos_las()
         for path in las_files:
@@ -172,10 +172,10 @@ class IdwInterpolatorTask(BaseTask):
         output_path = self._output_path
         target = self._target_bands
         merge_bands = self._merge_bands
-        resol_m = self._resol_m
+        resol_m = self._resolution_m
         k = self._idw_k
         power = self._idw_power
-        raio_max = self._idw_raio_max
+        raio_max = self._idw_max_radius
         overlap = self._idw_overlap
         crs_str = self._crs_str
 

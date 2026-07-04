@@ -1,17 +1,16 @@
 # -*- coding: utf-8 -*-
 """
-LasTilerStep — Step para divisão de nuvens LAS/LAZ em partes
-==============================================================
-Step que divide um arquivo LAS/LAZ em varios arquivos menores
-com base no numero de pontos por parte.
+LasTilerStep — Step for splitting LAS/LAZ point clouds into parts
+====================================================================
+Step that splits LAS/LAZ files into multiple smaller files
+based on points per part.
 
-Context requer:
-    - "file_path": Caminho do arquivo LAS/LAZ de entrada
-    - "output_dir": Pasta onde salvar as partes
-    - "pontos_por_parte": Número máximo de pontos por arquivo
+Context requires:
+    - "input_path": Directory with LAS/LAZ files to process
+    - "output_path": Base directory to save results
 
-Context produz:
-    - "split_result": Dict com resultado do split
+Context produces:
+    - "split_result": Dict with split results
 """
 
 from __future__ import annotations
@@ -26,50 +25,61 @@ from ..task.LasTilerTask import LasTilerTask
 
 
 class LasTilerStep(BaseStep):
-    """Step que divide um arquivo LAS/LAZ em partes."""
+    """Step that splits LAS/LAZ files into parts."""
+
+    subfolder = "lastiler"
+    advance_input = True
+
+    def __init__(self, points_per_part: int = 5_000_000,
+                 advance_input: bool = True, input_path: str = ""):
+        self._points_per_part = points_per_part
+        self.advance_input = advance_input
+        self._custom_input_path = input_path
 
     def name(self) -> str:
-        return "las_tiler"
+        return "lastiler"
 
     def should_run(self, context: ExecutionContext) -> bool:
         logger = self.get_logger(context)
+        path = self._custom_input_path or context.input_path
 
-        file_path = context.get("file_path", "")
-        if not file_path or not _os.path.isfile(file_path):
-            logger.warning("Arquivo LAS nao encontrado", code="TILER_STEP_NO_FILE", path=file_path)
-            return False
-
-        output_dir = context.get("output_dir", "")
-        if not output_dir:
-            logger.warning("Pasta de saida nao definida no contexto", code="TILER_STEP_NO_OUTPUT")
+        if not path or not _os.path.isdir(path):
+            logger.warning("Input directory not found", code="TILER_STEP_NO_DIR", path=path)
             return False
 
         return True
 
     def create_task(self, context: ExecutionContext) -> Optional[BaseTask]:
-        """Cria LasTilerTask com parametros do contexto."""
-        tool_key = context.get("tool_key", None)
+        """Creates LasTilerTask with parameters from context and constructor."""
+        path = self._custom_input_path or context.input_path
+        files = self.resolve_files(context, ".las", ".laz")
+
+        if not files:
+            logger = self.get_logger(context)
+            logger.warning("No LAS files found in input directory", code="TILER_STEP_NO_FILES")
+            return None
+
         return LasTilerTask(
-            file_path=str(context.get("file_path")),
-            output_dir=str(context.get("output_dir")),
-            pontos_por_parte=int(context.get("pontos_por_parte", 5_000_000)),
-            tool_key=tool_key,
+            files=files,
+            output_dir=self.output_subdir(context),
+            points_per_part=self._points_per_part,
         )
 
     def on_success(self, context: ExecutionContext, result: Any) -> None:
-        """Mapeia o resultado da task para o ExecutionContext."""
+        """Maps task result to ExecutionContext."""
         logger = self.get_logger(context)
 
         if isinstance(result, dict):
             context.set("split_result", result)
-            for key in ("n_total", "n_partes", "pontos_por_parte", "arquivos"):
+            for key in ("n_total", "n_parts", "points_per_part", "files"):
                 if key in result:
                     context.set(key, result[key])
 
-        logger.info("Split concluido com sucesso", code="TILER_STEP_DONE")
+        logger.info("Split completed successfully", code="TILER_STEP_DONE")
+        self.advance_input(context)
 
     def on_error(self, context: ExecutionContext, exception: Exception) -> None:
-        """Adiciona erro ao contexto."""
+        """Adds error to context."""
         logger = self.get_logger(context)
-        logger.error("Erro no split", code="TILER_STEP_ERR", error=str(exception))
+        logger.error("Error in split", code="TILER_STEP_ERR", error=str(exception))
         context.add_error(exception)

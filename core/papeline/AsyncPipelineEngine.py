@@ -101,33 +101,38 @@ class AsyncPipelineEngine:
 
     def _run_loop(self, blocking: bool) -> None:
         """
-        Executa os steps sequencialmente.
+        Executes steps sequentially.
 
         Args:
-            blocking: Se True, usa thread.join() (bloqueia).
-                      Se False, callbacks disparam avanço automaticamente.
+            blocking: If True, uses thread.join() (blocks).
+                      If False, callbacks trigger automatic advancement.
         """
         while self._is_running and not self._is_cancelled:
-            # Verifica cancelamento
+            # Check cancellation
             if self._context.is_cancelled():
                 self._finish_cancelled()
                 return
 
-            # Verifica recursos (governor) — check leve sem estimated_ram
-            # A Task pode usar can_execute(estimated_ram) com estimativa real
+            # Check resources (governor) — light check without estimated_ram
+            # Task can use can_execute(estimated_ram) with real estimate
             if self._governor is not None and not self._governor.check_during_execution():
-                    self._context.add_error(RuntimeError("Memoria insuficiente"))
+                    self._context.add_error(RuntimeError("Insufficient memory"))
                     self._finish_error()
                     return
 
-            # Verifica se acabaram os steps
+            # Check if all steps are done
             if self._current_index >= len(self._steps):
                 self._finish_success()
                 return
 
             step = self._steps[self._current_index]
 
-            # Verifica se o step deve executar
+            # If step has custom input_path, override in context
+            custom_path = getattr(step, "_custom_input_path", None)
+            if custom_path:
+                self._context.input_path = custom_path
+
+            # Check if step should run
             if not step.should_run(self._context):
                 self._current_index += 1
                 continue
