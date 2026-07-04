@@ -187,38 +187,53 @@ class LasBlackFilterPlugin(BasePlugin):
     # Handlers
     # ══════════════════════════════════════════════════════════════════
 
-    def _on_mode_changed(self, mode_key: str):
-        """Disparado quando o usuário alterna entre Arquivo/Pasta."""
-        self._mode = mode_key
-        self._current_path = ""
-        self._las_info = {}
-
+    def _aplicar_ui_do_modo(self, mode_key: str):
+        """Aplica a UI visual conforme o modo (sem alterar _current_path)."""
         if mode_key == "folder":
-            # Modo pasta: esconde info label, adapta saída
             self._info_label.setVisible(False)
             self._sel_entrada.edit.setPlaceholderText("Selecione uma pasta com LAS...")
-            self._sel_entrada.set_path("")
-
-            # Saída: mostra apenas pasta de saída
             self._sel_limpo.label.setText("Pasta de Saída")
             self._sel_limpo._browse_mode = "directory"
             self._sel_limpo.edit.setPlaceholderText("Pasta para salvar resultados...")
-            self._sel_limpo.set_path("")
-
             self._sel_pretos.setVisible(False)
         else:
-            # Modo arquivo: mostra info label, saída normal
             self._info_label.setVisible(True)
             self._sel_entrada.edit.setPlaceholderText("Selecione o arquivo LAS/LAZ...")
-            self._sel_entrada.set_path("")
-
             self._sel_limpo.label.setText("LAS Filtrado")
             self._sel_limpo._browse_mode = "save_file"
             self._sel_limpo.edit.setPlaceholderText("Caminho do LAS filtrado...")
-            self._sel_limpo.set_path("")
-
             self._sel_pretos.setVisible(True)
-            self._sel_pretos.set_path("")
+
+    def _on_mode_changed(self, mode_key: str):
+        """Disparado quando o usuário alterna entre Arquivo/Pasta."""
+        self._mode = mode_key
+
+        # Se está carregando preferências, não limpa nem restaura nada
+        if getattr(self, "_loading_prefs", False):
+            return
+
+        self._current_path = ""
+        self._las_info = {}
+
+        self._aplicar_ui_do_modo(mode_key)
+
+        # Limpa campos
+        self._sel_entrada.set_path("")
+        self._sel_limpo.set_path("")
+        self._sel_pretos.set_path("")
+
+        # Restaura path salvo nas preferências para o modo selecionado
+        if mode_key == "folder":
+            saved_folder = self.preferences.get("folder_path", "")
+            if saved_folder:
+                self._sel_entrada.set_path(saved_folder)
+                self._on_input_path_changed(saved_folder)
+        else:
+            saved_file = self.preferences.get("file_path", "")
+            self.logger.info(f"Modo alterado, restaurando arquivo salvo nas preferências. Path: {saved_file}")
+            if saved_file:
+                self._sel_entrada.set_path(saved_file)
+                self._on_input_path_changed(saved_file)
 
         self._btns.set_enabled("executar", False)
         self.page.set_badge(self.page.PRONTA)
@@ -728,26 +743,39 @@ class LasBlackFilterPlugin(BasePlugin):
     def load_prefs(self) -> None:
         """Carrega preferências salvas."""
         self.logger.info("Carregando preferências", code="PREFS_LOAD")
-        last_path = self.preferences.get("last_path", "")
+
+        # Desconecta on_mode_change TEMPORARIAMENTE para evitar que o sinal
+        # assíncrono do GridRadio dispare _on_mode_changed depois do load
+        saved_callback = self._sel_entrada.on_mode_change
+        self._sel_entrada.on_mode_change = None
+
         last_mode = self.preferences.get("mode", "file")
+        file_path = self.preferences.get("file_path", "")
+        folder_path = self.preferences.get("folder_path", "")
         limiar = self.preferences.get("limiar", 0)
         salvar_pretos = self.preferences.get("salvar_pretos", False)
         last_output_limpo = self.preferences.get("output_limpo", "")
         last_output_pretos = self.preferences.get("output_pretos", "")
 
-        # Restaura modo
+        # Aplica UI visual primeiro
+        self._aplicar_ui_do_modo(last_mode)
+
+        # Restaura modo (sem callback)
         if last_mode != self._mode:
+            self._mode = last_mode
             self._sel_entrada.set_mode(last_mode)
 
-        # Carrega o LAS/pasta primeiro
-        if last_path:
-            if last_mode == "folder":
-                self._current_path = last_path
-                self._las_info = {"path": last_path, "n_pontos": 0, "has_rgb": True}
-                self._sel_entrada.set_path(last_path)
-                self._btns.set_enabled("executar", True)
-            else:
-                self._carregar_las(last_path)
+        # Carrega o path correto conforme o modo
+        if last_mode == "folder" and folder_path:
+            self._current_path = folder_path
+            self._las_info = {"path": folder_path, "n_pontos": 0, "has_rgb": True}
+            self._sel_entrada.set_path(folder_path)
+            self._btns.set_enabled("executar", True)
+        elif last_mode == "file" and file_path:
+            self._carregar_las(file_path)
+
+        # Reconecta callback
+        self._sel_entrada.on_mode_change = saved_callback
 
         # Restaura outputs salvos
         if last_output_limpo:
@@ -771,7 +799,12 @@ class LasBlackFilterPlugin(BasePlugin):
 
     def save_prefs(self) -> None:
         """Salva preferências atuais no cache de memória."""
-        self.preferences["last_path"] = self._current_path
+        # Salva path separado por modo
+        if self._mode == "file":
+            self.preferences["file_path"] = self._current_path
+        elif self._mode == "folder":
+            self.preferences["folder_path"] = self._current_path
+
         self.preferences["mode"] = self._mode
         self.preferences["limiar"] = self._spin_limiar.get("limiar")
         self.preferences["salvar_pretos"] = self._ckb_salvar_pretos.checked.get(
