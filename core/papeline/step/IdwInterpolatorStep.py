@@ -28,7 +28,7 @@ from core.governor.ResourceGovernor import ResourceGovernor
 from core.papeline.BaseStep import BaseStep
 from core.papeline.BaseTask import BaseTask
 from core.papeline.ExecutionContext import ExecutionContext
-from plugins.idw_interpolator.IdwInterpolatorTask import IdwInterpolatorTask
+from core.papeline.task.IdwInterpolatorTask import IdwInterpolatorTask
 
 
 class IdwInterpolatorStep(BaseStep):

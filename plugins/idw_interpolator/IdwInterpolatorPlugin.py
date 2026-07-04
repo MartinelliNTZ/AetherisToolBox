@@ -26,7 +26,7 @@ from core.manager.SignalManager import SignalManager
 from core.papeline.PipelineRunner import PipelineRunner
 from core.papeline.step.LasTilerStep import LasTilerStep
 from plugins.BasePlugin import BasePlugin
-from plugins.idw_interpolator.IdwInterpolatorStep import IdwInterpolatorStep
+from core.papeline.step.IdwInterpolatorStep import IdwInterpolatorStep
 from resources.widgets.ExecutionButtons import ExecutionButtons
 from resources.widgets.grid.GridCheckBox import GridCheckBox
 from resources.widgets.grid.GridDoubleSpinBox import GridDoubleSpinBox

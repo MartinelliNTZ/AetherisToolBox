@@ -26,6 +26,14 @@ class ExecutionContext:
         is_cancelled() → True se foi cancelado
         clear() → Reseta todo o estado
     """
+
+    INPUT_PATH = "input_path"
+    """Chave padrão para o caminho do arquivo de entrada."""
+    OUTPUT_PATH = "output_path"
+    """Chave padrão para o caminho do arquivo de saída."""
+    TOOL_KEY = "tool_key"
+    """Chave padrão para a ferramenta."""
+
     def __init__(self, initial_data: dict = None):
         self._data: dict = initial_data.copy() if initial_data else {}
         self._errors: list[Exception] = []
