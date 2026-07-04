@@ -456,6 +456,7 @@ class LasBlackFilterPlugin(BasePlugin):
             steps=[step],
             input_path=os.path.dirname(self._current_path),
             output_path=os.path.dirname(self._current_path),
+            files=[self._current_path],  # Processa APENAS o arquivo selecionado
             tool_key=self.tool_key,
             parent=self,
         )
@@ -476,8 +477,10 @@ class LasBlackFilterPlugin(BasePlugin):
         n_mantidos = results.get("n_kept", 0)
         n_total = results.get("n_total", 0)
         n_pretos = results.get("n_black", 0)
-        output_limpo = results.get("output_clean", "")
-        output_pretos = results.get("output_black", "")
+        output_clean_list = results.get("output_clean", [])
+        output_black_list = results.get("output_black", [])
+        output_limpo = output_clean_list[0] if output_clean_list else ""
+        output_pretos = output_black_list[0] if output_black_list else ""
 
         elapsed = self.statistics.end()
         self.logger.info(
