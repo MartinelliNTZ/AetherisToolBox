@@ -27,11 +27,11 @@ class ExecutionContext:
         clear() → Reseta todo o estado
     """
 
-    INPUT_PATH = "input_path"
+    INPUT_PATH = None
     """Chave padrão para o caminho do arquivo de entrada."""
-    OUTPUT_PATH = "output_path"
+    OUTPUT_PATH = None
     """Chave padrão para o caminho do arquivo de saída."""
-    TOOL_KEY = "tool_key"
+    TOOL_KEY = None
     """Chave padrão para a ferramenta."""
 
     def __init__(self, initial_data: dict = None):
