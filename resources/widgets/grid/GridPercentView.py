@@ -78,8 +78,8 @@ class GridPercentView(QWidget):
         self.setFixedHeight(28)
         self.setMouseTracking(True)
 
-        # Carrega cores do tema (cache) para paintEvent
-        self._colors = AppStyles.theme_colors()
+        # Cores via AppStyles (skill de estilos — zero hardcoded)
+        self._p_colors = AppStyles.grid_percent_colors()
 
         # Constrói itens a partir do config
         for key, cfg in config.items():
@@ -188,21 +188,15 @@ class GridPercentView(QWidget):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
 
+        pc = self._p_colors
         x = self._ITEM_MARGIN
         font_label = QFont("Consolas", 10)
         font_value = QFont("Consolas", 10, QFont.Weight.Bold)
 
-        text_high = self._colors.get("TEXT_HIGH", "#F0F0F0")
-        text_medium = self._colors.get("TEXT_MEDIUM", "#DCDCDC")
-        accent = self._colors.get("ACCENT", "#C9A84C")
-        accent_hover = self._colors.get("ACCENT_HOVER", "#D4B95A")
-        border_subtle = self._colors.get("BORDER_SUBTLE", "#2A2A30")
-        bg_card = self._colors.get("BG_CARD", "#18181D")
-
         for key, item in self._items.items():
             # Label
             painter.setFont(font_label)
-            painter.setPen(QColor(text_medium))
+            painter.setPen(QColor(pc["label_fg"]))
             label_w = painter.fontMetrics().horizontalAdvance(item.label + ": ")
 
             # Valor
@@ -217,11 +211,11 @@ class GridPercentView(QWidget):
 
             # Fundo do item (hover)
             if self._hovered_key == key:
-                painter.fillRect(item_rect, QColor(accent + "15"))
+                painter.fillRect(item_rect, QColor(pc["hover_bg"]))
 
             # Label
             painter.setFont(font_label)
-            painter.setPen(QColor(text_medium))
+            painter.setPen(QColor(pc["label_fg"]))
             painter.drawText(
                 x + self._ITEM_PADDING_H, 0,
                 label_w, item_h - self._BAR_HEIGHT - 4,
@@ -231,7 +225,7 @@ class GridPercentView(QWidget):
 
             # Valor
             painter.setFont(font_value)
-            val_color = accent_hover if self._hovered_key == key else accent
+            val_color = pc["value_fg_hover"] if self._hovered_key == key else pc["value_fg"]
             painter.setPen(QColor(val_color))
             painter.drawText(
                 x + self._ITEM_PADDING_H + label_w, 0,
@@ -246,16 +240,16 @@ class GridPercentView(QWidget):
             bar_rect = QRect(x + self._ITEM_PADDING_H, bar_y, bar_w, self._BAR_HEIGHT)
 
             # Fundo da barra
-            painter.fillRect(bar_rect, QColor(bg_card))
+            painter.fillRect(bar_rect, QColor(pc["bar_bg"]))
 
             # Preenchimento proporcional
             fill_w = int(bar_w * min(item.value, 100.0) / 100.0)
             if fill_w > 0:
                 fill_rect = QRect(bar_rect.x(), bar_rect.y(), fill_w, bar_rect.height())
-                painter.fillRect(fill_rect, QColor(accent))
+                painter.fillRect(fill_rect, QColor(pc["bar_fill"]))
 
             # Borda sutil da barra
-            painter.setPen(QPen(QColor(border_subtle), 1))
+            painter.setPen(QPen(QColor(pc["bar_border"]), 1))
             painter.drawRect(bar_rect)
 
             x += item_w + self._ITEM_MARGIN

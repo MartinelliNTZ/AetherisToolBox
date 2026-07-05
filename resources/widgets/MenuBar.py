@@ -44,6 +44,8 @@ class MenuBar(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.setObjectName("app_menu_bar_container")
+        self.setStyleSheet(AppStyles.menu_bar_container_style())
         self._items: Dict[str, BaseMenuItem] = {}
 
         self._layout = QHBoxLayout(self)
