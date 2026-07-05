@@ -2,11 +2,12 @@
 """
 GridPercentView — Grade horizontal de indicadores percentuais
 =============================================================
-Exibe valores percentuais (CPU, RAM) lado a lado com tooltip
-individual por item ao passar o mouse.
+Widget generico que exibe N indicadores percentuais lado a lado.
+Cada item tem label, valor, barra de preenchimento e tooltip
+individual ao passar o mouse.
 
-Cada item tem seu proprio tooltip. O tooltip global do widget
-so e usado como fallback quando o mouse esta fora de qualquer item.
+Nao contem logica de negocios — o consumidor define os itens
+via config e atualiza via set(key, value, tooltip).
 
 Uso:
     view = GridPercentView({
@@ -98,7 +99,7 @@ class GridPercentView(QWidget):
     # ── Size hints ─────────────────────────────────────────────────
 
     def sizeHint(self) -> QSize:
-        """Largura mínima: 90px por item (CPU + RAM = 180px)."""
+        """Largura mínima: 90px por item."""
         n = len(self._items)
         w = n * self._ITEM_MIN_W + (n - 1) * self._ITEM_MARGIN
         return QSize(max(w, 180), 28)
@@ -113,7 +114,7 @@ class GridPercentView(QWidget):
         Atualiza o valor de um indicador.
 
         Args:
-            key: Chave do indicador (ex: "cpu").
+            key: Chave do indicador.
             value: Novo valor percentual (0-100).
             tooltip: Tooltip especifico deste item. Se None, gera automatico.
         """
@@ -160,12 +161,11 @@ class GridPercentView(QWidget):
     def mouseMoveEvent(self, event):
         """
         Ao passar o mouse sobre um item, exibe o tooltip especifico
-        daquele item (CPU mostra info de CPU, RAM mostra info de RAM).
+        daquele item. Fora de qualquer item, mostra fallback global.
         """
         key = self._item_at(event.position().x())
         if key:
             item = self._items[key]
-            # Tooltip individual do item hovered
             self.setToolTip(item.tooltip)
             self.setCursor(
                 Qt.PointingHandCursor if item.callback else Qt.ArrowCursor

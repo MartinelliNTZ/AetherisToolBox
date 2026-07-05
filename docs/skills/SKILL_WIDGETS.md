@@ -1018,6 +1018,37 @@ recent_menu.project_clicked.connect(self._on_recent_clicked)
 
 ---
 
+### `GridPercentView` — `grid/GridPercentView.py`
+Grade horizontal de indicadores percentuais generica. Exibe N indicadores lado a lado, cada um com label, valor percentual, barra de preenchimento e tooltip individual ao passar o mouse. Suporta callback por item.
+
+Nao contem logica de negocios — o consumidor define os itens via config e atualiza via `set(key, value, tooltip)`.
+
+```python
+from resources.widgets.grid.GridPercentView import GridPercentView
+
+view = GridPercentView({
+    "cpu": {"label": "CPU", "value": 0.0, "tooltip": "Aguardando...",
+            "callback": self._on_cpu_clicked},
+    "ram": {"label": "RAM", "value": 0.0, "tooltip": "Aguardando..."},
+})
+view.set("cpu", 45.2, tooltip="CPU: 45.2% (8 cores fisicos, ...)")
+view.set("ram", 72.8, tooltip="RAM: 72.8% (23.4 GB / 32.0 GB usados)")
+
+view.values           # {"cpu": 45.2, "ram": 72.8}
+view.get("cpu")       # 45.2
+view.item_clicked.connect(self._on_item_clicked)
+```
+
+**Sinais:** `item_clicked(key, value)` — emitido ao clicar em item com callback
+
+**Parâmetros do config:**
+- `label`: str — texto do indicador
+- `value`: float — valor inicial (0-100)
+- `tooltip`: str — tooltip exibido ao passar mouse sobre o item
+- `callback`: callable(key, value) | None — opcional, ativa clique
+
+---
+
 ### `GridRadio` — `GridRadio.py`
 Grade de radio buttons organizados em colunas configuráveis, similar a `GridCheckBox`. Cada radio button tem label, description e tooltip definidos por dicionário.
 
