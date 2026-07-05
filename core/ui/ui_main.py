@@ -346,6 +346,12 @@ class MainWindow(QMainWindow):
         else:
             self.progress.setFormat(f" {value:.2f}% - executando... ")
 
+    def closeEvent(self, event):
+        """Garante que serviços em background sejam parados ao fechar."""
+        if hasattr(self, '_menu_manager'):
+            self._menu_manager.shutdown()
+        super().closeEvent(event)
+
     def resizeEvent(self, event):
         super().resizeEvent(event)
         if hasattr(self, '_hud'):

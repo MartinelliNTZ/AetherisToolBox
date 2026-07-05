@@ -7,28 +7,33 @@ Cada aba é um BaseMenuItem que sabe construir seu próprio QMenu.
 
 Não contém lógica de negócio — apenas recebe items prontos e os
 adiciona ao QMenuBar.
+
+Suporta widget à direita via add_widget_right().
 """
 
 from __future__ import annotations
 
 from typing import Dict
 
-from PySide6.QtCore import Signal
-from PySide6.QtWidgets import QMenuBar
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtWidgets import QHBoxLayout, QMenuBar, QWidget
 
 from core.menus.BaseMenuItem import BaseMenuItem
 from resources.styles.AppStyles import AppStyles
 
 
-class MenuBar(QMenuBar):
+class MenuBar(QWidget):
     """
-    Container da barra de menus.
+    Container da barra de menus com suporte a widget à direita.
+
+    Layout: [QMenuBar] [stretch] [right_widgets]
 
     Uso:
         menubar = MenuBar()
         menubar.add_menu_item(item_arquivo)
         menubar.add_menu_item(item_sistema)
         menubar.add_menu_item(item_ajuda)
+        menubar.add_widget_right(monitor_widget)
 
     Sinais:
         action_triggered — repassa o sinal do BaseMenuItem que foi clicado
@@ -39,13 +44,24 @@ class MenuBar(QMenuBar):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setObjectName("app_menu_bar")
-        self._apply_style()
         self._items: Dict[str, BaseMenuItem] = {}
 
-    def _apply_style(self):
-        """Aplica o estilo padrão da barra de menus."""
-        self.setStyleSheet(AppStyles.menu_bar_style())
+        self._layout = QHBoxLayout(self)
+        self._layout.setContentsMargins(0, 0, 0, 0)
+        self._layout.setSpacing(0)
+
+        self._menu_bar = QMenuBar()
+        self._menu_bar.setObjectName("app_menu_bar")
+        self._menu_bar.setStyleSheet(AppStyles.menu_bar_style())
+        self._layout.addWidget(self._menu_bar)
+        self._layout.addStretch(1)
+
+        self._right_layout = QHBoxLayout()
+        self._right_layout.setContentsMargins(0, 0, 8, 0)
+        self._right_layout.setSpacing(4)
+        self._layout.addLayout(self._right_layout)
+
+        self.setFixedHeight(30)
 
     # ── API pública ────────────────────────────────────────────────
 
@@ -60,7 +76,7 @@ class MenuBar(QMenuBar):
         self._items[name] = item
 
         menu = item.build_menu()
-        self.addMenu(menu)
+        self._menu_bar.addMenu(menu)
 
         # Repassa o sinal de clique do item para o container
         item.action_triggered.connect(self._on_item_triggered)
@@ -71,9 +87,9 @@ class MenuBar(QMenuBar):
             return False
 
         # Remove o QMenu correspondente
-        for action in self.actions():
+        for action in self._menu_bar.actions():
             if action.text() == title and action.menu():
-                self.removeAction(action)
+                self._menu_bar.removeAction(action)
                 break
 
         del self._items[title]
@@ -89,13 +105,17 @@ class MenuBar(QMenuBar):
         Útil quando um item muda dinamicamente (ex: SystemMenuItem).
         """
         # Remove todos os menus atuais
-        for action in self.actions():
-            self.removeAction(action)
+        for action in self._menu_bar.actions():
+            self._menu_bar.removeAction(action)
 
         # Reconstrói
         for name, item in self._items.items():
             menu = item.build_menu()
-            self.addMenu(menu)
+            self._menu_bar.addMenu(menu)
+
+    def add_widget_right(self, widget: QWidget) -> None:
+        """Adiciona um widget alinhado à direita da barra de menus."""
+        self._right_layout.addWidget(widget)
 
     # ── Internos ───────────────────────────────────────────────────
 

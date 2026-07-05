@@ -36,11 +36,13 @@ from core.model.Tool import Tool
 from resources.widgets.MenuBar import MenuBar
 from resources.widgets.ToolGroup import ToolGroup
 from resources.widgets.ToolBar import ToolBar
+from resources.widgets.grid.GridPercentView import GridPercentView
 from utils.ExplorerUtils import ExplorerUtils
 from utils.MessageBox import MessageBox
 from utils.Preferences import Preferences
 from utils.ProjectUtil import ProjectUtil
 from utils.RecentProjectsManager import RecentProjectsManager
+from core.monitor.SystemMonitorService import SystemMonitorService
 
 
 class MenuManager(QObject):
@@ -69,6 +71,8 @@ class MenuManager(QObject):
         self._toolbar_widget: Optional[QWidget] = None
         self._logger = LogUtils(tool=ToolKey.SYSTEM.value, class_name="MenuManager")
         self._recent_manager = RecentProjectsManager()
+        self._monitor_service: Optional["SystemMonitorService"] = None
+        self._monitor_view: Optional["GridPercentView"] = None
 
     # ────────────────────────────────────────────────────────────────
     # API pública
@@ -135,6 +139,9 @@ class MenuManager(QObject):
         else:
             self._toolbar_widget = QWidget()
             self._toolbar_widget.setVisible(False)
+
+        # ── 7. System Monitor ──
+        self._setup_system_monitor()
 
     # ────────────────────────────────────────────────────────────────
     # Widgets prontos
@@ -384,6 +391,51 @@ class MenuManager(QObject):
                 title="Abrir Recente",
                 detail=str(e),
             )
+
+    # ────────────────────────────────────────────────────────────────
+    # System Monitor
+    # ────────────────────────────────────────────────────────────────
+
+    def _setup_system_monitor(self) -> None:
+        """Configura o monitor de CPU/RAM na barra de menus."""
+        self._monitor_view = GridPercentView({
+            "cpu": {
+                "label": "CPU",
+                "value": 0.0,
+                "tooltip": "Aguardando...",
+                "callback": self._on_cpu_clicked,
+            },
+            "ram": {
+                "label": "RAM",
+                "value": 0.0,
+                "tooltip": "Aguardando...",
+            },
+        })
+
+        self._monitor_service = SystemMonitorService(interval_ms=2000)
+        self._monitor_service.stats_updated.connect(self._on_stats_updated)
+        self._monitor_service.start()
+
+        self._menu_bar.add_widget_right(self._monitor_view)
+
+    def _on_stats_updated(self, data: dict) -> None:
+        """Atualiza o GridPercentView com novos valores."""
+        self._monitor_view.set("cpu", data["cpu"], tooltip=data.get("cpu_tooltip"))
+        self._monitor_view.set("ram", data["ram"], tooltip=data.get("ram_tooltip"))
+
+    def _on_cpu_clicked(self, key: str, value: float) -> None:
+        """Callback ao clicar em CPU."""
+        self._logger.info(
+            "CPU monitor clicked", code="MONITOR_CPU_CLICK",
+            value=value,
+        )
+
+    def shutdown(self) -> None:
+        """Para serviços em background."""
+        if self._monitor_service:
+            self._monitor_service.stop()
+            self._monitor_service = None
+            self._logger.info("System monitor shut down", code="MONITOR_SHUTDOWN")
 
     # ────────────────────────────────────────────────────────────────
     # Métodos privados
