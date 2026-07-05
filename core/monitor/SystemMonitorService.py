@@ -35,6 +35,7 @@ from PySide6.QtCore import QObject, QTimer, Signal
 
 from core.config.LogUtils import LogUtils
 from core.enum.ToolKey import ToolKey
+from core.governor.CpuGovernor import CpuGovernor
 from core.governor.ResourceGovernor import ResourceGovernor
 from core.manager.SignalManager import SignalManager
 
@@ -102,10 +103,30 @@ class SystemMonitorService(QObject):
 
     # ── Internos ───────────────────────────────────────────────────
 
+    def _build_tooltips(self, cpu: float, ram: float) -> tuple[str, str]:
+        """Constrói tooltips a partir dos dados brutos."""
+        cpu_tip = CpuGovernor.cpu_tooltip()
+        ram_snap = self._governor._ram.snapshot(include_history=False)
+        ram_tip = (
+            f"RAM: {ram:.1f}% "
+            f"({ram_snap['used_system_human']} / "
+            f"{ram_snap['total_human']} usados)"
+        )
+        return cpu_tip, ram_tip
+
     def _poll(self) -> None:
-        """Polling interno: coleta via governor e emite sinais."""
+        """Polling interno: coleta via governor, formata e emite sinais."""
         try:
-            data = self._governor.system_stats()
+            raw = self._governor.system_stats()
+            cpu = raw["cpu"]
+            ram = raw["ram"]
+            cpu_tip, ram_tip = self._build_tooltips(cpu, ram)
+            data = {
+                "cpu": cpu,
+                "ram": ram,
+                "cpu_tooltip": cpu_tip,
+                "ram_tooltip": ram_tip,
+            }
             self.stats_updated.emit(data)
             SignalManager.instance().system_stats_updated.emit(data)
         except Exception as e:

@@ -14,16 +14,15 @@ Melhorias:
 
 from __future__ import annotations
 
-import logging
 import os
 import time
 from typing import Dict, Optional
 
 import psutil
 
+from core.config.LogUtils import LogUtils
+from core.enum.ToolKey import ToolKey
 from utils.FormatUtils import FormatUtils
-
-_logger = logging.getLogger(__name__)
 
 
 class RamGovernor:
@@ -108,8 +107,11 @@ class RamGovernor:
                 pressure = ram_pressure
         except Exception as e:
             pressure = ram_pressure
-            _logger.warning(
-                "Erro ao ler swap para memory_pressure", exc_info=e,
+            LogUtils(
+                tool=ToolKey.SYSTEM.value, class_name="RamGovernor",
+            ).warning(
+                "Erro ao ler swap para memory_pressure", code="RAM_SWAP_ERR",
+                error=str(e),
             )
         return pressure
 
@@ -145,8 +147,11 @@ class RamGovernor:
         except Exception as e:
             s_total = s_used = 0
             s_pct = 0.0
-            _logger.warning(
-                "Erro ao ler swap para snapshot", exc_info=e,
+            LogUtils(
+                tool=ToolKey.SYSTEM.value, class_name="RamGovernor",
+            ).warning(
+                "Erro ao ler swap para snapshot", code="RAM_SWAP_SNAP_ERR",
+                error=str(e),
             )
 
         result: Dict[str, object] = {

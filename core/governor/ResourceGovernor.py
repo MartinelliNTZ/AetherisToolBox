@@ -213,25 +213,18 @@ class ResourceGovernor:
 
     def system_stats(self) -> Dict[str, object]:
         """
-        Retorna estatisticas unificadas de CPU e RAM do sistema.
+        Retorna estatisticas brutas de CPU e RAM do sistema.
 
-        Centraliza a coleta de dados do sistema para que o
-        SystemMonitorService consuma do ResourceGovernor em vez de
-        chamar psutil diretamente.
+        Apenas dados crus — sem tooltips. O consumidor
+        (ex: SystemMonitorService) formata o display.
 
         Returns:
-            dict com cpu, ram, cpu_tooltip, ram_tooltip.
+            dict com cpu (float), ram (float, percent_system).
         """
         ram_snap = self._ram.snapshot(include_history=False)
         return {
             "cpu": CpuGovernor.cpu_percent(),
             "ram": ram_snap["percent_system"],
-            "cpu_tooltip": CpuGovernor.cpu_tooltip(),
-            "ram_tooltip": (
-                f"RAM: {ram_snap['percent_system']:.1f}% "
-                f"({ram_snap['used_system_human']} / "
-                f"{ram_snap['total_human']} usados)"
-            ),
         }
 
     def _log_warning(self, reason: str) -> None:

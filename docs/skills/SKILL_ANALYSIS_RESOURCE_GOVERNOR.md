@@ -184,9 +184,23 @@ psutil
 | Arquivo | Tipo | O quê muda |
 |---|---|---|
 | `core/governor/CpuGovernor.py` | 🔧 MODIFICAR | Adiciona `cpu_percent()`, `cpu_count_physical()`, `cpu_count_logical()`, `cpu_tooltip()` |
-| `core/governor/ResourceGovernor.py` | 🔧 MODIFICAR | Adiciona `system_stats()` que retorna dict unificado CPU+RAM |
-| `core/monitor/SystemMonitorService.py` | 🔧 MODIFICAR | Construtor agora recebe `governor: ResourceGovernor`; delega coleta a `governor.system_stats()` |
+| `core/governor/ResourceGovernor.py` | 🔧 MODIFICAR | Adiciona `system_stats()` que retorna dict com `cpu` e `ram` **brutos** (sem tooltips) |
+| `core/monitor/SystemMonitorService.py` | 🔧 MODIFICAR | Construtor recebe `governor: ResourceGovernor`; `_build_tooltips()` formata tooltips localmente |
 | `core/config/MenuManager.py` | 🔧 MODIFICAR | Cria `ResourceGovernor` e o injeta no `SystemMonitorService` |
+| `core/governor/RamGovernor.py` | 🔧 CORRIGIR | `_record_history()` movido para dentro de `if include_history:`; `except` com `as e` + `LogUtils` |
+
+### Separação de responsabilidades
+
+```
+ResourceGovernor.system_stats()  →  {"cpu": 45.2, "ram": 72.8}   ← dados crus
+                                        │
+                                        ▼
+SystemMonitorService._build_tooltips()  →  tooltips formatados    ← display
+```
+
+- `ResourceGovernor` **não** sabe como os dados serão exibidos — retorna apenas valores numéricos
+- `SystemMonitorService` é responsável por formatar tooltips e dicionário completo
+- `CpuGovernor.cpu_tooltip()` é usado pelo monitor, não pelo governor
 
 ### Benefícios
 
@@ -194,3 +208,5 @@ psutil
 2. **Dados consistentes** — CPU e RAM vêm do mesmo ciclo de polling
 3. **Governor aware** — o monitor reflete as mesmas métricas que o governor usa para decisões
 4. **Sem quebra de contrato** — `SystemMonitorService` mantém mesma API pública (`start()`, `stop()`, `poll_once()`, `stats_updated`)
+5. **LogUtils em vez de logging bruto** — `RamGovernor` usa `LogUtils` com `ToolKey.SYSTEM` (Contrato 3 e 26)
+6. **Tooltips no consumidor** — `ResourceGovernor` não formata display, respeitando separação de responsabilidades
