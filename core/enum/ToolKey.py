@@ -37,6 +37,7 @@ class ToolKey(str, Enum):
     IDW_INTERPOLATOR = "IdwInterpolator"
     LAS_TILER = "LasTiler"
     SYSTEM_MONITOR = "SystemMonitor"
+    LAS_VECTOR_CONVERTER = "LasVectorConverter"
 
     # ── Método utilitário ──────────────────────────────────────────────
 
