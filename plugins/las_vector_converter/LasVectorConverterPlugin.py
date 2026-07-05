@@ -266,7 +266,7 @@ class LasVectorConverterPlugin(BasePlugin):
         self.page.set_badge(self.page.PRONTA)
 
         SignalManager.instance().console_message.emit(
-            f"[LasVectorConverter] Modo alterado para: {'Pasta' if mode_key == 'folder' else 'Arquivo'}"
+            f"Modo alterado para: {'Pasta' if mode_key == 'folder' else 'Arquivo'}"
         )
 
     def _on_direction_changed(self, key: str):
@@ -279,7 +279,7 @@ class LasVectorConverterPlugin(BasePlugin):
             self._on_input_path_changed(self._current_path)
 
         SignalManager.instance().console_message.emit(
-            f"[LasVectorConverter] Direção: {'LAS→Vetor' if key == 'las_to_vector' else 'Vetor→LAS'}"
+            f"Direção: {'LAS→Vetor' if key == 'las_to_vector' else 'Vetor→LAS'}"
         )
 
     def _on_format_changed(self, key: str, text: str):
@@ -326,7 +326,7 @@ class LasVectorConverterPlugin(BasePlugin):
             self._sel_saida.set_path(output_dir)
             self._btns.set_enabled("executar", True)
             SignalManager.instance().console_message.emit(
-                f"[LasVectorConverter] Destino: {output_dir}"
+                f"Destino: {output_dir}"
             )
             return
 
@@ -335,7 +335,7 @@ class LasVectorConverterPlugin(BasePlugin):
         self._sel_saida.set_path(output_dir)
         self._btns.set_enabled("executar", True)
         SignalManager.instance().console_message.emit(
-            f"[LasVectorConverter] Destino: {output_dir}"
+            f"Destino: {output_dir}"
         )
 
     def _on_executar(self):
@@ -396,7 +396,7 @@ class LasVectorConverterPlugin(BasePlugin):
         self.statistics.start(n=0, ntype=ntype, ntotal=n_total)
 
         SignalManager.instance().console_message.emit(
-            f"[LasVectorConverter] {self.statistics.summary}"
+            f"{self.statistics.summary}"
         )
 
         self._btns.set_all_enabled(False)
@@ -425,7 +425,7 @@ class LasVectorConverterPlugin(BasePlugin):
 
         dir_label = "LAS→Vetor" if direction == "las_to_vector" else "Vetor→LAS"
         SignalManager.instance().console_message.emit(
-            f"[LasVectorConverter] Iniciando conversão "
+            f"Iniciando conversão "
             f"({dir_label}, "
             f"formato={output_format}, crs={crs_str}, "
             f"{n_files} arquivo(s), ~{n_total:,} {ntype})..."
@@ -513,9 +513,9 @@ class LasVectorConverterPlugin(BasePlugin):
         )
 
         if output_files:
-            SignalManager.instance().console_message.emit(
-                f"[LasVectorConverter] Primeiro arquivo: {output_files[0]}"
-            )
+                SignalManager.instance().console_message.emit(
+                    f"Primeiro arquivo: {output_files[0]}"
+                )
 
         self.logger.info(
             "Conversão concluída com sucesso",
@@ -543,7 +543,7 @@ class LasVectorConverterPlugin(BasePlugin):
         """Callback de erro da pipeline."""
         SignalManager.instance().execution_cancelled.emit(self.tool_key)
         SignalManager.instance().console_message.emit(
-            f"[LasVectorConverter] ERRO: {message}"
+            f"ERRO: {message}"
         )
         self.logger.error(
             "Erro na conversão",

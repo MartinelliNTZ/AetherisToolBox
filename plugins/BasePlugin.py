@@ -209,11 +209,11 @@ class BasePlugin(QWidget):
 
         if link_html:
             SignalManager.instance().console_html.emit(
-                f"[{self.tool_key}] {message} 📂 {link_html}"
+                f"{message} 📂 {link_html}"
             )
         else:
             SignalManager.instance().console_message.emit(
-                f"[{self.tool_key}] {message} {output_path}"
+                f"{message} {output_path}"
             )
 
         self.logger.info(
@@ -259,7 +259,7 @@ class BasePlugin(QWidget):
             parts.append(f"{n_processed:,} {ntype}")
         parts.append(f"em {elapsed_str}")
 
-        msg = f"[{self.tool_key}] {' | '.join(parts)}."
+        msg = f"{' | '.join(parts)}."
         SignalManager.instance().console_message.emit(msg)
 
         self.logger.info(

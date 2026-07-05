@@ -410,7 +410,7 @@ class PointBoundaryPlugin(BasePlugin):
             "stages": [total_estimate, 3],
         })
         SignalManager.instance().console_message.emit(
-            f"[PointBoundary] Iniciando geracao de limite: "
+            f"Iniciando geracao de limite: "
             f"{os.path.basename(self._current_path)}"
         )
 
@@ -480,7 +480,7 @@ class PointBoundaryPlugin(BasePlugin):
                 pasta = os.path.dirname(gpkg_final)
                 encoded = pasta.replace("\\", "/")
                 html_msg = (
-                    f"[PointBoundary] Limite gerado: "
+                    f"Limite gerado: "
                     f"area={hull_summary.get('area_hull', '?')}, "
                     f"ratio={hull_summary.get('ratio_ideal', '?')} | "
                     f'<a href="file:///{encoded}" style="color:#3B82F6;">Abrir pasta</a>'
@@ -488,7 +488,7 @@ class PointBoundaryPlugin(BasePlugin):
                 SignalManager.instance().console_html.emit(html_msg)
             else:
                 msg = (
-                    f"[PointBoundary] Limite gerado: "
+                    f"Limite gerado: "
                     f"area={hull_summary.get('area_hull', '?')}, "
                     f"ratio={hull_summary.get('ratio_ideal', '?')}"
                 )
@@ -512,7 +512,7 @@ class PointBoundaryPlugin(BasePlugin):
         )
         SignalManager.instance().execution_cancelled.emit(self.tool_key)
         SignalManager.instance().console_message.emit(
-            f"[PointBoundary] ERRO: {message}"
+            f"ERRO: {message}"
         )
         self.logger.error(
             "Erro na geracao de limite",
@@ -596,7 +596,7 @@ class PointBoundaryPlugin(BasePlugin):
             )
 
             SignalManager.instance().console_message.emit(
-                f"[PointBoundary] JSON salvo: {file_path}"
+                f"JSON salvo: {file_path}"
             )
             MessageBox.show_info(
                 f"Resultados salvos em:\n{file_path}",
