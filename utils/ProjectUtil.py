@@ -195,6 +195,38 @@ class ProjectUtil:
         except Exception:
             return None
 
+    # ── Listar arquivos por extensões ──────────────────────────────
+
+    @staticmethod
+    def get_files_by_extensions(extensions: list[str]) -> dict[str, str]:
+        """
+        Varre a pasta do projeto ativo e retorna um dict com nome e caminho
+        completo de todos os arquivos que possuem as extensões especificadas.
+
+        Args:
+            extensions: Lista de extensões (ex: [".las", ".laz"]).
+
+        Returns:
+            Dict no formato {nome_arquivo: caminho_completo}.
+            Ex: {"nuvem.las": "C:/projeto/dados/nuvem.las"}
+        """
+        root = ProjectUtil.get_root_folder()
+        if not root:
+            return {}
+
+        result: dict[str, str] = {}
+        try:
+            for dirpath, _, filenames in os.walk(root):
+                for fname in filenames:
+                    ext = os.path.splitext(fname)[1].lower()
+                    if ext in extensions:
+                        full_path = os.path.join(dirpath, fname)
+                        result[fname] = full_path
+        except (OSError, PermissionError) as e:
+            return result
+
+        return result
+
     # ── Atualizar campo específico ──────────────────────────────────
 
     @staticmethod

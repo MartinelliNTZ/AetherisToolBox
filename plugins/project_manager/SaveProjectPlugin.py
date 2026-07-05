@@ -192,7 +192,7 @@ class SaveProjectPlugin(BasePlugin):
         )
 
         # 3. ProjectUtil cuida da validação — se já existe, pergunta
-        result = ProjectUtil.create_project_safe(folder, project_name, self)
+        result = ProjectUtil.create_project_safe(folder, project_name)
         if result is None:
             self.logger.error(
                 "Falha ao criar arquivo de projeto",

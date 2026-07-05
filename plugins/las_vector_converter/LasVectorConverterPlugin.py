@@ -40,6 +40,8 @@ from resources.widgets.simple.SimpleSelector import SimpleSelector
 from utils.LasUtil import LasUtil
 from utils.MessageBox import MessageBox
 from utils.ProcessStatisticsUtil import ProcessStatisticsUtil
+from utils.ProjectUtil import ProjectUtil
+from utils.StringUtils import StringUtils
 
 
 class LasVectorConverterPlugin(BasePlugin):
@@ -189,6 +191,14 @@ class LasVectorConverterPlugin(BasePlugin):
         )
         grupo_config.group_layout.addWidget(self._spin_crs)
 
+        # SimpleComboBox: arquivos LAS/LAZ do projeto (teste)
+        self._combo_projeto = SimpleComboBox(
+            items={"": "Nenhum arquivo encontrado"},
+            on_item_changed=self._on_projeto_file_changed,
+            label="Arquivos do Projeto:",
+        )
+        grupo_config.group_layout.addWidget(self._combo_projeto)
+
         # GridDoubleSpinBox: pontos por tile (opcional, LAS→Vetor)
         self._spin_tile = GridDoubleSpinBox(
             {
@@ -280,6 +290,15 @@ class LasVectorConverterPlugin(BasePlugin):
 
         SignalManager.instance().console_message.emit(
             f"Direção: {'LAS→Vetor' if key == 'las_to_vector' else 'Vetor→LAS'}"
+        )
+
+    def _on_projeto_file_changed(self, key: str):
+        """Disparado quando o usuário seleciona um arquivo do projeto."""
+        if not key:
+            return
+        self._sel_entrada.set_path(key)
+        SignalManager.instance().console_message.emit(
+            f"Arquivo do projeto selecionado: {key}"
         )
 
     def _on_format_changed(self, key: str, text: str):
@@ -707,7 +726,22 @@ class LasVectorConverterPlugin(BasePlugin):
         self._spin_crs.set_values({"crs": crs})
         self._spin_tile.set_values({"points_per_tile": points_per_tile})
 
+        # Popula combo de arquivos do projeto
+        self._populate_project_files()
+
         self.logger.info("Preferências carregadas", code="PREFS_LOADED")
+
+    def _populate_project_files(self):
+        """Busca arquivos LAS/LAZ no projeto ativo e popula o combo."""
+        las_exts = StringUtils.get_extensions_list(StringUtils.LAS_EXTENSIONS)
+        files = ProjectUtil.get_files_by_extensions(las_exts)
+        if files:
+            # {caminho_completo: nome_arquivo} para exibir nome e usar path como valor
+            items = {v: k for k, v in files.items()}
+            self._combo_projeto.set_items(items)
+            self._combo_projeto.select_first()
+        else:
+            self._combo_projeto.set_items({"": "Nenhum arquivo encontrado"})
 
     def save_prefs(self) -> None:
         """Salva preferências atuais no cache de memória."""
