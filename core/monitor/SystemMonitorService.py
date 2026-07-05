@@ -35,7 +35,6 @@ from PySide6.QtCore import QObject, QTimer, Signal
 
 from core.config.LogUtils import LogUtils
 from core.enum.ToolKey import ToolKey
-from core.governor.CpuGovernor import CpuGovernor
 from core.governor.ResourceGovernor import ResourceGovernor
 from core.manager.SignalManager import SignalManager
 
@@ -104,14 +103,9 @@ class SystemMonitorService(QObject):
     # ── Internos ───────────────────────────────────────────────────
 
     def _build_tooltips(self, cpu: float, ram: float) -> tuple[str, str]:
-        """Constrói tooltips a partir dos dados brutos."""
-        cpu_tip = CpuGovernor.cpu_tooltip()
-        ram_snap = self._governor._ram.snapshot(include_history=False)
-        ram_tip = (
-            f"RAM: {ram:.1f}% "
-            f"({ram_snap['used_system_human']} / "
-            f"{ram_snap['total_human']} usados)"
-        )
+        """Constrói tooltips a partir dos dados brutos do governor."""
+        cpu_tip = self._governor.cpu_tooltip()
+        ram_tip = self._governor.ram_tooltip()
         return cpu_tip, ram_tip
 
     def _poll(self) -> None:

@@ -163,44 +163,54 @@ passou a consumir **exclusivamente** do `ResourceGovernor` em vez de chamar
 
 ```
 psutil
-  ├── RamGovernor (via ResourceGovernor._ram)
+  ├── RamGovernor (instancia em ResourceGovernor._ram)
   │     └── snapshot() → percent_system, used_system_human, total_human
   │
-  └── CpuGovernor (via ResourceGovernor.system_stats())
-        └── cpu_percent(), cpu_tooltip()
+  └── CpuGovernor (instancia em ResourceGovernor._cpu)
+        └── percent(), tooltip()
               │
               ▼
-    ResourceGovernor.system_stats()
+    ResourceGovernor  ← ponto unico de acesso
+      ├── system_stats()  →  {"cpu": 45.2, "ram": 72.8}   ← dados crus
+      ├── cpu_tooltip()   →  "CPU: 45.2% (8 cores fisicos, ...)"
+      └── ram_tooltip()   →  "RAM: 72.8% (23.4 GB / 32.0 GB ...)"
               │
               ▼
     SystemMonitorService._poll()
-              │
-              ├── stats_updated (Signal) → GridPercentView (MenuBar)
-              └── SignalManager.system_stats_updated → outros componentes
+      ├── raw = governor.system_stats()
+      ├── cpu_tip = governor.cpu_tooltip()
+      ├── ram_tip = governor.ram_tooltip()
+      ├── stats_updated (Signal) → GridPercentView (MenuBar)
+      └── SignalManager.system_stats_updated → outros componentes
 ```
+
+### Regra de ouro
+
+> **Nenhum consumidor importa CpuGovernor ou RamGovernor diretamente.**
+> Todo acesso a dados de CPU/RAM passa exclusivamente pelo ResourceGovernor.
 
 ### Mudanças realizadas
 
 | Arquivo | Tipo | O quê muda |
 |---|---|---|
-| `core/governor/CpuGovernor.py` | 🔧 MODIFICAR | Adiciona `cpu_percent()`, `cpu_count_physical()`, `cpu_count_logical()`, `cpu_tooltip()` |
-| `core/governor/ResourceGovernor.py` | 🔧 MODIFICAR | Adiciona `system_stats()` que retorna dict com `cpu` e `ram` **brutos** (sem tooltips) |
-| `core/monitor/SystemMonitorService.py` | 🔧 MODIFICAR | Construtor recebe `governor: ResourceGovernor`; `_build_tooltips()` formata tooltips localmente |
+| `core/governor/CpuGovernor.py` | 🔧 MODIFICAR | `max_workers()`/`n_jobs()` viram `@classmethod` (retrocompatível); novos métodos `percent()`, `count_physical()`, `count_logical()`, `tooltip()` são de instância |
+| `core/governor/ResourceGovernor.py` | 🔧 MODIFICAR | Adiciona `self._cpu = CpuGovernor()`; expõe `cpu_percent()`, `ram_percent()`, `cpu_tooltip()`, `ram_tooltip()`, `system_stats()` — todos delegam aos sub-governors |
+| `core/monitor/SystemMonitorService.py` | 🔧 MODIFICAR | Remove import de `CpuGovernor`; `_build_tooltips()` chama `governor.cpu_tooltip()` e `governor.ram_tooltip()` |
 | `core/config/MenuManager.py` | 🔧 MODIFICAR | Cria `ResourceGovernor` e o injeta no `SystemMonitorService` |
 | `core/governor/RamGovernor.py` | 🔧 CORRIGIR | `_record_history()` movido para dentro de `if include_history:`; `except` com `as e` + `LogUtils` |
 
 ### Separação de responsabilidades
 
 ```
-ResourceGovernor.system_stats()  →  {"cpu": 45.2, "ram": 72.8}   ← dados crus
-                                        │
-                                        ▼
-SystemMonitorService._build_tooltips()  →  tooltips formatados    ← display
-```
+ResourceGovernor  (orquestrador — ponto unico)
+  ├── self._cpu (CpuGovernor)  →  percent(), tooltip()
+  └── self._ram (RamGovernor)  →  snapshot(), percent_used()
 
-- `ResourceGovernor` **não** sabe como os dados serão exibidos — retorna apenas valores numéricos
-- `SystemMonitorService` é responsável por formatar tooltips e dicionário completo
-- `CpuGovernor.cpu_tooltip()` é usado pelo monitor, não pelo governor
+SystemMonitorService  (consumidor — apenas ResourceGovernor)
+  ├── governor.system_stats()    →  dados crus
+  ├── governor.cpu_tooltip()     →  tooltip CPU
+  └── governor.ram_tooltip()     →  tooltip RAM
+```
 
 ### Benefícios
 
@@ -209,4 +219,5 @@ SystemMonitorService._build_tooltips()  →  tooltips formatados    ← display
 3. **Governor aware** — o monitor reflete as mesmas métricas que o governor usa para decisões
 4. **Sem quebra de contrato** — `SystemMonitorService` mantém mesma API pública (`start()`, `stop()`, `poll_once()`, `stats_updated`)
 5. **LogUtils em vez de logging bruto** — `RamGovernor` usa `LogUtils` com `ToolKey.SYSTEM` (Contrato 3 e 26)
-6. **Tooltips no consumidor** — `ResourceGovernor` não formata display, respeitando separação de responsabilidades
+6. **Tooltips no ResourceGovernor** — `cpu_tooltip()` e `ram_tooltip()` são métodos do governor, padronizando o formato para todos os consumidores
+7. **Nenhum import de sub-governor fora do pacote** — `SystemMonitorService` importa APENAS `ResourceGovernor`

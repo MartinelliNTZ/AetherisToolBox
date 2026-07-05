@@ -14,10 +14,12 @@ Constante editavel:
 Uso:
     from core.governor.CpuGovernor import CpuGovernor
 
-    workers = CpuGovernor.max_workers()  # int(32 * 0.50) = 16
-    n = CpuGovernor.n_jobs()             # mesmo valor, para joblib
-    pct = CpuGovernor.cpu_percent()      # 45.2
-    tip = CpuGovernor.cpu_tooltip()      # "CPU: 45.2% (8 cores, ...)"
+    cpu = CpuGovernor()
+    pct = cpu.percent()          # 45.2
+    phys = cpu.count_physical()  # 8
+    log = cpu.count_logical()    # 16
+    tip = cpu.tooltip()          # "CPU: 45.2% (8 cores fisicos, 16 logicos)"
+    workers = cpu.max_workers()  # int(32 * 0.25) = 8
 """
 
 from __future__ import annotations
@@ -31,14 +33,18 @@ class CpuGovernor:
     """
     Governa o uso maximo de CPUs pelo software.
 
-    Metodos de classe — nao requer instanciacao.
+    Instanciado pelo ResourceGovernor como self._cpu.
 
     Attributes:
         CPU_USAGE_LIMIT: Fracao dos CPUs totais que o software pode usar
-                         (0.0 a 1.0). Padrao: 0.50 (50%).
+                         (0.0 a 1.0). Padrao: 0.25 (25%).
     """
 
     CPU_USAGE_LIMIT: float = 0.25  # <<< EDITAVEL: 0.0 a 1.0
+
+    def __init__(self) -> None:
+        # Chamada dummy para psutil.cpu_percent ter baseline
+        psutil.cpu_percent(interval=None)
 
     @classmethod
     def max_workers(cls) -> int:
@@ -63,43 +69,35 @@ class CpuGovernor:
         """
         return cls.max_workers()
 
-    # ── v2: Consulta de uso real da CPU ─────────────────────────────
+    # ── Consulta de uso real da CPU ────────────────────────────────
 
-    @classmethod
-    def cpu_percent(cls) -> float:
+    def percent(self) -> float:
         """
         Uso atual da CPU em percentual (0.0 a 100.0).
-
-        Nota: A primeira chamada pode retornar 0.0 pois o psutil
-        precisa de uma amostra anterior. Faca uma chamada dummy
-        no startup se precisar de valores precisos desde o inicio.
 
         Returns:
             float: Percentual de uso da CPU (ultimo intervalo).
         """
         return psutil.cpu_percent(interval=None)
 
-    @classmethod
-    def cpu_count_physical(cls) -> int:
+    def count_physical(self) -> int:
         """Numero de nucleos fisicos da CPU."""
         return psutil.cpu_count(logical=False) or 0
 
-    @classmethod
-    def cpu_count_logical(cls) -> int:
+    def count_logical(self) -> int:
         """Numero de nucleos logicos (threads) da CPU."""
         return psutil.cpu_count(logical=True) or 0
 
-    @classmethod
-    def cpu_tooltip(cls) -> str:
+    def tooltip(self) -> str:
         """
         Tooltip formatado com uso atual e contagem de nucleos.
 
         Returns:
             str: Ex: "CPU: 45.2% (8 cores fisicos, 16 logicos)"
         """
-        pct = cls.cpu_percent()
-        phys = cls.cpu_count_physical()
-        log = cls.cpu_count_logical()
+        pct = self.percent()
+        phys = self.count_physical()
+        log = self.count_logical()
         return (
             f"CPU: {pct:.1f}% "
             f"({phys} cores fisicos, {log} logicos)"
