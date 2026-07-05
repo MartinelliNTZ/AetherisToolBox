@@ -25,7 +25,7 @@ class DoclingConvertStep(BaseStep):
     Step that converts a document to Markdown via Docling.
 
     Context requires:
-        - results["file_path"]: Path to document to convert
+        - input_path: Path to document to convert
 
     Context produces:
         - results["markdown"]: Generated Markdown content
@@ -41,7 +41,7 @@ class DoclingConvertStep(BaseStep):
 
     def create_task(self, context: ExecutionContext) -> DoclingPipelineTask:
         return DoclingPipelineTask(
-            file_path=str(context.get_result("file_path")),
+            file_path=str(context.input_path),
             columnar=self._columnar,
             manual_columns=self._manual_columns,
         )

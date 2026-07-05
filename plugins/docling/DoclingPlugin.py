@@ -163,7 +163,7 @@ class DoclingPlugin(BasePlugin):
         step = DoclingConvertStep(columnar=columnar, manual_columns=manual_cols)
         runner = PipelineRunner(
             steps=[step],
-            context={"file_path": file_path},
+            input_path=file_path,
             parent=self,
         )
         runner.finished_ok.connect(self._on_done)
@@ -173,7 +173,7 @@ class DoclingPlugin(BasePlugin):
         runner.start()
 
     def _on_done(self, context):
-        self._current_markdown = context.get("markdown", "")
+        self._current_markdown = context.get_result("markdown", "")
         self._txt_preview.setPlainText(self._current_markdown)
         SignalManager.instance().console_message.emit("Conversão concluída com sucesso!")
         SignalManager.instance().progress_update.emit(100.0)
