@@ -140,7 +140,6 @@ class ProjectUtil:
     def create_project_safe(
         folder_path: str,
         project_name: str,
-        parent_widget: Optional["QWidget"] = None,
     ) -> Optional[Dict[str, Any]]:
         """
         Cria um arquivo .mtl, perguntando ao usuário se deseja substituir
