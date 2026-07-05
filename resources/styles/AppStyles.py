@@ -711,6 +711,21 @@ class AppStyles(BaseStyle):
         )
 
     @classmethod
+    def explorer_link_style(cls) -> str:
+        """
+        Estilo CSS para links clicáveis que abrem no Windows Explorer.
+
+        Usa ACCENT como cor e RADIUS_XS para border-radius.
+        Retorna apenas o trecho style='...' para uso inline em tags <a>.
+        """
+        t = ct.theme
+        return (
+            f"color: {t.ACCENT}; "
+            f"text-decoration: underline; "
+            f"cursor: pointer;"
+        )
+
+    @classmethod
     def grid_percent_font_label(cls) -> str:
         """Família e tamanho da fonte do label no GridPercentView."""
         return f"{ct.theme.FONT_FAMILY_MONO}, 10px"
