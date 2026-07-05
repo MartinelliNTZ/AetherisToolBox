@@ -1,9 +1,12 @@
 # -*- coding: utf-8 -*-
 """
 GridPercentView — Grade horizontal de indicadores percentuais
-==============================================================
-Exibe valores percentuais (CPU, RAM) lado a lado com tooltip dinâmico
-e preenchimento visual interno (barra de progresso no background).
+=============================================================
+Exibe valores percentuais (CPU, RAM) lado a lado com tooltip
+individual por item ao passar o mouse.
+
+Cada item tem seu proprio tooltip. O tooltip global do widget
+so e usado como fallback quando o mouse esta fora de qualquer item.
 
 Uso:
     view = GridPercentView({
@@ -11,8 +14,8 @@ Uso:
                 "callback": self._on_cpu_clicked},
         "ram": {"label": "RAM", "value": 0.0, "tooltip": "Aguardando..."},
     })
-    view.set("cpu", 45.2)
-    view.set("ram", 72.8)
+    view.set("cpu", 45.2, tooltip="CPU: 45.2% (8 cores fisicos, ...)")
+    view.set("ram", 72.8, tooltip="RAM: 72.8% (23.4 GB / 32.0 GB usados)")
 
 Sinais:
     item_clicked(key, value) — emitido ao clicar em item com callback
@@ -54,7 +57,7 @@ class GridPercentView(QWidget):
 
     Cada indicador mostra nome, valor percentual e uma barra de
     preenchimento que reflete a porcentagem atual. Suporta tooltip
-    dinâmico e callback ao clicar.
+    individual por item e callback ao clicar.
     """
 
     item_clicked = Signal(str, float)  # key, value
@@ -90,7 +93,7 @@ class GridPercentView(QWidget):
                 callback=cfg.get("callback"),
             )
 
-        self._update_tooltip()
+        self._update_global_tooltip()
 
     # ── Size hints ─────────────────────────────────────────────────
 
@@ -112,7 +115,7 @@ class GridPercentView(QWidget):
         Args:
             key: Chave do indicador (ex: "cpu").
             value: Novo valor percentual (0-100).
-            tooltip: Tooltip opcional. Se None, gera automático.
+            tooltip: Tooltip especifico deste item. Se None, gera automatico.
         """
         item = self._items.get(key)
         if item is None:
@@ -122,7 +125,7 @@ class GridPercentView(QWidget):
             item.tooltip = tooltip
         else:
             item.tooltip = f"{item.label}: {value:.1f}%"
-        self._update_tooltip()
+        self._update_global_tooltip()
         self.update()
 
     def get(self, key: str) -> float:
@@ -137,8 +140,11 @@ class GridPercentView(QWidget):
 
     # ── Internos ───────────────────────────────────────────────────
 
-    def _update_tooltip(self) -> None:
-        """Atualiza tooltip geral do widget."""
+    def _update_global_tooltip(self) -> None:
+        """
+        Tooltip global do widget (fallback quando mouse fora de item).
+        Mostra todos os valores em uma linha.
+        """
         parts = [f"{v.label}: {v.value:.1f}%" for v in self._items.values()]
         self.setToolTip("  ".join(parts))
 
@@ -152,21 +158,28 @@ class GridPercentView(QWidget):
     # ── Eventos ────────────────────────────────────────────────────
 
     def mouseMoveEvent(self, event):
-        """Atualiza tooltip por item e cursor."""
+        """
+        Ao passar o mouse sobre um item, exibe o tooltip especifico
+        daquele item (CPU mostra info de CPU, RAM mostra info de RAM).
+        """
         key = self._item_at(event.position().x())
-        if key and self._items[key].callback:
-            self.setCursor(Qt.PointingHandCursor)
-            self.setToolTip(self._items[key].tooltip)
+        if key:
+            item = self._items[key]
+            # Tooltip individual do item hovered
+            self.setToolTip(item.tooltip)
+            self.setCursor(
+                Qt.PointingHandCursor if item.callback else Qt.ArrowCursor
+            )
         else:
             self.setCursor(Qt.ArrowCursor)
-            self._update_tooltip()
+            self._update_global_tooltip()
         self._hovered_key = key
         super().mouseMoveEvent(event)
 
     def leaveEvent(self, event):
         """Limpa hover ao sair."""
         self._hovered_key = None
-        self._update_tooltip()
+        self._update_global_tooltip()
         self.setCursor(Qt.ArrowCursor)
         super().leaveEvent(event)
 
