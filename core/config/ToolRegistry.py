@@ -284,7 +284,7 @@ class ToolRegistry:
         ),
         ToolKey.LAS_VECTOR_CONVERTER.value: Tool(
             name=ToolKey.LAS_VECTOR_CONVERTER.value,
-            title="Conversor LAS ↔ Pontos",
+            title="Conversor de Pontos",
             widget_factory=_make_factory(
                 "plugins.las_vector_converter.LasVectorConverterPlugin",
                 "LasVectorConverterPlugin",

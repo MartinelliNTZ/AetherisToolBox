@@ -504,12 +504,23 @@ class LasVectorConverterPlugin(BasePlugin):
         dir_label = "LAS→Vetor" if direction == "las_to_vector" else "Vetor→LAS"
         n_arquivos = len(output_files)
 
-        # Console message SEMPRE com link para pasta de saída
-        SignalManager.instance().console_message.emit(
-            f"[LasVectorConverter] Conversão {dir_label} concluída! "
-            f"{n_output:,} pontos salvos em {n_arquivos} arquivo(s). "
-            f"Resultados em: {output_dir or '(não informado)'}"
-        )
+        # Console message com link clicável para pasta de saída
+        if output_dir:
+            from urllib.parse import quote
+            # URL-encode o path para evitar problemas com #, espaços, etc.
+            safe_path = output_dir.replace(chr(92), '/')
+            encoded = quote(safe_path, safe='/:@!$&()*+,;=-._~')
+            SignalManager.instance().console_html.emit(
+                f"[LasVectorConverter] Conversão {dir_label} concluída! "
+                f"{n_output:,} pontos salvos em {n_arquivos} arquivo(s). "
+                f"📂 <a href='file:///{encoded}' "
+                f"style='color: #FFD700; text-decoration: underline;'>{output_dir}</a>"
+            )
+        else:
+            SignalManager.instance().console_message.emit(
+                f"[LasVectorConverter] Conversão {dir_label} concluída! "
+                f"{n_output:,} pontos salvos em {n_arquivos} arquivo(s)."
+            )
 
         self.logger.info(
             "Conversão concluída com sucesso",
