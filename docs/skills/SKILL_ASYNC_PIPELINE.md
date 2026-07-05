@@ -1,331 +1,464 @@
-# Skill: Sistema de Pipeline Assíncrono (AsyncPipeline)
+# Skill: Async Pipeline System (AsyncPipeline)
 
-Esta skill documenta o sistema de pipeline assíncrono implementado em `core/papeline/`, descrevendo sua arquitetura, componentes e como criar novas pipelines.
+This skill documents the async pipeline system implemented in `core/papeline/`, describing its architecture, components, and how to create new pipelines.
 
 ---
 
-## 📋 Visão Geral
+## 📋 Overview
 
-O sistema implementa um **pipeline sequencial assíncrono** composto por etapas (`Steps`) executadas uma após a outra. Cada etapa pode executar uma tarefa pesada em background e, ao finalizar, chama callbacks de sucesso/erro que avançam para a próxima etapa.
+The system implements a **sequential async pipeline** composed of steps (`Steps`) executed one after another. Each step can execute heavy work in background and, upon completion, fires success/error callbacks that advance to the next step.
 
 ```
-iniciar → step 1 → task assíncrona → callback sucesso → step 2 → ... → finalizar
+start → step 1 → async task → success callback → step 2 → ... → finish
 ```
 
-## 🧱 Arquitetura
+## 🧱 Architecture
 
 ```
 core/papeline/
-├── __init__.py               — Exporta classes públicas (6 componentes)
-├── ExecutionContext.py        — Estado compartilhado entre steps
-├── BaseTask.py                — Wrapper abstrato para trabalho em background
-├── BaseStep.py                — Contrato abstrato para etapas da pipeline
-├── AsyncPipelineEngine.py     — Orquestrador (blocking thread.join)
-├── QtPipelineEngine.py        — Executa pipeline em QThread (não bloqueante)
-├── task/
-│   ├── __init__.py            — Exporta tasks concretas (2 classes)
-│   ├── MrkSinglePipelineTask.py — MrkSinglePipelineTask (BaseTask)
-│   └── DoclingPipelineTask.py    — DoclingPipelineTask (BaseTask)
-└── step/
-    ├── __init__.py            — Exporta steps concretos
-    ├── MrkSteps.py            — Steps MRK (MrkLoadDataStep, MrkProcessStep, MrkFindDataStep)
-    └── DoclingSteps.py        — Steps Docling (DoclingConvertStep, DoclingSaveStep)
+├── __init__.py               — Public exports
+├── ExecutionContext.py        — Shared state between steps (direct attribute access)
+├── BaseTask.py                — Abstract wrapper for background work
+├── BaseStep.py                — Abstract contract for pipeline steps
+├── AsyncPipelineEngine.py     — Orchestrator (blocking thread.join)
+├── PipelineRunner.py          — Executes pipeline in QThread (non-blocking)
+├── ParallelStep.py            — Executes multiple substeps in parallel
+├── step/
+│   ├── __init__.py            — Exports concrete steps
+│   ├── LasCheckStep.py        — Quality checks on LAS/LAZ files
+│   ├── LasBlackFilterSteps.py — Black point filter (LasBlackFilterStep)
+│   ├── LasTilerStep.py        — Split LAS/LAZ into parts
+│   ├── IdwInterpolatorStep.py — IDW interpolation of LAS files
+│   ├── MrkSteps.py            — MRK processing steps
+│   └── DoclingSteps.py        — Docling document conversion steps
+└── task/
+    ├── __init__.py            — Exports concrete tasks
+    ├── LasBlackFilterTask.py  — Task for black point filtering
+    ├── LasTilerTask.py        — Task for splitting LAS files
+    ├── IdwInterpolatorTask.py — Task for IDW interpolation
+    ├── MrkSinglePipelineTask.py — Task for MRK processing
+    └── DoclingPipelineTask.py   — Task for document conversion
 ```
 
-## 📦 Componentes
+---
+
+## 📦 Components
 
 ### `ExecutionContext` — `core/papeline/ExecutionContext.py`
 
-Container de estado compartilhado entre todos os steps da pipeline.
+Shared state container between all pipeline steps.
+
+**Access is via DIRECT ATTRIBUTES only — NO dict methods:**
 
 ```python
 from core.papeline import ExecutionContext
 
-ctx = ExecutionContext({"arquivo": "teste.mrk"})
-ctx.set("resultado", 42)
-ctx.set("caminho", "/tmp/saida").set("status", "ok")  # fluent
+# Create with keyword arguments (preferred)
+ctx = ExecutionContext(
+    input_path="D:/data/root",
+    output_path="D:/data/root",
+    tool_key="my_tool",
+)
 
-valor = ctx.get("resultado", default=0)
-existe = ctx.has("caminho")
-ctx.require(["caminho", "resultado"])  # KeyError se faltar
+# Direct attribute access
+ctx.input_path = "/new/path"
+ctx.output_path = "/output/path"
+ctx.tool_key = "my_tool"
+ctx.files = ["file1.las", "file2.las"]  # None = all in input_path
 
-ctx.add_error(ValueError("algo errado"))
-erros = ctx.get_errors()
-if ctx.has_errors(): ...
+# Step results storage
+ctx.set_result("split_result", {"n_parts": 5, ...})
+result = ctx.get_result("split_result", default={})
 
+# Error handling
+ctx.add_error(ValueError("something wrong"))
+if ctx.has_errors():
+    for err in ctx.errors:
+        print(err)
+
+# Cancellation
 ctx.cancel()
-if ctx.is_cancelled(): ...
+if ctx.is_cancelled:
+    ...
 
-ctx.clear()  # reseta tudo
+# Reset
+ctx.clear()
 ```
 
-**Métodos:**
+**Canonical Attributes:**
 
-| Método | Retorno | Descrição |
-|--------|---------|-----------|
-| `set(key, value)` | `ExecutionContext` | Armazena valor (fluent) |
-| `get(key, default)` | `Any` | Recupera valor |
-| `has(key)` | `bool` | Verifica existência |
-| `require(keys)` | `None` | Lança `KeyError` se faltar |
-| `add_error(exc)` | `None` | Adiciona erro |
-| `get_errors()` | `list[Exception]` | Retorna cópia dos erros |
-| `has_errors()` | `bool` | True se houve erro |
-| `cancel()` | `None` | Marca cancelamento |
-| `is_cancelled()` | `bool` | True se cancelado |
-| `clear()` | `None` | Reseta tudo |
+| Attribute | Type | Origin | Description |
+|-----------|------|--------|-------------|
+| `input_path` | `str` | Plugin / Previous step | Input directory with files to process |
+| `output_path` | `str` | Plugin (config) | Base directory to save results |
+| `files` | `list[str] \| None` | Plugin | Specific file list (None = all in input_path) |
+| `tool_key` | `str` | Plugin | ToolKey for logging |
+| `errors` | `list[Exception]` | Auto | Error accumulator |
+| `is_cancelled` | `bool` | Auto | Cancellation flag |
+| `results` | `dict` | Steps | Step results storage |
+
+> ⚠️ **NEVER** use `context.get()` or `context.set()`. These methods DON'T exist in the new system.
 
 ---
 
 ### `BaseTask` — `core/papeline/BaseTask.py`
 
-Classe abstrata para execução de trabalho pesado em background.
+Abstract class for executing heavy work in background.
 
 ```python
 from core.papeline import BaseTask
 
-class MinhaTask(BaseTask):
-    def __init__(self, dado: str):
-        super().__init__(description=f"Processar: {dado}")
-        self._dado = dado
+class MyTask(BaseTask):
+    def __init__(self, data: str):
+        super().__init__(description=f"Process: {data}")
+        self._data = data
 
     def _run(self) -> bool:
-        # Lógica pesada aqui
-        resultado = self._dado.upper()
-        self.result = {"original": self._dado, "upper": resultado}
-        return True  # False se falhar
+        # Heavy logic here
+        result = self._data.upper()
+        self.result = {"original": self._data, "upper": result}
+        return True  # False if failed
 ```
 
-**Atributos:**
+**Attributes:**
 
-| Atributo | Tipo | Descrição |
-|----------|------|-----------|
-| `description` | `str` | Descrição para logs |
-| `exception` | `Exception \| None` | Exceção capturada |
-| `result` | `Any` | Resultado produzido |
-| `on_success` | `callable \| None` | Callback de sucesso |
-| `on_error` | `callable \| None` | Callback de erro |
-| `is_cancelled` | `bool` | True se cancelada |
+| Attribute | Type | Description |
+|----------|------|-------------|
+| `description` | `str` | Description for logs |
+| `exception` | `Exception \| None` | Caught exception |
+| `result` | `Any` | Produced result |
+| `on_success` | `callable \| None` | Success callback |
+| `on_error` | `callable \| None` | Error callback |
+| `is_cancelled` | `bool` | True if cancelled |
 
-**Fluxo interno:**
-1. `run()` é chamado
-2. `run()` chama `_run()` (lógica real)
-3. Se `_run()` lançar exceção → captura em `self.exception`, retorna `False`
-4. Se `_run()` retornar `True` → `self.result` contém o resultado
-5. `finished(success)` é chamado após o término
-6. `success=True` → dispara `on_success(self.result)`
-7. `success=False` → dispara `on_error(self.exception)`
+**Internal flow:**
+1. `run()` is called
+2. `run()` calls `_run()` (real logic)
+3. If `_run()` throws exception → caught in `self.exception`, returns `False`
+4. If `_run()` returns `True` → `self.result` contains the result
+5. `finished(success)` is called after completion
+6. `success=True` → fires `on_success(self.result)`
+7. `success=False` → fires `on_error(self.exception)`
 
-> ⚠️ **Importante:** BaseTask NÃO é QThread. Para executar em thread sem travar UI, use `QtPipelineEngine`.
+> ⚠️ **Important:** BaseTask is NOT QThread. To execute in thread without freezing UI, use `PipelineRunner`.
 
 ---
 
 ### `BaseStep` — `core/papeline/BaseStep.py`
 
-Contrato abstrato que define uma etapa da pipeline.
+Abstract contract that defines a pipeline step. Now with **flow control attributes**:
 
 ```python
 from core.papeline import BaseStep, ExecutionContext, BaseTask
 
-class MeuStep(BaseStep):
+class MyStep(BaseStep):
+    subfolder = "mystep"        # Output subfolder name
+    advance_input = True        # If True, automatically advances input_path
+
+    def __init__(self, my_param: int = 10, advance_input: bool = True, input_path: str = ""):
+        self._my_param = my_param
+        self.advance_input = advance_input
+        self._custom_input_path = input_path  # Optional custom input_path
+
     def name(self) -> str:
-        return "meu_step"
+        return "mystep"
+
+    def should_run(self, context: ExecutionContext) -> bool:
+        path = self._custom_input_path or context.input_path
+        return bool(path)
 
     def create_task(self, context: ExecutionContext) -> BaseTask | None:
-        arquivo = context.get("arquivo")
-        return MinhaTask(arquivo)
+        path = self._custom_input_path or context.input_path
+        files = self.resolve_files(context, ".las", ".laz")
+        return MyTask(files=files, param=self._my_param)
 
     def on_success(self, context: ExecutionContext, result: Any) -> None:
-        context.set("resultado_step", result)
-
-    # Opcionais:
-    def should_run(self, context: ExecutionContext) -> bool:
-        return context.has("arquivo")
+        if isinstance(result, dict):
+            context.set_result("my_result", result)
+        self.advance_input(context)
 
     def on_error(self, context: ExecutionContext, exception: Exception) -> None:
         context.add_error(exception)
 ```
 
-**Métodos:**
+**New BaseStep Attributes:**
 
-| Método | Obrigatório | Descrição |
-|--------|-------------|-----------|
-| `name()` | ✅ | Identificador único |
-| `create_task(context)` | ✅ | Cria `BaseTask \| None` |
-| `on_success(context, result)` | ✅ | Callback de sucesso |
-| `should_run(context)` | ❌ | Se `False`, step é pulado |
-| `on_error(context, exception)` | ❌ | Tratamento de erro |
-| `rollback(context)` | ❌ | Desfazer alterações |
-| `run_inline(context)` | ❌ | Execução síncrona |
+| Attribute | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `subfolder` | `str` | `""` | Output subfolder name (e.g. 'lascheck', 'lasblackfilter') |
+| `advance_input` | `bool` | `True` | If True, calls advance_input() in on_success() |
 
----
+**New BaseStep Methods:**
 
-### `SingleTaskStep` — Step genérico (para plugins)
+| Method | Return | Description |
+|--------|--------|-------------|
+| `advance_input(context)` | `None` | Updates `context.input_path` to point to step's output subfolder |
+| `resolve_files(context, *extensions)` | `list[str]` | Returns files from `context.files` or lists directory |
+| `output_subdir(context)` | `str` | Returns `output_path/subfolder/`, creates if not exists |
 
-Step que executa UMA BaseTask a partir de uma factory function. Ideal para plugins que precisam rodar 1 task em background sem criar Steps customizados.
+**Required Methods:**
 
-```python
-from core.papeline import SingleTaskStep, ExecutionContext, QtPipelineEngine
-from core.papeline.task import DoclingPipelineTask
+| Method | Required | Description |
+|--------|----------|-------------|
+| `name()` | ✅ | Unique identifier |
+| `create_task(context)` | ✅ | Creates `BaseTask \| None` |
+| `on_success(context, result)` | ✅ | Success callback (default: calls advance_input if advance_input==True) |
 
-step = SingleTaskStep(
-    task_factory=lambda: DoclingPipelineTask(file_path, columnar=True),
-    name="converter",
-)
-ctx = ExecutionContext({"file_path": file_path})
+**Optional Methods:**
 
-engine = QtPipelineEngine(steps=[step], context=ctx, parent=self)
-engine.finished_ok.connect(self._on_done)
-engine.failed.connect(self._on_error)
-engine.start()
-```
-
-O resultado da task fica em `context.get("result")`.
+| Method | Required | Description |
+|--------|----------|-------------|
+| `should_run(context)` | ❌ | If `False`, step is skipped |
+| `on_error(context, exception)` | ❌ | Error handling |
+| `rollback(context)` | ❌ | Undo changes |
+| `run_inline(context)` | ❌ | Synchronous execution |
 
 ---
 
-### `QtPipelineEngine` — `core/papeline/QtPipelineEngine.py`
+### `PipelineRunner` — `core/papeline/PipelineRunner.py`
 
-Executa N steps sequencialmente em uma QThread, sem travar a UI. Ideal para plugins.
-
-```python
-from core.papeline import QtPipelineEngine, ExecutionContext, SingleTaskStep
-
-step = SingleTaskStep(task_factory=lambda: MinhaTask(dado), name="meu_step")
-ctx = ExecutionContext({"dado": 42})
-
-engine = QtPipelineEngine(steps=[step], context=ctx, parent=self)
-engine.finished_ok.connect(minha_callback)
-engine.failed.connect(minha_callback_erro)
-engine.start()
-```
-
-**Sinais (Qt):**
-| Sinal | Tipo | Descrição |
-|-------|------|-----------|
-| `finished_ok` | `Signal(object)` | ExecutionContext ao finalizar com sucesso |
-| `failed` | `Signal(str)` | Mensagem de erro |
-
----
-
-### `AsyncPipelineEngine` — `core/papeline/AsyncPipelineEngine.py`
-
-Orquestrador principal para execução sequencial **fora do Qt**. Usa `thread.join()` — **não use em plugins** (bloqueia UI).
-
-```python
-from core.papeline import AsyncPipelineEngine, ExecutionContext
-
-steps = [StepCarregar(), StepProcessar(), StepSalvar()]
-context = ExecutionContext({"param": 10})
-
-engine = AsyncPipelineEngine(
-    steps=steps,
-    context=context,
-    on_finished=lambda ctx: print(f"Sucesso! {ctx.get('resultado')}"),
-    on_error=lambda errors: print(f"Erros: {errors}"),
-    on_cancelled=lambda ctx: print("Cancelado"),
-)
-
-engine.start()
-```
-
-**Parâmetros do construtor:**
-
-| Parâmetro | Tipo | Descrição |
-|-----------|------|-----------|
-| `steps` | `list[BaseStep]` | Steps a executar |
-| `context` | `ExecutionContext` | Estado compartilhado |
-| `on_finished` | `callable \| None` | Callback de sucesso |
-| `on_error` | `callable \| None` | Callback de erro |
-| `on_cancelled` | `callable \| None` | Callback de cancelamento |
-
-**Métodos:**
-
-| Método | Descrição |
-|--------|-----------|
-| `start()` | Inicia execução |
-| `cancel()` | Cancela (cooperativo) |
-
----
-
-## 🧠 ResourceGovernor — Governança de Recursos
-
-O `ResourceGovernor` é um sistema de governança de memória RAM integrado ao pipeline para evitar OOM (Out Of Memory).
-
-### Arquitetura
-
-```
-core/governor/
-├── __init__.py                 — (vazio, sem exports para evitar circular imports)
-├── RamGovernor.py              — Monitora RAM (sistema, processo) via psutil
-├── RamLimitPolicy.py           — Estratégias de limite (GLOBAL 90%, DEDICATED 50%)
-└── ResourceGovernor.py         — Orquestrador: can_execute(), recommended_tile_size()
-```
-
-### Componentes
-
-| Classe | Responsabilidade |
-|--------|-----------------|
-| `RamGovernor` | Coleta RAM total/usada/disponível do sistema + RAM do processo. |
-| `RamLimitPolicy` | Estratégia: `GLOBAL` (90% do total) ou `DEDICATED` (50% fixo). |
-| `ResourceGovernor` | Consultas: `can_execute()`, `recommended_tile_size()`, `snapshot()`. |
-
-### Como usar no plugin (transparente)
-
-O `PipelineRunner` **cria automaticamente** um `ResourceGovernor` interno.
-**O plugin, step e task não precisam saber da existência do governor.**
+Executes N steps sequentially in a QThread, without freezing the UI. **This is what plugins use.**
 
 ```python
 from core.papeline import PipelineRunner
+from core.papeline.step.LasTilerStep import LasTilerStep
 
-# O runner já cria o governor internamente — plugin não precisa fazer nada
-runner = PipelineRunner(steps=[MeuStep()], context=ctx, parent=self)
+runner = PipelineRunner(
+    steps=[LasTilerStep(points_per_part=5_000_000)],
+    input_path="D:/data/root",
+    output_path="D:/data/root",
+    tool_key="my_tool",
+    parent=self,
+)
 runner.finished_ok.connect(self._on_done)
 runner.failed.connect(self._on_error)
 runner.start()
 ```
 
-### Onde o governor atua (totalmente transparente para o plugin)
+**Signals (Qt):**
 
-1. **`PipelineRunner.run()`** — cria `ResourceGovernor` com política `GLOBAL 90%`
-2. **`AsyncPipelineEngine._run_loop()`** — antes de cada task, checa `governor.can_execute()`
-3. **`BaseTask.run()`** — verifica governor antes de executar `_run()`
+| Signal | Type | Description |
+|--------|------|-------------|
+| `finished_ok` | `Signal(object)` | ExecutionContext on successful completion |
+| `failed` | `Signal(str)` | Error message |
 
-Se a memória estourar o limite configurado, o pipeline falha com erro e o plugin recebe
-o sinal `failed` normalmente — sem nenhuma alteração no código do plugin.
+> The `PipelineRunner` creates an internal `ResourceGovernor` with GLOBAL 90% policy automatically.
 
-### Logging
+---
 
-O governor usa `BaseUtil._get_logger()` com `ToolKey` (Contrato 26) e logs:
-- `GOV_SNAPSHOT` — debug: snapshot completo a cada inicialização
-- `GOV_LOW_MEMORY` — warning: quando memória insuficiente
-- `GOV_THROTTLED` — error: múltiplos warnings consecutivos
+## 🧠 ResourceGovernor — Resource Governance
 
-## 🔧 Tasks Concretas
+The `ResourceGovernor` is a RAM memory governance system integrated into the pipeline to prevent OOM (Out Of Memory).
 
-### `MrkSinglePipelineTask` — `core/papeline/task/MrkSinglePipelineTask.py`
+### Architecture
 
-Task para processamento de arquivos MRK.
+```
+core/governor/
+├── RamGovernor.py              — Monitors RAM (system, process) via psutil
+├── RamLimitPolicy.py           — Limit strategies (GLOBAL 90%, DEDICATED 50%)
+└── ResourceGovernor.py         — Orchestrator: can_execute(), recommended_tile_size()
+```
+
+### How it works (transparent to plugin)
+
+The `PipelineRunner` **creates a ResourceGovernor automatically**.
+**The plugin, step and task don't need to know about the governor's existence.**
+
+```python
+from core.papeline import PipelineRunner
+
+# The runner already creates the governor internally — plugin does nothing
+runner = PipelineRunner(
+    steps=[MyStep()],
+    input_path="D:/data",
+    output_path="D:/data",
+    parent=self,
+)
+runner.finished_ok.connect(self._on_done)
+runner.failed.connect(self._on_error)
+runner.start()
+```
+
+### Where the governor acts (totally transparent)
+
+1. **`PipelineRunner.run()`** — creates `ResourceGovernor` with `GLOBAL 90%` policy
+2. **`AsyncPipelineEngine._run_loop()`** — before each task, checks `governor.can_execute()`
+3. **`BaseTask.run()`** — checks governor before executing `_run()`
+
+---
+
+## 🔄 Step Flow Convention (advance_input)
+
+Steps now follow a **flow convention** with `subfolder` and `advance_input`:
+
+```
+input_path = /data/root
+output_path = /data/root
+
+Step 1 (LasCheck, advance_input=False):
+  → Reads: input_path
+  → Saves report to: output_path/lascheck/
+  → input_path stays = /data/root
+
+Step 2 (LasBlackFilter, advance_input=True):
+  → Reads: input_path (= /data/root)
+  → Saves filtered LAS to: output_path/lasblackfilter/
+  → advance_input: context.input_path = /data/root/lasblackfilter/
+
+Step 3 (LasTiler, advance_input=True):
+  → Reads: input_path (= /data/root/lasblackfilter/)
+  → Saves tiles to: output_path/lastiler/
+  → advance_input: context.input_path = /data/root/lastiler/
+
+Step 4 (IdwInterpolator, advance_input=True):
+  → Reads: input_path (= /data/root/lastiler/)
+  → Saves rasters to: output_path/idwtiles/
+  → advance_input: context.input_path = /data/root/idwtiles/
+```
+
+**Order can be inverted** — each step knows where to read from and where to save to. The pipeline works regardless of step order.
+
+### Steps that TRANSFORM vs Steps that ANALYZE
+
+| Type | advance_input | Examples | Behavior |
+|------|---------------|----------|----------|
+| **Transform** | `True` (default) | LasBlackFilter, LasTiler, IdwInterpolator | Calls `advance_input()` → next step uses output folder |
+| **Analyze** | `False` | LasCheck | Does NOT call `advance_input()` → next step uses same folder |
+
+### Step-Specific input_path (Exception)
+
+A step can receive its own `input_path` in the constructor for specific cases:
+
+```python
+LasCheckStep(
+    advance_input=False,
+    input_path="D:/data/root/lasblackfilter/",  # Overrides context.input_path
+)
+```
+
+This overrides `context.input_path` ONLY for that step.
+
+---
+
+## 🎯 Complete Pipeline Examples
+
+### Standard Pipeline (recommended)
+
+```python
+runner = PipelineRunner(
+    steps=[
+        LasCheckStep(advance_input=False),                    # Analyzes → /output/lascheck/
+        LasBlackFilterStep(threshold=30, save_black_points=True), # Filters → /output/lasblackfilter/ → advance
+        LasCheckStep(advance_input=False),                    # Re-analyzes filtered
+        LasTilerStep(points_per_part=5_000_000),              # Tiles → /output/lastiler/ → advance
+        IdwInterpolatorStep(                                  # Interpolates → /output/idwtiles/ → advance
+            target_bands={"r": True, "g": True, "b": True, "z": True},
+            resolution_m=0.01,
+        ),
+    ],
+    input_path="D:/data/root",
+    output_path="D:/data/root",
+    tool_key=ToolKey.IDW_INTERPOLATOR.value,
+    parent=self,
+)
+runner.finished_ok.connect(self._on_done)
+runner.failed.connect(self._on_error)
+runner.start()
+```
+
+### Pipeline with Step-Specific input_path
+
+```python
+runner = PipelineRunner(
+    steps=[
+        LasBlackFilterStep(threshold=30),
+        LasTilerStep(points_per_part=5_000_000),
+        IdwInterpolatorStep(target_bands={"r": True, "g": True, "b": True}),
+        LasCheckStep(advance_input=False, input_path="D:/data/root/lasblackfilter/"),
+    ],
+    input_path="D:/data/root",
+    output_path="D:/data/root",
+    parent=self,
+)
+```
+
+---
+
+## 📝 Step-Specific Parameters
+
+Parameters are passed **DIRECTLY in the step constructor**, NOT in the context:
+
+| Step | Constructor Parameters |
+|------|------------------------|
+| `LasCheckStep` | `advance_input=False`, `input_path=""` |
+| `LasBlackFilterStep` | `threshold: int=0`, `save_black_points: bool=False`, `advance_input=True`, `input_path=""` |
+| `LasTilerStep` | `points_per_part: int=5_000_000`, `advance_input=True`, `input_path=""` |
+| `IdwInterpolatorStep` | `target_bands: dict`, `merge_bands: bool=True`, `resolution_m: float=0.01`, `idw_k: int=5`, `idw_power: float=2.0`, `idw_max_radius: float=0.5`, `idw_overlap: float=3.0`, `crs_str: str="EPSG:31982"`, `delete_tiles: bool=True`, `save_las: bool=False`, `advance_input=True`, `input_path=""` |
+| `DoclingConvertStep` | `columnar: bool=False`, `manual_columns: int=0` |
+| `MrkProcessStep` | (reads from context.results) |
+
+---
+
+## 🔧 Concrete Tasks
+
+### `LasBlackFilterTask`
+
+```python
+from core.papeline.task import LasBlackFilterTask
+
+task = LasBlackFilterTask(
+    files=["file1.las", "file2.las"],
+    output_dir="filtered/",
+    threshold=30,
+    save_black_points=True,
+)
+```
+
+### `LasTilerTask`
+
+```python
+from core.papeline.task import LasTilerTask
+
+task = LasTilerTask(
+    files=["file1.las", "file2.las"],
+    output_dir="tiles/",
+    points_per_part=5_000_000,
+)
+```
+
+### `IdwInterpolatorTask`
+
+```python
+from core.papeline.task import IdwInterpolatorTask
+
+task = IdwInterpolatorTask(
+    input_dir="path/to/las/files",
+    output_path="output/raster.tif",
+    target_bands={"r": True, "g": True, "b": True, "z": True},
+    resolution_m=0.01,
+)
+```
+
+### `MrkSinglePipelineTask`
 
 ```python
 from core.papeline.task import MrkSinglePipelineTask
 
 task = MrkSinglePipelineTask(
-    mrk_path="dados/arquivo.mrk",
-    data=[{"Lat": "-22.123", "Lon": "-42.456"}],
+    mrk_path="data/file.mrk",
+    data_path="data/file.gpkg",
     mapping={"Lat": "Lat", "Lon": "Lon", "Ellh": "Ellh"},
-    output_dir="saida/",
+    output_dir="output/",
 )
 ```
 
-### `DoclingPipelineTask` — `core/papeline/task/DoclingPipelineTask.py`
-
-Task para conversão de documentos via Docling.
+### `DoclingPipelineTask`
 
 ```python
 from core.papeline.task import DoclingPipelineTask
 
 task = DoclingPipelineTask(
-    file_path="documento.pdf",
+    file_path="document.pdf",
     columnar=True,
     manual_columns=0,
 )
@@ -333,93 +466,118 @@ task = DoclingPipelineTask(
 
 ---
 
-## 🎯 Exemplo Completo
+## ✅ Step Writing Rules
 
-### Pipeline para pipeline engine (assíncrono, não bloqueante)
+### Rule 1: Step-Specific params go in the constructor
 
 ```python
-from core.papeline import (
-    ExecutionContext,
-    QtPipelineEngine,
-    SingleTaskStep,
-)
-from core.papeline.task import DoclingPipelineTask
+# ✅ CORRECT
+class MyStep(BaseStep):
+    def __init__(self, threshold: int = 0, advance_input: bool = True, input_path: str = ""):
+        self._threshold = threshold
+        self.advance_input = advance_input
+        self._custom_input_path = input_path
 
-# Step que converte documento
-step = SingleTaskStep(
-    task_factory=lambda: DoclingPipelineTask("documento.pdf"),
-    name="converter",
-)
-
-# Engine não bloqueante
-ctx = ExecutionContext({"file": "documento.pdf"})
-engine = QtPipelineEngine(steps=[step], context=ctx, parent=plugin)
-engine.finished_ok.connect(lambda ctx: print(f"OK: {ctx.get('result')}"))
-engine.failed.connect(lambda msg: print(f"ERRO: {msg}"))
-engine.start()
+# ❌ WRONG — don't get params from context
+class MyStep(BaseStep):
+    def create_task(self, context):
+        threshold = context.results.get("threshold", 0)  # NO!
 ```
 
-### Pipeline com steps customizados (blocking)
+### Rule 2: Use resolve_files() for file listing
 
 ```python
-from core.papeline import (
-    ExecutionContext,
-    BaseStep,
-    BaseTask,
-    AsyncPipelineEngine,
-)
+# ✅ CORRECT
+def create_task(self, context):
+    path = self._custom_input_path or context.input_path
+    files = self.resolve_files(context, ".las", ".laz")
+    return MyTask(files=files, ...)
 
-class CalcularTask(BaseTask):
-    def __init__(self, valor):
-        super().__init__("calcular")
-        self._valor = valor
+# ❌ WRONG — manual glob
+def create_task(self, context):
+    files = glob.glob(os.path.join(context.input_path, "*.las"))  # NO!
+```
 
-    def _run(self) -> bool:
-        self.result = self._valor * 2
-        return True
+### Rule 3: Use output_subdir() for output paths
 
-class StepCalcular(BaseStep):
-    def name(self): return "calcular"
-    def create_task(self, ctx):
-        v = ctx.get("valor", 10)
-        return CalcularTask(v)
-    def on_success(self, ctx, result):
-        ctx.set("resultado", result)
+```python
+# ✅ CORRECT
+def create_task(self, context):
+    output = self.output_subdir(context)
+    return MyTask(output_dir=output, ...)
 
-ctx = ExecutionContext({"valor": 21})
-engine = AsyncPipelineEngine(
-    steps=[StepCalcular()],
-    context=ctx,
-    on_finished=lambda c: print(f"Pipeline OK: {c.get('resultado')}"),
-)
-engine.start()
+# ❌ WRONG — manual path construction
+def create_task(self, context):
+    output = os.path.join(context.output_path, "mystep")  # NO!
+```
+
+### Rule 4: Transform steps call advance_input, analyze steps don't
+
+```python
+# ✅ CORRECT — Transform step
+class MyTransformStep(BaseStep):
+    subfolder = "mytransform"
+    advance_input = True
+
+    def on_success(self, context, result):
+        context.set_result("my_result", result)
+        self.advance_input(context)  # Next step uses mytransform/ folder
+
+# ✅ CORRECT — Analyze step
+class MyAnalyzeStep(BaseStep):
+    subfolder = "myanalyze"
+    advance_input = False
+
+    def on_success(self, context, result):
+        context.set_result("my_analysis", result)
+        # No advance_input — next step uses same folder
+```
+
+### Rule 5: Use context.set_result() / context.get_result() for results
+
+```python
+# ✅ CORRECT
+context.set_result("my_key", {"data": 42})
+data = context.get_result("my_key", {})
+
+# ❌ WRONG — no get/set methods
+context["my_key"] = 42  # NO!
+context.get("my_key")    # NO!
+```
+
+### Rule 6: Use get_logger(context)
+
+```python
+# ✅ CORRECT — gets tool_key from context automatically
+class MyStep(BaseStep):
+    def should_run(self, context):
+        logger = self.get_logger(context)
+        logger.info("Checking...", code="MY_CHECK")
 ```
 
 ---
 
-## ⚠️ Regras e Comportamentos
+## ✅ Checklist for Creating a New Pipeline
 
-| Comportamento | Descrição |
-|---------------|-----------|
-| **Pipeline só executa uma vez** | `start()` lança `RuntimeError` se já executando |
-| **Steps sequenciais** | Step só começa quando anterior termina |
-| **Step pode ser pulado** | `should_run()` retornando `False` |
-| **Step síncrono** | `create_task()` retorna `None` + implementar `run_inline()` |
-| **Erro para a pipeline** | Exceção em qualquer step interrompe a execução |
-| **Cancelamento cooperativo** | Step DEVE verificar `context.is_cancelled()` |
-| **Contexto é o estado** | Steps comunicam-se exclusivamente via `ExecutionContext` |
-| **Em plugins, use QtPipelineEngine** | Nunca use AsyncPipelineEngine em plugins (bloqueia UI) |
+- [ ] Created tasks in `core/papeline/task/` inheriting from `BaseTask`?
+- [ ] Created steps in `core/papeline/step/` inheriting from `BaseStep`?
+- [ ] Step has `subfolder` class attribute defined?
+- [ ] Step has `advance_input` defined (True for transform, False for analyze)?
+- [ ] Step constructor accepts step-specific params + `advance_input` + `input_path`?
+- [ ] Task receives named parameters (NOT dict)?
+- [ ] Step uses `get_logger(context)` (NOT own logger)?
+- [ ] Step uses `resolve_files()` for file listing?
+- [ ] Step uses `output_subdir()` for output paths?
+- [ ] Step uses `context.set_result()` / `context.get_result()`?
+- [ ] Transform steps call `advance_input()` in `on_success()`?
+- [ ] Step does NOT know which step comes before or after?
+- [ ] Updated `__init__.py` in `step/` and/or `task/`?
 
-## ✅ Checklist ao criar nova Pipeline
+---
 
-- [ ] Criei as tasks em `core/papeline/task/` herdando de `BaseTask`?
-- [ ] Criei os steps em `core/papeline/step/` herdando de `BaseStep`?
-- [ ] Atualizei os `__init__.py` correspondentes?
-- [ ] Usei `super().__init__(description=...)` nas tasks?
-- [ ] O `on_success` atualiza o `ExecutionContext` com os resultados?
-- [ ] Tratei exceções dentro de `_run()` retornando `False`?
+## 🔗 References
 
-## 🔗 Referências
-
-- Documentação de análise: `docs/implementacoes/analise_sistema_pipeline_assincrono.md`
-- Contratos do sistema: `docs/skills/SKILL_PLUGIN_CONTRACT.md`
+- Standardization plan: `docs/plans/PLAN_PADRONIZACAO_EXECUTION_CONTEXT.md`
+- System contracts: `docs/skills/SKILL_PLUGIN_CONTRACT.md`
+- Step catalog: `core/papeline/step/__init__.py`
+- Task catalog: `core/papeline/task/__init__.py`

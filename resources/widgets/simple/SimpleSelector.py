@@ -12,10 +12,16 @@ O botão 📂 (suggested_path) funciona da seguinte forma:
     do projeto ativo via ProjectUtil.get_root_folder()
   - Concatena root_folder + path_relativo e insere no QLineEdit
 
+Mode Selector (mode_selector):
+  - Se informado, exibe um GridRadio com opções (ex: "Arquivo"/"Pasta")
+  - O browse_mode e placeholder se adaptam automaticamente ao modo selecionado
+  - Acesse o modo atual via selector.mode
+
 Callbacks (atributos públicos, sobrescreva para conectar lógica externa):
     selector.on_path_change = meu_callback    # recebe (new_path)
     selector.on_browse_click = meu_callback   # recebe ()
     selector.on_suggest_click = meu_callback  # recebe ()
+    selector.on_mode_change = meu_callback    # recebe (mode_key)
 """
 
 from __future__ import annotations
@@ -24,9 +30,10 @@ import os
 from typing import Callable, Optional
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QWidget, QHBoxLayout, QLabel, QLineEdit
+from PySide6.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QLabel, QLineEdit
 
 from core.config.LogUtils import LogUtils
+from resources.widgets.grid.GridRadio import GridRadio
 from resources.widgets.simple.SimpleSecondaryButton import SimpleSecondaryButton
 from utils.ExplorerUtils import ExplorerUtils
 from utils.ProjectUtil import ProjectUtil
@@ -43,6 +50,14 @@ class SimpleSelector(QWidget):
         "directory"    — 1 pasta
         "directories"  — múltiplas pastas
 
+    Mode Selector (mode_selector):
+        Dict com chaves para cada modo. Ex:
+        {
+            "file": {"label": "Arquivo", "description": "Processar 1 arquivo", "default": True},
+            "folder": {"label": "Pasta", "description": "Processar pasta inteira"},
+        }
+        Quando informado, exibe GridRadio acima do campo e alterna browse_mode.
+
     Suporta suggested_path: str opcional. Se informado, um botão "📂" é
     adicionado ao lado do "..." que, ao ser clicado, busca o root_folder
     do projeto ativo e concatena com o path relativo recebido.
@@ -53,10 +68,18 @@ class SimpleSelector(QWidget):
         sel.path()  # retorna o caminho atual
         layout.addWidget(sel)
 
+        # Com mode_selector
+        sel = SimpleSelector("Entrada:", mode_selector={
+            "file": {"label": "Arquivo", "default": True},
+            "folder": {"label": "Pasta"},
+        })
+        sel.mode  # "file" ou "folder"
+
         # Callbacks opcionais
         sel.on_path_change = self._quando_path_mudar
         sel.on_browse_click = self._quando_browse
         sel.on_suggest_click = self._quando_suggest
+        sel.on_mode_change = self._quando_modo_mudar
     """
 
     def __init__(
@@ -69,6 +92,7 @@ class SimpleSelector(QWidget):
         browse_mode: str = "open_file",
         label_width: int = 130,
         suggested_path: str = "",
+        mode_selector: dict = None,
         parent=None,
     ):
         super().__init__(parent)
@@ -76,6 +100,8 @@ class SimpleSelector(QWidget):
         self._file_filter = file_filter
         self._browse_mode = browse_mode
         self._suggested_rel_path: str = ""
+        self._mode_selector_config = mode_selector
+        self._mode: str = ""
 
         # Logger para rastreio
         self._logger = LogUtils(tool="SimpleSelector", class_name="SimpleSelector")
@@ -84,28 +110,75 @@ class SimpleSelector(QWidget):
         self.on_path_change = None    # callback(new_path)
         self.on_browse_click = None   # callback()
         self.on_suggest_click = None  # callback()
+        self.on_mode_change = None    # callback(mode_key)
 
+        # Layout principal (vertical se tem mode_selector)
+        if mode_selector:
+            self._build_with_mode(label_text, default_path, placeholder, tooltip, label_width)
+        else:
+            self._build_simple(label_text, default_path, placeholder, tooltip, label_width)
+
+    def _build_simple(self, label_text, default_path, placeholder, tooltip, label_width):
+        """Constrói layout horizontal simples (sem mode_selector)."""
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(4)
 
-        # ── Label ──
+        self._add_label(layout, label_text, tooltip, label_width)
+        self._add_edit(layout, default_path, placeholder, tooltip)
+        self._add_buttons(layout)
+
+    def _build_with_mode(self, label_text, default_path, placeholder, tooltip, label_width):
+        """Constrói layout vertical com GridRadio + linha horizontal."""
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(4)
+
+        # ── GridRadio ──
+        self._radio = GridRadio(
+            config=self._mode_selector_config,
+            num_columns=len(self._mode_selector_config),
+            parent=self,
+        )
+        layout.addWidget(self._radio)
+
+        # Define modo inicial
+        self._mode = self._radio.selected or ""
+        self._radio.changed.connect(self._on_mode_changed)
+
+        # ── Linha horizontal: label + edit + buttons ──
+        h_layout = QHBoxLayout()
+        h_layout.setContentsMargins(0, 0, 0, 0)
+        h_layout.setSpacing(4)
+
+        self._add_label(h_layout, label_text, tooltip, label_width)
+        self._add_edit(h_layout, default_path, placeholder, tooltip)
+        self._add_buttons(h_layout)
+
+        layout.addLayout(h_layout)
+
+        # Aplica modo inicial
+        self._apply_mode(self._mode)
+
+    def _add_label(self, layout, label_text, tooltip, label_width):
+        """Adiciona label ao layout."""
         self.label = QLabel(label_text)
         self.label.setFixedWidth(label_width)
         if tooltip:
             self.label.setToolTip(tooltip)
         layout.addWidget(self.label)
 
-        # ── Line Edit ──
+    def _add_edit(self, layout, default_path, placeholder, tooltip):
+        """Adiciona QLineEdit ao layout."""
         self.edit = QLineEdit(default_path)
         self.edit.setPlaceholderText(placeholder)
         if tooltip:
             self.edit.setToolTip(tooltip)
         layout.addWidget(self.edit, 1)
-
-        # Conecta log + callback no textChanged
         self.edit.textChanged.connect(self._on_text_changed)
 
+    def _add_buttons(self, layout):
+        """Adiciona botões ... e 📂 ao layout."""
         # ── Botão "..." (selecionar) ──
         self.btn = SimpleSecondaryButton("...")
         self.btn.setFixedWidth(30)
@@ -116,22 +189,39 @@ class SimpleSelector(QWidget):
         # ── Botão de Caminho Padrão (depois do "...") ──
         self._btn_suggest = SimpleSecondaryButton("📂")
         self._btn_suggest.setFixedWidth(30)
-        self._btn_suggest.setVisible(bool(suggested_path))
+        self._btn_suggest.setVisible(False)
         self._btn_suggest.clicked.connect(self._on_suggest_clicked)
-        if suggested_path:
-            self._suggested_rel_path = suggested_path
-            self._btn_suggest.setToolTip(f"Usar pasta do projeto: {suggested_path}")
-            self._logger.info(
-                f"Botão 📂 criado com path relativo: {suggested_path}",
-                code="SUGGEST_CREATED",
-            )
-        else:
-            self._btn_suggest.setToolTip("Usar pasta do projeto")
-            self._logger.info(
-                "Botão 📂 criado sem path relativo inicial",
-                code="SUGGEST_CREATED_EMPTY",
-            )
+        self._btn_suggest.setToolTip("Usar pasta do projeto")
         layout.addWidget(self._btn_suggest)
+
+    def _on_mode_changed(self, mode_key: str):
+        """Callback quando o radio mode muda."""
+        self._mode = mode_key
+        self._apply_mode(mode_key)
+        self._logger.info(
+            f"Modo alterado para: {mode_key}",
+            code="MODE_CHANGED",
+        )
+        if self.on_mode_change:
+            self.on_mode_change(mode_key)
+
+    def _apply_mode(self, mode_key: str):
+        """Aplica configurações de browse_mode e placeholder conforme o modo."""
+        if not self._mode_selector_config:
+            return
+
+        mode_cfg = self._mode_selector_config.get(mode_key, {})
+        mode_type = mode_cfg.get("mode_type", "")
+
+        if mode_type == "folder" or mode_key == "folder":
+            # Modo pasta
+            self._browse_mode = "directory"
+            self.edit.setPlaceholderText("Selecione uma pasta...")
+            self._file_filter = "Todos (*.*)"
+        else:
+            # Modo arquivo (default)
+            self._browse_mode = "open_file"
+            self.edit.setPlaceholderText("Selecione um arquivo...")
 
     # ── Handlers internos (log + callback externo) ─────────────────────
 
@@ -230,6 +320,16 @@ class SimpleSelector(QWidget):
         self.edit.setText(full_path)
 
     # ── Getters / Setters ─────────────────────────────────────────────
+
+    @property
+    def mode(self) -> str:
+        """Retorna o modo atual ('file', 'folder', etc.) ou '' se não tem mode_selector."""
+        return self._mode
+
+    def set_mode(self, mode_key: str):
+        """Define o modo programaticamente."""
+        if self._mode_selector_config and mode_key in self._mode_selector_config:
+            self._radio.set_selected(mode_key)
 
     def path(self) -> str:
         """Retorna o caminho atual (primeiro, se multi)."""

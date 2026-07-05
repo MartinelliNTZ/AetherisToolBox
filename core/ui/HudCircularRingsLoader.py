@@ -22,6 +22,8 @@ Modo 3 — ETAPAS (stage=N):
 
 from __future__ import annotations
 
+from datetime import datetime, timedelta
+
 from PySide6.QtCore import Qt, QTimer, QRectF, QElapsedTimer
 from PySide6.QtGui import QColor, QFont, QLinearGradient, QPainter, QPainterPath, QPen
 from PySide6.QtWidgets import QWidget
@@ -39,6 +41,8 @@ class HudCircularRingsLoader(QWidget):
         self.progress = 0.0
         self.phase = 0
         self.message = "Processando..."
+        self._eta_seconds: float = 0.0
+        self._start_datetime: datetime = datetime.now()
 
         accent = AppStyles.hud_accent_color()
         accent_qcolor = QColor(accent) if QColor.isValidColor(accent) else QColor(212, 168, 83)
@@ -113,6 +117,7 @@ class HudCircularRingsLoader(QWidget):
         self.progress = self._stage_min_pct
         if msg:
             self.message = msg
+        self._start_datetime = datetime.now()
         self._elapsed.start()
         self.update()
 
@@ -126,6 +131,32 @@ class HudCircularRingsLoader(QWidget):
         """Esconde o loader."""
         self._mode = 1
         self.hide()
+
+    # ── ETA / Time helpers ─────────────────────────────────────────
+
+    def set_eta(self, eta_seconds: float) -> None:
+        """Define o tempo total estimado em segundos para calculo de ETA."""
+        self._eta_seconds = max(0.0, float(eta_seconds))
+
+    def _format_secs(self, secs: float) -> str:
+        """Formata segundos como HH:MM:SS."""
+        secs = max(0, int(secs))
+        h, m, s = secs // 3600, (secs % 3600) // 60, secs % 60
+        return f"{h:02d}:{m:02d}:{s:02d}"
+
+    def _elapsed_str(self) -> str:
+        """Retorna o tempo decorrido formatado desde o inicio."""
+        return self._format_secs(self._elapsed.elapsed() / 1000.0)
+
+    def _remaining_str(self) -> str:
+        """Retorna o tempo restante formatado."""
+        remaining = self._eta_seconds - (self._elapsed.elapsed() / 1000.0)
+        return self._format_secs(max(0.0, remaining))
+
+    def _eta_clock_str(self) -> str:
+        """Retorna o horario estimado de conclusao (HH:MM)."""
+        eta_dt = self._start_datetime + timedelta(seconds=self._eta_seconds)
+        return eta_dt.strftime("%H:%M")
 
     # ── Tick principal (16ms) ───────────────────────────────────────
 
@@ -215,10 +246,20 @@ class HudCircularRingsLoader(QWidget):
             self._draw_ring(p, center, ring)
 
         accent_color = QColor(AppStyles.hud_accent_color())
-        p.setPen(accent_color)
-        p.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
-        p.drawText(QRectF(cx - 120, cy + 110, 240, 24), Qt.AlignmentFlag.AlignCenter, self.message)
+        gold_color = QColor(AppStyles.theme_colors()["GOLD"])
+        light_gray = QColor(140, 140, 140)
 
+        # ── Linha superior: tempos (Decorrido | ETA | Restante) ──
+        elapsed_str = self._elapsed_str()
+        remaining_str = self._remaining_str()
+        eta_clock = self._eta_clock_str()
+
+        p.setFont(QFont("Consolas", 8))
+        p.setPen(gold_color)
+        p.drawText(QRectF(cx - 145, cy - 115, 290, 18), Qt.AlignmentFlag.AlignCenter,
+                   f"Tempo: {elapsed_str}|ETA: {eta_clock}|Restante: {remaining_str}")
+
+        # ── Porcentagem no centro ──
         p.setPen(accent_color)
         p.setFont(QFont("Consolas", 16, QFont.Weight.Bold))
         p.drawText(QRectF(cx - 60, cy - 0, 120, 38), Qt.AlignmentFlag.AlignCenter, f"{self.progress:.2f}%")
@@ -226,9 +267,14 @@ class HudCircularRingsLoader(QWidget):
         # Indicador de modo
         stage_str = f"ETAPA {self._stage_current+1}/{self._num_stages}" if self._num_stages > 1 else "TIMER"
         mode_labels = {1: "FEEDBACK", 2: "TIMER", 3: stage_str}
-        p.setPen(QColor(140, 140, 140))
+        p.setPen(light_gray)
         p.setFont(QFont("Segoe UI", 8))
         p.drawText(QRectF(cx - 60, cy + 30, 120, 16), Qt.AlignmentFlag.AlignCenter, mode_labels.get(self._mode, ""))
+
+        # ── Mensagem na parte inferior ──
+        p.setPen(accent_color)
+        p.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+        p.drawText(QRectF(cx - 140, cy + 110, 280, 24), Qt.AlignmentFlag.AlignCenter, self.message)
 
     def _draw_panel(self, painter: QPainter, rect: QRectF):
         grad = QLinearGradient(rect.topLeft(), rect.bottomLeft())

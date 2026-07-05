@@ -80,6 +80,7 @@ class RasterLayerProcessing(BaseUtil):
         create_alpha: bool = False,
         alpha_band_path: Optional[str] = None,
         creation_options: str = "",
+        nodata: Optional[float] = None,
         tool_key: str = ToolKey.UNTRACEABLE.value,
     ) -> str:
         """
@@ -98,6 +99,7 @@ class RasterLayerProcessing(BaseUtil):
             create_alpha: Se True, cria banda alpha (0/255) a partir do NoData.
             alpha_band_path: Caminho da mascara alpha (se create_alpha=True).
             creation_options: Opcoes GDAL extras (string, ignorado por enquanto).
+            nodata: Valor nodata para o raster composto. Se None, nao define.
             tool_key: Chave da ferramenta para logging.
 
         Returns:
@@ -153,6 +155,8 @@ class RasterLayerProcessing(BaseUtil):
                 "blockysize": 512,
                 "BIGTIFF": "YES",
             }
+            if nodata is not None:
+                meta["nodata"] = nodata
 
             # Se 3 bandas RGB, define photometric
             if len(band_files) == 3 and not create_alpha:

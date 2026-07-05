@@ -9,4 +9,6 @@ circular imports. Faça imports diretos dos módulos:
     from core.governor.RamGovernor import RamGovernor
     from core.governor.RamLimitPolicy import RamLimitPolicy, RamLimitMode
     from core.governor.ResourceGovernor import ResourceGovernor, ResourceExceededError
+    from core.governor.CpuGovernor import CpuGovernor
+
 """

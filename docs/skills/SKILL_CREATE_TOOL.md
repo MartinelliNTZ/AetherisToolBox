@@ -64,6 +64,33 @@ class MinhaFerramentaWidget(BasePlugin):
         pass
 ```
 
+> ⚠️ **Cuidado com signal chain ao restaurar paths:**  
+> Widgets como `SimpleSelector` disparam callbacks automaticamente via `textChanged` quando `set_path()` é chamado.  
+> **NUNCA** faça:
+> ```python
+> # ❌ ERRADO — callback será chamado DUAS VEZES
+> self._selector.set_path(saved_path)
+> self._selector.on_path_change(saved_path)  # redundante!
+> 
+> # ❌ ERRADO — carregar metadados sem setar o path visualmente
+> self._carregar_las(file_path)  # path não aparece no QLineEdit!
+> ```
+> **Sempre** use `set_path()` para restaurar paths — o callback conectado via `on_path_change` será disparado automaticamente.
+> 
+> ⚠️ **Salve ambos os paths (file e folder) sempre:**  
+> Se sua ferramenta tem modo "Arquivo"/"Pasta", salve AMBOS os paths no `save_prefs()`, não apenas o do modo atual:
+> ```python
+> def save_prefs(self):
+>     # Salva o path do modo atual
+>     if self._mode == "file":
+>         self.preferences["file_path"] = self._current_path
+>     elif self._mode == "folder":
+>         self.preferences["folder_path"] = self._current_path
+>     # Preserva o outro path que já estava salvo (não sobrescreve com vazio)
+> ```
+> Isso garante que ao alternar entre modos, o path do outro modo ainda esteja disponível.
+```
+
 ---
 
 ## 📝 Passo 3: Registrar no ToolRegistry

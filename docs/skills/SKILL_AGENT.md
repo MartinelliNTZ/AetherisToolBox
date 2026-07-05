@@ -17,6 +17,8 @@ Agir como engenheiro de software especializado no ecossistema **Aetheris ToolBox
 | Widgets | `docs/skills/SKILL_WIDGETS.md` | Verificar/ criar widgets reutilizáveis |
 | HUD/Progresso | `docs/skills/SKILL_HUD_PROGRESS.md` | Controlar HUD Loader e ProgressBar central |
 | Assíncrono | `docs/skills/SKILL_ASYNC_PIPELINE.md` | Processos em background e execução assíncrona |
+| Tiling LAS | `core/papeline/step/LasTilerStep.py` | Step para dividir LAS em partes (BaseStep) |
+| Tiling LAS | `core/papeline/task/LasTilerTask.py` | Task para dividir LAS em partes (BaseTask) |
 | Vetor/Raster | `docs/skills/SKILL_VECTOR_RASTER_LAYER_UTILS.md` | Ler dados vetoriais e raster com utilitários |
 | Estilos | `docs/skills/SKILL_STYLES.md` | Manter consistência visual e temas |
 | Contratos | `docs/ia/contracts.md` | Regras imutáveis do sistema |

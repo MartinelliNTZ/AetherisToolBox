@@ -40,16 +40,19 @@ class InterpolatorUtils(BaseUtil):
         transform,
         crs_str: str,
         tool_key: str = ToolKey.UNTRACEABLE.value,
+        nodata: Optional[float] = None,
     ):
         """
         Salva array 2D como GeoTIFF de 1 banda.
         BIGTIFF=YES para suportar arquivos >4GB.
+
+        Args:
+            nodata: Valor nodata para o GeoTIFF. Se None, nao define.
         """
         logger = BaseUtil._get_logger(tool_key, "InterpolatorUtils")
         os.makedirs(os.path.dirname(path), exist_ok=True)
         try:
-            with rasterio.open(
-                path, "w",
+            profile = dict(
                 driver="GTiff",
                 height=arr.shape[0],
                 width=arr.shape[1],
@@ -58,14 +61,14 @@ class InterpolatorUtils(BaseUtil):
                 crs=crs_str,
                 transform=transform,
                 BIGTIFF="YES",
-            ) as dst:
+            )
+            if nodata is not None:
+                profile["nodata"] = nodata
+            with rasterio.open(path, "w", **profile) as dst:
                 dst.write(arr, 1)
         except Exception as e:
             logger.error(
-                "Erro ao salvar tile GeoTIFF",
-                code="IDW_SAVE_TILE_ERR",
-                path=path,
-                error=str(e),
+                f"Erro ao salvar tile GeoTIFF: {path} -> {e}",
             )
             raise
 
@@ -80,19 +83,47 @@ class InterpolatorUtils(BaseUtil):
         resol: float,
         pontos_por_chunk: int,
         tool_key: str = ToolKey.UNTRACEABLE.value,
+        max_tile_pixels: int = 0,
     ) -> list:
         """
         Divide a area em tiles com ~pontos_por_chunk pontos cada.
+
+        Quando `max_tile_pixels > 0`, a grade tambem considera o numero maximo
+        de pixels por tile para evitar OOM em np.meshgrid (idw_tile_para_disco).
+        O numero final de tiles eh o maior entre o necessario por pontos e por pixels.
+
+        Args:
+            max_tile_pixels: Limite maximo de pixels (tile_h * tile_w) por tile.
+                             0 = desabilitado (comportamento anterior).
 
         Returns:
             Lista de (x0, x1, y0, y1, row, col) — bounds geograficos + indices.
         """
         logger = BaseUtil._get_logger(tool_key, "InterpolatorUtils")
         n_total = len(x_pts)
-        n_alvo = max(1, int(math.ceil(n_total / pontos_por_chunk)))
-        lado = max(1, int(math.ceil(math.sqrt(n_alvo))))
+
+        # Tiles baseados em pontos
+        n_alvo_pontos = max(1, int(math.ceil(n_total / pontos_por_chunk)))
+        lado = max(1, int(math.ceil(math.sqrt(n_alvo_pontos))))
         n_cols = lado
-        n_rows = int(math.ceil(n_alvo / n_cols))
+        n_rows = int(math.ceil(n_alvo_pontos / n_cols))
+
+        # Tiles baseados em pixels
+        if max_tile_pixels > 0 and resol > 0:
+            grid_w = max(1, int(math.ceil((max_x_g - min_x_g) / resol)))
+            grid_h = max(1, int(math.ceil((max_y_g - min_y_g) / resol)))
+            total_pixels = grid_w * grid_h
+            n_alvo_pixels = max(1, int(math.ceil(total_pixels / max_tile_pixels)))
+
+            if n_alvo_pixels > n_alvo_pontos:
+                n_cols = int(math.ceil(math.sqrt(n_alvo_pixels)))
+                n_rows = int(math.ceil(n_alvo_pixels / n_cols))
+                logger.info(
+                    f"Pixel-constrained tiles: {n_alvo_pixels} tiles "
+                    f"(pts: {n_alvo_pontos}) | "
+                    f"grid: {grid_w}x{grid_h} px | "
+                    f"max_pixels/tile: {max_tile_pixels:,}",
+                )
 
         dx = (max_x_g - min_x_g) / n_cols
         dy = (max_y_g - min_y_g) / n_rows
@@ -106,13 +137,11 @@ class InterpolatorUtils(BaseUtil):
                 y1 = min_y_g + (row + 1) * dy
                 tiles.append((x0, x1, y0, y1, row, col))
 
+        px_per_tile = (int(math.ceil(dx / resol)), int(math.ceil(dy / resol)))
         logger.info(
-            "Grade de tiles calculada",
-            code="IDW_TILES_GRID",
-            cols=n_cols,
-            rows=n_rows,
-            total=len(tiles),
-            pontos_por_tile=pontos_por_chunk,
+            f"Grade de tiles calculada: {n_cols}x{n_rows} = {len(tiles)} tiles, "
+            f"{pontos_por_chunk:,} pts/tile, "
+            f"~{px_per_tile[0]}x{px_per_tile[1]} px/tile",
         )
         return tiles
 
@@ -165,9 +194,7 @@ class InterpolatorUtils(BaseUtil):
             elapsed = time.perf_counter() - t0
             logger = BaseUtil._get_logger(tool_key, "InterpolatorUtils")
             logger.info(
-                f"Tile {chunk_idx+1:>4}/{total_chunks} [{tile_tag}] | PULADO",
-                code="IDW_TILE_SKIP",
-                elapsed_s=round(elapsed, 1),
+                f"Tile {chunk_idx+1:>4}/{total_chunks} [{tile_tag}] | PULADO ({elapsed:.1f}s)",
             )
             return (chunk_idx, tile_tag, row0, row1, col0, col1, 'PULADO')
 
@@ -208,14 +235,14 @@ class InterpolatorUtils(BaseUtil):
         if n_locais < k:
             z = np.zeros((tile_h, tile_w), dtype=np.uint8)
             if path_r_out:
-                InterpolatorUtils.salvar_tile_tif(path_r_out, z, tile_transform, crs_str)
+                InterpolatorUtils.salvar_tile_tif(path_r_out, z, tile_transform, crs_str, nodata=0)
             if path_g_out:
-                InterpolatorUtils.salvar_tile_tif(path_g_out, z, tile_transform, crs_str)
+                InterpolatorUtils.salvar_tile_tif(path_g_out, z, tile_transform, crs_str, nodata=0)
             if path_b_out:
-                InterpolatorUtils.salvar_tile_tif(path_b_out, z, tile_transform, crs_str)
+                InterpolatorUtils.salvar_tile_tif(path_b_out, z, tile_transform, crs_str, nodata=0)
             if path_z_out:
                 z_f32 = np.zeros((tile_h, tile_w), dtype=np.float32)
-                InterpolatorUtils.salvar_tile_tif(path_z_out, z_f32, tile_transform, crs_str)
+                InterpolatorUtils.salvar_tile_tif(path_z_out, z_f32, tile_transform, crs_str, nodata=-9999.0)
             return (chunk_idx, tile_tag, row0, row1, col0, col1, 'VAZIO')
 
         # IDW
@@ -242,21 +269,21 @@ class InterpolatorUtils(BaseUtil):
             r_interp = (pesos_norm * r_vals).sum(axis=1)
             r_interp[~valido] = 0
             r_tile = np.clip(r_interp, 0, 255).astype(np.uint8).reshape(tile_h, tile_w)
-            InterpolatorUtils.salvar_tile_tif(path_r_out, r_tile, tile_transform, crs_str)
+            InterpolatorUtils.salvar_tile_tif(path_r_out, r_tile, tile_transform, crs_str, nodata=0)
 
         if path_g_out and g_pts is not None:
             g_vals = g_pts[mask][idx].astype(np.float64)
             g_interp = (pesos_norm * g_vals).sum(axis=1)
             g_interp[~valido] = 0
             g_tile = np.clip(g_interp, 0, 255).astype(np.uint8).reshape(tile_h, tile_w)
-            InterpolatorUtils.salvar_tile_tif(path_g_out, g_tile, tile_transform, crs_str)
+            InterpolatorUtils.salvar_tile_tif(path_g_out, g_tile, tile_transform, crs_str, nodata=0)
 
         if path_b_out and b_pts is not None:
             b_vals = b_pts[mask][idx].astype(np.float64)
             b_interp = (pesos_norm * b_vals).sum(axis=1)
             b_interp[~valido] = 0
             b_tile = np.clip(b_interp, 0, 255).astype(np.uint8).reshape(tile_h, tile_w)
-            InterpolatorUtils.salvar_tile_tif(path_b_out, b_tile, tile_transform, crs_str)
+            InterpolatorUtils.salvar_tile_tif(path_b_out, b_tile, tile_transform, crs_str, nodata=0)
 
         # Interpola Z (float32)
         if path_z_out and z_pts is not None:
@@ -264,15 +291,12 @@ class InterpolatorUtils(BaseUtil):
             z_interp = (pesos_norm * z_vals).sum(axis=1)
             z_interp[~valido] = np.nan
             z_tile = z_interp.astype(np.float32).reshape(tile_h, tile_w)
-            InterpolatorUtils.salvar_tile_tif(path_z_out, z_tile, tile_transform, crs_str)
+            InterpolatorUtils.salvar_tile_tif(path_z_out, z_tile, tile_transform, crs_str, nodata=-9999.0)
 
         elapsed = time.perf_counter() - t0
         logger = BaseUtil._get_logger(tool_key, "InterpolatorUtils")
         logger.info(
             f"Tile {chunk_idx+1:>4}/{total_chunks} [{tile_tag}] | pts={n_locais:>8} | {elapsed:.1f}s",
-            code="IDW_TILE_OK",
-            elapsed_s=round(elapsed, 1),
-            n_locais=n_locais,
         )
         return (chunk_idx, tile_tag, row0, row1, col0, col1, 'OK')
 
@@ -287,6 +311,7 @@ class InterpolatorUtils(BaseUtil):
         out_path: str,
         dtype: np.dtype = np.uint8,
         tool_key: str = ToolKey.UNTRACEABLE.value,
+        nodata: Optional[float] = None,
     ) -> str:
         """
         Le todos os tiles de uma banda e os escreve num GeoTIFF completo via memmap.
@@ -294,7 +319,7 @@ class InterpolatorUtils(BaseUtil):
         """
         tic = time.perf_counter()
         logger = BaseUtil._get_logger(tool_key, "InterpolatorUtils")
-        logger.info(f"[{nome_banda}] Mesclando {len(tile_paths)} tiles", code="IDW_MERGE_START")
+        logger.info(f"[{nome_banda}] Mesclando {len(tile_paths)} tiles", code="IDW_MERGE_START", banda=nome_banda, n_tiles=len(tile_paths), output=out_path)
 
         bin_path = out_path.replace(".tif", ".bin")
         mm = np.memmap(bin_path, dtype=dtype, mode="w+", shape=(height, width))
@@ -318,8 +343,7 @@ class InterpolatorUtils(BaseUtil):
 
         mm.flush()
 
-        with rasterio.open(
-            out_path, "w",
+        profile = dict(
             driver="GTiff",
             height=height, width=width,
             count=1, dtype=dtype,
@@ -327,7 +351,10 @@ class InterpolatorUtils(BaseUtil):
             compress="lzw", predictor=2,
             tiled=True, blockxsize=512, blockysize=512,
             BIGTIFF="YES",
-        ) as dst:
+        )
+        if nodata is not None:
+            profile["nodata"] = nodata
+        with rasterio.open(out_path, "w", **profile) as dst:
             chunk_linhas = 2048
             for rs in range(0, height, chunk_linhas):
                 re = min(rs + chunk_linhas, height)
@@ -342,8 +369,10 @@ class InterpolatorUtils(BaseUtil):
 
         elapsed = time.perf_counter() - tic
         logger.info(
-            f"[{nome_banda}] Mesclagem concluida",
+            f"[{nome_banda}] Mesclagem concluida ({elapsed:.1f}s)",
             code="IDW_MERGE_DONE",
+            banda=nome_banda,
             elapsed_s=round(elapsed, 1),
+            output=out_path,
         )
         return out_path

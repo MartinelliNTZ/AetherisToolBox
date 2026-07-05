@@ -14,10 +14,12 @@ from .MrkSinglePipelineTask import MrkSinglePipelineTask
 from .DoclingPipelineTask import DoclingPipelineTask
 from .LasBlackFilterTask import LasBlackFilterTask
 from .LasCheckTask import LasCheckTask
+from .LasTilerTask import LasTilerTask
 
 __all__ = [
     "MrkSinglePipelineTask",
     "DoclingPipelineTask",
     "LasBlackFilterTask",
     "LasCheckTask",
+    "LasTilerTask",
 ]

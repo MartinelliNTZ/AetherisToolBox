@@ -1,25 +1,27 @@
 # -*- coding: utf-8 -*-
 """
-ResourceGovernor — Orquestrador de Governança de Recursos
+ResourceGovernor — Orquestrador de Governanca de Recursos
 ============================================================
-Ponto único de integração para plugins/pipelines consultarem
-se há recursos suficientes antes de executar tarefas pesadas.
+Ponto unico de integracao para plugins/pipelines consultarem
+se ha recursos suficientes antes de executar tarefas pesadas.
+
+Melhorias v2:
+- estimated_ram AGORA eh usado em can_execute() para decisao proativa
+- check_during_execution(): verificacao periodica DURANTE a task
+- recommended_tile_size() agora considera estimated_ram
+- Snapshot inclui memory_pressure, swap, growth_rate
 
 Uso:
     from core.governor.ResourceGovernor import ResourceGovernor
-    from core.governor.RamLimitPolicy import RamLimitPolicy, RamLimitMode
 
-    policy = RamLimitPolicy(mode=RamLimitMode.GLOBAL, fraction=0.90)
-    governor = ResourceGovernor(policy, tool_key="IdwInterpolator")
-
-    # Antes de executar
     can, reason = governor.can_execute(estimated_ram=8_000_000_000)
-    if not can:
-        print(reason)
-        return
+    if not can: return
 
-    # Ajustar tile size
-    safe_tile = governor.recommended_tile_size(10_000_000)
+    safe_tile = governor.recommended_tile_size(10_000_000, estimated_ram=4_000_000_000)
+
+    # Durante execucao (periodicamente)
+    if not governor.check_during_execution():
+        task.cancel()
 """
 
 from __future__ import annotations
@@ -35,9 +37,6 @@ from utils.FormatUtils import FormatUtils
 
 
 class ResourceExceededError(Exception):
-    """
-    Exceção lançada quando os recursos são insuficientes para executar.
-    """
     def __init__(self, message: str, snapshot: Optional[Dict] = None):
         super().__init__(message)
         self.snapshot = snapshot
@@ -45,19 +44,14 @@ class ResourceExceededError(Exception):
 
 class ResourceGovernor:
     """
-    Orquestrador de decisões baseadas em recursos.
+    Orquestrador de decisoes baseadas em recursos.
 
     Args:
-        policy: RamLimitPolicy com a estratégia de limite.
+        policy: RamLimitPolicy com a estrategia de limite.
         tool_key: ToolKey.value para logging (Contrato 26).
-                  Se não fornecido, usa ToolKey.SYSTEM.value.
     """
 
-    # Constante: bytes por ponto LAS (x, y, z + rgb ≈ 28 bytes float64)
-    # Na prática numpy.float64 = 8 bytes, 4 bandas = 32 bytes
     BYTES_PER_POINT: int = 32
-
-    # Máximo de warnings consecutivos antes de forçar cancelamento
     MAX_WARNINGS: int = 3
 
     def __init__(
@@ -69,98 +63,100 @@ class ResourceGovernor:
         self._ram = RamGovernor()
         self._tool_key = tool_key
         self._warnings: int = 0
-
-        # Logger via BaseUtil (Contrato 3 + Contrato 26)
         self._logger = BaseUtil._get_logger(self._tool_key, "ResourceGovernor")
-
         self._log_snapshot("ResourceGovernor inicializado")
-
-    # ── Propriedades ─────────────────────────────────────────────────
 
     @property
     def policy(self) -> RamLimitPolicy:
-        """Política de limite ativa."""
         return self._policy
 
     @property
     def warnings(self) -> int:
-        """Número de warnings consecutivos."""
         return self._warnings
 
     @property
     def is_throttled(self) -> bool:
-        """
-        True se o número de warnings consecutivos excedeu MAX_WARNINGS,
-        indicando que o sistema deve forçar pausa/cancelamento.
-        """
+        """True se excedeu MAX_WARNINGS consecutivos."""
         return self._warnings >= self.MAX_WARNINGS
-
-    # ── Decisões ─────────────────────────────────────────────────────
 
     def can_execute(self, estimated_ram: int = 0) -> Tuple[bool, str]:
         """
-        Verifica se há recursos suficientes para executar.
+        Verifica se ha recursos suficientes. AGORA usa estimated_ram.
 
-        Args:
-            estimated_ram: RAM estimada necessária em bytes (0 = só headroom).
-
-        Returns:
-            (True, "") se pode executar.
-            (False, "motivo") se não pode.
+        3 niveis de protecao:
+        1. Headroom < estimated_ram + 10% margem -> bloqueia
+        2. memory_pressure > 0.95 -> bloqueia (RAM+SWAP criticos)
+        3. 3 warnings consecutivos -> throttled
         """
-        if not self._policy.is_available(estimated_ram):
+        headroom = self._policy.available_headroom()
+        needed = int(estimated_ram * 1.10) if estimated_ram > 0 else 0
+
+        # Nivel 1: headroom insuficiente para a operacao estimada
+        if headroom < needed:
             self._warnings += 1
-            snap = self.snapshot()
+            snap = self.snapshot(estimated_ram)
             reason = (
-                f"Memória insuficiente. "
+                f"Memoria insuficiente. "
                 f"Headroom: {snap['headroom_human']}, "
+                f"Necessario (c/ margem): {FormatUtils.format_size(needed)}, "
                 f"Limite: {snap['max_allowed_human']}, "
-                f"Estimado: {snap['estimated_human']}, "
-                f"Estratégia: {snap['policy_mode']} ({snap['policy_fraction']*100:.0f}%)"
+                f"Pressao: {snap.get('memory_pressure', 'N/A')}"
             )
             self._log_warning(reason)
-
             if self.is_throttled:
                 self._logger.error(
-                    "Sistema sobrecarregado — múltiplos warnings consecutivos",
+                    "Sistema sobrecarregado — warnings consecutivos",
                     code="GOV_THROTTLED",
                     warnings=self._warnings,
                 )
+            return False, reason
 
+        # Nivel 2: pressao de memoria (RAM + SWAP)
+        pressure = self._ram.memory_pressure()
+        if pressure > 0.95:
+            self._warnings += 1
+            reason = f"Pressao de memoria critica ({pressure:.1%}). Risco de OOM."
+            self._log_warning(reason)
+            if self.is_throttled:
+                self._logger.error(
+                    "Sistema sobrecarregado — pressao critica",
+                    code="GOV_THROTTLED",
+                    warnings=self._warnings,
+                )
             return False, reason
 
         # Reset warnings se passou
         if self._warnings > 0:
             self._warnings = 0
-
         return True, ""
 
-    def assert_can_execute(self, estimated_ram: int = 0) -> None:
+    def check_during_execution(self) -> bool:
         """
-        Levanta ResourceExceededError se não puder executar.
+        Verificacao RAPIDA para uso DURANTE a execucao da task.
+        Mais leve que can_execute() — sem log, sem incremento de warnings.
+        Retorna False se deve interromper a task.
+        """
+        if self._policy.available_headroom() <= 0:
+            return False
+        if self._ram.memory_pressure() > 0.95:
+            return False
+        if self.is_throttled:
+            return False
+        return True
 
-        Raises:
-            ResourceExceededError: Com snapshot do estado.
-        """
+    def assert_can_execute(self, estimated_ram: int = 0) -> None:
         can, reason = self.can_execute(estimated_ram)
         if not can:
-            raise ResourceExceededError(reason, snapshot=self.snapshot())
+            raise ResourceExceededError(reason, snapshot=self.snapshot(estimated_ram))
 
-    # ── Ajuste de Tile ───────────────────────────────────────────────
-
-    def recommended_tile_size(self, max_tile_points: int) -> int:
+    def recommended_tile_size(self, max_tile_points: int, estimated_ram: int = 0) -> int:
         """
-        Ajusta o tamanho do tile baseado na RAM disponível.
+        Ajusta o tamanho do tile baseado na RAM disponivel e estimada.
 
-        Quanto menor o headroom, menor o tile.
-        Fórmula: tile_ajustado = max_tile_points * fator_headroom
-        Onde fator_headroom = max(0.05, headroom / max_allowed_ram)
-
-        Args:
-            max_tile_points: Tamanho máximo original do tile (ex: 10_000_000).
-
-        Returns:
-            Tamanho ajustado (nunca menor que 5% do original).
+        2 fatores:
+        1. headroom_factor: headroom / max_allowed_ram
+        2. estimate_factor: quantos tiles cabem no headroom (min 2)
+        Fator final = min dos 2 fatores (mais conservador)
         """
         max_ram = self._policy.max_allowed_ram()
         headroom = self._policy.available_headroom()
@@ -168,23 +164,21 @@ class ResourceGovernor:
         if max_ram <= 0:
             fator = 0.05
         else:
-            # Fator proporcional ao headroom disponível
-            fator = max(0.05, headroom / max_ram)
+            fator_headroom = headroom / max_ram
+            if estimated_ram > 0 and headroom > 0:
+                tiles_que_cabem = headroom / max(1, estimated_ram)
+                fator_estimativa = min(1.0, tiles_que_cabem / 2.0)
+                fator = max(0.05, min(fator_headroom, fator_estimativa))
+            else:
+                fator = max(0.05, fator_headroom)
 
         adjusted = int(max_tile_points * fator)
-
-        # Não deixar cair abaixo de 5% do original
         min_tile = max(1, int(max_tile_points * 0.05))
         return max(min_tile, adjusted)
 
-    # ── Snapshot ─────────────────────────────────────────────────────
-
     def snapshot(self, estimated_ram: int = 0) -> Dict[str, object]:
-        """
-        Estado completo para logging/diagnóstico.
-        Inclui dados de RamGovernor + RamLimitPolicy + estimativa.
-        """
-        ram_snap = self._ram.snapshot()
+        """Estado completo para logging/diagnostico."""
+        ram_snap = self._ram.snapshot(include_history=True)
         policy_snap = self._policy.snapshot()
         headroom = self._policy.available_headroom()
 
@@ -198,28 +192,24 @@ class ResourceGovernor:
             "headroom_human": FormatUtils.format_size(max(0, headroom)),
             "estimated_human": FormatUtils.format_size(estimated_ram),
             "utilization_pct": policy_snap["utilization_pct"],
+            "memory_pressure": ram_snap.get("memory_pressure", 0),
+            "swap_percent": ram_snap.get("swap_percent", 0),
+            "process_growth_rate": ram_snap.get("process_growth_rate_human", "N/A"),
             "warnings": self._warnings,
             "is_throttled": self.is_throttled,
         }
 
-    # ── Logging ──────────────────────────────────────────────────────
-
     def _log_snapshot(self, prefix: str = "") -> None:
-        """Loga o snapshot atual em nível DEBUG."""
         snap = self.snapshot()
         msg = (
             f"{prefix} | "
             f"Sistema: {snap['used_system_human']}/{snap['total_human']} | "
             f"Processo: {snap['process_human']} | "
             f"Headroom: {snap['headroom_human']} | "
+            f"Pressao: {snap.get('memory_pressure', 'N/A')} | "
             f"Limite: {snap['policy_mode']} {snap['policy_fraction']*100:.0f}%"
         )
         self._logger.debug(msg, code="GOV_SNAPSHOT")
 
     def _log_warning(self, reason: str) -> None:
-        """Loga warning de memória insuficiente."""
-        self._logger.warning(
-            reason,
-            code="GOV_LOW_MEMORY",
-            warnings=self._warnings,
-        )
+        self._logger.warning(reason, code="GOV_LOW_MEMORY", warnings=self._warnings)

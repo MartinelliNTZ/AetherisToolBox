@@ -44,7 +44,8 @@ def configure_hardware(ram_limit_pct: float = 70.0) -> HardwareInfo:
         gpu_count = 0
         gpu_names = []
 
-    cpu_count = os.cpu_count() or 4
+    from core.governor.CpuGovernor import CpuGovernor
+    cpu_count = CpuGovernor.max_workers()
     tf.config.threading.set_intra_op_parallelism_threads(cpu_count)
     tf.config.threading.set_inter_op_parallelism_threads(cpu_count)
 

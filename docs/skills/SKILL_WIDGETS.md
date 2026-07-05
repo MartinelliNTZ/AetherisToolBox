@@ -88,6 +88,18 @@ sel.paths()     # lista (multi)
 sel.set_path("novo/caminho.tif")
 ```
 
+> ⚠️ **Cuidado com signal chain duplicado:** `set_path()` chama `edit.setText()` internamente, que **dispara o signal `textChanged`** → `_on_text_changed()` → `on_path_change(callback)`.  
+> **NUNCA** chame `set_path()` E depois o callback manualmente:
+> ```python
+> # ❌ ERRADO — callback será chamado DUAS VEZES
+> selector.set_path(saved_path)
+> selector.on_path_change(saved_path)  # redundante!
+> 
+> # ✅ CORRETO — set_path já dispara o callback automaticamente
+> selector.set_path(saved_path)
+> ```
+> Se você precisa carregar metadados ou processar o path, conecte via `on_path_change` e use apenas `set_path()` para restaurar.
+
 ---
 
 ### `SimplePrimaryButton` — `SimplePrimaryButton.py`

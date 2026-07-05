@@ -270,6 +270,18 @@ class ToolRegistry:
             category=CategoryTool.CENTRAL,
             show_in_toolbar=True,
         ),
+        ToolKey.LAS_TILER.value: Tool(
+            name=ToolKey.LAS_TILER.value,
+            title="Divisor de Tiles LAS",
+            widget_factory=_make_factory(
+                "plugins.las_tiler.LasTilerPlugin",
+                "LasTilerPlugin",
+            ),
+            tooltip="Divide nuvem LAS/LAZ em tiles baseado em densidade e overlap",
+            tool_type=ToolType.POINTS,
+            category=CategoryTool.CENTRAL,
+            show_in_toolbar=True,
+        ),
     }
 
     def register_default_tools(self) -> None:

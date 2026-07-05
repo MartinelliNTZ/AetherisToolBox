@@ -38,7 +38,7 @@ class MrkSinglePipelineTask(BaseTask):
     def __init__(
         self,
         mrk_path: str,
-        data: List[dict],
+        data_path: str,
         mapping: Dict[str, str],
         output_dir: str,
         *,
@@ -46,7 +46,7 @@ class MrkSinglePipelineTask(BaseTask):
     ):
         super().__init__(description=f"Processar MRK: {Path(mrk_path).name}")
         self._mrk_path = mrk_path
-        self._data = data
+        self._data_path = data_path
         self._mapping = mapping
         self._output_dir = output_dir
         self._emit_console = emit_console
@@ -56,8 +56,10 @@ class MrkSinglePipelineTask(BaseTask):
     def _run(self) -> bool:
         """Executa o processamento MRK em background."""
         try:
+            from utils.vector.VectorLayerSource import VectorLayerSource
+            data = VectorLayerSource.read(self._data_path, tool_key="MrkPipeline")
             total = self._process_mrk_static(
-                Path(self._mrk_path), self._data, self._mapping,
+                Path(self._mrk_path), data, self._mapping,
                 self._output_dir, emit_console=self._emit_console,
             )
             self.result = {

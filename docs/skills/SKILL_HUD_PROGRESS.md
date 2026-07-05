@@ -76,6 +76,42 @@ Plugin não sabe o progresso real, mas sabe o tempo estimado
 - Quando `elapsed_sec >= secs_per_stage`, trava em 100%
 - A cada mudança, emite `hud_update` + `progress_update` automaticamente via `_emit_progress()`
 
+### 📌 ETA — Display de Tempo (Decorrido, ETA, Restante)
+
+O HUD Loader exibe automaticamente uma linha de tempo no topo do painel sempre que o plugin
+fornece `"eta"` (segundos totais estimados) no dicionario do `hud_show` ou `hud_update`.
+
+```
+Decorrido: 00:00:25  |  ETA: 15:32  |  Restante: 00:14:35
+```
+
+**Separacao de responsabilidades:**
+
+| Componente | Responsabilidade |
+|-----------|-----------------|
+| **Plugin** | Calcula e emite `"eta"` (segundos totais estimados) via `hud_show["eta"]` |
+| **MainWindow** | Extrai `"eta"` do dict e chama `self._hud.set_eta(valor)` |
+| **HUD Loader** | Armazena o ETA, calcula elapsed/remaining/ETA clock com base no seu `QElapsedTimer`, e exibe formatado na tela |
+
+**Exemplo de uso no plugin:**
+```python
+# No _on_executar do plugin
+SignalManager.instance().hud_show.emit({
+    "message": "Interpolacao IDW (500.000 pontos)...",
+    "timer": total_estimate,      # Modo 2: auto-count 0% a 100%
+    "eta": total_estimate,        # Exibe Decorrido | ETA | Restante
+})
+```
+
+**Metodo auxiliar no BasePlugin:**
+```python
+# BasePlugin.get_eta_seconds() retorna o tempo estimado do ProcessStatisticsUtil
+eta = self.get_eta_seconds()  # 300.0 (5 minutos)
+```
+
+> A linha de tempo usa fonte `Consolas 9` na cor `GOLD` (dourado do tema ativo)
+> e e atualizada a cada tick (16ms) junto com o progresso.
+
 ### 📌 CENÁRIO 3 — Modo 3: Etapas (Stages)
 **Quando usar:** O processo tem N etapas conhecidas com duração total estimada. Cada etapa avança o progresso em (100/N)% e o HUD espera confirmação externa para liberar a próxima etapa.
 
@@ -260,24 +296,30 @@ def _on_progress_update(self, value: float):
 
 def _on_hud_show(self, data: dict):
     msg = data.get("message", "Processando...")
-    timer = data.get("timer", None)       # Modo 2
-    stages = data.get("stages", None)     # Modo 3
+    timer = data.get("timer", None)       # Modo 2: segundos
+    stages = data.get("stages", None)     # Modo 3: (segundos, num_etapas)
+    eta = data.get("eta", None)           # ETA em segundos totais
     if timer is not None:
         self._hud.start_timer(float(timer), msg)
     elif stages is not None and isinstance(stages, (list, tuple)) and len(stages) == 2:
         self._hud.start_staged(float(stages[0]), int(stages[1]), msg)
     else:
         self._hud.set_progress(0.0, msg)  # Modo 1
+    if eta is not None:
+        self._hud.set_eta(float(eta))
     self._hud.show_loader()
 
 def _on_hud_update(self, data: dict):
     msg = data.get("message", "")
     progress = data.get("progress", None)
+    eta = data.get("eta", None)           # ETA em segundos (atualizacao)
     if progress is not None:
         self._hud.progress = max(0.0, min(100.0, float(progress)))
     if msg:
         self._hud.message = msg
-    if progress is not None or msg:
+    if eta is not None:
+        self._hud.set_eta(float(eta))
+    if progress is not None or msg or eta is not None:
         self._hud.update()
 ```
 
@@ -395,6 +437,7 @@ signals.progress_update.emit(progresso)
 | **Nunca crie QProgressBar no plugin** | Use sempre `progress_update` (Contrato 20) |
 | **Task não sabe da UI** | Task só emite sinais — não importa widgets, não chama MessageBox |
 | **Plugin gerencia o ciclo** | Plugin chama `hud_show` antes do runner, `hud_hide` no `_on_runner_finished` |
+| **ETA opcional** | Passe `"eta"` (segundos totais) no `hud_show` para exibir "Decorrido | ETA | Restante" no topo do HUD |
 
 ---
 
@@ -406,3 +449,4 @@ signals.progress_update.emit(progresso)
 - [ ] Plugin emite `hud_hide` + `progress_update(0)` no `_on_runner_finished`
 - [ ] Nenhum `QProgressBar` ou `QLabel` de progresso foi criado no plugin
 - [ ] A Task não importa `QWidget`, `MessageBox` ou qualquer classe de UI
+- [ ] Plugin emite `"eta"` (segundos totais) no `hud_show` para exibir Decorrido/ETA/Restante

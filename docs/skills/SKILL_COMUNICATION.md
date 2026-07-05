@@ -41,8 +41,8 @@ O `SignalManager` é o canal oficial para mensagens entre plugins e entre plugin
 | `progress_reset` | `Signal()` | Reseta a barra de progresso para 0% |
 | `project_changed` | `Signal()` | Projeto ativo foi salvo/criado |
 | `recent_projects_changed` | `Signal(list)` | Lista de projetos recentes foi alterada: `list[dict]` com chaves path, name, active. Emitido após add_recent/remove_recent. FileMenuItem conecta-se a este sinal para atualizar o submenu "Abrir Recente" em tempo real. |
-| `hud_show` | `Signal(dict)` | Exibe HUD Loader. Dict pode conter: `"message"`, `"timer"` (segundos, modo 2), `"stages"` (lista [segundos, num_etapas], modo 3) |
-| `hud_update` | `Signal(dict)` | Atualiza HUD: `{"message": str, "progress": float}` |
+| `hud_show` | `Signal(dict)` | Exibe HUD Loader. Dict pode conter: `"message"`, `"timer"` (segundos, modo 2), `"stages"` (lista [segundos, num_etapas], modo 3). Aceita `"eta"` (segundos totais) para exibir tempo decorrido/restante. |
+| `hud_update` | `Signal(dict)` | Atualiza HUD: `{"message": str, "progress": float}`. Aceita `"eta"` (float) para re-estimar ETA durante execução. |
 | `hud_hide` | `Signal()` | Esconde HUD Loader |
 | `hud_stage_done` | `Signal(int)` | Notifica que uma etapa externa foi concluída (modo 3): `stage_index` |
 | `execution_started` | `Signal(str)` | Plugin iniciou execução: `tool_name` |
@@ -126,7 +126,7 @@ Use 0.0–100.0 como intervalo. A responsabilidade de transformar um avanço em 
 
 Para resetar a barra para 0%, emita `SignalManager.instance().progress_reset.emit()`.
 
-## HUDLoader — Indicador para operações longas (3 modos)
+## HUDLoader — Indicador para operações longas (3 modos + ETA)
 
 O `HUDLoader` é um indicador visual para operações demoradas e pode exibir status mais detalhado que a ProgressBar. Possui 3 modos de funcionamento:
 
@@ -182,6 +182,7 @@ SignalManager.instance().hud_stage_done.emit(3)  # stage 3 concluido -> pula par
 - Usar `SignalManager` (sinais `hud_show`, `hud_update`, `hud_hide`) para controlar o HUD a partir de workers.
 - Preferir HUD para operações que bloqueiam/ocupam muito tempo ou exigem indicação destacada ao usuário.
 - O dicionário do `hud_update` aceita a chave `"progress"` (float, 0.0–100.0) para sincronizar o percentual com a ProgressBar.
+- O dicionário do `hud_show` e `hud_update` aceita `"eta"` (float, segundos totais) para exibir "Decorrido | ETA (horario) | Restante" no topo do HUD.
 - Não existe proibição estrita similar à ProgressBar, mas prefira reutilizar `HUDLoader` central quando disponível em vez de criar implementações locais.
 
 ## LogUtils — Logs estruturados para desenvolvedores
@@ -191,12 +192,73 @@ SignalManager.instance().hud_stage_done.emit(3)  # stage 3 concluido -> pula par
 - Registrar exceções e contexto (`logger.error("msg", code="COD", error=str(e))`).
 - Registrar variáveis, estados e entradas/saídas críticas.
 
-Princípios:
-- **Console ≠ Log**: Console mostra mensagens para o usuário; `LogUtils` registra dados estruturados para investigação.
-- Evite `except:` sem `as e` e log — sempre capture a exceção e use `logger.error` com o `error=str(e)`.
-- Não logar tudo: prefira logs significativos que ajudem em reproduzir/fixar bugs.
+### Assinatura dos métodos
 
-Exemplo mínimo:
+Todos os métodos de log (`debug`, `info`, `warning`, `error`, `critical`) seguem o mesmo padrão:
+
+```python
+def info(self, msg: str, *, code: str | None = None, **data: Any) -> None:
+```
+
+**Importante:** O `*` na assinatura significa que `code` e `**data` são **keyword-only** — ou seja, devem ser passados **sempre como argumentos nomeados**. Apenas `self` e `msg` são posicionais.
+
+### ✅ Forma RECOMENDADA — f-strings + keyword args
+
+**f-strings sao RECOMENDADAS** para interpolar variaveis na mensagem.
+
+> **Nota:** f-string nao e proibida — printf-style (`%d`, `%s`) SIM e proibido.
+> Use f-string quando a mensagem tiver variaveis; string simples quando for estatica.
+> Nunca passe variaveis como argumentos posicionais extras — o `LogUtils` **nao aceita** `*args`.
+
+Exemplos:
+
+```python
+# ✅ Certo: f-string + keyword-only code + keyword-only data
+self._logger.info(f"LAS lido: {n_pontos} pontos", code="IDW_TASK_LAS_READ")
+self._logger.info(f"Grid: {width}x{height} px", code="IDW_TASK_GRID")
+self._logger.info(f"IDW OK: {n_ok}, Pulado: {n_pulado}", code="IDW_TASK_IDW_DONE")
+
+# ✅ Certo: dados extras via **data
+self._logger.info(
+    "Metadados LAS obtidos",
+    code="LAS_INFO",
+    path=path,
+    point_count=point_count,
+    has_rgb=has_rgb,
+)
+
+# ✅ Certo: logger.error com code e error
+self._logger.error("Erro ao carregar LAS", code="IDW_LAS_LOAD_ERR", error=str(e))
+```
+
+### ❌ Forma ERRADA — printf-style (`%d`, `%s`) com argumentos posicionais
+
+NUNCA use formatação estilo `%d`/`%s` com argumentos posicionais — o `LogUtils` **não aceita** `*args` posicionais além de `msg`:
+
+```python
+# ❌ ERRADO! "takes 2 positional arguments but 3 were given"
+self._logger.info("LAS lido: %d pontos", n_pontos, code="IDW_TASK_LAS_READ")
+self._logger.info("Grid: %dx%d px", width, height, code="IDW_TASK_GRID")
+self._logger.info("IDW OK: %d, Pulado: %d", n_ok, n_pulado, code="IDW_TASK_IDW_DONE")
+```
+
+Isso causa o erro:
+```
+LogUtils.info() takes 2 positional arguments but 3 positional arguments
+(and 1 keyword-only argument) were given
+```
+
+### ⚠️ Atenção: código legado
+
+Se encontrar chamadas como as abaixo no código, **corrija-as imediatamente** trocando para f-strings:
+
+| ❌ Errado (printf positional) | ✅ Correto (f-string) |
+|---|---|
+| `logger.info("LAS lido: %d pontos", n)` | `logger.info(f"LAS lido: {n} pontos")` |
+| `logger.info("Grid: %dx%d px", w, h, code="GRID")` | `logger.info(f"Grid: {w}x{h} px", code="GRID")` |
+| `logger.info("OK: %d, Pul: %d", ok, pul, code="DONE")` | `logger.info(f"OK: {ok}, Pul: {pul}", code="DONE")` |
+
+### Exemplo mínimo
 
 ```python
 try:
@@ -206,6 +268,17 @@ except Exception as e:
     SignalManager.instance().console_message.emit("Erro ao processar arquivo")
     MessageBox.show_error("Erro durante o processamento", detail=traceback.format_exc())
 ```
+
+### Resumo de regras para LogUtils
+
+| Regra | Descrição |
+|---|---|
+| **Mensagem** | Use f-string (`f"..."`) para interpolar variáveis na `msg` |
+| **Código** | Use `code="MEU_CODIGO"` como argumento nomeado |
+| **Dados extras** | Passe via `**data` como argumentos nomeados (`path=x, n=y`) |
+| **Posicionais** | Apenas `self` e `msg` — NUNCA passe valores posicionais extras |
+| **printf-style** | ❌ Proibido: `%d`, `%s`, `%f` com argumentos separados |
+| **Erro** | Sempre `logger.error("msg", code="COD", error=str(e))` — nunca `except:` sem `as e` |
 
 ## Uso de `print()`
 
@@ -222,7 +295,7 @@ except Exception as e:
 - **SignalManager**: exclusivo para comunicação entre ferramentas e atualização de componentes centrais.
 - **ConsolePlugin**: mensagens legíveis para o usuário; use `console_message`.
 - **ProgressBar (ui_main)**: única barra oficial; atualize com `progress_update` — nunca crie barras locais.
-- **HUDLoader**: use para operações longas; controle via sinais HUD quando disponível.
+- **HUDLoader**: use para operações longas; controle via sinais HUD quando disponível. Passe `"eta"` (segundos) no `hud_show` para exibir "Decorrido | ETA | Restante" no topo.
 - **Ciclo de vida**: use `execution_started`/`execution_finished`/`execution_cancelled` para iniciar/parar indicadores visuais.
 - **Progresso combinado**: propague progresso para ProgressBar **e** HUD simultaneamente via `_on_progress_both()`.
 - **LogUtils**: registro estruturado e diagnóstico; erros sempre com `as e` e `logger.error(..., error=str(e))`.

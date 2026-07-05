@@ -1,12 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-LasBlackFilterSteps — Steps concretos para pipeline de filtro LAS
-====================================================================
-Steps que compõem uma pipeline completa de filtragem de pontos pretos
-em arquivos LAS/LAZ.
-
-Pipeline completa:
-    1. LasBlackFilterStep → Filtra pontos pretos e gera arquivos LAS
+LasBlackFilterSteps — Concrete steps for LAS black point filter pipeline
+==========================================================================
+Steps that compose a complete pipeline for filtering black points
+in LAS/LAZ files.
 """
 
 from __future__ import annotations
@@ -20,43 +17,47 @@ from ..task.LasBlackFilterTask import LasBlackFilterTask
 
 class LasBlackFilterStep(BaseStep):
     """
-    Step que filtra pontos pretos de um arquivo LAS/LAZ.
+    Step that filters black points from LAS/LAZ files.
 
-    Context requer:
-        - "file_path": Caminho do arquivo LAS/LAZ de entrada
-        - "limiar": Valor máximo de R/G/B para considerar preto (0–255)
-        - "output_limpo": Caminho para salvar o LAS filtrado
-        - "output_pretos": Caminho para salvar pontos pretos ("" se não salvar)
+    Context requires:
+        - input_path: Directory with LAS/LAZ files to process
+        - output_path: Base directory to save results
 
-    Context produz:
-        - "n_removidos": Quantidade de pontos removidos
-        - "n_mantidos": Quantidade de pontos mantidos
-        - "n_pretos": Quantidade de pontos pretos salvos
-        - "n_total": Total de pontos no original
-        - "output_limpo": Caminho do LAS filtrado gerado
-        - "output_pretos": Caminho do LAS de pretos ("" se não salvou)
+    Context produces:
+        - results["filter_result"]: Dict with filter results
     """
 
+    subfolder = "lasblackfilter"
+    _advance_input = True
+
+    def __init__(self, threshold: int = 0, save_black_points: bool = False,
+                 advance_input: bool = True, input_path: str = ""):
+        self._threshold = threshold
+        self._save_black_points = save_black_points
+        self._advance_input = advance_input
+        self._custom_input_path = input_path
+
     def name(self) -> str:
-        return "las_black_filter"
+        return "lasblackfilter"
 
     def create_task(self, context: ExecutionContext) -> LasBlackFilterTask:
-        """Cria a task de filtragem com parâmetros do contexto."""
+        path = self._custom_input_path or context.input_path
+        files = self.resolve_files(context, ".las", ".laz")
         return LasBlackFilterTask(
-            file_path=str(context.get("file_path")),
-            limiar=int(context.get("limiar", 0)),
-            salvar_pretos=bool(context.get("salvar_pretos", False)),
-            output_limpo=str(context.get("output_limpo", "")),
-            output_pretos=str(context.get("output_pretos", "")),
+            files=files,
+            output_dir=self.output_subdir(context),
+            threshold=self._threshold,
+            save_black_points=self._save_black_points,
         )
 
     def on_success(self, context: ExecutionContext, result: Any) -> None:
-        """Mapeia o resultado da task para o ExecutionContext."""
         if isinstance(result, dict):
-            for key in ("n_total", "n_removidos", "n_mantidos", "n_pretos",
-                        "output_limpo", "output_pretos"):
-                context.set(key, result.get(key))
+            context.set_result("filter_result", result)
+            for key in ("n_total", "n_removed", "n_kept", "n_black",
+                        "output_clean", "output_black"):
+                if key in result:
+                    context.set_result(key, result[key])
+        self.advance_input(context)
 
     def on_error(self, context: ExecutionContext, exception: Exception) -> None:
-        """Adiciona erro ao contexto."""
         context.add_error(exception)

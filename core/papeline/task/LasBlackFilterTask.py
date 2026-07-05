@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 """
-LasBlackFilterTask — Task para filtrar pontos pretos em nuvens LAS/LAZ
-======================================================================
-Remove pontos onde R, G e B estão todos abaixo de um limiar configurável.
-Gera novo arquivo com sufixo _filtrado.las/.laz sem alterar o original.
-Opção de salvar os pontos pretos removidos em arquivo separado.
+LasBlackFilterTask — Task to filter black points in LAS/LAZ point clouds
+==========================================================================
+Removes points where R, G and B are all below a configurable threshold.
+Generates new files with _filtered suffix without altering originals.
+Option to save removed black points in separate files.
 
-ATENÇÃO: Emite progresso via SignalManager durante _run().
-Os sinais Qt são thread-safe — funcionam de dentro da QThread.
+NOTE: Emits progress via SignalManager during _run().
+Qt signals are thread-safe — they work from inside QThread.
 """
 
 from __future__ import annotations
@@ -24,137 +24,150 @@ from ..BaseTask import BaseTask
 
 class LasBlackFilterTask(BaseTask):
     """
-    Task que filtra pontos pretos de um arquivo LAS/LAZ.
+    Task that filters black points from LAS/LAZ files.
 
-    Context requer:
-        - file_path: Caminho do arquivo LAS/LAZ de entrada
-        - limiar: Valor máximo de R/G/B para considerar preto (0–255)
-        - output_limpo: Caminho para salvar o LAS filtrado
-        - output_pretos: Caminho para salvar pontos pretos (opcional, string vazia se não salvar)
+    Args:
+        files: List of LAS/LAZ file paths to process.
+        output_dir: Directory to save filtered files.
+        threshold: Maximum R/G/B value to consider black (0-255).
+        save_black_points: If True, saves removed black points separately.
 
-    Result produz (dict):
-        - n_total: Total de pontos no arquivo original
-        - n_removidos: Quantidade de pontos removidos
-        - n_mantidos: Quantidade de pontos mantidos
-        - n_pretos: Quantidade de pontos pretos salvos (0 se não salvou)
-        - output_limpo: Caminho do arquivo filtrado gerado
-        - output_pretos: Caminho do arquivo de pretos gerado ("" se não salvou)
+    Result produces (dict):
+        - n_total: Total points across all files
+        - n_removed: Total removed points
+        - n_kept: Total kept points
+        - n_black: Total black points saved
+        - output_clean: List of filtered file paths
+        - output_black: List of black points file paths
     """
 
     def __init__(
         self,
-        file_path: str,
-        limiar: int,
-        salvar_pretos: bool,
-        output_limpo: str,
-        output_pretos: str,
+        files: list[str],
+        output_dir: str,
+        threshold: int = 0,
+        save_black_points: bool = False,
     ):
-        super().__init__(description=f"Filtrar pontos pretos: {os.path.basename(file_path)}")
-        self._file_path = file_path
-        self._limiar = limiar
-        self._salvar_pretos = salvar_pretos
-        self._output_limpo = output_limpo
-        self._output_pretos = output_pretos
+        super().__init__(description=f"Filter black points: {len(files)} file(s)")
+        self._files = files
+        self._output_dir = output_dir
+        self._threshold = threshold
+        self._save_black_points = save_black_points
 
     def _run(self) -> bool:
         """
-        Executa a filtragem em background thread emitindo progresso.
+        Executes filtering in background thread emitting progress.
 
-        4 etapas (stages) sincronizadas com o HUD Modo 3:
-          Stage 0: Leitura          (0% → 25%)
-          Stage 1: Filtragem        (25% → 50%)
-          Stage 2: Salvar Filtrado  (50% → 75%)
-          Stage 3: Salvar Pretos    (75% → 100%)
+        4 stages per file synchronized with HUD Mode 3:
+          Stage 0: Read           (0% -> 25%)
+          Stage 1: Filter         (25% -> 50%)
+          Stage 2: Save Filtered  (50% -> 75%)
+          Stage 3: Save Black     (75% -> 100%)
         """
         signals = SignalManager.instance()
+        os.makedirs(self._output_dir, exist_ok=True)
 
-        # ── Stage 0: Leitura (0% → 25%) ────────────────────────────
-        signals.hud_update.emit({"message": "Lendo arquivo LAS...", "progress": 5.0})
-        signals.progress_update.emit(5.0)
+        total_all = 0
+        removed_all = 0
+        kept_all = 0
+        black_all = 0
+        output_clean_list = []
+        output_black_list = []
 
-        # Lê arrays RGB via LasUtil
-        rgb = LasUtil.get_rgb_arrays(self._file_path)
-        if not rgb:
-            raise RuntimeError("Falha ao ler arrays RGB do arquivo LAS")
+        for file_idx, file_path in enumerate(self._files):
+            base_name = os.path.splitext(os.path.basename(file_path))[0]
+            ext = os.path.splitext(file_path)[1].lower()
 
-        n_total = len(rgb["red"])
+            output_clean = os.path.join(self._output_dir, f"{base_name}_filtered{ext}")
+            output_black = os.path.join(self._output_dir, f"{base_name}_black{ext}") if self._save_black_points else ""
 
-        signals.hud_update.emit({
-            "message": f"Analisando {n_total:,} pontos...",
-            "progress": 20.0,
-        })
-        signals.progress_update.emit(20.0)
+            # ── Stage 0: Read (0% -> 25%) ────────────────────────────
+            signals.hud_update.emit({
+                "message": f"[{file_idx+1}/{len(self._files)}] Reading {base_name}...",
+                "progress": 5.0,
+            })
+            signals.progress_update.emit(5.0)
 
-        signals.hud_stage_done.emit(0)  # Stage 0 concluído
+            rgb = LasUtil.get_rgb_arrays(file_path)
+            if not rgb:
+                raise RuntimeError(f"Failed to read RGB arrays from {file_path}")
 
-        # ── Stage 1: Filtragem (25% → 50%) ─────────────────────────
-        mask_valido = (
-            (rgb["red"] > self._limiar)
-            | (rgb["green"] > self._limiar)
-            | (rgb["blue"] > self._limiar)
-        )
-        n_removidos = n_total - int(np.sum(mask_valido))
-
-        signals.hud_update.emit({
-            "message": f"Removendo {n_removidos:,} pontos pretos...",
-            "progress": 50.0,
-        })
-        signals.progress_update.emit(50.0)
-
-        signals.hud_stage_done.emit(1)  # Stage 1 concluído
-
-        # ── Stage 2: Salvar LAS filtrado (50% → 75%) ───────────────
-        # Reabre o LAS completo para criar o arquivo filtrado
-        import laspy
-        las = laspy.read(self._file_path)
-
-        n_mantidos = LasUtil.create_filtered_las(
-            las, mask_valido, self._output_limpo,
-        )
-        if n_mantidos is None:
-            raise RuntimeError(f"Erro ao salvar LAS filtrado: {self._output_limpo}")
-
-        signals.hud_update.emit({
-            "message": f"Salvando LAS filtrado ({n_mantidos:,} pontos)...",
-            "progress": 75.0,
-        })
-        signals.progress_update.emit(75.0)
-
-        signals.hud_stage_done.emit(2)  # Stage 2 concluído
-
-        # ── Stage 3: Salvar pontos pretos (opcional, 75% → 100%) ───
-        n_pretos = 0
-        output_pretos_final: Optional[str] = None
-        if self._salvar_pretos and n_removidos > 0 and self._output_pretos:
-            mask_pretos = ~mask_valido
-            n_pretos_salvos = LasUtil.create_filtered_las(
-                las, mask_pretos, self._output_pretos,
-            )
-            if n_pretos_salvos is not None:
-                n_pretos = n_pretos_salvos
-                output_pretos_final = self._output_pretos
+            n_total = len(rgb["red"])
+            total_all += n_total
 
             signals.hud_update.emit({
-                "message": f"Salvando {n_pretos:,} pontos pretos...",
-                "progress": 95.0,
+                "message": f"Analyzing {n_total:,} points...",
+                "progress": 20.0,
             })
-            signals.progress_update.emit(95.0)
+            signals.progress_update.emit(20.0)
 
-        signals.hud_stage_done.emit(3)  # Stage 3 concluído → HUD vai a 100%
+            signals.hud_stage_done.emit(0)
 
-        # ── Resultado ───────────────────────────────────────────────
+            # ── Stage 1: Filter (25% -> 50%) ─────────────────────────
+            mask_valid = (
+                (rgb["red"] > self._threshold)
+                | (rgb["green"] > self._threshold)
+                | (rgb["blue"] > self._threshold)
+            )
+            n_removed = n_total - int(np.sum(mask_valid))
+            removed_all += n_removed
+
+            signals.hud_update.emit({
+                "message": f"Removing {n_removed:,} black points...",
+                "progress": 50.0,
+            })
+            signals.progress_update.emit(50.0)
+
+            signals.hud_stage_done.emit(1)
+
+            # ── Stage 2: Save Filtered LAS (50% -> 75%) ──────────────
+            import laspy
+            las = laspy.read(file_path)
+
+            n_kept = LasUtil.create_filtered_las(las, mask_valid, output_clean)
+            if n_kept is None:
+                raise RuntimeError(f"Error saving filtered LAS: {output_clean}")
+            kept_all += n_kept
+            output_clean_list.append(output_clean)
+
+            signals.hud_update.emit({
+                "message": f"Saving filtered ({n_kept:,} points)...",
+                "progress": 75.0,
+            })
+            signals.progress_update.emit(75.0)
+
+            signals.hud_stage_done.emit(2)
+
+            # ── Stage 3: Save Black Points (optional, 75% -> 100%) ───
+            if self._save_black_points and n_removed > 0:
+                mask_black = ~mask_valid
+                n_black_saved = LasUtil.create_filtered_las(las, mask_black, output_black)
+                if n_black_saved is not None:
+                    black_all += n_black_saved
+                    output_black_list.append(output_black)
+
+                signals.hud_update.emit({
+                    "message": f"Saving {n_black_saved:,} black points...",
+                    "progress": 95.0,
+                })
+                signals.progress_update.emit(95.0)
+
+            signals.hud_stage_done.emit(3)
+
+        # ── Result ───────────────────────────────────────────────
         self.result = {
-            "n_total": n_total,
-            "n_removidos": n_removidos,
-            "n_mantidos": n_mantidos,
-            "n_pretos": n_pretos,
-            "output_limpo": self._output_limpo,
-            "output_pretos": output_pretos_final or "",
+            "n_total": total_all,
+            "n_removed": removed_all,
+            "n_kept": kept_all,
+            "n_black": black_all,
+            "output_clean": output_clean_list,
+            "output_black": output_black_list,
         }
         return True
 
     def __repr__(self) -> str:
         return (
-            f"<LasBlackFilterTask '{self._file_path}' "
-            f"limiar={self._limiar}>"
+            f"<LasBlackFilterTask "
+            f"files={len(self._files)}, "
+            f"threshold={self._threshold}>"
         )
