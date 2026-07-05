@@ -149,3 +149,48 @@ A solução escolhida combina:
 
 1. `utils/raster/InterpolatorUtils.py` — `calcular_tiles_por_densidade()` ganha parâmetro `max_tile_pixels`
 2. `plugins/idw_interpolator/IdwInterpolatorTask.py` — chama com `max_tile_pixels`, adiciona verificação RAM pós-grid
+
+---
+
+## 🔗 Integração com SystemMonitorService
+
+Como parte da centralização de dados do sistema, o `ResourceGovernor` agora expõe
+`system_stats()` que retorna CPU + RAM unificados, e o `SystemMonitorService`
+passou a consumir **exclusivamente** do `ResourceGovernor` em vez de chamar
+`psutil` diretamente.
+
+### Fluxo de dados atual
+
+```
+psutil
+  ├── RamGovernor (via ResourceGovernor._ram)
+  │     └── snapshot() → percent_system, used_system_human, total_human
+  │
+  └── CpuGovernor (via ResourceGovernor.system_stats())
+        └── cpu_percent(), cpu_tooltip()
+              │
+              ▼
+    ResourceGovernor.system_stats()
+              │
+              ▼
+    SystemMonitorService._poll()
+              │
+              ├── stats_updated (Signal) → GridPercentView (MenuBar)
+              └── SignalManager.system_stats_updated → outros componentes
+```
+
+### Mudanças realizadas
+
+| Arquivo | Tipo | O quê muda |
+|---|---|---|
+| `core/governor/CpuGovernor.py` | 🔧 MODIFICAR | Adiciona `cpu_percent()`, `cpu_count_physical()`, `cpu_count_logical()`, `cpu_tooltip()` |
+| `core/governor/ResourceGovernor.py` | 🔧 MODIFICAR | Adiciona `system_stats()` que retorna dict unificado CPU+RAM |
+| `core/monitor/SystemMonitorService.py` | 🔧 MODIFICAR | Construtor agora recebe `governor: ResourceGovernor`; delega coleta a `governor.system_stats()` |
+| `core/config/MenuManager.py` | 🔧 MODIFICAR | Cria `ResourceGovernor` e o injeta no `SystemMonitorService` |
+
+### Benefícios
+
+1. **Fonte única de verdade** — `psutil` é chamado apenas pelo `RamGovernor` e `CpuGovernor`
+2. **Dados consistentes** — CPU e RAM vêm do mesmo ciclo de polling
+3. **Governor aware** — o monitor reflete as mesmas métricas que o governor usa para decisões
+4. **Sem quebra de contrato** — `SystemMonitorService` mantém mesma API pública (`start()`, `stop()`, `poll_once()`, `stats_updated`)

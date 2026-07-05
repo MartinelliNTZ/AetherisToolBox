@@ -19,7 +19,7 @@ Responsabilidades:
 from __future__ import annotations
 
 import os
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 
 from PySide6.QtCore import Signal, QObject
 from PySide6.QtWidgets import QWidget
@@ -28,11 +28,14 @@ from core.config.LogUtils import LogUtils
 from core.config.ToolRegistry import ToolRegistry
 from core.enum.ToolKey import ToolKey
 from core.enum.ToolType import ToolType
+from core.governor.RamLimitPolicy import RamLimitPolicy, RamLimitMode
+from core.governor.ResourceGovernor import ResourceGovernor
 from core.manager.SignalManager import SignalManager
 from core.menus.FileMenuItem import FileMenuItem
 from core.menus.SystemMenuItem import SystemMenuItem
 from core.menus.HelpMenuItem import HelpMenuItem
 from core.model.Tool import Tool
+from core.monitor.SystemMonitorService import SystemMonitorService
 from resources.widgets.MenuBar import MenuBar
 from resources.widgets.ToolGroup import ToolGroup
 from resources.widgets.ToolBar import ToolBar
@@ -42,7 +45,6 @@ from utils.MessageBox import MessageBox
 from utils.Preferences import Preferences
 from utils.ProjectUtil import ProjectUtil
 from utils.RecentProjectsManager import RecentProjectsManager
-from core.monitor.SystemMonitorService import SystemMonitorService
 
 
 class MenuManager(QObject):
@@ -71,6 +73,7 @@ class MenuManager(QObject):
         self._toolbar_widget: Optional[QWidget] = None
         self._logger = LogUtils(tool=ToolKey.SYSTEM.value, class_name="MenuManager")
         self._recent_manager = RecentProjectsManager()
+        self._governor: Optional["ResourceGovernor"] = None
         self._monitor_service: Optional["SystemMonitorService"] = None
         self._monitor_view: Optional["GridPercentView"] = None
 
@@ -412,7 +415,16 @@ class MenuManager(QObject):
             },
         })
 
-        self._monitor_service = SystemMonitorService(interval_ms=2000)
+        # ResourceGovernor com política global 90% — usado pelo monitor
+        self._governor = ResourceGovernor(
+            policy=RamLimitPolicy(mode=RamLimitMode.GLOBAL, fraction=0.90),
+            tool_key=ToolKey.SYSTEM.value,
+        )
+
+        self._monitor_service = SystemMonitorService(
+            governor=self._governor,
+            interval_ms=2000,
+        )
         self._monitor_service.stats_updated.connect(self._on_stats_updated)
         self._monitor_service.start()
 
@@ -435,6 +447,7 @@ class MenuManager(QObject):
         if self._monitor_service:
             self._monitor_service.stop()
             self._monitor_service = None
+            self._governor = None
             self._logger.info("System monitor shut down", code="MONITOR_SHUTDOWN")
 
     # ────────────────────────────────────────────────────────────────

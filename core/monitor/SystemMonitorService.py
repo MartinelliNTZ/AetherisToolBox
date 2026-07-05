@@ -1,13 +1,17 @@
 # -*- coding: utf-8 -*-
 """
-SystemMonitorService — Serviço de polling de CPU/RAM via psutil
-================================================================
-Singleton que polla CPU e RAM em intervalo configurável e emite
-sinais com os dados atualizados. Usa SignalManager.system_stats_updated
-para propagar as estatísticas.
+SystemMonitorService — Serviço de polling de CPU/RAM via ResourceGovernor
+==========================================================================
+Polling de CPU e RAM em intervalo configurável, delegando a coleta
+de dados ao ResourceGovernor (que centraliza chamadas psutil).
 
 Uso:
-    monitor = SystemMonitorService(interval_ms=2000)
+    from core.governor.ResourceGovernor import ResourceGovernor
+    from core.governor.RamLimitPolicy import RamLimitPolicy, RamLimitMode
+
+    policy = RamLimitPolicy(mode=RamLimitMode.GLOBAL, fraction=0.90)
+    governor = ResourceGovernor(policy=policy)
+    monitor = SystemMonitorService(governor=governor, interval_ms=2000)
     monitor.stats_updated.connect(self._on_stats)
     monitor.start()
     # ...
@@ -27,28 +31,36 @@ from __future__ import annotations
 
 from typing import Optional
 
-import psutil
 from PySide6.QtCore import QObject, QTimer, Signal
 
 from core.config.LogUtils import LogUtils
 from core.enum.ToolKey import ToolKey
+from core.governor.ResourceGovernor import ResourceGovernor
 from core.manager.SignalManager import SignalManager
-from utils.FormatUtils import FormatUtils
 
 
 class SystemMonitorService(QObject):
     """
-    Serviço de monitoramento do sistema via psutil.
+    Serviço de monitoramento do sistema via ResourceGovernor.
 
     Polla CPU e RAM em background via QTimer e emite stats_updated
     com os valores formatados. Também propaga via SignalManager
     para outros componentes interessados.
+
+    A coleta de dados é delegada ao ResourceGovernor, que centraliza
+    todas as chamadas psutil do sistema (evita duplicação).
     """
 
     stats_updated = Signal(dict)
 
-    def __init__(self, interval_ms: int = 2000, parent=None):
+    def __init__(
+        self,
+        governor: ResourceGovernor,
+        interval_ms: int = 2000,
+        parent=None,
+    ):
         super().__init__(parent)
+        self._governor = governor
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._poll)
         self._interval = interval_ms
@@ -56,9 +68,6 @@ class SystemMonitorService(QObject):
             tool=ToolKey.SYSTEM_MONITOR.value,
             class_name="SystemMonitorService",
         )
-
-        # Cache para cpu_percent (precisa de chamada anterior para funcionar)
-        psutil.cpu_percent(interval=None)
 
     # ── API pública ────────────────────────────────────────────────
 
@@ -84,8 +93,7 @@ class SystemMonitorService(QObject):
         Returns:
             dict com cpu, ram, cpu_tooltip, ram_tooltip.
         """
-        data = self._collect_stats()
-        return data
+        return dict(self._governor.system_stats())
 
     @property
     def is_running(self) -> bool:
@@ -94,38 +102,10 @@ class SystemMonitorService(QObject):
 
     # ── Internos ───────────────────────────────────────────────────
 
-    def _collect_stats(self) -> dict:
-        """Coleta e formata estatísticas do sistema."""
-        # CPU
-        cpu = psutil.cpu_percent(interval=None)
-        cpu_count_phys = psutil.cpu_count(logical=False) or 0
-        cpu_count_log = psutil.cpu_count(logical=True) or 0
-        cpu_tooltip = (
-            f"CPU: {cpu:.1f}% "
-            f"({cpu_count_phys} cores físicos, {cpu_count_log} lógicos)"
-        )
-
-        # RAM
-        mem = psutil.virtual_memory()
-        ram = mem.percent
-        used_str = FormatUtils.format_size(mem.used)
-        total_str = FormatUtils.format_size(mem.total)
-        ram_tooltip = (
-            f"RAM: {ram:.1f}% "
-            f"({used_str} / {total_str} usados)"
-        )
-
-        return {
-            "cpu": cpu,
-            "ram": ram,
-            "cpu_tooltip": cpu_tooltip,
-            "ram_tooltip": ram_tooltip,
-        }
-
     def _poll(self) -> None:
-        """Polling interno: coleta e emite sinais."""
+        """Polling interno: coleta via governor e emite sinais."""
         try:
-            data = self._collect_stats()
+            data = self._governor.system_stats()
             self.stats_updated.emit(data)
             SignalManager.instance().system_stats_updated.emit(data)
         except Exception as e:

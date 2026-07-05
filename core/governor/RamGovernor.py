@@ -14,6 +14,7 @@ Melhorias:
 
 from __future__ import annotations
 
+import logging
 import os
 import time
 from typing import Dict, Optional
@@ -21,6 +22,8 @@ from typing import Dict, Optional
 import psutil
 
 from utils.FormatUtils import FormatUtils
+
+_logger = logging.getLogger(__name__)
 
 
 class RamGovernor:
@@ -103,8 +106,11 @@ class RamGovernor:
                 pressure = ram_pressure * (1.0 + swap_pressure * 0.5)
             else:
                 pressure = ram_pressure
-        except Exception:
+        except Exception as e:
             pressure = ram_pressure
+            _logger.warning(
+                "Erro ao ler swap para memory_pressure", exc_info=e,
+            )
         return pressure
 
     def process_growth_rate(self, samples: int = 3) -> float:
@@ -136,9 +142,12 @@ class RamGovernor:
         try:
             swap = psutil.swap_memory()
             s_total, s_used, s_pct = swap.total, swap.used, swap.percent
-        except Exception:
+        except Exception as e:
             s_total = s_used = 0
             s_pct = 0.0
+            _logger.warning(
+                "Erro ao ler swap para snapshot", exc_info=e,
+            )
 
         result: Dict[str, object] = {
             "total_bytes": self._cached_total,
@@ -165,6 +174,6 @@ class RamGovernor:
             abs_rate = abs(int(rate))
             sign = "-" if rate < 0 else ""
             result["process_growth_rate_human"] = f"{sign}{FormatUtils.format_size(abs_rate)}/s"
+            self._record_history()
 
-        self._record_history()
         return result

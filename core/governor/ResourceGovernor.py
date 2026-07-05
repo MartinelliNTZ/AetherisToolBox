@@ -26,10 +26,10 @@ Uso:
 
 from __future__ import annotations
 
-import math
 from typing import Dict, Optional, Tuple
 
 from core.enum.ToolKey import ToolKey
+from core.governor.CpuGovernor import CpuGovernor
 from core.governor.RamGovernor import RamGovernor
 from core.governor.RamLimitPolicy import RamLimitPolicy
 from utils.BaseUtil import BaseUtil
@@ -210,6 +210,29 @@ class ResourceGovernor:
             f"Limite: {snap['policy_mode']} {snap['policy_fraction']*100:.0f}%"
         )
         self._logger.debug(msg, code="GOV_SNAPSHOT")
+
+    def system_stats(self) -> Dict[str, object]:
+        """
+        Retorna estatisticas unificadas de CPU e RAM do sistema.
+
+        Centraliza a coleta de dados do sistema para que o
+        SystemMonitorService consuma do ResourceGovernor em vez de
+        chamar psutil diretamente.
+
+        Returns:
+            dict com cpu, ram, cpu_tooltip, ram_tooltip.
+        """
+        ram_snap = self._ram.snapshot(include_history=False)
+        return {
+            "cpu": CpuGovernor.cpu_percent(),
+            "ram": ram_snap["percent_system"],
+            "cpu_tooltip": CpuGovernor.cpu_tooltip(),
+            "ram_tooltip": (
+                f"RAM: {ram_snap['percent_system']:.1f}% "
+                f"({ram_snap['used_system_human']} / "
+                f"{ram_snap['total_human']} usados)"
+            ),
+        }
 
     def _log_warning(self, reason: str) -> None:
         self._logger.warning(reason, code="GOV_LOW_MEMORY", warnings=self._warnings)
