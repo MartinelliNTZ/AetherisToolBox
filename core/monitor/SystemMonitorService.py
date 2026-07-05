@@ -104,8 +104,18 @@ class SystemMonitorService(QObject):
 
     def _build_tooltips(self, cpu: float, ram: float) -> tuple[str, str]:
         """Constrói tooltips a partir dos dados brutos do governor."""
-        cpu_tip = self._governor.cpu_tooltip()
-        ram_tip = self._governor.ram_tooltip()
+        phys = self._governor.cpu_count_physical()
+        log = self._governor.cpu_count_logical()
+        cpu_tip = (
+            f"CPU: {cpu:.1f}% "
+            f"({phys} cores fisicos, {log} logicos)"
+        )
+        snap = self._governor.ram_snapshot()
+        ram_tip = (
+            f"RAM: {ram:.1f}% "
+            f"({snap['used_system_human']} / "
+            f"{snap['total_human']} usados)"
+        )
         return cpu_tip, ram_tip
 
     def _poll(self) -> None:

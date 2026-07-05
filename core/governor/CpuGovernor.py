@@ -5,8 +5,9 @@ CpuGovernor — Governanca de uso de CPU
 Limita o numero maximo de workers/threads que o software pode usar
 simultaneamente, evitando saturacao total da CPU.
 
-v2: Adiciona metodos de consulta de uso de CPU (cpu_percent, cpu_count,
-cpu_tooltip) para centralizar dados do sistema no ResourceGovernor.
+Fornece dados BRUTOS de CPU (percentual, contagem de nucleos).
+Nao formata tooltips — isso e responsabilidade do consumidor
+(ex: SystemMonitorService).
 
 Constante editavel:
     CPU_USAGE_LIMIT = 0.50  # 50% dos CPUs (padrao)
@@ -18,7 +19,6 @@ Uso:
     pct = cpu.percent()          # 45.2
     phys = cpu.count_physical()  # 8
     log = cpu.count_logical()    # 16
-    tip = cpu.tooltip()          # "CPU: 45.2% (8 cores fisicos, 16 logicos)"
     workers = cpu.max_workers()  # int(32 * 0.25) = 8
 """
 
@@ -87,18 +87,3 @@ class CpuGovernor:
     def count_logical(self) -> int:
         """Numero de nucleos logicos (threads) da CPU."""
         return psutil.cpu_count(logical=True) or 0
-
-    def tooltip(self) -> str:
-        """
-        Tooltip formatado com uso atual e contagem de nucleos.
-
-        Returns:
-            str: Ex: "CPU: 45.2% (8 cores fisicos, 16 logicos)"
-        """
-        pct = self.percent()
-        phys = self.count_physical()
-        log = self.count_logical()
-        return (
-            f"CPU: {pct:.1f}% "
-            f"({phys} cores fisicos, {log} logicos)"
-        )

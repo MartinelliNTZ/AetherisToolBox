@@ -6,9 +6,12 @@ Ponto unico de integracao para plugins/pipelines consultarem
 se ha recursos suficientes antes de executar tarefas pesadas.
 
 v3: Adiciona self._cpu (CpuGovernor) como instancia e metodos
-genericos de consulta (cpu_percent, ram_percent, cpu_tooltip,
-ram_tooltip, system_stats) para que qualquer consumidor obtenha
+genericos de consulta (cpu_percent, ram_percent, cpu_count_*,
+ram_snapshot, system_stats) para que qualquer consumidor obtenha
 dados sem importar sub-governors diretamente.
+
+ATENCAO: Este orquestrador retorna APENAS dados brutos.
+Tooltips sao responsabilidade do consumidor (ex: SystemMonitorService).
 
 Uso:
     from core.governor.ResourceGovernor import ResourceGovernor
@@ -22,10 +25,12 @@ Uso:
     if not governor.check_during_execution():
         task.cancel()
 
-    # Dados genericos (qualquer consumidor)
-    stats = governor.system_stats()       # {"cpu": 45.2, "ram": 72.8}
-    cpu_tip = governor.cpu_tooltip()      # "CPU: 45.2% (8 cores fisicos, ...)"
-    ram_tip = governor.ram_tooltip()      # "RAM: 72.8% (23.4 GB / 32.0 GB ...)"
+    # Dados brutos (qualquer consumidor)
+    stats = governor.system_stats()            # {"cpu": 45.2, "ram": 72.8}
+    pct_cpu = governor.cpu_percent()           # 45.2
+    pct_ram = governor.ram_percent()           # 72.8
+    n_phys = governor.cpu_count_physical()     # 8
+    snap = governor.ram_snapshot()             # {"percent_system": 72.8, ...}
 """
 
 from __future__ import annotations
@@ -188,6 +193,7 @@ class ResourceGovernor:
         return max(min_tile, adjusted)
 
     # ── Metodos genericos de consulta (CPU + RAM) ─────────────────
+    # Apenas dados brutos. Tooltips sao responsabilidade do consumidor.
 
     def cpu_percent(self) -> float:
         """Uso atual da CPU (0.0 a 100.0)."""
@@ -197,18 +203,25 @@ class ResourceGovernor:
         """Uso atual da RAM (0.0 a 100.0)."""
         return self._ram.percent_used()
 
-    def cpu_tooltip(self) -> str:
-        """Tooltip formatado da CPU."""
-        return self._cpu.tooltip()
+    def cpu_count_physical(self) -> int:
+        """Numero de nucleos fisicos da CPU."""
+        return self._cpu.count_physical()
 
-    def ram_tooltip(self) -> str:
-        """Tooltip formatado da RAM."""
-        snap = self._ram.snapshot(include_history=False)
-        return (
-            f"RAM: {snap['percent_system']:.1f}% "
-            f"({snap['used_system_human']} / "
-            f"{snap['total_human']} usados)"
-        )
+    def cpu_count_logical(self) -> int:
+        """Numero de nucleos logicos (threads) da CPU."""
+        return self._cpu.count_logical()
+
+    def ram_snapshot(self) -> Dict[str, object]:
+        """
+        Snapshot de RAM com dados formatados para display.
+
+        O consumidor usa os campos 'percent_system',
+        'used_system_human' e 'total_human' para montar tooltips.
+
+        Returns:
+            dict com percent_system, used_system_human, total_human, etc.
+        """
+        return self._ram.snapshot(include_history=False)
 
     def system_stats(self) -> Dict[str, object]:
         """
