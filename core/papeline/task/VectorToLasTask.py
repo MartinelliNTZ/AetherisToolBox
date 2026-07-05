@@ -5,6 +5,7 @@ VectorToLasTask — Task for converting vector point files to LAS/LAZ
 Reads vector point files (SHP, GPKG, CSV, GeoJSON), extracts X/Y/Z
 coordinates and attributes (RGB, intensity, classification), and
 saves as LAS/LAZ point cloud.
+Emits progress per file for HUD stage mode — each file = 1 stage.
 """
 
 from __future__ import annotations
@@ -73,14 +74,14 @@ class VectorToLasTask(BaseTask):
             basename = os.path.splitext(os.path.basename(file_path))[0]
             output_path = os.path.join(self._output_dir, f"{basename}.las")
 
-            file_progress_base = (idx / n_files) * 100.0
-            file_progress_range = 100.0 / n_files
-
+            # Cada arquivo é uma etapa
             self._signals.hud_update.emit({
-                "message": f"Lendo {os.path.basename(file_path)}...",
-                "progress": file_progress_base + file_progress_range * 0.1,
+                "message": f"Convertendo {basename}... ({idx + 1}/{n_files})",
+                "progress": ((idx + 0.5) / n_files) * 100.0 if n_files > 0 else 50.0,
             })
-            self._signals.progress_update.emit(file_progress_base + file_progress_range * 0.1)
+            self._signals.progress_update.emit(
+                ((idx + 0.5) / n_files) * 100.0 if n_files > 0 else 50.0
+            )
 
             try:
                 ext = os.path.splitext(file_path)[1].lower()
@@ -99,12 +100,6 @@ class VectorToLasTask(BaseTask):
                         path=file_path,
                     )
                     continue
-
-                self._signals.hud_update.emit({
-                    "message": f"Criando LAS para {os.path.basename(file_path)}...",
-                    "progress": file_progress_base + file_progress_range * 0.5,
-                })
-                self._signals.progress_update.emit(file_progress_base + file_progress_range * 0.5)
 
                 self._save_las(points, attributes, output_path)
 
@@ -132,6 +127,7 @@ class VectorToLasTask(BaseTask):
             "n_input": total_input_features,
             "n_output": total_output_points,
             "output_files": all_output_files,
+            "output_dir": self._output_dir,
             "direction": "vector_to_las",
         }
         return True
@@ -212,7 +208,6 @@ class VectorToLasTask(BaseTask):
         """Creates LAS file from point data."""
         n = len(points)
 
-        # Create LAS header
         header = laspy.LasHeader(point_format=3, version="1.2")
         header.offsets = np.min(points, axis=0)
         header.scales = np.array([0.001, 0.001, 0.001])
@@ -223,25 +218,20 @@ class VectorToLasTask(BaseTask):
         las.y = points[:, 1]
         las.z = points[:, 2]
 
-        # Map known attribute names to LAS fields
         attr_lower = {k.lower(): k for k in attributes}
 
-        # Intensity
         if "intensity" in attr_lower:
             las.intensity = attributes[attr_lower["intensity"]].astype(np.uint16)
         else:
             las.intensity = np.zeros(n, dtype=np.uint16)
 
-        # Classification
         if "classification" in attr_lower:
             las.classification = attributes[attr_lower["classification"]].astype(np.uint8)
 
-        # Return number
         if "returnnumber" in attr_lower or "return_number" in attr_lower:
             key = attr_lower.get("returnnumber") or attr_lower.get("return_number")
             las.return_number = attributes[key].astype(np.uint8)
 
-        # RGB
         has_r = "r" in attr_lower or "red" in attr_lower
         has_g = "g" in attr_lower or "green" in attr_lower
         has_b = "b" in attr_lower or "blue" in attr_lower

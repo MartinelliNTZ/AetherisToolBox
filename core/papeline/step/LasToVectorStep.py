@@ -77,7 +77,7 @@ class LasToVectorStep(BaseStep):
         logger = self.get_logger(context)
         if isinstance(result, dict):
             context.set_result("conversion_result", result)
-            for key in ("n_input", "n_output", "output_files", "direction"):
+            for key in ("n_input", "n_output", "output_files", "output_dir", "direction"):
                 if key in result:
                     context.set_result(key, result[key])
         logger.info(

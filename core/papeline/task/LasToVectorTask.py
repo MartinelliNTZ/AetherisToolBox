@@ -5,6 +5,7 @@ LasToVectorTask — Task for converting LAS/LAZ point clouds to vector points
 Reads LAS/LAZ files, extracts X/Y/Z and attributes (RGB, intensity,
 classification, return number), and saves as vector point layer
 (SHP, GPKG, GeoJSON, CSV).
+Emits progress per file for HUD stage mode — each file = 1 stage.
 """
 
 from __future__ import annotations
@@ -69,14 +70,14 @@ class LasToVectorTask(BaseTask):
                 self._output_dir, f"{basename}.{self._output_format}"
             )
 
-            file_progress_base = (idx / n_files) * 100.0
-            file_progress_range = 100.0 / n_files
-
+            # Cada arquivo é uma etapa — sinaliza conclusão para o HUD
             self._signals.hud_update.emit({
-                "message": f"Lendo {os.path.basename(file_path)}...",
-                "progress": file_progress_base + file_progress_range * 0.1,
+                "message": f"Convertendo {basename}... ({idx + 1}/{n_files})",
+                "progress": ((idx + 0.5) / n_files) * 100.0 if n_files > 0 else 50.0,
             })
-            self._signals.progress_update.emit(file_progress_base + file_progress_range * 0.1)
+            self._signals.progress_update.emit(
+                ((idx + 0.5) / n_files) * 100.0 if n_files > 0 else 50.0
+            )
 
             try:
                 las = laspy.read(file_path)
@@ -91,18 +92,10 @@ class LasToVectorTask(BaseTask):
                     )
                     continue
 
-                # Extract coordinates
                 x = las.x
                 y = las.y
                 z = las.z
 
-                self._signals.hud_update.emit({
-                    "message": f"Extraindo atributos de {os.path.basename(file_path)}...",
-                    "progress": file_progress_base + file_progress_range * 0.3,
-                })
-                self._signals.progress_update.emit(file_progress_base + file_progress_range * 0.3)
-
-                # Build attribute dict
                 data = {
                     "X": x,
                     "Y": y,
@@ -112,19 +105,11 @@ class LasToVectorTask(BaseTask):
                     "ReturnNumber": las.return_number if hasattr(las, "return_number") else np.ones(n_points, dtype=np.uint8),
                 }
 
-                # RGB bands
                 if hasattr(las, "red") and hasattr(las, "green") and hasattr(las, "blue"):
                     data["R"] = las.red
                     data["G"] = las.green
                     data["B"] = las.blue
 
-                self._signals.hud_update.emit({
-                    "message": f"Salvando {os.path.basename(output_path)}...",
-                    "progress": file_progress_base + file_progress_range * 0.6,
-                })
-                self._signals.progress_update.emit(file_progress_base + file_progress_range * 0.6)
-
-                # Save based on format
                 if self._output_format == "csv":
                     self._save_csv(data, output_path)
                 else:
@@ -154,6 +139,7 @@ class LasToVectorTask(BaseTask):
             "n_input": total_input_points,
             "n_output": total_output_points,
             "output_files": all_output_files,
+            "output_dir": self._output_dir,
             "direction": "las_to_vector",
         }
         return True
@@ -182,7 +168,6 @@ class LasToVectorTask(BaseTask):
 
         gdf = gpd.GeoDataFrame(geometry=geometries, crs=self._crs_str)
 
-        # Add attribute columns
         for col in data:
             if col in ("X", "Y", "Z"):
                 continue

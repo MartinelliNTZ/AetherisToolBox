@@ -366,18 +366,32 @@ class LasVectorConverterPlugin(BasePlugin):
         output_format = self._combo_formato.current_value if direction == "las_to_vector" else "las"
         points_per_tile = self._spin_tile.get("points_per_tile")
 
-        # Estatísticas
+        # ── Contagem de itens para ProcessStatisticsUtil ──────────
+        # Para LAS→Vetor: total de pontos (modo file) ou nº de arquivos LAS (modo pasta)
+        # Para Vetor→LAS: nº de feições (modo file) ou nº de arquivos vetor (modo pasta)
         n_total = 0
-        if direction == "las_to_vector" and self._mode == "file":
-            n_total = LasUtil.get_point_count(self._current_path, tool_key=self.tool_key)
-        elif self._mode == "folder":
+        n_files = 1  # modo file = 1 arquivo
+
+        if self._mode == "folder":
+            # Conta arquivos na pasta conforme a direção
             if direction == "las_to_vector":
                 las_files = [f for f in os.listdir(self._current_path) if f.lower().endswith((".las", ".laz"))]
                 n_total = len(las_files)
+                n_files = n_total
             else:
                 vec_files = [f for f in os.listdir(self._current_path) if f.lower().endswith((".shp", ".gpkg", ".csv", ".geojson"))]
                 n_total = len(vec_files)
+                n_files = n_total
+        elif direction == "las_to_vector":
+            # Modo file + LAS→Vetor: total de pontos
+            n_total = LasUtil.get_point_count(self._current_path, tool_key=self.tool_key)
+            n_files = 1
+        else:
+            # Modo file + Vetor→LAS: assume 1 arquivo
+            n_total = 1
+            n_files = 1
 
+        # ProcessStatisticsUtil com pontos como medida principal
         ntype = ProcessStatisticsUtil.POINTS if direction == "las_to_vector" else ProcessStatisticsUtil.FEATURES
         self.statistics.start(n=0, ntype=ntype, ntotal=n_total)
 
@@ -388,21 +402,33 @@ class LasVectorConverterPlugin(BasePlugin):
         self._btns.set_all_enabled(False)
         self.page.set_badge(self.page.RUNNING)
 
+        # Tempo estimado: usa o histórico de pontos do ProcessStatisticsUtil
+        # Cada arquivo = 1 etapa. O tempo total é rateado por número de arquivos.
         total_estimate_seconds = max(
             self.statistics.remaining_time,
             self.statistics.total_time,
             30.0,
         )
 
+        # HUD no modo stages: cada arquivo = 1 etapa
+        # stages = [total_seconds, n_files] — o próprio HUD divide o tempo igualmente entre as etapas
+        n_stages = max(n_files, 1)
+        stage_seconds = total_estimate_seconds / n_stages if n_stages > 0 else total_estimate_seconds
+        hud_stages = [total_estimate_seconds, n_stages]
+
         SignalManager.instance().execution_started.emit(self.tool_key)
         SignalManager.instance().hud_show.emit({
-            "message": f"Convertendo {'LAS→Vetor' if direction == 'las_to_vector' else 'Vetor→LAS'}...",
-            "stages": [total_estimate_seconds, 4],
+            "message": f"Convertendo {'LAS→Vetor' if direction == 'las_to_vector' else 'Vetor→LAS'} ({n_files} arquivo(s))...",
+            "stages": hud_stages,
+            "eta": total_estimate_seconds,
         })
+
+        dir_label = "LAS→Vetor" if direction == "las_to_vector" else "Vetor→LAS"
         SignalManager.instance().console_message.emit(
             f"[LasVectorConverter] Iniciando conversão "
-            f"({'LAS→Vetor' if direction == 'las_to_vector' else 'Vetor→LAS'}, "
-            f"formato={output_format}, crs={crs_str})..."
+            f"({dir_label}, "
+            f"formato={output_format}, crs={crs_str}, "
+            f"{n_files} arquivo(s), ~{n_total:,} {ntype})..."
         )
 
         self.logger.info(
@@ -413,6 +439,9 @@ class LasVectorConverterPlugin(BasePlugin):
             output_format=output_format,
             crs=crs_str,
             mode=self._mode,
+            n_files=n_files,
+            n_total=n_total,
+            eta_seconds=round(total_estimate_seconds, 1),
         )
 
         # Monta steps da pipeline
@@ -459,6 +488,7 @@ class LasVectorConverterPlugin(BasePlugin):
         n_input = results.get("n_input", 0)
         n_output = results.get("n_output", 0)
         output_files = results.get("output_files", [])
+        output_dir = results.get("output_dir", "")
         direction = results.get("direction", self._direction)
 
         elapsed = self.statistics.end()
@@ -472,9 +502,13 @@ class LasVectorConverterPlugin(BasePlugin):
         SignalManager.instance().execution_finished.emit(self.tool_key)
 
         dir_label = "LAS→Vetor" if direction == "las_to_vector" else "Vetor→LAS"
+        n_arquivos = len(output_files)
+
+        # Console message SEMPRE com link para pasta de saída
         SignalManager.instance().console_message.emit(
             f"[LasVectorConverter] Conversão {dir_label} concluída! "
-            f"{n_output:,} pontos salvos em {len(output_files)} arquivo(s)."
+            f"{n_output:,} pontos salvos em {n_arquivos} arquivo(s). "
+            f"Resultados em: {output_dir or '(não informado)'}"
         )
 
         self.logger.info(
@@ -483,7 +517,8 @@ class LasVectorConverterPlugin(BasePlugin):
             direction=direction,
             n_input=n_input,
             n_output=n_output,
-            n_arquivos=len(output_files),
+            n_arquivos=n_arquivos,
+            output_dir=output_dir,
         )
 
         msg = (
@@ -491,10 +526,12 @@ class LasVectorConverterPlugin(BasePlugin):
             f"Direção: {dir_label}\n"
             f"Pontos de entrada: {n_input:,}\n"
             f"Pontos de saída: {n_output:,}\n"
-            f"Arquivos gerados: {len(output_files)}\n\n"
+            f"Arquivos gerados: {n_arquivos}\n\n"
         )
+        if output_dir:
+            msg += f"Pasta de saída:\n{output_dir}"
         if output_files:
-            msg += f"Primeiro arquivo:\n{output_files[0]}"
+            msg += f"\n\nPrimeiro arquivo:\n{output_files[0]}"
 
         MessageBox.show_info(msg, title="Conversor LAS ↔ Pontos")
 
