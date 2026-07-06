@@ -104,6 +104,7 @@ class ComplexSelector(QWidget):
         # Estado interno
         self._root_path: str = ""
         self._selected_list: list[str] = []
+        self._updating_display: bool = False  # guard para loop textChanged
 
         # Logger
         self._logger = LogUtils(tool="ComplexSelector", class_name="ComplexSelector")
@@ -137,12 +138,13 @@ class ComplexSelector(QWidget):
             self._label.setToolTip(tooltip)
         layout.addWidget(self._label)
 
-        # QLineEdit (sempre read-only)
+        # QLineEdit (editável — usuário pode digitar manualmente)
         self._edit = QLineEdit()
         self._edit.setPlaceholderText(placeholder)
         if tooltip:
             self._edit.setToolTip(tooltip)
-        self._edit.setReadOnly(True)
+        # Sincroniza digitação manual com estado interno
+        self._edit.textChanged.connect(self._on_edit_text_changed)
         layout.addWidget(self._edit, 1)
 
         # Botões
@@ -195,26 +197,52 @@ class ComplexSelector(QWidget):
 
     def _update_display(self):
         """Atualiza o QLineEdit conforme o estado atual."""
-        if not self._selected_list:
-            self._edit.setText("")
-            return
+        self._updating_display = True
+        try:
+            if not self._selected_list:
+                self._edit.setText("")
+                return
 
-        if not self._multiple:
-            # Mostra o path completo
-            self._edit.setText(self._selected_list[0])
-        else:
-            # Mostra contagem
-            count = len(self._selected_list)
-            if count == 0:
-                self._edit.setText("Nenhum item selecionado")
-            elif count == 1:
-                self._edit.setText("1 item selecionado")
+            if not self._multiple:
+                # Mostra o path completo
+                self._edit.setText(self._selected_list[0])
             else:
-                self._edit.setText(f"{count} itens selecionados")
+                # Mostra contagem
+                count = len(self._selected_list)
+                if count == 0:
+                    self._edit.setText("Nenhum item selecionado")
+                elif count == 1:
+                    self._edit.setText("1 item selecionado")
+                else:
+                    self._edit.setText(f"{count} itens selecionados")
+        finally:
+            self._updating_display = False
 
     # ══════════════════════════════════════════════════════════════════
     # Handlers de busca
     # ══════════════════════════════════════════════════════════════════
+
+    def _on_edit_text_changed(self, text: str):
+        """
+        Sincroniza a digitação manual do usuário com o estado interno.
+        Quando o usuário digita manualmente, atualiza _selected_list e _root_path.
+        """
+        # Ignora se estamos atualizando o display programaticamente
+        if self._updating_display:
+            return
+
+        if not text:
+            self._root_path = ""
+            self._selected_list = []
+            self._emit_path_change()
+            return
+
+        # Em modo single, o texto digitado vira o primeiro item
+        if not self._multiple:
+            self._root_path = os.path.dirname(text) if os.path.isfile(text) else text
+            self._selected_list = [text]
+            self._emit_path_change()
+        # Em modo multiple, não sincronizamos texto livre (mostra contagem)
 
     def _browse_file(self):
         """Busca arquivo(s) — disparado pelo 🔍.
