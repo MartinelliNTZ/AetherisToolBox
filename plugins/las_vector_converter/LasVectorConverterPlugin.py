@@ -526,7 +526,7 @@ class LasVectorConverterPlugin(BasePlugin):
         self.logger.info(
             "Conversão concluída com sucesso",
             code="CONV_DONE",
-            direction=direction,
+            direction=direction,#
             n_input=n_input,
             n_output=n_output,
             n_arquivos=n_arquivos,
