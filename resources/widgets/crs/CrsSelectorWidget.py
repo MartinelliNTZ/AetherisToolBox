@@ -22,12 +22,12 @@ from __future__ import annotations
 
 from typing import Dict, Optional
 
-from PySide6.QtCore import Qt, Signal
-from PySide6.QtWidgets import QHBoxLayout, QPushButton, QWidget
+from PySide6.QtCore import Signal
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QWidget
 
 from core.enum.CommonCrs import CommonCrs
-from resources.styles.AppStyles import AppStyles
 from resources.widgets.simple.SimpleComboBox import SimpleComboBox
+from resources.widgets.simple.SimpleSecondaryButton import SimpleSecondaryButton
 
 # ── Tenta importar pyproj (para validação opcional) ──
 try:
@@ -49,9 +49,14 @@ class CrsSelectorWidget(QWidget):
 
     crs_changed = Signal(str)
 
-    def __init__(self, parent: Optional[QWidget] = None):
+    def __init__(
+        self,
+        label: str | None = "CRS:",
+        parent: QWidget | None = None,
+    ):
         super().__init__(parent)
         self._extra_items: Dict[str, str] = {}  # EPSGs temporários (não do enum)
+        self._label_text = label
 
         self._build_ui()
         self._connect_signals()
@@ -64,6 +69,11 @@ class CrsSelectorWidget(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(4)
 
+        # ── Label opcional ──
+        if self._label_text:
+            lbl = QLabel(self._label_text)
+            layout.addWidget(lbl)
+
         # ── ComboBox com itens do CommonCrs ──
         self._combo = SimpleComboBox(
             items=CommonCrs.to_dict(),
@@ -73,11 +83,9 @@ class CrsSelectorWidget(QWidget):
         layout.addWidget(self._combo, 1)
 
         # ── Botão 🌎 para abrir busca avançada ──
-        self._search_btn = QPushButton("🌎")
-        self._search_btn.setFixedWidth(40)
-        self._search_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._search_btn = SimpleSecondaryButton("🌎")
+        self._search_btn.setFixedWidth(30)
         self._search_btn.setToolTip("Buscar CRS...")
-        self._search_btn.setStyleSheet(AppStyles.btn_secondary_style())
         layout.addWidget(self._search_btn)
 
     def _connect_signals(self) -> None:

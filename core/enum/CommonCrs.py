@@ -18,7 +18,7 @@ from enum import Enum
 
 class CommonCrs(str, Enum):
     """Enum com os CRS/EPSG mais comuns pré-configurados."""
-
+    BLANK = ""                    # Nenhum CRS selecionado
     EPSG_4326 = "EPSG:4326"      # WGS 84
     EPSG_31980 = "EPSG:31980"    # SIRGAS 2000 / UTM zone 20S
     EPSG_31981 = "EPSG:31981"    # SIRGAS 2000 / UTM zone 21S
@@ -38,6 +38,7 @@ class CommonCrs(str, Enum):
         """Nome descritivo sem o prefixo EPSG (ex: 'WGS 84')."""
         # Mapa interno para evitar depender de pyproj só para nomes
         _names = {
+            "": "",
             "EPSG:4326": "WGS 84",
             "EPSG:31980": "SIRGAS 2000 / UTM zone 20S",
             "EPSG:31981": "SIRGAS 2000 / UTM zone 21S",
