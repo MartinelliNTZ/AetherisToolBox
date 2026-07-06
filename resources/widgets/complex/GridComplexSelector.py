@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 GridComplexSelector — Grade de ComplexSelectors configurados por dicionário,
-com suporte a linking entre selectores (parent/suffix/extension/subfolder).
+com suporte a linking entre selectores e dynamic_parent.
 
 Uso:
     grid = GridComplexSelector({
@@ -16,18 +16,17 @@ Uso:
         "Saída": {
             "mode_type": "output",
             "parent": "Entrada",
-            "allow_file": True,
-            "allow_folder": False,
+            "dynamic_parent": True,    # Segue modo do parent
+            "allow_file": True,        # Modo file
+            "allow_folder": True,      # Modo folder
+            "fixed_name": "resultado.gpkg",  # Ignorado se dynamic_parent ativo com folder
             "show_suggest_button": True,
-            "subfolder": "output",
-            "fixed_name": "resultado.gpkg",
         },
-    }, title="Entrada e Saída")
+    })
 
     grid["Entrada"].path()
     grid["Entrada"].get_root_path()
-    grid["Entrada"].get_selected_list()
-    grid["Entrada"].path_type()   # "file" | "folder" | "files" | "folders"
+    grid["Entrada"].path_type()
     grid.use_origin("Saída")
 """
 
@@ -37,12 +36,14 @@ import os
 from typing import Optional
 
 from PySide6.QtWidgets import (
-    QWidget, QGridLayout, QVBoxLayout, QHBoxLayout,
+    QWidget, QGridLayout, QVBoxLayout, QHBoxLayout, QLineEdit,
 )
+from PySide6.QtCore import QTimer
 
 from resources.widgets.GroupPainel import GroupPainel
 from resources.widgets.complex.ComplexSelector import ComplexSelector
 from resources.widgets.simple.SimpleSecondaryButton import SimpleSecondaryButton
+from resources.styles.AppStyles import AppStyles
 
 from core.config.LogUtils import LogUtils
 
@@ -51,15 +52,13 @@ class GridComplexSelector(QWidget):
     """
     Grade de ComplexSelectors configurados por dicionário.
 
-    Cada entrada do dict vira um ComplexSelector na grade.
     Suporta mode_type="input"/"output" com parent linking.
-
-    Botão "USAR ORIGEM" aparece automaticamente para selectores
-    que têm parent definido e mode_type="output".
+    dynamic_parent: filho adapta selection_mode conforme o pai.
     """
 
     _KEYS_RESERVED = frozenset({
         "label_text", "parent", "mode_type",
+        "dynamic_parent", "suffix", "extension",
     })
 
     def __init__(
@@ -77,6 +76,7 @@ class GridComplexSelector(QWidget):
         self._link_meta: dict[str, dict] = {}
         self._origin_buttons: dict[str, SimpleSecondaryButton] = {}
         self._self_generated: dict[str, bool] = {}
+        self._dynamic_children: dict[str, str] = {}  # child_label -> parent_label
 
         self._build(specs, title, columns)
 
@@ -124,8 +124,9 @@ class GridComplexSelector(QWidget):
         """Constrói um ComplexSelector + botão USAR ORIGEM (se necessário)."""
         mode_type = kwargs.get("mode_type", "input")
         parent_key = kwargs.get("parent", "")
+        dynamic_parent = kwargs.get("dynamic_parent", False)
 
-        # Extrai parâmetros de linking ANTES de limpar
+        # Extrai parâmetros de linking
         suffix = kwargs.get("suffix", "")
         extension = kwargs.get("extension", "")
         subfolder = kwargs.get("subfolder", "")
@@ -140,7 +141,7 @@ class GridComplexSelector(QWidget):
         if "label_text" not in clean_kwargs:
             clean_kwargs["label_text"] = label
 
-        # Se for output com parent, set mode_type e passa subfolder/fixed_name
+        # Se for output com parent, set mode_type
         if mode_type == "output" and parent_key:
             clean_kwargs["mode_type"] = "output"
             if subfolder:
@@ -162,15 +163,21 @@ class GridComplexSelector(QWidget):
                 "subfolder": subfolder,
                 "mode_type": mode_type,
                 "fixed_name": fixed_name,
+                "dynamic_parent": dynamic_parent,
             }
             self._self_generated[label] = False
+
+        # Se dynamic_parent, registra para monitoramento
+        if dynamic_parent and parent_key:
+            self._dynamic_children[label] = parent_key
+            self._connect_dynamic_listener(label, parent_key)
 
         # Botão USAR ORIGEM para outputs com parent
         btn_container: Optional[QWidget] = None
         if mode_type == "output" and parent_key:
             btn_container = self._create_origin_button(label, parent_key)
 
-        # Conecta listener reativo
+        # Conecta listener reativo de path
         if mode_type == "output" and parent_key:
             self._connect_parent_listener(label, parent_key)
 
@@ -182,9 +189,7 @@ class GridComplexSelector(QWidget):
         h_layout.setContentsMargins(0, 0, 0, 2)
         h_layout.setSpacing(4)
 
-        from resources.widgets.simple.SimpleLabel import SimpleLabel
-        info_label = SimpleLabel(f"Usar origem de: {parent_key}")
-        h_layout.addWidget(info_label)
+
 
         h_layout.addStretch(1)
 
@@ -192,13 +197,12 @@ class GridComplexSelector(QWidget):
         self._origin_buttons[label] = btn
         h_layout.addWidget(btn)
 
-        # Conecta via closure
         btn.clicked.connect(lambda: self._on_use_origin(label))
 
         return container
 
     def _connect_parent_listener(self, label: str, parent_key: str):
-        """Conecta callback do parent para reatividade automática."""
+        """Conecta callback do parent para reatividade ao mudar path."""
         parent_selector = self._selectors.get(parent_key)
         if not parent_selector:
             return
@@ -210,6 +214,75 @@ class GridComplexSelector(QWidget):
                 self._generate_output(label, parent_paths)
 
         parent_selector.on_path_change = on_parent_changed
+
+    # ══════════════════════════════════════════════════════════════════
+    # Dynamic Parent — adapta selection_mode do filho conforme o pai
+    # ══════════════════════════════════════════════════════════════════
+
+    def _connect_dynamic_listener(self, child_label: str, parent_key: str):
+        """
+        Conecta listener no parent para adaptar o filho dinamicamente.
+        Quando o parent muda de tipo:
+          - file (1 arquivo) → filho vira file (ignora fixed_name)
+          - folder/files/folders → filho vira folder
+        """
+        parent_selector = self._selectors.get(parent_key)
+        if not parent_selector:
+            return
+
+        def on_parent_browse(parent_paths: list[str]):
+            self._apply_dynamic_mode(child_label)
+
+        # Conecta no browse (qualquer clique de botão)
+        parent_selector.on_browse_click = lambda: None
+        # Usa o path_change para aplicar dinâmica
+        parent_selector.on_path_change = self._make_dynamic_handler(child_label)
+
+    def _make_dynamic_handler(self, child_label: str):
+        """Factory para criar handler de path_change que aplica dinâmica."""
+        def handler(paths: list[str]):
+            self._apply_dynamic_mode(child_label)
+        return handler
+
+    def _apply_dynamic_mode(self, child_label: str):
+        """
+        Aplica o modo dinâmico no filho baseado no estado atual do parent.
+        - parent file (1 arquivo) → filho file, ignora fixed_name
+        - parent folder/files/folders → filho folder
+        """
+        meta = self._link_meta.get(child_label)
+        if not meta:
+            return
+
+        parent_key = meta.get("parent", "")
+        parent_selector = self._selectors.get(parent_key)
+        child_selector = self._selectors.get(child_label)
+
+        if not parent_selector or not child_selector:
+            return
+
+        parent_type = parent_selector.path_type()
+        parent_count = parent_selector.path_count()
+
+        # Determina modo do filho
+        if parent_type == "file" and parent_count == 1:
+            # Parent é 1 arquivo → filho vira file (permite salvar outro arquivo)
+            child_selector.selection_mode = "file"
+            # Atualiza visibilidade dos botões (já está no ComplexSelector)
+        else:
+            # Parent é folder/files/folders → filho vira folder
+            child_selector.selection_mode = "folder"
+
+        # Atualiza o edit com hint do modo
+        if child_selector.is_folder_mode():
+            child_selector.edit.setPlaceholderText("Usar pasta do parent")
+        else:
+            child_selector.edit.setPlaceholderText("Arquivo de saída")
+
+        # Esconde o botão 📂 se não fizer sentido com o modo atual
+        if hasattr(child_selector, '_btn_suggest') and child_selector._btn_suggest.isVisible():
+            # 📂 sempre visível (gera fixed_name dentro do root do projeto)
+            pass
 
     # ══════════════════════════════════════════════════════════════════
     # Lógica de linking (USAR ORIGEM)
@@ -263,6 +336,7 @@ class GridComplexSelector(QWidget):
         parent_dir = os.path.dirname(parent_path) if os.path.isfile(parent_path) else parent_path
         subfolder = meta.get("subfolder", "")
         fixed_name = meta.get("fixed_name", "")
+        dynamic = meta.get("dynamic_parent", False)
 
         if parent_selector.is_folder_mode():
             # Modo pasta: output = parent_path / subfolder
@@ -271,18 +345,81 @@ class GridComplexSelector(QWidget):
             else:
                 output_path = os.path.join(parent_path, "converted")
             selector.set_path(output_path)
+            selector.selection_mode = "folder"
         else:
             # Modo file/files: output = dirname / subfolder / fixed_name
+            # Se dynamic e parent é 1 arquivo, ignora fixed_name? Não, usa fixed_name
+            if dynamic and parent_selector.path_type() == "file" and parent_selector.path_count() == 1:
+                # Dynamic file → usa fixed_name normalmente
+                pass
+
             if subfolder:
                 output_path = os.path.join(parent_dir, subfolder, fixed_name)
             else:
                 output_path = os.path.join(parent_dir, fixed_name)
             selector.set_path(output_path)
+            selector.selection_mode = "file"
+
+        # Atualiza hint
+        if selector.is_folder_mode():
+            selector.edit.setPlaceholderText("Pasta de saída")
+        else:
+            selector.edit.setPlaceholderText("Arquivo de saída")
 
         self._logger.info(
             f"Output gerado '{label}': {selector.path()}",
             code="GRID_OUTPUT_GENERATED",
         )
+
+    # ══════════════════════════════════════════════════════════════════
+    # Métodos de erro visual
+    # ══════════════════════════════════════════════════════════════════
+
+    def show_error(self, label: str, message: str, duration_ms: int = 3000):
+        """
+        Exibe erro visual no selector (borda vermelha + tooltip).
+        Usa AppStyles para estilização consistente com o tema.
+
+        Args:
+            label: Chave do selector.
+            message: Mensagem de erro.
+            duration_ms: Tempo em ms antes de limpar (0 = permanente).
+        """
+        selector = self._selectors.get(label)
+        if not selector:
+            return
+
+        edit = selector.edit
+        if not edit:
+            return
+
+        # Salva stylesheet original
+        if not hasattr(edit, '_saved_stylesheet'):
+            edit._saved_stylesheet = edit.styleSheet()
+
+        # Aplica borda vermelha usando cor do tema
+        from resources.styles.ThemeManager import ct
+        error_color = ct.theme.COLOR_DANGER
+        edit.setStyleSheet(
+            f"QLineEdit {{ border: 2px solid {error_color}; "
+            f"border-radius: {ct.theme.RADIUS_SM}px; "
+            f"background-color: {ct.theme.SURFACE_2}; "
+            f"color: {ct.theme.TEXT_MEDIUM}; "
+            f"padding: 2px 6px; }}"
+        )
+        edit.setToolTip(f"⚠ {message}")
+
+        # Se duration > 0, limpa após o tempo
+        if duration_ms > 0:
+            from PySide6.QtCore import QTimer
+            QTimer.singleShot(duration_ms, lambda: self._clear_error(edit))
+
+    def _clear_error(self, edit: QLineEdit):
+        """Limpa o estilo de erro de um QLineEdit."""
+        if hasattr(edit, '_saved_stylesheet'):
+            edit.setStyleSheet(edit._saved_stylesheet)
+        else:
+            edit.setStyleSheet("")
 
     # ══════════════════════════════════════════════════════════════════
     # API Pública
@@ -345,3 +482,8 @@ class GridComplexSelector(QWidget):
     def get_parent_of(self, label: str) -> Optional[str]:
         meta = self._link_meta.get(label)
         return meta.get("parent") if meta else None
+
+    def is_dynamic(self, label: str) -> bool:
+        """Verifica se um selector tem dynamic_parent ativo."""
+        meta = self._link_meta.get(label, {})
+        return meta.get("dynamic_parent", False)

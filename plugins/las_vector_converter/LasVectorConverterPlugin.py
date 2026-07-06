@@ -97,7 +97,7 @@ class LasVectorConverterPlugin(BasePlugin):
                 "allow_file": True,
                 "allow_folder": False,
                 "multiple": False,
-                "dinamic_parent": True,
+                "dynamic_parent": True,
                 "show_suggest_button": True,
                 "subfolder": "lasvectorconverter",
                 "fixed_name": "lasvectorconverted.gpkg",

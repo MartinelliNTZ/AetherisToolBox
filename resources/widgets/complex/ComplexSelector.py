@@ -217,7 +217,10 @@ class ComplexSelector(QWidget):
     # ══════════════════════════════════════════════════════════════════
 
     def _browse_file(self):
-        """Busca arquivo(s) — disparado pelo 🔍."""
+        """Busca arquivo(s) — disparado pelo 🔍.
+        Em modo input: usa open_file/open_files.
+        Em modo output: usa save_file.
+        """
         self._logger.info("🔍 clicado", code="COMPLEX_FILE_CLICKED")
         if self.on_browse_click:
             self.on_browse_click()
@@ -226,7 +229,17 @@ class ComplexSelector(QWidget):
             self._root_path or (self._selected_list[0] if self._selected_list else "")
         )
 
-        if self._multiple:
+        if self._mode_type == "output":
+            # Output: diálogo de salvar
+            path = ExplorerUtils.save_file(
+                "Salvar arquivo", initial_dir, self._file_filter, self,
+            )
+            if path:
+                self._root_path = os.path.dirname(path)
+                self._selected_list = [path]
+                self._update_display()
+                self._emit_path_change()
+        elif self._multiple:
             paths = ExplorerUtils.open_files(
                 "Selecionar arquivos", initial_dir, self._file_filter, self,
             )
