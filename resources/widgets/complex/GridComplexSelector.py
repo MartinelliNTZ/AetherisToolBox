@@ -414,6 +414,9 @@ class GridComplexSelector(QWidget):
         Usado pelo plugin quando o formato de saída muda (ex: gpkg → shp).
         O próximo output gerado usará a nova extensão.
 
+        Também sincroniza o fixed_name do ComplexSelector para que o 📂
+        (suggest button) use a extensão atual.
+
         Args:
             label: Nome do selector (ex: "Saída").
             extension: Extensão sem ponto (ex: "gpkg", "shp").
@@ -421,6 +424,15 @@ class GridComplexSelector(QWidget):
         meta = self._link_meta.get(label)
         if meta:
             meta["extension"] = extension
+            # Sincroniza fixed_name no ComplexSelector para o 📂 usar extensão atual
+            fixed_base = meta.get("fixed_name", "")
+            if fixed_base and not fixed_base.endswith(f".{extension}"):
+                base_name = os.path.splitext(fixed_base)[0]  # Remove extensão antiga se houver
+                new_fixed_name = f"{base_name}.{extension}"
+                meta["fixed_name"] = new_fixed_name
+                selector = self._selectors.get(label)
+                if selector:
+                    selector.set_fixed_name(new_fixed_name)
 
     def set_output_suffix(self, label: str, suffix: str):
         """
@@ -584,10 +596,14 @@ class GridComplexSelector(QWidget):
                     selector.selection_mode = "folder"
                 else:
                     # Modo file/files: output = dirname / subfolder / fixed_name
+                    # Se fixed_name não tem extensão mas extension está definida, adiciona
+                    output_name = fixed_name
+                    if extension and not os.path.splitext(fixed_name)[1]:
+                        output_name = f"{fixed_name}.{extension}"
                     if subfolder:
-                        output_path = os.path.join(parent_dir, subfolder, fixed_name)
+                        output_path = os.path.join(parent_dir, subfolder, output_name)
                     else:
-                        output_path = os.path.join(parent_dir, fixed_name)
+                        output_path = os.path.join(parent_dir, output_name)
                     selector.set_path(output_path)
                     selector.selection_mode = "file"
 

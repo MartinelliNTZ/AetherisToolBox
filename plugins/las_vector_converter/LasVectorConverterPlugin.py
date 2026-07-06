@@ -49,7 +49,6 @@ class LasVectorConverterPlugin(BasePlugin):
     _LAS_FILTER = "LAS/LAZ (*.las *.laz)"
     _VECTOR_FILTER = "Vetor (*.shp *.gpkg *.geojson *.csv *.kml)"
     SULFIX = "_converted"
-    CURRENT_EXTENSION = ".gpkg"
 
     def __init__(self, parent=None):
         self._current_path: str = ""
@@ -113,7 +112,7 @@ class LasVectorConverterPlugin(BasePlugin):
                 "dynamic_parent": True,
                 "show_suggest_button": True,
                 "subfolder": "lasvectorconverter",
-                "fixed_name": f"lasvectorconverted{self.CURRENT_EXTENSION}",
+                "fixed_name": "lasvectorconverted",
             },
         })
         grupo_io.group_layout.addWidget(self._grid_io)

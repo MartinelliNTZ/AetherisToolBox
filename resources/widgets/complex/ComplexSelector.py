@@ -534,6 +534,22 @@ class ComplexSelector(QWidget):
         """Define o path relativo para o botão 📂."""
         self._suggested_rel_path = suggested_rel_path
 
+    def set_fixed_name(self, fixed_name: str):
+        """
+        Define o nome fixo do arquivo de saída.
+        Usado pelo 📂 (suggest button) para gerar o path.
+        O plugin pode chamar isso para atualizar dinamicamente
+        quando o formato de saída muda.
+
+        Args:
+            fixed_name: Nome do arquivo (ex: "lasvectorconverted.gpkg").
+        """
+        self._fixed_name = fixed_name
+        self._logger.info(
+            f"fixed_name: '{fixed_name}'",
+            code="COMPLEX_FIXED_NAME_CHANGED",
+        )
+
     def set_suggested_callback(self, callback: Callable[[], None], tooltip: str = ""):
         """Define callback personalizado para 📂."""
         if hasattr(self, '_btn_suggest'):
