@@ -215,7 +215,7 @@ class LasVectorConverterPlugin(BasePlugin):
 
         # Re-valida o path atual com o novo filtro
         if self._current_path:
-            self._on_input_path_changed([self._current_path])
+            self._on_input_changed("Entrada", [self._current_path])
 
         SignalManager.instance().console_message.emit(
             f"Direção: {'LAS→Vetor' if key == 'las_to_vector' else 'Vetor→LAS'}"

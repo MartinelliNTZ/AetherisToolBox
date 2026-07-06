@@ -117,7 +117,12 @@ class GridComplexSelector(QWidget):
             meta = self._link_meta.get(label, {})
             if meta.get("mode_type") == "output":
                 continue  # Pula outputs
-            self._user_callbacks[label] = callback
+            # Embrulha o callback para que o wrapper (que só passa paths)
+            # consiga chamar corretamente com (label, paths)
+            if callback is not None:
+                self._user_callbacks[label] = lambda paths, _label=label: callback(_label, paths)
+            else:
+                self._user_callbacks[label] = None
             if not getattr(selector, '_grid_wrapper_installed', False):
                 self._install_user_callback_wrapper(label, selector)
 
