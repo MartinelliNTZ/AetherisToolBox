@@ -38,6 +38,7 @@ class ToolKey(str, Enum):
     LAS_TILER = "LasTiler"
     SYSTEM_MONITOR = "SystemMonitor"
     LAS_VECTOR_CONVERTER = "LasVectorConverter"
+    LAS_REPROJECTION = "LasReprojection"
 
     # ── Método utilitário ──────────────────────────────────────────────
 

@@ -71,10 +71,14 @@ grid = SelectorGrid({
 grid["Imagem Treino"].path()  # acessa o caminho
 ```
 
+> ⚠️ **OBSOLETO** — Use `GridComplexSelector` de `resources/widgets/complex/GridComplexSelector.py` em novas ferramentas.
+
 ---
 
 ### `SimpleSelector` — `SimpleSelector.py`
 Linha com **label + QLineEdit + botão "..."** para selecionar arquivo/pasta. **O widget composto mais usado do sistema.**
+
+> ⚠️ **USE SEMPRE O GRID ** — Use `ComplexSelector` de `resources/widgets/complex/ComplexSelector.py` em novas ferramentas.
 
 Possui 3 botões independentes:
 - **`...`** — abre o explorador nativo do sistema (via `ExplorerUtils`)

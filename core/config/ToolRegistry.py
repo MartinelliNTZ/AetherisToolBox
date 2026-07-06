@@ -294,6 +294,18 @@ class ToolRegistry:
             category=CategoryTool.CENTRAL,
             show_in_toolbar=True,
         ),
+        ToolKey.LAS_REPROJECTION.value: Tool(
+            name=ToolKey.LAS_REPROJECTION.value,
+            title="Reprojeção LAS",
+            widget_factory=_make_factory(
+                "plugins.las_reprojection.LasReprojectionPlugin",
+                "LasReprojectionPlugin",
+            ),
+            tooltip="Reprojeta nuvens LAS/LAZ para outro sistema de coordenadas (CRS)",
+            tool_type=ToolType.POINTS,
+            category=CategoryTool.CENTRAL,
+            show_in_toolbar=True,
+        ),
     }
 
     def register_default_tools(self) -> None:

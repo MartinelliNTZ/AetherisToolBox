@@ -15,6 +15,7 @@ Pillow
 docling>=2.70
 docling-core>=2.16
 laspy
+pyproj
 lazrs>=0.8.1
 pyautogui
 keyboard
