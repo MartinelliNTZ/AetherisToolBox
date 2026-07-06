@@ -1120,6 +1120,169 @@ if dialog.exec():
 
 ---
 
+### `ComplexSelector` — `complex/ComplexSelector.py`
+Seletor avançado com suporte a file/folder/files/folders. **Evolução do `SimpleSelector`** — NÃO usa GridRadio. O comportamento é definido pelos parâmetros `allow_file`, `allow_folder` e `multiple` na criação.
+
+**Lógica central:**
+- O widget sempre guarda: `root_path` (diretório base) + `selected_list` (itens selecionados)
+- 🔍 (file) — Buscar arquivo(s) — aparece se `allow_file=True`
+- 📁 (folder) — Buscar pasta(s) — aparece se `allow_folder=True`
+- 📂 — Caminho do projeto (só output) — `ProjectUtil.get_root_folder()` + `subfolder` + `fixed_name`
+- 📄 — Arquivos do projeto (só input) — `ListFileDialog`
+
+```python
+from resources.widgets.complex.ComplexSelector import ComplexSelector
+
+# Apenas 1 arquivo
+sel = ComplexSelector(label_text="Entrada:", allow_file=True, allow_folder=False)
+
+# Apenas 1 pasta
+sel = ComplexSelector(label_text="Pasta:", allow_file=False, allow_folder=True)
+
+# Múltiplos arquivos
+sel = ComplexSelector(label_text="Arquivos:", allow_file=True, allow_folder=False, multiple=True)
+
+# Ambos (file + folder)
+sel = ComplexSelector(label_text="Dados:", allow_file=True, allow_folder=True)
+
+# Output com suggested_path + ProjectUtil
+sel = ComplexSelector(
+    label_text="Saída:",
+    allow_file=True,
+    allow_folder=False,
+    mode_type="output",
+    show_suggest_button=True,
+    fixed_name="resultado.gpkg",
+    subfolder="converted",
+)
+```
+
+**API pública:**
+```python
+# Estado
+sel.get_root_path() -> str              # Diretório base
+sel.get_selected_list() -> list[str]    # Itens selecionados
+sel.get_paths() -> list[str]            # Atalho
+sel.path() -> str                       # Primeiro item (compatível)
+sel.path_type() -> str                  # "file" | "folder" | "files" | "folders"
+sel.path_count() -> int                 # Número de itens
+sel.is_multi() -> bool                  # True se files/folders
+sel.is_single() -> bool                 # True se file/folder
+sel.is_folder_mode() -> bool            # True se folder/folders
+sel.is_file_mode() -> bool              # True se file/files
+
+# Setters
+sel.set_path(path)                      # Define path único
+sel.set_paths(paths)                    # Define múltiplos
+sel.clear()                             # Limpa tudo
+
+# Utilitários
+sel.exists() -> bool                    # Path existe?
+sel.is_file() -> bool                   # É arquivo?
+sel.is_dir() -> bool                    # É diretório?
+sel.basename() -> str                   # Nome base
+sel.dirname() -> str                    # Diretório
+sel.extension() -> str                  # Extensão
+sel.has_extension(*exts) -> bool        # Verifica extensão
+
+# Callbacks
+sel.on_path_change = callback           # recebe (paths: list[str])
+sel.on_browse_click = callback          # recebe ()
+sel.on_suggest_click = callback         # recebe ()
+```
+
+**Parâmetros do construtor:**
+| Parâmetro | Tipo | Default | Descrição |
+|-----------|------|---------|-----------|
+| `label_text` | str | "" | Label |
+| `default_path` | str | "" | Path inicial |
+| `placeholder` | str | "Caminho..." | Placeholder |
+| `tooltip` | str | "" | Tooltip |
+| `file_filter` | str | "Todos (*.*)" | Filtro |
+| `label_width` | int | 130 | Largura do label |
+| `allow_file` | bool | True | Mostra 🔍 (buscar arquivo) |
+| `allow_folder` | bool | False | Mostra 📁 (buscar pasta) |
+| `multiple` | bool | False | Multi-seleção (files/folders) |
+| `show_suggest_button` | bool | False | Mostra 📂 (só output) |
+| `show_project_button` | bool | False | Mostra 📄 (só input) |
+| `suggested_path` | str | "" | Path relativo pro 📂 |
+| `mode_type` | str | "input" | "input" ou "output" |
+| `fixed_name` | str | "" | Nome fixo do arquivo de saída (ex: "resultado.gpkg") |
+| `subfolder` | str | "" | Subpasta para output |
+
+---
+
+### `GridComplexSelector` — `complex/GridComplexSelector.py`
+Grade de `ComplexSelector`s configurados por dicionário, com suporte a **linking entre selectores** (parent/subfolder/fixed_name). Botão "USAR ORIGEM" automático para outputs com parent.
+
+```python
+from resources.widgets.complex.GridComplexSelector import GridComplexSelector
+
+grid = GridComplexSelector({
+    "Entrada": {
+        "file_filter": "LAS/LAZ (*.las *.laz)",
+        "mode_type": "input",
+        "allow_file": True,
+        "allow_folder": True,
+        "multiple": False,
+        "show_project_button": True,
+    },
+    "Saída": {
+        "mode_type": "output",
+        "parent": "Entrada",
+        "allow_file": True,
+        "allow_folder": False,
+        "show_suggest_button": True,
+        "subfolder": "output",
+        "fixed_name": "resultado.gpkg",
+    },
+}, title="Entrada e Saída")
+
+# Acesso
+grid["Entrada"].path()
+grid["Entrada"].get_root_path()
+grid["Entrada"].get_selected_list()
+grid["Entrada"].path_type()
+
+# Input/Output
+grid.get_input()
+grid.get_output()
+
+# USAR ORIGEM (botão automático)
+grid.use_origin("Saída")
+grid.use_origin_all()
+grid.refresh_links()
+```
+
+**Parâmetros do spec (por chave):**
+| Parâmetro | Tipo | Default | Descrição |
+|-----------|------|---------|-----------|
+| `label_text` | str | chave | Texto do label |
+| `file_filter` | str | "Todos (*.*)" | Filtro |
+| `mode_type` | str | "input" | "input" ou "output" |
+| `parent` | str | "" | Chave do selector pai (só output) |
+| `allow_file` | bool | True | Mostra 🔍 |
+| `allow_folder` | bool | False | Mostra 📁 |
+| `multiple` | bool | False | Multi-seleção |
+| `show_suggest_button` | bool | False | Mostra 📂 (só output) |
+| `show_project_button` | bool | False | Mostra 📄 (só input) |
+| `subfolder` | str | "" | Subpasta para output |
+| `fixed_name` | str | "" | Nome fixo do arquivo de saída |
+| `suggested_path` | str | "" | Path relativo pro 📂 |
+| `default_path` | str | "" | Path inicial |
+| `tooltip` | str | "" | Tooltip |
+
+**Regras do linking (parent):**
+1. Output com `parent` definido → botão "USAR ORIGEM" automático
+2. Ao clicar "USAR ORIGEM":
+   - Parent modo `file`: output = `dirname(parent) / subfolder / fixed_name`
+   - Parent modo `folder`: output = `parent / subfolder`
+3. Linking reativo: output se atualiza quando parent muda (se vazio ou gerado pelo USAR ORIGEM)
+4. 📂 no output usa `ProjectUtil.get_root_folder()` + `subfolder` + `fixed_name`
+5. 📄 só aparece no input
+
+---
+
 > 💡 **Consulte também:** `docs/skills/SKILL_HUD_PROGRESS.md` para documentação sobre o HUD Loader (`HudCircularRingsLoader`) e a ProgressBar central da MainWindow.
 
 ## 🆕 Como criar um Novo Widget
