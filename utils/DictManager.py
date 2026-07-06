@@ -70,6 +70,9 @@ GEOPROCESSOR_EXTENSIONS: Dict[str, Dict[str, Any]] = {
     ".shx":    {"label": ".shx",    "description": "Shapefile (índice)", "default": True},
     ".sid":    {"label": ".sid",    "description": "MrSID Image", "default": True},
     ".vrt":    {"label": ".vrt",    "description": "GDAL Virtual Raster", "default": True},
+    "qmd":     {"label": ".qmd",     "description": "QGIS Project (Markdown)", "default": True},
+    "cpg":     {"label": ".cpg",     "description": "Shapefile (codificação)", "default": True},
+    "qix":     {"label": ".qix",     "description": "Shapefile (índice QGIS)", "default": True},
 }
 
 # ── Imagens / Raster ──

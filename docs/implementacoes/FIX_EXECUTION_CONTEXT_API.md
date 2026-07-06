@@ -21,7 +21,7 @@ context.get("file_path")       # AttributeError!
 context.set("key", value)      # AttributeError!
 context.get("check_results")   # AttributeError!
 ```
-
+#
 ## 🔴 Problema
 
 Vários plugins ainda usavam a API antiga `context.get()` e `context.set()`, causando:

@@ -1120,6 +1120,312 @@ if dialog.exec():
 
 ---
 
+### `ComplexSelector` — `complex/ComplexSelector.py`
+Seletor avançado com suporte a file/folder/files/folders. **Evolução do `SimpleSelector`** — NÃO usa GridRadio. O comportamento é definido pelos parâmetros `allow_file`, `allow_folder` e `multiple` na criação.
+
+**Lógica central:**
+- O widget sempre guarda: `root_path` (diretório base) + `selected_list` (itens selecionados)
+- 🔍 (file) — Buscar arquivo(s) — aparece se `allow_file=True`
+- 📁 (folder) — Buscar pasta(s) — aparece se `allow_folder=True`
+- 📂 — Caminho do projeto (só output) — `ProjectUtil.get_root_folder()` + `subfolder` + `fixed_name`
+- 📄 — Arquivos do projeto (só input) — `ListFileDialog`
+
+```python
+from resources.widgets.complex.ComplexSelector import ComplexSelector
+
+# Apenas 1 arquivo
+sel = ComplexSelector(label_text="Entrada:", allow_file=True, allow_folder=False)
+
+# Apenas 1 pasta
+sel = ComplexSelector(label_text="Pasta:", allow_file=False, allow_folder=True)
+
+# Múltiplos arquivos
+sel = ComplexSelector(label_text="Arquivos:", allow_file=True, allow_folder=False, multiple=True)
+
+# Ambos (file + folder)
+sel = ComplexSelector(label_text="Dados:", allow_file=True, allow_folder=True)
+
+# Output com suggested_path + ProjectUtil
+sel = ComplexSelector(
+    label_text="Saída:",
+    allow_file=True,
+    allow_folder=False,
+    mode_type="output",
+    show_suggest_button=True,
+    fixed_name="resultado.gpkg",
+    subfolder="converted",
+)
+```
+
+**API pública:**
+```python
+# Estado
+sel.get_root_path() -> str              # Diretório base
+sel.get_selected_list() -> list[str]    # Itens selecionados
+sel.get_paths() -> list[str]            # Atalho
+sel.path() -> str                       # Primeiro item (compatível)
+sel.path_type() -> str                  # "file" | "folder" | "files" | "folders"
+sel.path_count() -> int                 # Número de itens
+sel.is_multi() -> bool                  # True se files/folders
+sel.is_single() -> bool                 # True se file/folder
+sel.is_folder_mode() -> bool            # True se folder/folders
+sel.is_file_mode() -> bool              # True se file/files
+
+# Setters
+sel.set_path(path)                      # Define path único
+sel.set_paths(paths)                    # Define múltiplos
+sel.clear()                             # Limpa tudo
+
+# Utilitários
+sel.exists() -> bool                    # Path existe?
+sel.is_file() -> bool                   # É arquivo?
+sel.is_dir() -> bool                    # É diretório?
+sel.basename() -> str                   # Nome base
+sel.dirname() -> str                    # Diretório
+sel.extension() -> str                  # Extensão
+sel.has_extension(*exts) -> bool        # Verifica extensão
+
+# Callbacks
+sel.on_path_change = callback           # recebe (paths: list[str])
+sel.on_browse_click = callback          # recebe ()
+sel.on_suggest_click = callback         # recebe ()
+
+# Configuração dinâmica
+sel.set_fixed_name("resultado.gpkg")    # Atualiza fixed_name para 📂
+```
+
+**Parâmetros do construtor:**
+| Parâmetro | Tipo | Default | Descrição |
+|-----------|------|---------|-----------|
+| `label_text` | str | "" | Label |
+| `default_path` | str | "" | Path inicial |
+| `placeholder` | str | "Caminho..." | Placeholder |
+| `tooltip` | str | "" | Tooltip |
+| `file_filter` | str | "Todos (*.*)" | Filtro |
+| `label_width` | int | 130 | Largura do label |
+| `allow_file` | bool | True | Mostra 🔍 (buscar arquivo) |
+| `allow_folder` | bool | False | Mostra 📁 (buscar pasta) |
+| `multiple` | bool | False | Multi-seleção (files/folders) |
+| `show_suggest_button` | bool | False | Mostra 📂 (só output) |
+| `show_project_button` | bool | False | Mostra 📄 (só input) |
+| `suggested_path` | str | "" | Path relativo pro 📂 |
+| `mode_type` | str | "input" | "input" ou "output" |
+| `fixed_name` | str | "" | Nome fixo do arquivo de saída (ex: "resultado.gpkg") |
+| `subfolder` | str | "" | Subpasta para output |
+
+**Propriedades dinâmicas (setters):**
+```python
+# Mostra/esconde 🔍 (botão de arquivo)
+sel.allow_file = True   # mostra
+sel.allow_file = False  # esconde
+
+# Mostra/esconde 📁 (botão de pasta)
+sel.allow_folder = True   # mostra
+sel.allow_folder = False  # esconde
+
+# Atalho para alterar modo completo de uma vez
+sel.set_mode(allow_file=True, allow_folder=False, selection_mode="file")
+
+# Atualiza fixed_name dinamicamente (útil quando extensão muda)
+sel.set_fixed_name("lasvectorconverted.shp")
+```
+`set_mode()` sanitiza automaticamente: se `selection_mode="file"` mas `allow_file=False`, corrige para `"folder"`.
+
+---
+
+### `GridComplexSelector` — `complex/GridComplexSelector.py`
+Grade de `ComplexSelector`s configurados por dicionário, com suporte a **linking entre selectores** (parent/subfolder/fixed_name) e **dynamic_parent** (modo alterna conforme o tipo do parent). Botão "USAR ORIGEM" automático para outputs com parent.
+
+**REGRAS DE ACOPLAMENTO:**
+- O plugin **NUNCA** acessa atributos privados do widget (`_user_callbacks`, `edit`, `file_filter`)
+- O plugin **NUNCA** sobrescreve `on_path_change` diretamente — usa `set_on_input_changed()` ou `set_on_changed()`
+- Toda comunicação é via API pública
+
+```python
+from resources.widgets.complex.GridComplexSelector import GridComplexSelector
+
+grid = GridComplexSelector({
+    "Entrada": {
+        "file_filter": "LAS/LAZ (*.las *.laz)",
+        "mode_type": "input",
+        "allow_file": True,
+        "allow_folder": True,
+        "multiple": True,
+        "show_project_button": True,
+    },
+    "Saída": {
+        "mode_type": "output",
+        "parent": "Entrada",
+        "allow_file": True,       # Dynamic alterna entre file/folder
+        "allow_folder": True,     # Ambos True para suportar alternância
+        "multiple": False,
+        "dynamic_parent": True,    # Ativa modo dinâmico
+        "show_suggest_button": True,
+        "subfolder": "lasvectorconverter",
+        "fixed_name": "resultado",  # Sem extensão — set_output_extension adiciona
+    },
+}, title="Entrada e Saída")
+
+# Acesso
+grid["Entrada"].path()
+grid["Entrada"].get_root_path()
+grid["Entrada"].get_selected_list()
+grid["Entrada"].path_type()
+
+# Input/Output
+grid.get_input()
+grid.get_output()
+
+# USAR ORIGEM (botão automático)
+grid.use_origin("Saída")
+grid.use_origin_all()
+grid.refresh_links()
+```
+
+**API Pública para Callbacks (NÃO sobrescrever `on_path_change`):**
+```python
+# ✅ RECOMENDADO — para reagir a QUALQUER entrada:
+grid.set_on_input_changed(self._on_input_changed)
+# callback recebe (label: str, paths: list[str])
+
+# ✅ Para reagir a um selector específico:
+grid.set_on_changed("Entrada", self._on_entrada_changed)
+# callback recebe (paths: list[str])
+
+# ❌ NUNCA faça isso — quebra o chaining interno:
+grid["Entrada"].on_path_change = callback  # PROIBIDO
+```
+
+**API Pública para Configuração (plugin não acessa sub-widgets):**
+```python
+# Substitui entrada.edit.setPlaceholderText(...)
+grid.set_input_placeholder("Entrada", "Selecione o arquivo...")
+
+# Substitui entrada.file_filter = value
+grid.set_input_file_filter("Entrada", "LAS/LAZ (*.las *.laz)")
+
+# Suspende/restaura callbacks para set_path sem re-avaliação
+saved = grid.suspend_callbacks()
+try:
+    grid["Entrada"].set_path(saved_path)
+finally:
+    grid.resume_callbacks(saved)
+```
+
+**API Pública para Output Dinâmico:**
+```python
+# Atualiza extensão + sincroniza fixed_name no 📂
+grid.set_output_extension("Saída", "shp")
+# → fixed_name muda de "resultado.gpkg" para "resultado.shp"
+# → 📂 agora gera "resultado.shp"
+
+# Atualiza sufixo (ex: "_converted")
+grid.set_output_suffix("Saída", "_converted")
+```
+
+**Parâmetros do spec (por chave):**
+| Parâmetro | Tipo | Default | Descrição |
+|-----------|------|---------|-----------|
+| `label_text` | str | chave | Texto do label |
+| `file_filter` | str | "Todos (*.*)" | Filtro |
+| `mode_type` | str | "input" | "input" ou "output" |
+| `parent` | str | "" | Chave do selector pai (só output) |
+| `dynamic_parent` | bool | False | Modo dinâmico: filho alterna file/folder conforme parent |
+| `allow_file` | bool | True | Mostra 🔍 (inicial, dynamic altera runtime) |
+| `allow_folder` | bool | False | Mostra 📁 (inicial, dynamic altera runtime) |
+| `multiple` | bool | False | Multi-seleção |
+| `show_suggest_button` | bool | False | Mostra 📂 (só output) |
+| `show_project_button` | bool | False | Mostra 📄 (só input) |
+| `subfolder` | str | "" | Subpasta para output |
+| `fixed_name` | str | "" | Nome fixo do arquivo de saída (pode ser sem extensão) |
+| `suggested_path` | str | "" | Path relativo pro 📂 |
+| `default_path` | str | "" | Path inicial |
+| `tooltip` | str | "" | Tooltip |
+
+**Regras do linking (parent) sem dynamic_parent:**
+1. Output com `parent` definido → botão "USAR ORIGEM" automático
+2. Ao clicar "USAR ORIGEM":
+   - Parent modo `file`: output = `dirname(parent) / subfolder / fixed_name`
+   - Parent modo `folder`: output = `parent / subfolder`
+3. Linking reativo: output se atualiza quando parent muda (se vazio ou gerado pelo USAR ORIGEM)
+4. 📂 no output usa `ProjectUtil.get_root_folder()` + `subfolder` + `fixed_name`
+5. 📄 só aparece no input
+
+**Regras do modo `dynamic_parent=True`:**
+1. Parent seleciona **1 arquivo** (`path_type="file"`):
+   - Filho vira **modo file** (🔍 visível, 📁 oculto)
+   - Output gerado: `dirname(parent) / subfolder / fixed_name`
+   - Placeholder: "Arquivo de saída"
+   - **fixed_name é usado**
+2. Parent seleciona **>1 arquivo, pasta ou pastas** (`path_type="folder"/"files"/"folders"`):
+   - Filho vira **modo folder** (🔍 oculto, 📁 visível)
+   - Output gerado: `parent_path / subfolder` (ou `converted` se subfolder vazio)
+   - Placeholder: "Pasta de saída"
+   - **fixed_name é ignorado**
+3. Callback do plugin **NUNCA** sobrescreve `on_path_change` — use `set_on_input_changed()`
+4. `allow_file=True` e `allow_folder=True` devem ser configurados no spec para suportar alternância
+
+**Extensão Dinâmica:**
+- `fixed_name` pode ser definido **sem extensão** (ex: `"lasvectorconverted"`)
+- `set_output_extension("Saída", "gpkg")` adiciona a extensão: `"lasvectorconverted.gpkg"`
+- O 📂 (suggest button) usa o `fixed_name` atualizado com a extensão correta
+- `_generate_output()` também adiciona extensão se `fixed_name` não tiver
+
+**Importante:** Ao usar `dynamic_parent`, configure o spec com `allow_file=True` e `allow_folder=True` para que o filho possa alternar entre os modos.
+
+---
+
+### `CrsSelectorWidget` — `crs/CrsSelectorWidget.py`
+Widget de seleção de CRS/EPSG com label opcional + `SimpleComboBox` (EPSGs comuns do `CommonCrs` enum) + botão 🌎 (`SimpleSecondaryButton`) que abre a `CrsSearchDialog` para busca completa. Não persiste o EPSG selecionado em disco.
+
+```python
+from resources.widgets.crs.CrsSelectorWidget import CrsSelectorWidget
+
+selector = CrsSelectorWidget(label="CRS:")
+selector.crs_changed.connect(self._on_crs_changed)
+selector.set_crs("EPSG:31983")
+current = selector.get_crs()      # "EPSG:31983"
+code = selector.crs_code          # 31983
+label = selector.crs_label        # "EPSG:31983 - SIRGAS 2000 / UTM zone 23S"
+```
+
+**Sinais:** `crs_changed(str)` — emitido com o código EPSG completo (ex: `"EPSG:4326"`)
+
+**API pública:**
+- `set_crs(epsg_code)` — define programaticamente; EPSGs fora do enum são adicionados como temporários
+- `get_crs()` — retorna o código EPSG completo selecionado
+- `crs_code` (property) — código numérico (int)
+- `crs_label` (property) — texto exibido no combo
+
+**Parâmetros do construtor:**
+- `label: str | None = "CRS:"` — texto do label à esquerda; `None` para omitir
+- `parent: QWidget | None = None`
+
+---
+
+### `CrsSearchDialog` — `crs/CrsSearchDialog.py`
+Diálogo de busca de CRS/EPSG com campo de filtro em tempo real e lista agrupada por categoria (Geográfico 2D/3D, Projetado, Geocêntrico, Composto). Usa `pyproj.database.query_crs_info` (cache lazy) como fonte de dados principal, com fallback para `CommonCrs` se pyproj não estiver disponível. Herda de `BaseDialog`.
+
+```python
+from resources.widgets.crs.CrsSearchDialog import CrsSearchDialog
+
+dialog = CrsSearchDialog(parent=self)
+dialog.crs_selected.connect(self._on_crs_selected)
+if dialog.exec():
+    epsg = dialog.selected_epsg  # "EPSG:31983"
+```
+
+**Sinais:** `crs_selected(str)` — emitido ao selecionar um CRS
+
+**Propriedades:** `selected_epsg` → `str`
+
+**Notas técnicas:**
+- Consulta pyproj uma única vez (cache lazy na primeira abertura)
+- Filtro é 100% em memória — NÃO reconsulta o banco a cada tecla
+- Fallback offline: se pyproj não estiver instalado, exibe apenas os CRS do `CommonCrs` enum
+
+---
+
 > 💡 **Consulte também:** `docs/skills/SKILL_HUD_PROGRESS.md` para documentação sobre o HUD Loader (`HudCircularRingsLoader`) e a ProgressBar central da MainWindow.
 
 ## 🆕 Como criar um Novo Widget
