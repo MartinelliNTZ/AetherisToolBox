@@ -131,6 +131,14 @@ class LasVectorConverterPlugin(BasePlugin):
         )
         grupo_io.group_layout.addWidget(self._info_label)
 
+        # SimpleComboBox: arquivos LAS/LAZ do projeto
+        self._combo_projeto = SimpleComboBox(
+            items={"": "Selecione um arquivo do projeto..."},
+            on_item_changed=self._on_projeto_file_changed,
+            label="Arquivos do Projeto:",
+        )
+        grupo_io.group_layout.addWidget(self._combo_projeto)
+
         # SimpleSelector de saída
         self._sel_saida = SimpleSelector(
             label_text="Saída",
@@ -190,14 +198,6 @@ class LasVectorConverterPlugin(BasePlugin):
             },
         )
         grupo_config.group_layout.addWidget(self._spin_crs)
-
-        # SimpleComboBox: arquivos LAS/LAZ do projeto (teste)
-        self._combo_projeto = SimpleComboBox(
-            items={"": "Nenhum arquivo encontrado"},
-            on_item_changed=self._on_projeto_file_changed,
-            label="Arquivos do Projeto:",
-        )
-        grupo_config.group_layout.addWidget(self._combo_projeto)
 
         # GridDoubleSpinBox: pontos por tile (opcional, LAS→Vetor)
         self._spin_tile = GridDoubleSpinBox(
@@ -300,6 +300,8 @@ class LasVectorConverterPlugin(BasePlugin):
         SignalManager.instance().console_message.emit(
             f"Arquivo do projeto selecionado: {key}"
         )
+        # Reseta o combo para o placeholder após selecionar
+        self._combo_projeto.current_value = ""
 
     def _on_format_changed(self, key: str, text: str):
         """Disparado quando o formato de saída muda."""
@@ -737,9 +739,8 @@ class LasVectorConverterPlugin(BasePlugin):
         files = ProjectUtil.get_files_by_extensions(las_exts)
         if files:
             # {caminho_completo: nome_arquivo} para exibir nome e usar path como valor
-            items = {v: k for k, v in files.items()}
+            items = {"": "Selecione um arquivo do projeto...", **{v: k for k, v in files.items()}}
             self._combo_projeto.set_items(items)
-            self._combo_projeto.select_first()
         else:
             self._combo_projeto.set_items({"": "Nenhum arquivo encontrado"})
 
