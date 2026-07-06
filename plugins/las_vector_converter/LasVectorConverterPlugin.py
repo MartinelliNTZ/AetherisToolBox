@@ -30,6 +30,7 @@ from core.papeline.step.LasTilerStep import LasTilerStep
 from plugins.BasePlugin import BasePlugin
 from resources.widgets.ExecutionButtons import ExecutionButtons
 from resources.widgets.complex.GridComplexSelector import GridComplexSelector
+from resources.widgets.crs.CrsSelectorWidget import CrsSelectorWidget
 from resources.widgets.grid.GridDoubleSpinBox import GridDoubleSpinBox
 from resources.widgets.grid.GridLabel import GridLabel
 from resources.widgets.grid.GridRadio import GridRadio
@@ -173,21 +174,11 @@ class LasVectorConverterPlugin(BasePlugin):
         self._grid_io.set_output_suffix("Saída", self.SULFIX)
         self._grid_io.set_output_extension("Saída", self._combo_formato.current_value)
 
-        # GridDoubleSpinBox: CRS
-        self._spin_crs = GridDoubleSpinBox(
-            {
-                "crs": {
-                    "label": "Código EPSG",
-                    "description": "CRS para o dado de saída (ex: 31982)",
-                    "decimal": 0,
-                    "default": 31982,
-                    "min": 1024,
-                    "max": 99999,
-                    "step": 1,
-                },
-            },
-        )
-        grupo_config.group_layout.addWidget(self._spin_crs)
+        # CrsSelectorWidget: seleção de CRS/EPSG
+        self._crs_selector = CrsSelectorWidget(label="CRS de Saída:")
+        grupo_config.group_layout.addWidget(self._crs_selector)
+        # Sincroniza EPSG padrão (31982 = SIRGAS 2000 / UTM zone 22S)
+        self._crs_selector.set_crs("EPSG:31982")
 
         # GridDoubleSpinBox: pontos por tile (opcional)
         self._spin_tile = GridDoubleSpinBox(
@@ -322,8 +313,8 @@ class LasVectorConverterPlugin(BasePlugin):
         else:
             output_dir = os.path.dirname(output_path)
 
-        crs_code = self._spin_crs.get("crs")
-        crs_str = f"EPSG:{crs_code}"
+        crs_str = self._crs_selector.get_crs()
+        crs_code = self._crs_selector.crs_code
         direction = self._direction
         output_format = self._combo_formato.current_value if direction == "las_to_vector" else "las"
         points_per_tile = self._spin_tile.get("points_per_tile")
@@ -566,7 +557,7 @@ class LasVectorConverterPlugin(BasePlugin):
             if output_path:
                 self._grid_io["Saída"].set_path(output_path)
             self._combo_formato.current_value = output_format
-            self._spin_crs.set_values({"crs": crs})
+            self._crs_selector.set_crs(f"EPSG:{crs}")
             self._spin_tile.set_values({"points_per_tile": points_per_tile})
         finally:
             # Restaura callbacks originais
@@ -583,7 +574,7 @@ class LasVectorConverterPlugin(BasePlugin):
         self.preferences["mode"] = self._mode
         self.preferences["direction"] = self._direction
         self.preferences["output_format"] = self._combo_formato.current_value
-        self.preferences["crs"] = self._spin_crs.get("crs")
+        self.preferences["crs"] = self._crs_selector.crs_code
         self.preferences["output_path"] = self._grid_io["Saída"].path()
         self.preferences["points_per_tile"] = self._spin_tile.get("points_per_tile")
         self.logger.info("Preferências salvas no cache", code="PREFS_SAVED")
