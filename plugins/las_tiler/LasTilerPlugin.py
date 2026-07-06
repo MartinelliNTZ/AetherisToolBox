@@ -7,7 +7,8 @@ com base no numero de pontos por parte.
 
 Fluxo:
   - GridComplexSelector de entrada detecta mudança no path automaticamente
-  - ExecutionButtons: USAR ORIGEM + DIVIDIR
+  - Saída com parent linking: output = dirname(entrada) / subfolder
+  - ExecutionButtons: DIVIDIR + CANCELAR
   - PipelineRunner + LasTilerStep para execução em background
 
 Contratos seguidos:
@@ -65,12 +66,6 @@ class LasTilerPlugin(BasePlugin):
 
         # ── ExecutionButtons ────────────────────────────────────────
         self._btns = ExecutionButtons(self, {
-            "usar_origem": {
-                "text": "USAR ORIGEM",
-                "callback": self._on_usar_origem,
-                "type": "secondary",
-                "description": "Salvar na pasta do arquivo LAS original",
-            },
             "executar": {
                 "text": "DIVIDIR",
                 "callback": self._on_executar,
@@ -92,9 +87,9 @@ class LasTilerPlugin(BasePlugin):
         grupo_entrada = GroupPainel("Arquivo de Entrada")
         self.main_layout.addWidget(grupo_entrada)
 
-        # GridComplexSelector com Entrada (input) + Saída (output sem parent)
-        # O plugin gerencia USAR ORIGEM manualmente via botão próprio.
-        # A saída é sempre uma pasta (tiler gera múltiplos arquivos).
+        # GridComplexSelector com Entrada (input) + Saída (output com parent)
+        # Saída usa parent linking: output = dirname(entrada) / subfolder
+        # subfolder é atualizado dinamicamente com o nome do arquivo
         self._grid_io = GridComplexSelector({
             "Entrada": {
                 "file_filter": self._LAS_FILTER,
@@ -106,8 +101,9 @@ class LasTilerPlugin(BasePlugin):
                 "show_project_button": True,
             },
             "Saída": {
-                "placeholder": "Selecione a pasta de saida...",
+                "placeholder": "Pasta de saida...",
                 "mode_type": "output",
+                "parent": "Entrada",
                 "allow_file": False,
                 "allow_folder": True,
                 "multiple": False,
@@ -181,42 +177,10 @@ class LasTilerPlugin(BasePlugin):
     # Handlers
     # ══════════════════════════════════════════════════════════════════
 
-    def _on_usar_origem(self):
-        """
-        Preenche caminho de saída na pasta do arquivo LAS original.
-        Ex: /pasta/arquivo.las → /pasta/arquivo/ (pasta com nome do arquivo)
-        """
-        if not self._current_path:
-            MessageBox.show_warning(
-                "Nenhum arquivo LAS carregado.\nSelecione um arquivo primeiro.",
-                title="Divisor de LAS",
-            )
-            self.logger.warning(
-                "Tentativa de usar origem sem LAS carregado",
-                code="TILER_ORIGEM_NO_LAS",
-            )
-            return
-
-        dir_arquivo = os.path.dirname(self._current_path)
-        basename = os.path.splitext(os.path.basename(self._current_path))[0]
-        pasta = os.path.join(dir_arquivo, basename)
-
-        self._grid_io["Saída"].set_path(pasta)
-        self._btns.set_enabled("executar", True)
-
-        self.logger.info(
-            "Pasta de origem definida",
-            code="TILER_ORIGEM_SET",
-            pasta=pasta,
-        )
-        SignalManager.instance().console_message.emit(
-            f"[TILER] Destino: {pasta}"
-        )
-
     def _on_input_changed(self, label: str, paths: list[str]):
         """
         Disparado quando o path da entrada muda (via set_on_input_changed).
-        Se o path for um arquivo valido, carrega o LAS automaticamente.
+        Carrega o LAS e gera output automaticamente na pasta do arquivo.
         """
         if not paths:
             return
@@ -231,7 +195,10 @@ class LasTilerPlugin(BasePlugin):
             return
         if path == self._current_path:
             return
-        self._carregar_las(path)
+
+        # Gera output: /pasta/arquivo.las → /pasta/arquivo/ (pasta com nome do arquivo)
+        basename = os.path.splitext(os.path.basename(path))[0]
+        self._carregar_las(path, subfolder=basename)
 
     def _on_executar(self):
         """Executa o split via PipelineRunner em background."""
@@ -254,7 +221,7 @@ class LasTilerPlugin(BasePlugin):
         output_dir = self._grid_io["Saída"].path()
         if not output_dir:
             MessageBox.show_warning(
-                "Selecione a pasta de saida.\nUse USAR ORIGEM ou preencha manualmente.",
+                "Selecione a pasta de saida.\nO caminho e gerado automaticamente ao carregar um LAS.",
                 title="Divisor de LAS",
             )
             self.logger.warning("Nenhuma pasta de saida selecionada", code="TILER_NO_OUTPUT")
@@ -427,7 +394,7 @@ class LasTilerPlugin(BasePlugin):
     # Utilitários
     # ══════════════════════════════════════════════════════════════════
 
-    def _carregar_las(self, path: str):
+    def _carregar_las(self, path: str, subfolder: str = ""):
         """Carrega metadados do LAS e atualiza a UI."""
         if getattr(self, "_loading_las", False):
             return
@@ -457,6 +424,12 @@ class LasTilerPlugin(BasePlugin):
             saved = self._grid_io.suspend_callbacks()
             try:
                 self._grid_io["Entrada"].set_path(path)
+
+                # Gera output automaticamente: dirname(path) / subfolder
+                if subfolder:
+                    dir_arquivo = os.path.dirname(path)
+                    pasta = os.path.join(dir_arquivo, subfolder)
+                    self._grid_io["Saída"].set_path(pasta)
             finally:
                 self._grid_io.resume_callbacks(saved)
 
