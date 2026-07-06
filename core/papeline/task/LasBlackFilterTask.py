@@ -18,7 +18,7 @@ from typing import Optional
 import numpy as np
 
 from core.manager.SignalManager import SignalManager
-from utils.LasUtil import LasUtil
+from utils.las.LasLayerSource import LasLayerSource
 from ..BaseTask import BaseTask
 
 
@@ -88,7 +88,7 @@ class LasBlackFilterTask(BaseTask):
             })
             signals.progress_update.emit(5.0)
 
-            rgb = LasUtil.get_rgb_arrays(file_path)
+            rgb = LasLayerSource.get_rgb_arrays(file_path)
             if not rgb:
                 raise RuntimeError(f"Failed to read RGB arrays from {file_path}")
 
@@ -124,7 +124,7 @@ class LasBlackFilterTask(BaseTask):
             import laspy
             las = laspy.read(file_path)
 
-            n_kept = LasUtil.create_filtered_las(las, mask_valid, output_clean)
+            n_kept = LasLayerSource.create_filtered_las(las, mask_valid, output_clean)
             if n_kept is None:
                 raise RuntimeError(f"Error saving filtered LAS: {output_clean}")
             kept_all += n_kept
@@ -141,7 +141,7 @@ class LasBlackFilterTask(BaseTask):
             # ── Stage 3: Save Black Points (optional, 75% -> 100%) ───
             if self._save_black_points and n_removed > 0:
                 mask_black = ~mask_valid
-                n_black_saved = LasUtil.create_filtered_las(las, mask_black, output_black)
+                n_black_saved = LasLayerSource.create_filtered_las(las, mask_black, output_black)
                 if n_black_saved is not None:
                     black_all += n_black_saved
                     output_black_list.append(output_black)

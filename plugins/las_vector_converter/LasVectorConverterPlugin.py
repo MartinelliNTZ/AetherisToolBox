@@ -36,7 +36,7 @@ from resources.widgets.grid.GridLabel import GridLabel
 from resources.widgets.grid.GridRadio import GridRadio
 from resources.widgets.GroupPainel import GroupPainel
 from resources.widgets.simple.SimpleComboBox import SimpleComboBox
-from utils.LasUtil import LasUtil
+from utils.las.LasLayerSource import LasLayerSource
 from utils.MessageBox import MessageBox
 from utils.ProcessStatisticsUtil import ProcessStatisticsUtil
 from utils.ProjectUtil import ProjectUtil
@@ -333,7 +333,7 @@ class LasVectorConverterPlugin(BasePlugin):
                 n_total = len(vec_files)
                 n_files = n_total
         elif direction == "las_to_vector":
-            n_total = LasUtil.get_point_count(self._current_path, tool_key=self.tool_key)
+            n_total = LasLayerSource.get_point_count(self._current_path, tool_key=self.tool_key)
             n_files = 1
         else:
             n_total = 1
@@ -472,7 +472,7 @@ class LasVectorConverterPlugin(BasePlugin):
             self._current_path = path
 
             if ext in (".las", ".laz"):
-                info = LasUtil.get_info(path, tool_key=self.tool_key)
+                info = LasLayerSource.get_info(path, tool_key=self.tool_key)
                 if info.get("error"):
                     raise RuntimeError(info["error"])
                 n_pontos = info["point_count"]

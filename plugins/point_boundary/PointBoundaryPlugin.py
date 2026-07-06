@@ -35,7 +35,7 @@ from resources.widgets.grid.GridSelector import GridSelector
 from resources.widgets.simple.SimpleSelector import SimpleSelector
 from resources.widgets.simple.SimpleLabel import SimpleLabel
 from utils.ExplorerUtils import ExplorerUtils
-from utils.LasUtil import LasUtil
+from utils.las.LasLayerSource import LasLayerSource
 from utils.MessageBox import MessageBox
 from utils.ProcessStatisticsUtil import ProcessStatisticsUtil
 from utils.vector.VectorLayerSource import VectorLayerSource
@@ -276,7 +276,7 @@ class PointBoundaryPlugin(BasePlugin):
         # Extrai metadados
         try:
             if ext in (".las", ".laz"):
-                info = LasUtil.get_info(path, tool_key=self.tool_key)
+                info = LasLayerSource.get_info(path, tool_key=self.tool_key)
                 n_pontos = info.get("point_count", 0)
                 has_rgb = info.get("has_rgb", False)
                 fonte_nome = "LAS" if ext == ".las" else "LAZ"

@@ -15,7 +15,7 @@ from typing import Optional
 
 from core.enum.ToolKey import ToolKey
 from core.papeline.BaseTask import BaseTask
-from utils.LasUtil import LasUtil
+from utils.las.LasLayerSource import LasLayerSource
 
 
 class LasTilerTask(BaseTask):
@@ -63,7 +63,7 @@ class LasTilerTask(BaseTask):
                 points_per_part=self._points_per_part,
             )
 
-            result = LasUtil.split_las(
+            result = LasLayerSource.split_las(
                 path=file_path,
                 output_dir=self._output_dir,
                 pontos_por_parte=self._points_per_part,
