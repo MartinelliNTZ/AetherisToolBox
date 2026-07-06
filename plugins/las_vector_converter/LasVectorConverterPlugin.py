@@ -41,7 +41,6 @@ from utils.LasUtil import LasUtil
 from utils.MessageBox import MessageBox
 from utils.ProcessStatisticsUtil import ProcessStatisticsUtil
 from utils.ProjectUtil import ProjectUtil
-from utils.StringUtils import StringUtils
 
 
 class LasVectorConverterPlugin(BasePlugin):
@@ -130,14 +129,6 @@ class LasVectorConverterPlugin(BasePlugin):
             columns=1,
         )
         grupo_io.group_layout.addWidget(self._info_label)
-
-        # SimpleComboBox: arquivos LAS/LAZ do projeto
-        self._combo_projeto = SimpleComboBox(
-            items={"": "Selecione um arquivo do projeto..."},
-            on_item_changed=self._on_projeto_file_changed,
-            label="Arquivos do Projeto:",
-        )
-        grupo_io.group_layout.addWidget(self._combo_projeto)
 
         # SimpleSelector de saída
         self._sel_saida = SimpleSelector(
@@ -297,17 +288,6 @@ class LasVectorConverterPlugin(BasePlugin):
         SignalManager.instance().console_message.emit(
             f"Direção: {'LAS→Vetor' if key == 'las_to_vector' else 'Vetor→LAS'}"
         )
-
-    def _on_projeto_file_changed(self, key: str):
-        """Disparado quando o usuário seleciona um arquivo do projeto."""
-        if not key:
-            return
-        self._sel_entrada.set_path(key)
-        SignalManager.instance().console_message.emit(
-            f"Arquivo do projeto selecionado: {key}"
-        )
-        # Reseta o combo para o placeholder após selecionar
-        self._combo_projeto.current_value = ""
 
     def _on_format_changed(self, key: str, text: str):
         """Disparado quando o formato de saída muda."""
@@ -741,24 +721,7 @@ class LasVectorConverterPlugin(BasePlugin):
         self._spin_crs.set_values({"crs": crs})
         self._spin_tile.set_values({"points_per_tile": points_per_tile})
 
-        # Popula combo de arquivos do projeto
-        self._populate_project_files()
-
         self.logger.info("Preferências carregadas", code="PREFS_LOADED")
-
-    def _populate_project_files(self):
-        """Busca arquivos no projeto ativo conforme a direção atual e popula o combo."""
-        if self._direction == "las_to_vector":
-            exts = StringUtils.get_extensions_list(StringUtils.LAS_EXTENSIONS)
-        else:
-            exts = StringUtils.get_extensions_list(StringUtils.VECTOR_EXTENSIONS)
-
-        files = ProjectUtil.get_files_by_extensions(exts)
-        if files:
-            items = {"": "Selecione um arquivo do projeto...", **{v: k for k, v in files.items()}}
-            self._combo_projeto.set_items(items)
-        else:
-            self._combo_projeto.set_items({"": "Nenhum arquivo encontrado"})
 
     def save_prefs(self) -> None:
         """Salva preferências atuais no cache de memória."""
