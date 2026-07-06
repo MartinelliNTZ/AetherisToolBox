@@ -336,8 +336,14 @@ class GridComplexSelector(QWidget):
         parent_type = parent_selector.path_type()
         parent_count = parent_selector.path_count()
 
-        # Determina modo do filho
-        if parent_type == "file" and parent_count == 1:
+        # Determina modo do filho:
+        # - parent com 1 arquivo (tanto "file" single-mode quanto "files" multi-mode com 1 item)
+        # - parent com pasta, múltiplos arquivos ou múltiplas pastas → folder
+        is_single_file = (
+            parent_count == 1
+            and parent_type in ("file", "files")
+        )
+        if is_single_file:
             # Parent é 1 arquivo → filho vira file (permite salvar outro arquivo)
             child_selector.set_mode(allow_file=True, allow_folder=False, selection_mode="file")
             child_selector.edit.setPlaceholderText("Arquivo de saída")
@@ -433,8 +439,16 @@ class GridComplexSelector(QWidget):
 
             # ── Dynamic mode: decide comportamento baseado no parent ──
             if dynamic:
-                if parent_type == "file" and parent_count == 1:
-                    # 1 arquivo → output = dirname/subfolder/fixed_name
+                # Decide se é modo arquivo único:
+                # - parent_type "file" (single mode) + count 1
+                # - parent_type "files" (multi mode) + count 1 (1 arquivo selecionado)
+                # - Qualquer outro caso (folder/files com count>1/folders) → pasta
+                is_single_file = (
+                    parent_count == 1
+                    and parent_type in ("file", "files")
+                )
+                if is_single_file:
+                    # 1 arquivo (mesmo em modo multi-select) → output = dirname/subfolder/fixed_name
                     if subfolder:
                         output_path = os.path.join(parent_dir, subfolder, fixed_name)
                     else:
@@ -443,7 +457,7 @@ class GridComplexSelector(QWidget):
                     selector.set_mode(allow_file=True, allow_folder=False, selection_mode="file")
                     selector.edit.setPlaceholderText("Arquivo de saída")
                 else:
-                    # folder/files/folders → output = parent_path/subfolder (ignora fixed_name)
+                    # folder/files(>1)/folders → output = parent_path/subfolder (ignora fixed_name)
                     if subfolder:
                         output_path = os.path.join(parent_path, subfolder)
                     else:

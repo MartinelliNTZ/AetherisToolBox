@@ -41,6 +41,7 @@ class LasVectorConverterPlugin(BasePlugin):
 
     _LAS_FILTER = "LAS/LAZ (*.las *.laz)"
     _VECTOR_FILTER = "Vetor (*.shp *.gpkg *.geojson *.csv *.kml)"
+    SULFIX = "_converted"
 
     def __init__(self, parent=None):
         self._current_path: str = ""
