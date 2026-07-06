@@ -227,12 +227,18 @@ class LasVectorConverterPlugin(BasePlugin):
             self._info_label.setVisible(False)
             self._sel_entrada.edit.setPlaceholderText("Selecione uma pasta...")
             self._sel_entrada.file_filter = ""
-            self._sel_entrada._browse_mode = "directory"
+            self._sel_entrada.browse_mode = "directory"
+            # Saída também como pasta
+            self._sel_saida.browse_mode = "directory"
+            self._sel_saida.edit.setPlaceholderText("Pasta de saída...")
         else:
             self._info_label.setVisible(True)
             self._sel_entrada.edit.setPlaceholderText("Selecione o arquivo...")
             self._sel_entrada.file_filter = f"{self._LAS_FILTER};;{self._VECTOR_FILTER}"
-            self._sel_entrada._browse_mode = "open_file"
+            self._sel_entrada.browse_mode = "open_file"
+            # Saída como save_file (salvar arquivo com nome)
+            self._sel_saida.browse_mode = "save_file"
+            self._sel_saida.edit.setPlaceholderText("Arquivo de saída...")
 
     def _aplicar_ui_da_direcao(self, direction: str):
         """Aplica a UI conforme a direção da conversão."""
@@ -351,12 +357,15 @@ class LasVectorConverterPlugin(BasePlugin):
             )
             return
 
+        # Modo file: usa mesmo nome do arquivo de entrada + extensão do formato escolhido
         dir_origem = os.path.dirname(self._current_path)
-        output_dir = os.path.join(dir_origem, "lasvectorconverter")
-        self._sel_saida.set_path(output_dir)
+        base_name = os.path.splitext(os.path.basename(self._current_path))[0]
+        output_format = self._combo_formato.current_value if self._direction == "las_to_vector" else "las"
+        output_path = os.path.join(dir_origem, f"{base_name}_converted.{output_format}")
+        self._sel_saida.set_path(output_path)
         self._btns.set_enabled("executar", True)
         SignalManager.instance().console_message.emit(
-            f"Destino: {output_dir}"
+            f"Destino: {output_path}"
         )
 
     def _on_executar(self):
@@ -683,8 +692,10 @@ class LasVectorConverterPlugin(BasePlugin):
         """Carrega preferências salvas."""
         self.logger.info("Carregando preferências", code="PREFS_LOAD")
 
-        saved_callback = self._sel_entrada.on_mode_change
+        saved_mode_callback = self._sel_entrada.on_mode_change
+        saved_path_callback = self._sel_entrada.on_path_change
         self._sel_entrada.on_mode_change = None
+        self._sel_entrada.on_path_change = None
 
         last_mode = self.preferences.get("mode", "file")
         file_path = self.preferences.get("file_path", "")
@@ -709,17 +720,19 @@ class LasVectorConverterPlugin(BasePlugin):
             self._radio_direcao.set_selected(direction)
             self._aplicar_ui_da_direcao(direction)
 
-        # Carrega o path correto conforme o modo
+        # Carrega o path correto conforme o modo (SEM disparar _carregar_arquivo)
         if last_mode == "folder" and folder_path:
             self._current_path = folder_path
             self._file_info = {"path": folder_path, "n_itens": 0, "tipo": "pasta"}
             self._sel_entrada.set_path(folder_path)
             self._btns.set_enabled("executar", True)
         elif last_mode == "file" and file_path:
-            self._sel_entrada.set_path(file_path)
+            self._current_path = file_path
+            self._sel_entrada.edit.setText(file_path)
 
-        # Reconecta callback
-        self._sel_entrada.on_mode_change = saved_callback
+        # Reconecta callbacks
+        self._sel_entrada.on_mode_change = saved_mode_callback
+        self._sel_entrada.on_path_change = saved_path_callback
 
         # Restaura demais valores
         if output_path:
@@ -734,11 +747,14 @@ class LasVectorConverterPlugin(BasePlugin):
         self.logger.info("Preferências carregadas", code="PREFS_LOADED")
 
     def _populate_project_files(self):
-        """Busca arquivos LAS/LAZ no projeto ativo e popula o combo."""
-        las_exts = StringUtils.get_extensions_list(StringUtils.LAS_EXTENSIONS)
-        files = ProjectUtil.get_files_by_extensions(las_exts)
+        """Busca arquivos no projeto ativo conforme a direção atual e popula o combo."""
+        if self._direction == "las_to_vector":
+            exts = StringUtils.get_extensions_list(StringUtils.LAS_EXTENSIONS)
+        else:
+            exts = StringUtils.get_extensions_list(StringUtils.VECTOR_EXTENSIONS)
+
+        files = ProjectUtil.get_files_by_extensions(exts)
         if files:
-            # {caminho_completo: nome_arquivo} para exibir nome e usar path como valor
             items = {"": "Selecione um arquivo do projeto...", **{v: k for k, v in files.items()}}
             self._combo_projeto.set_items(items)
         else:

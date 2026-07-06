@@ -493,6 +493,38 @@ class SimpleSelector(QWidget):
             self._btn_suggest.setToolTip(tooltip)
         self._btn_suggest.setVisible(True)
 
+    @property
+    def file_filter(self) -> str:
+        """Filtro de arquivo atual."""
+        return self._file_filter
+
+    @file_filter.setter
+    def file_filter(self, value: str) -> None:
+        """Define o filtro e loga a mudança."""
+        old = self._file_filter
+        self._file_filter = value
+        self._logger.info(
+            f"file_filter alterado: '{value}'",
+            code="FILE_FILTER_CHANGED",
+        )
+
+    @property
+    def browse_mode(self) -> str:
+        """Modo de seleção atual."""
+        return self._browse_mode
+
+    @browse_mode.setter
+    def browse_mode(self, value: str) -> None:
+        """Define o browse_mode e atualiza botão 📄."""
+        old = self._browse_mode
+        self._browse_mode = value
+        if old != value:
+            self._update_project_button_visibility()
+            self._logger.info(
+                f"browse_mode alterado: '{value}'",
+                code="BROWSE_MODE_CHANGED",
+            )
+
     def set_path(self, path: str):
         """Define o caminho do QLineEdit."""
         self._logger.info(
