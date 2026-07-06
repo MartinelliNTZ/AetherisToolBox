@@ -435,6 +435,77 @@ class GridComplexSelector(QWidget):
         if meta:
             meta["suffix"] = suffix
 
+    # ══════════════════════════════════════════════════════════════════
+    # API Pública para manipular selectors (plugin não acessa
+    # atributos privados do widget diretamente)
+    # ══════════════════════════════════════════════════════════════════
+
+    def set_input_placeholder(self, label: str, placeholder: str):
+        """
+        Define o placeholder do QLineEdit de um selector.
+        Substitui o acesso direto a selector.edit.setPlaceholderText().
+
+        Args:
+            label: Nome do selector (ex: "Entrada").
+            placeholder: Texto de placeholder (ex: "Selecione o arquivo LAS/LAZ...").
+        """
+        selector = self._selectors.get(label)
+        if selector:
+            selector.edit.setPlaceholderText(placeholder)
+
+    def set_input_file_filter(self, label: str, file_filter: str):
+        """
+        Define o filtro de arquivo de um selector.
+        Substitui o acesso direto a selector.file_filter = value.
+
+        Args:
+            label: Nome do selector (ex: "Entrada").
+            file_filter: Filtro de arquivo (ex: "LAS/LAZ (*.las *.laz)").
+        """
+        selector = self._selectors.get(label)
+        if selector:
+            selector.file_filter = file_filter
+
+    def suspend_callbacks(self) -> dict[str, Optional[Callable]]:
+        """
+        Suspende temporariamente os callbacks registrados via set_on_changed e set_on_input_changed.
+        Útil para restaurar paths via set_path() sem disparar re-avaliação.
+
+        Retorna um snapshot dict {label: callback_or_None} que pode ser passado
+        para resume_callbacks() para restaurar exatamente os mesmos callbacks.
+
+        Exemplo:
+            saved = grid.suspend_callbacks()
+            try:
+                entrada.set_path(saved_path)
+            finally:
+                grid.resume_callbacks(saved)
+        """
+        # Salva snapshot dos callbacks atuais (referências reais)
+        snapshot: dict[str, Optional[Callable]] = {}
+        for label in list(self._user_callbacks.keys()):
+            snapshot[label] = self._user_callbacks.get(label)
+        # Remove todos os callbacks
+        for label in list(self._user_callbacks.keys()):
+            self.set_on_changed(label, None)
+        return snapshot
+
+    def resume_callbacks(self, snapshot: dict[str, Optional[Callable]]):
+        """
+        Restaura os callbacks previamente suspensos por suspend_callbacks().
+
+        Args:
+            snapshot: dict {label: callback_or_None} retornado por suspend_callbacks().
+        """
+        for label, callback in snapshot.items():
+            if callback is not None:
+                # Restaura o callback exato que estava registrado
+                self._user_callbacks[label] = callback
+                # Reinstala o wrapper se necessário
+                selector = self._selectors.get(label)
+                if selector and not getattr(selector, '_grid_wrapper_installed', False):
+                    self._install_user_callback_wrapper(label, selector)
+
     def _generate_output(self, label: str, parent_paths: list[str]):
         """Gera path de output baseado no parent."""
         if label in self._generating_output:

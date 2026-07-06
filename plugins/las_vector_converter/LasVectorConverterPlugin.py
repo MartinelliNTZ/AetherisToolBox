@@ -7,6 +7,13 @@ e vice-versa.
 
 Usa GridComplexSelector com ComplexSelector para Entrada + Saída com parent linking.
 O botão "USAR ORIGEM" é inline no widget — o plugin só tem EXECUTAR.
+
+REGRAS DE ACOPLAMENTO:
+  - O plugin NUNCA acessa atributos privados do widget (ex: _user_callbacks).
+  - O plugin NUNCA acessa sub-widgets diretamente (ex: entrada.edit).
+  - Toda comunicação com GridComplexSelector é via API pública:
+      set_input_placeholder, set_input_file_filter, set_on_input_changed,
+      suspend_callbacks / resume_callbacks.
 """
 
 from __future__ import annotations
@@ -81,6 +88,10 @@ class LasVectorConverterPlugin(BasePlugin):
         self.main_layout.addWidget(grupo_io)
 
         # GridComplexSelector com Entrada (input) + Saída (output com parent)
+        #
+        # O plugin configura o widget com os specs necessários.
+        # O widget gerencia todo o linking interno (dynamic_parent, USAR ORIGEM).
+        # O plugin só interage via API pública.
         self._grid_io = GridComplexSelector({
             "Entrada": {
                 "file_filter": f"{self._LAS_FILTER};;{self._VECTOR_FILTER}",
@@ -107,7 +118,8 @@ class LasVectorConverterPlugin(BasePlugin):
         grupo_io.group_layout.addWidget(self._grid_io)
 
         # Conecta callback para todas as entradas automaticamente
-        # (Item 1: GridComplexSelector gerencia parent-child internamente)
+        # O GridComplexSelector gerencia parent-child internamente.
+        # O plugin só reage a mudanças na entrada via set_on_input_changed.
         self._grid_io.set_on_input_changed(self._on_input_changed)
 
         # Info label (só aparece no modo single file)
@@ -200,19 +212,23 @@ class LasVectorConverterPlugin(BasePlugin):
     # ══════════════════════════════════════════════════════════════════
 
     def _aplicar_ui_da_direcao(self, direction: str):
-        """Aplica a UI conforme a direção da conversão."""
-        entrada = self._grid_io["Entrada"]
+        """
+        Aplica a UI conforme a direção da conversão.
 
+        Usa apenas API pública do GridComplexSelector:
+          - set_input_file_filter  (substitui entrada.file_filter = ...)
+          - set_input_placeholder  (substitui entrada.edit.setPlaceholderText)
+        """
         if direction == "las_to_vector":
             self._combo_formato.setVisible(True)
             self._spin_tile.setVisible(True)
-            entrada.file_filter = self._LAS_FILTER
-            entrada.edit.setPlaceholderText("Selecione o arquivo LAS/LAZ...")
+            self._grid_io.set_input_file_filter("Entrada", self._LAS_FILTER)
+            self._grid_io.set_input_placeholder("Entrada", "Selecione o arquivo LAS/LAZ...")
         else:
             self._combo_formato.setVisible(False)
             self._spin_tile.setVisible(False)
-            entrada.file_filter = self._VECTOR_FILTER
-            entrada.edit.setPlaceholderText("Selecione o arquivo vetor...")
+            self._grid_io.set_input_file_filter("Entrada", self._VECTOR_FILTER)
+            self._grid_io.set_input_placeholder("Entrada", "Selecione o arquivo vetor...")
 
     def _on_direction_changed(self, key: str):
         """Disparado quando o usuário altera a direção da conversão."""
@@ -229,7 +245,7 @@ class LasVectorConverterPlugin(BasePlugin):
 
     def _on_format_changed(self, key: str, text: str):
         self.logger.info("Formato alterado", code="FORMAT_CHANGED", formato=key)
-        # Atualiza extensão dinâmica no output
+        # Atualiza extensão dinâmica no output via API pública
         self._grid_io.set_output_extension("Saída", key)
         # Se o output já foi gerado, regenera com nova extensão
         saida = self._grid_io["Saída"]
@@ -237,7 +253,6 @@ class LasVectorConverterPlugin(BasePlugin):
             self._grid_io.use_origin("Saída")
 
     def _on_input_changed(self, label: str, paths: list[str]):
-
         """
         Disparado quando o path da entrada muda.
         Carrega metadados do arquivo e valida extensão.
@@ -499,51 +514,57 @@ class LasVectorConverterPlugin(BasePlugin):
     # ══════════════════════════════════════════════════════════════════
 
     def load_prefs(self) -> None:
+        """
+        Carrega preferências salvas.
+
+        Usa a API pública suspend_callbacks/resume_callbacks para evitar
+        que set_path dispare re-avaliação prematura.
+        """
         self.logger.info("Carregando preferências", code="PREFS_LOAD")
-        entrada = self._grid_io["Entrada"]
 
-        # Salva callback do usuário para restaurar depois de set_path
-        # (set_path dispara on_path_change, o que causaria re-load prematuro)
-        saved_callback = self._grid_io._user_callbacks.get("Entrada")
-        if saved_callback:
-            self._grid_io.set_on_changed("Entrada", None)
+        # Suspende callbacks para restaurar paths sem disparar re-avaliação
+        # (set_path dispara on_path_change internamente, o que causaria
+        #  re-load prematuro de metadados)
+        saved_callbacks = self._grid_io.suspend_callbacks()
 
-        last_mode = self.preferences.get("mode", "file")
-        file_path = self.preferences.get("file_path", "")
-        folder_path = self.preferences.get("folder_path", "")
-        direction = self.preferences.get("direction", "las_to_vector")
-        output_format = self.preferences.get("output_format", "gpkg")
-        crs = self.preferences.get("crs", 31982)
-        output_path = self.preferences.get("output_path", "")
-        points_per_tile = self.preferences.get("points_per_tile", 0)
+        try:
+            last_mode = self.preferences.get("mode", "file")
+            file_path = self.preferences.get("file_path", "")
+            folder_path = self.preferences.get("folder_path", "")
+            direction = self.preferences.get("direction", "las_to_vector")
+            output_format = self.preferences.get("output_format", "gpkg")
+            crs = self.preferences.get("crs", 31982)
+            output_path = self.preferences.get("output_path", "")
+            points_per_tile = self.preferences.get("points_per_tile", 0)
 
-        self._mode = last_mode
-        self._info_label.setVisible(last_mode == "file")
+            self._mode = last_mode
+            self._info_label.setVisible(last_mode == "file")
 
-        if direction != self._direction:
-            self._direction = direction
-            self._radio_direcao.set_selected(direction)
-            self._aplicar_ui_da_direcao(direction)
+            if direction != self._direction:
+                self._direction = direction
+                self._radio_direcao.set_selected(direction)
+                self._aplicar_ui_da_direcao(direction)
 
-        if last_mode == "folder" and folder_path:
-            self._current_path = folder_path
-            self._file_info = {"path": folder_path, "n_itens": 0, "tipo": "pasta"}
-            entrada.set_path(folder_path)
-            self._btns.set_enabled("executar", True)
-        elif last_mode == "file" and file_path:
-            self._current_path = file_path
-            entrada.set_path(file_path)
-            self._btns.set_enabled("executar", True)
+            entrada = self._grid_io["Entrada"]
 
-        # Restaura callback do usuário
-        if saved_callback:
-            self._grid_io.set_on_changed("Entrada", saved_callback)
+            if last_mode == "folder" and folder_path:
+                self._current_path = folder_path
+                self._file_info = {"path": folder_path, "n_itens": 0, "tipo": "pasta"}
+                entrada.set_path(folder_path)
+                self._btns.set_enabled("executar", True)
+            elif last_mode == "file" and file_path:
+                self._current_path = file_path
+                entrada.set_path(file_path)
+                self._btns.set_enabled("executar", True)
 
-        if output_path:
-            self._grid_io["Saída"].set_path(output_path)
-        self._combo_formato.current_value = output_format
-        self._spin_crs.set_values({"crs": crs})
-        self._spin_tile.set_values({"points_per_tile": points_per_tile})
+            if output_path:
+                self._grid_io["Saída"].set_path(output_path)
+            self._combo_formato.current_value = output_format
+            self._spin_crs.set_values({"crs": crs})
+            self._spin_tile.set_values({"points_per_tile": points_per_tile})
+        finally:
+            # Restaura callbacks originais
+            self._grid_io.resume_callbacks(saved_callbacks)
 
         self.logger.info("Preferências carregadas", code="PREFS_LOADED")
 
