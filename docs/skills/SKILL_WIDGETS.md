@@ -1210,10 +1210,25 @@ sel.on_suggest_click = callback         # recebe ()
 | `fixed_name` | str | "" | Nome fixo do arquivo de saída (ex: "resultado.gpkg") |
 | `subfolder` | str | "" | Subpasta para output |
 
+**Propriedades dinâmicas (setters):**
+```python
+# Mostra/esconde 🔍 (botão de arquivo)
+sel.allow_file = True   # mostra
+sel.allow_file = False  # esconde
+
+# Mostra/esconde 📁 (botão de pasta)
+sel.allow_folder = True   # mostra
+sel.allow_folder = False  # esconde
+
+# Atalho para alterar modo completo de uma vez
+sel.set_mode(allow_file=True, allow_folder=False, selection_mode="file")
+```
+`set_mode()` sanitiza automaticamente: se `selection_mode="file"` mas `allow_file=False`, corrige para `"folder"`.
+
 ---
 
 ### `GridComplexSelector` — `complex/GridComplexSelector.py`
-Grade de `ComplexSelector`s configurados por dicionário, com suporte a **linking entre selectores** (parent/subfolder/fixed_name). Botão "USAR ORIGEM" automático para outputs com parent.
+Grade de `ComplexSelector`s configurados por dicionário, com suporte a **linking entre selectores** (parent/subfolder/fixed_name) e **dynamic_parent** (modo alterna conforme o tipo do parent). Botão "USAR ORIGEM" automático para outputs com parent.
 
 ```python
 from resources.widgets.complex.GridComplexSelector import GridComplexSelector
@@ -1224,17 +1239,19 @@ grid = GridComplexSelector({
         "mode_type": "input",
         "allow_file": True,
         "allow_folder": True,
-        "multiple": False,
+        "multiple": True,
         "show_project_button": True,
     },
     "Saída": {
         "mode_type": "output",
         "parent": "Entrada",
-        "allow_file": True,
-        "allow_folder": False,
+        "allow_file": True,       # Dynamic alterna entre file/folder
+        "allow_folder": True,     # Ambos True para suportar alternância
+        "multiple": False,
+        "dynamic_parent": True,    # Ativa modo dinâmico
         "show_suggest_button": True,
-        "subfolder": "output",
-        "fixed_name": "resultado.gpkg",
+        "subfolder": "lasvectorconverter",
+        "fixed_name": "resultado.gpkg",  # Ignorado se parent for pasta
     },
 }, title="Entrada e Saída")
 
@@ -1261,8 +1278,9 @@ grid.refresh_links()
 | `file_filter` | str | "Todos (*.*)" | Filtro |
 | `mode_type` | str | "input" | "input" ou "output" |
 | `parent` | str | "" | Chave do selector pai (só output) |
-| `allow_file` | bool | True | Mostra 🔍 |
-| `allow_folder` | bool | False | Mostra 📁 |
+| `dynamic_parent` | bool | False | Modo dinâmico: filho alterna file/folder conforme parent |
+| `allow_file` | bool | True | Mostra 🔍 (inicial, dynamic altera runtime) |
+| `allow_folder` | bool | False | Mostra 📁 (inicial, dynamic altera runtime) |
 | `multiple` | bool | False | Multi-seleção |
 | `show_suggest_button` | bool | False | Mostra 📂 (só output) |
 | `show_project_button` | bool | False | Mostra 📄 (só input) |
@@ -1272,7 +1290,7 @@ grid.refresh_links()
 | `default_path` | str | "" | Path inicial |
 | `tooltip` | str | "" | Tooltip |
 
-**Regras do linking (parent):**
+**Regras do linking (parent) sem dynamic_parent:**
 1. Output com `parent` definido → botão "USAR ORIGEM" automático
 2. Ao clicar "USAR ORIGEM":
    - Parent modo `file`: output = `dirname(parent) / subfolder / fixed_name`
@@ -1280,6 +1298,22 @@ grid.refresh_links()
 3. Linking reativo: output se atualiza quando parent muda (se vazio ou gerado pelo USAR ORIGEM)
 4. 📂 no output usa `ProjectUtil.get_root_folder()` + `subfolder` + `fixed_name`
 5. 📄 só aparece no input
+
+**Regras do modo `dynamic_parent=True`:**
+1. Parent seleciona **1 arquivo** (`path_type="file"`):
+   - Filho vira **modo file** (🔍 visível, 📁 oculto)
+   - Output gerado: `dirname(parent) / subfolder / fixed_name`
+   - Placeholder: "Arquivo de saída"
+   - **fixed_name é usado**
+2. Parent seleciona **>1 arquivo, pasta ou pastas** (`path_type="folder"/"files"/"folders"`):
+   - Filho vira **modo folder** (🔍 oculto, 📁 visível)
+   - Output gerado: `parent_path / subfolder` (ou `converted` se subfolder vazio)
+   - Placeholder: "Pasta de saída"
+   - **fixed_name é ignorado**
+3. Callback `on_path_change` do plugin **não é sobrescrito** — usa chaining automático
+4. `allow_file=True` e `allow_folder=True` devem ser configurados no spec para suportar alternância
+
+**Importante:** Ao usar `dynamic_parent`, configure o spec com `allow_file=True` e `allow_folder=True` para que o filho possa alternar entre os modos.
 
 ---
 

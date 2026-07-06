@@ -175,7 +175,7 @@ class ComplexSelector(QWidget):
 
         # ── 📂 (suggested — só output) ──
         if self._mode_type == "output" and self._show_suggest_button:
-            self._btn_suggest = SimpleSecondaryButton("📂")
+            self._btn_suggest = SimpleSecondaryButton("🛠️")
             self._btn_suggest.setFixedWidth(30)
             self._btn_suggest.setToolTip("Usar pasta do projeto")
             self._btn_suggest.clicked.connect(self._on_suggest_clicked)
@@ -536,3 +536,61 @@ class ComplexSelector(QWidget):
     def selection_mode(self, value: str) -> None:
         if value in ("file", "folder"):
             self._selection_mode = value
+
+    # ── Dynamic Mode: allow_file / allow_folder ────────────────────
+
+    @property
+    def allow_file(self) -> bool:
+        return self._allow_file
+
+    @allow_file.setter
+    def allow_file(self, value: bool) -> None:
+        """Atualiza _allow_file e mostra/esconde 🔍."""
+        self._allow_file = value
+        btn = getattr(self, '_btn_file', None)
+        if btn:
+            btn.setVisible(value)
+            btn.setEnabled(value)
+
+    @property
+    def allow_folder(self) -> bool:
+        return self._allow_folder
+
+    @allow_folder.setter
+    def allow_folder(self, value: bool) -> None:
+        """Atualiza _allow_folder e mostra/esconde 📁."""
+        self._allow_folder = value
+        btn = getattr(self, '_btn_folder', None)
+        if btn:
+            btn.setVisible(value)
+            btn.setEnabled(value)
+
+    def set_mode(self, *, allow_file: bool | None = None, allow_folder: bool | None = None, selection_mode: str | None = None):
+        """
+        Atalho para alterar modo dinamicamente.
+        Atualiza allow_file/allow_folder e selection_mode em um único método.
+        """
+        if allow_file is not None:
+            self.allow_file = allow_file
+        if allow_folder is not None:
+            self.allow_folder = allow_folder
+        if selection_mode is not None:
+            self.selection_mode = selection_mode
+        # Sanitiza — se o selection_mode atual não for compatível, corrige
+        if self._selection_mode == "file" and not self._allow_file:
+            self._selection_mode = "folder"
+        if self._selection_mode == "folder" and not self._allow_folder:
+            self._selection_mode = "file"
+        # Atualiza tooltips dos botões
+        if hasattr(self, '_btn_file'):
+            self._btn_file.setToolTip(
+                "Selecionar arquivos" if self._multiple else "Selecionar arquivo"
+            )
+        if hasattr(self, '_btn_folder'):
+            self._btn_folder.setToolTip(
+                "Selecionar pastas" if self._multiple else "Selecionar pasta"
+            )
+        self._logger.info(
+            f"Modo alterado: file={self._allow_file}, folder={self._allow_folder}, mode={self._selection_mode}",
+            code="COMPLEX_MODE_CHANGED",
+        )

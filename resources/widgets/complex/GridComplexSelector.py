@@ -33,7 +33,7 @@ Uso:
 from __future__ import annotations
 
 import os
-from typing import Optional
+from typing import Callable, Optional
 
 from PySide6.QtWidgets import (
     QWidget, QGridLayout, QVBoxLayout, QHBoxLayout, QLineEdit,
@@ -77,6 +77,8 @@ class GridComplexSelector(QWidget):
         self._origin_buttons: dict[str, SimpleSecondaryButton] = {}
         self._self_generated: dict[str, bool] = {}
         self._dynamic_children: dict[str, str] = {}  # child_label -> parent_label
+        # Armazena callbacks originais do usuário para chaining
+        self._user_callbacks: dict[str, Optional[Callable]] = {}
 
         self._build(specs, title, columns)
 
@@ -177,7 +179,7 @@ class GridComplexSelector(QWidget):
         if mode_type == "output" and parent_key:
             btn_container = self._create_origin_button(label, parent_key)
 
-        # Conecta listener reativo de path
+        # Conecta listener reativo de path (NÃO sobrescreve callback do usuário)
         if mode_type == "output" and parent_key:
             self._connect_parent_listener(label, parent_key)
 
@@ -202,14 +204,26 @@ class GridComplexSelector(QWidget):
         return container
 
     def _connect_parent_listener(self, label: str, parent_key: str):
-        """Conecta callback do parent para reatividade ao mudar path."""
+        """
+        Conecta callback do parent para reatividade ao mudar path.
+        Usa chaining para NÃO sobrescrever callback existente do usuário.
+        """
         parent_selector = self._selectors.get(parent_key)
         if not parent_selector:
             return
 
         selector = self._selectors[label]
 
+        # Salva callback original do usuário (se houver)
+        if parent_key not in self._user_callbacks:
+            self._user_callbacks[parent_key] = parent_selector.on_path_change
+
         def on_parent_changed(parent_paths: list[str]):
+            # Chama callback original do usuário primeiro
+            user_cb = self._user_callbacks.get(parent_key)
+            if user_cb:
+                user_cb(parent_paths)
+            # Depois aplica lógica de linking
             if self._self_generated.get(label, False) or not selector.get_paths():
                 self._generate_output(label, parent_paths)
 
@@ -222,33 +236,39 @@ class GridComplexSelector(QWidget):
     def _connect_dynamic_listener(self, child_label: str, parent_key: str):
         """
         Conecta listener no parent para adaptar o filho dinamicamente.
+        Usa chaining para NÃO sobrescrever callback existente do usuário.
+
         Quando o parent muda de tipo:
-          - file (1 arquivo) → filho vira file (ignora fixed_name)
-          - folder/files/folders → filho vira folder
+          - file (1 arquivo) → filho vira file (usa fixed_name)
+          - folder/files/folders → filho vira folder (ignora fixed_name)
         """
         parent_selector = self._selectors.get(parent_key)
         if not parent_selector:
             return
 
-        def on_parent_browse(parent_paths: list[str]):
-            self._apply_dynamic_mode(child_label)
+        # Salva callback original do usuário (se ainda não salvo)
+        if parent_key not in self._user_callbacks:
+            self._user_callbacks[parent_key] = parent_selector.on_path_change
 
-        # Conecta no browse (qualquer clique de botão)
-        parent_selector.on_browse_click = lambda: None
-        # Usa o path_change para aplicar dinâmica
-        parent_selector.on_path_change = self._make_dynamic_handler(child_label)
-
-    def _make_dynamic_handler(self, child_label: str):
-        """Factory para criar handler de path_change que aplica dinâmica."""
-        def handler(paths: list[str]):
+        def dynamic_handler(paths: list[str]):
+            # Chama callback original do usuário primeiro
+            user_cb = self._user_callbacks.get(parent_key)
+            if user_cb:
+                user_cb(paths)
+            # Depois aplica dinâmica no filho
             self._apply_dynamic_mode(child_label)
-        return handler
+            # Se o output estiver vazio ou foi auto-gerado, gera novo output
+            child_selector = self._selectors.get(child_label)
+            if child_selector and (self._self_generated.get(child_label, False) or not child_selector.get_paths()):
+                self._generate_output(child_label, paths)
+
+        parent_selector.on_path_change = dynamic_handler
 
     def _apply_dynamic_mode(self, child_label: str):
         """
         Aplica o modo dinâmico no filho baseado no estado atual do parent.
-        - parent file (1 arquivo) → filho file, ignora fixed_name
-        - parent folder/files/folders → filho folder
+        - parent file (1 arquivo) → filho: allow_file=True, allow_folder=False
+        - parent folder/files/folders → filho: allow_file=False, allow_folder=True
         """
         meta = self._link_meta.get(child_label)
         if not meta:
@@ -267,22 +287,19 @@ class GridComplexSelector(QWidget):
         # Determina modo do filho
         if parent_type == "file" and parent_count == 1:
             # Parent é 1 arquivo → filho vira file (permite salvar outro arquivo)
-            child_selector.selection_mode = "file"
-            # Atualiza visibilidade dos botões (já está no ComplexSelector)
+            child_selector.set_mode(allow_file=True, allow_folder=False, selection_mode="file")
+            child_selector.edit.setPlaceholderText("Arquivo de saída")
         else:
             # Parent é folder/files/folders → filho vira folder
-            child_selector.selection_mode = "folder"
+            child_selector.set_mode(allow_file=False, allow_folder=True, selection_mode="folder")
+            child_selector.edit.setPlaceholderText("Pasta de saída")
 
-        # Atualiza o edit com hint do modo
-        if child_selector.is_folder_mode():
-            child_selector.edit.setPlaceholderText("Usar pasta do parent")
-        else:
-            child_selector.edit.setPlaceholderText("Arquivo de saída")
-
-        # Esconde o botão 📂 se não fizer sentido com o modo atual
-        if hasattr(child_selector, '_btn_suggest') and child_selector._btn_suggest.isVisible():
-            # 📂 sempre visível (gera fixed_name dentro do root do projeto)
-            pass
+        self._logger.info(
+            f"Dynamic mode aplicado: '{child_label}' → "
+            f"file={child_selector.allow_file}, folder={child_selector.allow_folder}, "
+            f"mode={child_selector.selection_mode}",
+            code="GRID_DYNAMIC_APPLIED",
+        )
 
     # ══════════════════════════════════════════════════════════════════
     # Lógica de linking (USAR ORIGEM)
@@ -338,36 +355,57 @@ class GridComplexSelector(QWidget):
         fixed_name = meta.get("fixed_name", "")
         dynamic = meta.get("dynamic_parent", False)
 
-        if parent_selector.is_folder_mode():
-            # Modo pasta: output = parent_path / subfolder
-            if subfolder:
-                output_path = os.path.join(parent_path, subfolder)
-            else:
-                output_path = os.path.join(parent_path, "converted")
-            selector.set_path(output_path)
-            selector.selection_mode = "folder"
-        else:
-            # Modo file/files: output = dirname / subfolder / fixed_name
-            # Se dynamic e parent é 1 arquivo, ignora fixed_name? Não, usa fixed_name
-            if dynamic and parent_selector.path_type() == "file" and parent_selector.path_count() == 1:
-                # Dynamic file → usa fixed_name normalmente
-                pass
+        parent_type = parent_selector.path_type()
+        parent_count = parent_selector.path_count()
 
-            if subfolder:
-                output_path = os.path.join(parent_dir, subfolder, fixed_name)
+        # ── Dynamic mode: decide comportamento baseado no parent ──
+        if dynamic:
+            if parent_type == "file" and parent_count == 1:
+                # 1 arquivo → output = dirname/subfolder/fixed_name
+                if subfolder:
+                    output_path = os.path.join(parent_dir, subfolder, fixed_name)
+                else:
+                    output_path = os.path.join(parent_dir, fixed_name)
+                selector.set_path(output_path)
+                selector.set_mode(allow_file=True, allow_folder=False, selection_mode="file")
+                selector.edit.setPlaceholderText("Arquivo de saída")
             else:
-                output_path = os.path.join(parent_dir, fixed_name)
-            selector.set_path(output_path)
-            selector.selection_mode = "file"
-
-        # Atualiza hint
-        if selector.is_folder_mode():
-            selector.edit.setPlaceholderText("Pasta de saída")
+                # folder/files/folders → output = parent_path/subfolder (ignora fixed_name)
+                if subfolder:
+                    output_path = os.path.join(parent_path, subfolder)
+                else:
+                    output_path = os.path.join(parent_path, "converted")
+                selector.set_path(output_path)
+                selector.set_mode(allow_file=False, allow_folder=True, selection_mode="folder")
+                selector.edit.setPlaceholderText("Pasta de saída")
         else:
-            selector.edit.setPlaceholderText("Arquivo de saída")
+            # ── Modo normal (sem dynamic) ──
+            if parent_selector.is_folder_mode():
+                # Modo pasta: output = parent_path / subfolder
+                if subfolder:
+                    output_path = os.path.join(parent_path, subfolder)
+                else:
+                    output_path = os.path.join(parent_path, "converted")
+                selector.set_path(output_path)
+                selector.selection_mode = "folder"
+            else:
+                # Modo file/files: output = dirname / subfolder / fixed_name
+                if subfolder:
+                    output_path = os.path.join(parent_dir, subfolder, fixed_name)
+                else:
+                    output_path = os.path.join(parent_dir, fixed_name)
+                selector.set_path(output_path)
+                selector.selection_mode = "file"
+
+            # Atualiza hint
+            if selector.is_folder_mode():
+                selector.edit.setPlaceholderText("Pasta de saída")
+            else:
+                selector.edit.setPlaceholderText("Arquivo de saída")
 
         self._logger.info(
-            f"Output gerado '{label}': {selector.path()}",
+            f"Output gerado '{label}': {selector.path()} "
+            f"(dynamic={dynamic}, mode={selector.selection_mode})",
             code="GRID_OUTPUT_GENERATED",
         )
 

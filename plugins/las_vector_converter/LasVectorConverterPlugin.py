@@ -95,7 +95,7 @@ class LasVectorConverterPlugin(BasePlugin):
                 "mode_type": "output",
                 "parent": "Entrada",
                 "allow_file": True,
-                "allow_folder": False,
+                "allow_folder": True,
                 "multiple": False,
                 "dynamic_parent": True,
                 "show_suggest_button": True,
