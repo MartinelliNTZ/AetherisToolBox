@@ -28,6 +28,12 @@ Uso:
     grid["Entrada"].get_root_path()
     grid["Entrada"].path_type()
     grid.use_origin("Saída")
+
+    # Para plugins que precisam reagir a mudanças nas entradas:
+    # (GridComplexSelector gerencia parent-child internamente)
+    grid.set_on_input_changed(meu_callback)  # callback(label, paths)
+    # Ou para um selector específico:
+    grid.set_on_changed("Entrada", meu_callback)  # callback(paths)
 """
 
 from __future__ import annotations
@@ -54,6 +60,10 @@ class GridComplexSelector(QWidget):
 
     Suporta mode_type="input"/"output" com parent linking.
     dynamic_parent: filho adapta selection_mode conforme o pai.
+
+    Para plugins que precisam de callback quando o path de um selector mudar,
+    use set_on_path_change(label, callback) — isso NÃO quebra o chaining
+    interno de linking/dynamic_parent.
     """
 
     _KEYS_RESERVED = frozenset({
@@ -77,10 +87,79 @@ class GridComplexSelector(QWidget):
         self._origin_buttons: dict[str, SimpleSecondaryButton] = {}
         self._self_generated: dict[str, bool] = {}
         self._dynamic_children: dict[str, str] = {}  # child_label -> parent_label
-        # Armazena callbacks originais do usuário para chaining
+        # Armazena callbacks registrados via set_on_path_change()
         self._user_callbacks: dict[str, Optional[Callable]] = {}
+        # Flag para evitar loop de regeneração
+        self._generating_output: set[str] = set()
 
         self._build(specs, title, columns)
+
+    # ══════════════════════════════════════════════════════════════════
+    # API Pública para Callbacks (simplificada — plugin não precisa
+    # saber de parent-child relationships)
+    # ══════════════════════════════════════════════════════════════════
+
+    def set_on_input_changed(self, callback: Optional[Callable[[str, list[str]], None]]):
+        """
+        Registra callback para quando QUALQUER selector de entrada mudar.
+
+        O GridComplexSelector descobre automaticamente quais selectores
+        são entradas (mode_type != "output") e conecta o callback a todos.
+        O plugin NÃO precisa saber de parent-child relationships.
+
+        Args:
+            callback: Função que recebe (label, paths).
+                     label → nome do selector que mudou (ex: "Entrada 1")
+                     paths → list[str] com os paths selecionados.
+                     Passe None para limpar todos os callbacks de entrada.
+        """
+        for label, selector in self._selectors.items():
+            meta = self._link_meta.get(label, {})
+            if meta.get("mode_type") == "output":
+                continue  # Pula outputs
+            self._user_callbacks[label] = callback
+            if not getattr(selector, '_grid_wrapper_installed', False):
+                self._install_user_callback_wrapper(label, selector)
+
+    def set_on_changed(self, label: str, callback: Optional[Callable[[list[str]], None]]):
+        """
+        Registra callback para quando o path de um selector específico mudar.
+
+        Diferente de fazer grid[label].on_path_change = callback diretamente,
+        este método NÃO quebra o chaining interno de linking/dynamic_parent.
+        O callback será chamado APÓS a lógica interna do GridComplexSelector.
+
+        Args:
+            label: Nome do selector (ex: "Entrada").
+            callback: Função que recebe list[str] com os paths.
+                     Passe None para limpar o callback.
+        """
+        self._user_callbacks[label] = callback
+        selector = self._selectors.get(label)
+        if selector and not getattr(selector, '_grid_wrapper_installed', False):
+            self._install_user_callback_wrapper(label, selector)
+
+    def _install_user_callback_wrapper(self, label: str, selector: ComplexSelector):
+        """Instala um wrapper em on_path_change que preserva o chaining."""
+        original_cb = selector.on_path_change
+
+        def wrapper(paths: list[str]):
+            # 1. Chama o wrapper de linking se existir (instalado pelo Grid)
+            if original_cb:
+                original_cb(paths)
+            # 2. Chama o callback do usuário DEPOIS da lógica interna
+            user_cb = self._user_callbacks.get(label)
+            if user_cb and user_cb is not original_cb:
+                # Se for set_on_input_changed, passa (label, paths)
+                # Se for set_on_changed, passa só paths
+                user_cb(paths)
+
+        selector.on_path_change = wrapper
+        selector._grid_wrapper_installed = True  # type: ignore[attr-defined]
+
+    # ══════════════════════════════════════════════════════════════════
+    # Build
+    # ══════════════════════════════════════════════════════════════════
 
     def _build(self, specs: dict[str, dict], title: Optional[str], columns: int):
         if title:
@@ -169,100 +248,68 @@ class GridComplexSelector(QWidget):
             }
             self._self_generated[label] = False
 
-        # Se dynamic_parent, registra para monitoramento
-        if dynamic_parent and parent_key:
-            self._dynamic_children[label] = parent_key
-            self._connect_dynamic_listener(label, parent_key)
+        # Se for output com parent, instala listener unificado
+        # (substitui _connect_dynamic_listener + _connect_parent_listener)
+        if mode_type == "output" and parent_key:
+            self._connect_output_listener(label, parent_key, dynamic_parent)
 
         # Botão USAR ORIGEM para outputs com parent
         btn_container: Optional[QWidget] = None
         if mode_type == "output" and parent_key:
             btn_container = self._create_origin_button(label, parent_key)
 
-        # Conecta listener reativo de path (NÃO sobrescreve callback do usuário)
-        if mode_type == "output" and parent_key:
-            self._connect_parent_listener(label, parent_key)
-
         return selector, btn_container
 
-    def _create_origin_button(self, label: str, parent_key: str) -> QWidget:
-        container = QWidget()
-        h_layout = QHBoxLayout(container)
-        h_layout.setContentsMargins(0, 0, 0, 2)
-        h_layout.setSpacing(4)
+    # ══════════════════════════════════════════════════════════════════
+    # Listener Unificado (Item 3: substitui os dois listeners separados)
+    # ══════════════════════════════════════════════════════════════════
 
-
-
-        h_layout.addStretch(1)
-
-        btn = SimpleSecondaryButton("USAR ORIGEM")
-        self._origin_buttons[label] = btn
-        h_layout.addWidget(btn)
-
-        btn.clicked.connect(lambda: self._on_use_origin(label))
-
-        return container
-
-    def _connect_parent_listener(self, label: str, parent_key: str):
+    def _connect_output_listener(self, child_label: str, parent_key: str, dynamic_parent: bool = False):
         """
-        Conecta callback do parent para reatividade ao mudar path.
-        Usa chaining para NÃO sobrescrever callback existente do usuário.
+        Único listener para output com parent.
+        Substitui _connect_dynamic_listener + _connect_parent_listener.
+
+        Instala um wrapper no on_path_change do parent que:
+          1. Chama callback do usuário (se registrado via set_on_path_change)
+          2. Aplica modo dinâmico (se dynamic_parent)
+          3. Gera novo output automaticamente
         """
         parent_selector = self._selectors.get(parent_key)
         if not parent_selector:
             return
 
-        selector = self._selectors[label]
+        child_selector = self._selectors.get(child_label)
+        if not child_selector:
+            return
 
-        # Salva callback original do usuário (se houver)
-        if parent_key not in self._user_callbacks:
-            self._user_callbacks[parent_key] = parent_selector.on_path_change
+        # Salva callback original (pode ser de outra chamada ou None)
+        # IMPORTANTE: se o plugin já registrou via set_on_path_change,
+        # esse callback original é do wrapper do usuário, não o raw
+        original_cb = parent_selector.on_path_change
 
-        def on_parent_changed(parent_paths: list[str]):
-            # Chama callback original do usuário primeiro
-            user_cb = self._user_callbacks.get(parent_key)
-            if user_cb:
-                user_cb(parent_paths)
-            # Depois aplica lógica de linking
-            if self._self_generated.get(label, False) or not selector.get_paths():
-                self._generate_output(label, parent_paths)
+        def unified_handler(paths: list[str]):
+            # 1. Chama callback original (wrapper do usuário ou None)
+            if original_cb:
+                original_cb(paths)
 
-        parent_selector.on_path_change = on_parent_changed
+            # 2. Se dynamic_parent, aplica modo no filho
+            if dynamic_parent:
+                self._apply_dynamic_mode(child_label)
+
+            # 3. Gera output se necessário
+            if child_label not in self._generating_output:
+                should_generate = (
+                    self._self_generated.get(child_label, False)
+                    or not child_selector.get_paths()
+                )
+                if should_generate:
+                    self._generate_output(child_label, paths)
+
+        parent_selector.on_path_change = unified_handler
 
     # ══════════════════════════════════════════════════════════════════
     # Dynamic Parent — adapta selection_mode do filho conforme o pai
     # ══════════════════════════════════════════════════════════════════
-
-    def _connect_dynamic_listener(self, child_label: str, parent_key: str):
-        """
-        Conecta listener no parent para adaptar o filho dinamicamente.
-        Usa chaining para NÃO sobrescrever callback existente do usuário.
-
-        Quando o parent muda de tipo:
-          - file (1 arquivo) → filho vira file (usa fixed_name)
-          - folder/files/folders → filho vira folder (ignora fixed_name)
-        """
-        parent_selector = self._selectors.get(parent_key)
-        if not parent_selector:
-            return
-
-        # Salva callback original do usuário (se ainda não salvo)
-        if parent_key not in self._user_callbacks:
-            self._user_callbacks[parent_key] = parent_selector.on_path_change
-
-        def dynamic_handler(paths: list[str]):
-            # Chama callback original do usuário primeiro
-            user_cb = self._user_callbacks.get(parent_key)
-            if user_cb:
-                user_cb(paths)
-            # Depois aplica dinâmica no filho
-            self._apply_dynamic_mode(child_label)
-            # Se o output estiver vazio ou foi auto-gerado, gera novo output
-            child_selector = self._selectors.get(child_label)
-            if child_selector and (self._self_generated.get(child_label, False) or not child_selector.get_paths()):
-                self._generate_output(child_label, paths)
-
-        parent_selector.on_path_change = dynamic_handler
 
     def _apply_dynamic_mode(self, child_label: str):
         """
@@ -305,6 +352,22 @@ class GridComplexSelector(QWidget):
     # Lógica de linking (USAR ORIGEM)
     # ══════════════════════════════════════════════════════════════════
 
+    def _create_origin_button(self, label: str, parent_key: str) -> QWidget:
+        container = QWidget()
+        h_layout = QHBoxLayout(container)
+        h_layout.setContentsMargins(0, 0, 0, 2)
+        h_layout.setSpacing(4)
+
+        h_layout.addStretch(1)
+
+        btn = SimpleSecondaryButton("USAR ORIGEM")
+        self._origin_buttons[label] = btn
+        h_layout.addWidget(btn)
+
+        btn.clicked.connect(lambda: self._on_use_origin(label))
+
+        return container
+
     def _on_use_origin(self, label: str):
         meta = self._link_meta.get(label)
         if not meta:
@@ -336,81 +399,91 @@ class GridComplexSelector(QWidget):
 
     def _generate_output(self, label: str, parent_paths: list[str]):
         """Gera path de output baseado no parent."""
-        meta = self._link_meta.get(label)
-        if not meta:
-            return
+        if label in self._generating_output:
+            return  # Evita recursão
+        self._generating_output.add(label)
 
-        parent_selector = self._selectors.get(meta["parent"])
-        if not parent_selector:
-            return
+        try:
+            meta = self._link_meta.get(label)
+            if not meta:
+                return
 
-        selector = self._selectors[label]
-        parent_path = parent_paths[0] if parent_paths else ""
+            parent_selector = self._selectors.get(meta["parent"])
+            if not parent_selector:
+                return
 
-        if not parent_path:
-            return
+            selector = self._selectors[label]
+            parent_path = parent_paths[0] if parent_paths else ""
 
-        parent_dir = os.path.dirname(parent_path) if os.path.isfile(parent_path) else parent_path
-        subfolder = meta.get("subfolder", "")
-        fixed_name = meta.get("fixed_name", "")
-        dynamic = meta.get("dynamic_parent", False)
+            if not parent_path:
+                return
 
-        parent_type = parent_selector.path_type()
-        parent_count = parent_selector.path_count()
+            parent_dir = os.path.dirname(parent_path) if os.path.isfile(parent_path) else parent_path
+            subfolder = meta.get("subfolder", "")
+            fixed_name = meta.get("fixed_name", "")
+            dynamic = meta.get("dynamic_parent", False)
 
-        # ── Dynamic mode: decide comportamento baseado no parent ──
-        if dynamic:
-            if parent_type == "file" and parent_count == 1:
-                # 1 arquivo → output = dirname/subfolder/fixed_name
-                if subfolder:
-                    output_path = os.path.join(parent_dir, subfolder, fixed_name)
+            parent_type = parent_selector.path_type()
+            parent_count = parent_selector.path_count()
+
+            # ── Dynamic mode: decide comportamento baseado no parent ──
+            if dynamic:
+                if parent_type == "file" and parent_count == 1:
+                    # 1 arquivo → output = dirname/subfolder/fixed_name
+                    if subfolder:
+                        output_path = os.path.join(parent_dir, subfolder, fixed_name)
+                    else:
+                        output_path = os.path.join(parent_dir, fixed_name)
+                    selector.set_path(output_path)
+                    selector.set_mode(allow_file=True, allow_folder=False, selection_mode="file")
+                    selector.edit.setPlaceholderText("Arquivo de saída")
                 else:
-                    output_path = os.path.join(parent_dir, fixed_name)
-                selector.set_path(output_path)
-                selector.set_mode(allow_file=True, allow_folder=False, selection_mode="file")
-                selector.edit.setPlaceholderText("Arquivo de saída")
+                    # folder/files/folders → output = parent_path/subfolder (ignora fixed_name)
+                    if subfolder:
+                        output_path = os.path.join(parent_path, subfolder)
+                    else:
+                        output_path = os.path.join(parent_path, "converted")
+                    selector.set_path(output_path)
+                    selector.set_mode(allow_file=False, allow_folder=True, selection_mode="folder")
+                    selector.edit.setPlaceholderText("Pasta de saída")
             else:
-                # folder/files/folders → output = parent_path/subfolder (ignora fixed_name)
-                if subfolder:
-                    output_path = os.path.join(parent_path, subfolder)
+                # ── Modo normal (sem dynamic) ──
+                if parent_selector.is_folder_mode():
+                    # Modo pasta: output = parent_path / subfolder
+                    if subfolder:
+                        output_path = os.path.join(parent_path, subfolder)
+                    else:
+                        output_path = os.path.join(parent_path, "converted")
+                    selector.set_path(output_path)
+                    selector.selection_mode = "folder"
                 else:
-                    output_path = os.path.join(parent_path, "converted")
-                selector.set_path(output_path)
-                selector.set_mode(allow_file=False, allow_folder=True, selection_mode="folder")
-                selector.edit.setPlaceholderText("Pasta de saída")
-        else:
-            # ── Modo normal (sem dynamic) ──
-            if parent_selector.is_folder_mode():
-                # Modo pasta: output = parent_path / subfolder
-                if subfolder:
-                    output_path = os.path.join(parent_path, subfolder)
-                else:
-                    output_path = os.path.join(parent_path, "converted")
-                selector.set_path(output_path)
-                selector.selection_mode = "folder"
-            else:
-                # Modo file/files: output = dirname / subfolder / fixed_name
-                if subfolder:
-                    output_path = os.path.join(parent_dir, subfolder, fixed_name)
-                else:
-                    output_path = os.path.join(parent_dir, fixed_name)
-                selector.set_path(output_path)
-                selector.selection_mode = "file"
+                    # Modo file/files: output = dirname / subfolder / fixed_name
+                    if subfolder:
+                        output_path = os.path.join(parent_dir, subfolder, fixed_name)
+                    else:
+                        output_path = os.path.join(parent_dir, fixed_name)
+                    selector.set_path(output_path)
+                    selector.selection_mode = "file"
 
-            # Atualiza hint
-            if selector.is_folder_mode():
-                selector.edit.setPlaceholderText("Pasta de saída")
-            else:
-                selector.edit.setPlaceholderText("Arquivo de saída")
+                # Atualiza hint
+                if selector.is_folder_mode():
+                    selector.edit.setPlaceholderText("Pasta de saída")
+                else:
+                    selector.edit.setPlaceholderText("Arquivo de saída")
 
-        self._logger.info(
-            f"Output gerado '{label}': {selector.path()} "
-            f"(dynamic={dynamic}, mode={selector.selection_mode})",
-            code="GRID_OUTPUT_GENERATED",
-        )
+            # Marca como auto-gerado (Item 7.2: setar _self_generated)
+            self._self_generated[label] = True
+
+            self._logger.info(
+                f"Output gerado '{label}': {selector.path()} "
+                f"(dynamic={dynamic}, mode={selector.selection_mode})",
+                code="GRID_OUTPUT_GENERATED",
+            )
+        finally:
+            self._generating_output.discard(label)
 
     # ══════════════════════════════════════════════════════════════════
-    # Métodos de erro visual
+    # Métodos de erro visual  (Item 2: removido import ct)
     # ══════════════════════════════════════════════════════════════════
 
     def show_error(self, label: str, message: str, duration_ms: int = 3000):
@@ -435,21 +508,24 @@ class GridComplexSelector(QWidget):
         if not hasattr(edit, '_saved_stylesheet'):
             edit._saved_stylesheet = edit.styleSheet()
 
-        # Aplica borda vermelha usando cor do tema
-        from resources.styles.ThemeManager import ct
-        error_color = ct.theme.COLOR_DANGER
+        # Aplica borda vermelha usando AppStyles (Item 2: sem import ct)
+        colors = AppStyles.theme_colors()
+        error_color = colors.get("COLOR_DANGER", "#FF4444")
+        radius = colors.get("RADIUS_SM", 4)
+        surface_2 = colors.get("SURFACE_2", "#2D2D2D")
+        text_medium = colors.get("TEXT_MEDIUM", "#CCCCCC")
+
         edit.setStyleSheet(
             f"QLineEdit {{ border: 2px solid {error_color}; "
-            f"border-radius: {ct.theme.RADIUS_SM}px; "
-            f"background-color: {ct.theme.SURFACE_2}; "
-            f"color: {ct.theme.TEXT_MEDIUM}; "
+            f"border-radius: {radius}px; "
+            f"background-color: {surface_2}; "
+            f"color: {text_medium}; "
             f"padding: 2px 6px; }}"
         )
         edit.setToolTip(f"⚠ {message}")
 
-        # Se duration > 0, limpa após o tempo
+        # Se duration > 0, limpa após o tempo (Item 5: QTimer já importado)
         if duration_ms > 0:
-            from PySide6.QtCore import QTimer
             QTimer.singleShot(duration_ms, lambda: self._clear_error(edit))
 
     def _clear_error(self, edit: QLineEdit):

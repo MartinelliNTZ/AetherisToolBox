@@ -105,8 +105,9 @@ class LasVectorConverterPlugin(BasePlugin):
         })
         grupo_io.group_layout.addWidget(self._grid_io)
 
-        # Conecta callbacks da entrada
-        self._grid_io["Entrada"].on_path_change = self._on_input_path_changed
+        # Conecta callback para todas as entradas automaticamente
+        # (Item 1: GridComplexSelector gerencia parent-child internamente)
+        self._grid_io.set_on_input_changed(self._on_input_changed)
 
         # Info label (só aparece no modo single file)
         self._info_label = GridLabel(
@@ -223,7 +224,8 @@ class LasVectorConverterPlugin(BasePlugin):
     def _on_format_changed(self, key: str, text: str):
         self.logger.info("Formato alterado", code="FORMAT_CHANGED", formato=key)
 
-    def _on_input_path_changed(self, paths: list[str]):
+    def _on_input_changed(self, label: str, paths: list[str]):
+
         """
         Disparado quando o path da entrada muda.
         Carrega metadados do arquivo e valida extensão.
@@ -488,8 +490,11 @@ class LasVectorConverterPlugin(BasePlugin):
         self.logger.info("Carregando preferências", code="PREFS_LOAD")
         entrada = self._grid_io["Entrada"]
 
-        saved_path_callback = entrada.on_path_change
-        entrada.on_path_change = None
+        # Salva callback do usuário para restaurar depois de set_path
+        # (set_path dispara on_path_change, o que causaria re-load prematuro)
+        saved_callback = self._grid_io._user_callbacks.get("Entrada")
+        if saved_callback:
+            self._grid_io.set_on_changed("Entrada", None)
 
         last_mode = self.preferences.get("mode", "file")
         file_path = self.preferences.get("file_path", "")
@@ -518,7 +523,9 @@ class LasVectorConverterPlugin(BasePlugin):
             entrada.set_path(file_path)
             self._btns.set_enabled("executar", True)
 
-        entrada.on_path_change = saved_path_callback
+        # Restaura callback do usuário
+        if saved_callback:
+            self._grid_io.set_on_changed("Entrada", saved_callback)
 
         if output_path:
             self._grid_io["Saída"].set_path(output_path)
