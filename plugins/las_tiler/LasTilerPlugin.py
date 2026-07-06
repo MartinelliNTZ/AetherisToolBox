@@ -129,7 +129,7 @@ class LasTilerPlugin(BasePlugin):
                 "description": "Numero maximo de pontos por arquivo",
                 "decimal": 0,
                 "default": 5_000_000,
-                "min": 100_000,
+                "min": 1_000,
                 "max": 100_000_000,
                 "step": 500_000,
             },

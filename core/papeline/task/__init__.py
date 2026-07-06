@@ -15,6 +15,8 @@ from .DoclingPipelineTask import DoclingPipelineTask
 from .LasBlackFilterTask import LasBlackFilterTask
 from .LasCheckTask import LasCheckTask
 from .LasTilerTask import LasTilerTask
+from .LasToVectorTask import LasToVectorTask
+from .VectorToLasTask import VectorToLasTask
 
 __all__ = [
     "MrkSinglePipelineTask",
@@ -22,4 +24,6 @@ __all__ = [
     "LasBlackFilterTask",
     "LasCheckTask",
     "LasTilerTask",
+    "LasToVectorTask",
+    "VectorToLasTask",
 ]

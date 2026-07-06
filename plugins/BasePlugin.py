@@ -180,6 +180,154 @@ class BasePlugin(QWidget):
                 return 30.0
         return 30.0
 
+    # ══════════════════════════════════════════════════════════════════
+    # Output Message — link clicável para pasta de saída
+    # ══════════════════════════════════════════════════════════════════
+
+    def output_message(
+        self,
+        output_path: str,
+        label: str = "Pasta de Saída",
+        message: str ="Resultado disponível em: ",
+    ) -> None:
+        """
+        Emite console_html com link clicável para a pasta de saída
+        no Windows Explorer.
+
+        Uso no callback de sucesso:
+            self.output_message(output_dir)
+
+        Args:
+            output_path: Caminho da pasta/arquivo de saída.
+            label: Texto do link (padrão: "Pasta de Saída").
+        """
+        from utils.ExplorerUtils import ExplorerUtils
+
+        link_html = ExplorerUtils.format_explorer_link(
+            output_path, label=label, tool_key=self.tool_key
+        )
+
+        if link_html:
+            SignalManager.instance().console_html.emit(
+                f"{message} 📂 {link_html}"
+            )
+        else:
+            SignalManager.instance().console_message.emit(
+                f"{message} {output_path}"
+            )
+
+        self.logger.info(
+            "output_message emitido",
+            code="OUTPUT_MSG",
+            output_path=output_path,
+            label=label,
+        )
+
+    # ══════════════════════════════════════════════════════════════════
+    # Stats Message — N arquivos processados em X segundos
+    # ══════════════════════════════════════════════════════════════════
+
+    def stats_message(
+        self,
+        n_arquivos: int = 0,
+        n_processed: int = 0,
+        ntype: str = "itens",
+    ) -> None:
+        """
+        Emite console_message com resumo de processamento:
+            "N arquivos processados (X pts) em Y.Ys"
+
+        Usa self.statistics para obter o tempo decorrido.
+        Deve ser chamado APÓS self.statistics.end().
+
+        Uso no callback de sucesso:
+            elapsed = self.statistics.end()
+            self.stats_message(n_arquivos=5, n_processed=38705, ntype="pontos")
+
+        Args:
+            n_arquivos: Número de arquivos processados.
+            n_processed: Quantidade total processada (pontos, feições, etc.).
+            ntype: Nome do tipo processado (ex: "pontos", "feições").
+        """
+        elapsed = self.statistics._last_elapsed
+        elapsed_str = f"{elapsed:.1f}s" if elapsed else "—"
+
+        parts = []
+        if n_arquivos:
+            parts.append(f"{n_arquivos} arquivo(s) processados")
+        if n_processed:
+            parts.append(f"{n_processed:,} {ntype}")
+        parts.append(f"em {elapsed_str}")
+
+        msg = f"{' | '.join(parts)}."
+        SignalManager.instance().console_message.emit(msg)
+
+        self.logger.info(
+            "stats_message emitido",
+            code="STATS_MSG",
+            n_arquivos=n_arquivos,
+            n_processed=n_processed,
+            ntype=ntype,
+            elapsed_s=round(elapsed, 1),
+        )
+
+    # ══════════════════════════════════════════════════════════════════
+    # Success Message — combina stats + output (legado, simplificado)
+    # ══════════════════════════════════════════════════════════════════
+
+    def success_message(
+        self,
+        output_path: str,
+        label: str = "Pasta de Saída",
+        summary: str = "Operação concluída com sucesso!",
+        n_input: int = 0,
+        n_output: int = 0,
+        n_arquivos: int = 0,
+    ) -> None:
+        """
+        Emite mensagem de sucesso padronizada combinando stats_message
+        + output_message + execution_finished + MessageBox.
+
+        Args:
+            output_path: Caminho da pasta/arquivo de saída.
+            label: Texto do link (padrão: "Pasta de Saída").
+            summary: Texto resumo da operação.
+            n_input: Quantidade de entrada.
+            n_output: Quantidade de saída.
+            n_arquivos: Número de arquivos gerados.
+        """
+        SignalManager.instance().execution_finished.emit(self.tool_key)
+
+        # Stats
+        self.stats_message(
+            n_arquivos=n_arquivos,
+            n_processed=n_output,
+            ntype="itens" if not n_output else "pontos" if n_output > 0 else "itens",
+        )
+
+        # Output link
+        self.output_message(output_path=output_path, label=label)
+
+        # Log + MessageBox
+        msg = f"{summary}\n\n"
+        if n_input:
+            msg += f"Entrada: {n_input:,}\n"
+        if n_output:
+            msg += f"Saída: {n_output:,}\n"
+        if n_arquivos:
+            msg += f"Arquivos gerados: {n_arquivos}\n"
+        if output_path:
+            msg += f"\nPasta:\n{output_path}"
+
+        self.logger.info(
+            "success_message emitido",
+            code="SUCCESS_MSG",
+            output_path=output_path,
+            n_input=n_input,
+            n_output=n_output,
+            n_arquivos=n_arquivos,
+        )
+
     # ── Preferences (override nos filhos) ────────────────────────────
 
     def load_prefs(self) -> None:

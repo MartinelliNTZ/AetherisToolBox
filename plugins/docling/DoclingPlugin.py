@@ -150,20 +150,31 @@ class DoclingPlugin(BasePlugin):
         self.page.set_badge(self.page.RUNNING)
         self._btns.set_enabled("converter", False)
 
-        # Modo 2: timer de 10s via HUD central (sem HudCircularRingsLoader local)
+        # ── Estima tempo baseado no tamanho do arquivo (MB) ──────────
+        size_bytes = os.path.getsize(file_path)
+        size_mb = size_bytes / (1024 * 1024)
+
+        # Inicia statistics: ntotal = MB do arquivo
+        self.statistics.start(n=0, ntype="mbytes", ntotal=round(size_mb, 2))
+
+        # Pega ETA do _calculate_eta que calcula time_per_item * ntotal
+        total_estimate = self.statistics.remaining_time or 30.0
+
         SignalManager.instance().hud_show.emit({
             "message": "Convertendo documento...",
-            "timer": 10.0,
+            "timer": max(total_estimate, 30.0),
+            "eta": max(total_estimate, 30.0),
         })
 
         SignalManager.instance().console_message.emit(
-            f"Convertendo: {os.path.basename(file_path)}"
+            f"Convertendo: {os.path.basename(file_path)} "
+            f"({size_mb:.1f}MB, ETA ~{total_estimate:.0f}s)"
         )
 
         step = DoclingConvertStep(columnar=columnar, manual_columns=manual_cols)
         runner = PipelineRunner(
             steps=[step],
-            context={"file_path": file_path},
+            input_path=file_path,
             parent=self,
         )
         runner.finished_ok.connect(self._on_done)
@@ -173,8 +184,9 @@ class DoclingPlugin(BasePlugin):
         runner.start()
 
     def _on_done(self, context):
-        self._current_markdown = context.get("markdown", "")
+        self._current_markdown = context.get_result("markdown", "")
         self._txt_preview.setPlainText(self._current_markdown)
+        self.statistics.end()
         SignalManager.instance().console_message.emit("Conversão concluída com sucesso!")
         SignalManager.instance().progress_update.emit(100.0)
         self.page.set_badge(self.page.PRONTA)
@@ -182,6 +194,7 @@ class DoclingPlugin(BasePlugin):
 
     def _on_error(self, message: str):
         self.logger.error("Falha na conversão", code="CONVERT_ERR", error=message)
+        self.statistics.end()
         SignalManager.instance().console_message.emit(f"Erro na conversão: {message}")
         self._current_markdown = ""
         self._txt_preview.clear_content()

@@ -325,6 +325,45 @@ class ExplorerUtils(BaseUtil):
     # ── Utilitário ──────────────────────────────────────────────────
 
     @staticmethod
+    def format_explorer_link(
+        path: str,
+        label: str = "Pasta de Saída",
+        tool_key: str = ToolKey.UNTRACEABLE.value,
+    ) -> str:
+        """
+        Retorna HTML de link clicável que abre o caminho no Windows Explorer.
+
+        O link usa 'file:///' com URL-encode para suportar #, espaços e
+        caracteres especiais no path.
+        A cor do link é definida pelo tema ativo (ACCENT).
+
+        Args:
+            path: Caminho do diretório ou arquivo.
+            label: Texto exibido no link (padrão: "Pasta de Saída").
+            tool_key: Chave da ferramenta para logging.
+
+        Returns:
+            HTML string com link formatado, ou string vazia se path vazio.
+        """
+        from urllib.parse import quote
+        # Import lazy para evitar circular imports no startup
+        from resources.styles.ThemeManager import ct
+
+        logger = BaseUtil._get_logger(tool_key, "ExplorerUtils")
+        if not path:
+            logger.debug("Path vazio em format_explorer_link", code="EXPL_LINK_EMPTY")
+            return ""
+
+        safe_path = path.replace(chr(92), '/')
+        encoded = quote(safe_path, safe='/:@!$&()*+,;=-._~')
+        link = (
+            f"<a href='file:///{encoded}' "
+            f"style='color: {ct.theme.ACCENT}; text-decoration: underline;'>{label}</a>"
+        )
+        logger.debug("Link do Explorer gerado", code="EXPL_LINK_OK", path=path)
+        return link
+
+    @staticmethod
     def resolve_initial_dir(
         current_path: str,
         tool_key: str = ToolKey.UNTRACEABLE.value,

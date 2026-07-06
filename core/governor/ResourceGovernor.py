@@ -5,11 +5,13 @@ ResourceGovernor — Orquestrador de Governanca de Recursos
 Ponto unico de integracao para plugins/pipelines consultarem
 se ha recursos suficientes antes de executar tarefas pesadas.
 
-Melhorias v2:
-- estimated_ram AGORA eh usado em can_execute() para decisao proativa
-- check_during_execution(): verificacao periodica DURANTE a task
-- recommended_tile_size() agora considera estimated_ram
-- Snapshot inclui memory_pressure, swap, growth_rate
+v3: Adiciona self._cpu (CpuGovernor) como instancia e metodos
+genericos de consulta (cpu_percent, ram_percent, cpu_count_*,
+ram_snapshot, system_stats) para que qualquer consumidor obtenha
+dados sem importar sub-governors diretamente.
+
+ATENCAO: Este orquestrador retorna APENAS dados brutos.
+Tooltips sao responsabilidade do consumidor (ex: SystemMonitorService).
 
 Uso:
     from core.governor.ResourceGovernor import ResourceGovernor
@@ -22,14 +24,21 @@ Uso:
     # Durante execucao (periodicamente)
     if not governor.check_during_execution():
         task.cancel()
+
+    # Dados brutos (qualquer consumidor)
+    stats = governor.system_stats()            # {"cpu": 45.2, "ram": 72.8}
+    pct_cpu = governor.cpu_percent()           # 45.2
+    pct_ram = governor.ram_percent()           # 72.8
+    n_phys = governor.cpu_count_physical()     # 8
+    snap = governor.ram_snapshot()             # {"percent_system": 72.8, ...}
 """
 
 from __future__ import annotations
 
-import math
 from typing import Dict, Optional, Tuple
 
 from core.enum.ToolKey import ToolKey
+from core.governor.CpuGovernor import CpuGovernor
 from core.governor.RamGovernor import RamGovernor
 from core.governor.RamLimitPolicy import RamLimitPolicy
 from utils.BaseUtil import BaseUtil
@@ -46,6 +55,10 @@ class ResourceGovernor:
     """
     Orquestrador de decisoes baseadas em recursos.
 
+    Centraliza CpuGovernor e RamGovernor como instancias internas.
+    Consumidores (ex: SystemMonitorService) acessam dados APENAS
+    via metodos genericos desta classe — nunca importam sub-governors.
+
     Args:
         policy: RamLimitPolicy com a estrategia de limite.
         tool_key: ToolKey.value para logging (Contrato 26).
@@ -60,6 +73,7 @@ class ResourceGovernor:
         tool_key: str = ToolKey.SYSTEM.value,
     ) -> None:
         self._policy = policy
+        self._cpu = CpuGovernor()
         self._ram = RamGovernor()
         self._tool_key = tool_key
         self._warnings: int = 0
@@ -78,6 +92,8 @@ class ResourceGovernor:
     def is_throttled(self) -> bool:
         """True se excedeu MAX_WARNINGS consecutivos."""
         return self._warnings >= self.MAX_WARNINGS
+
+    # ── Metodos de decisao (RAM) ──────────────────────────────────
 
     def can_execute(self, estimated_ram: int = 0) -> Tuple[bool, str]:
         """
@@ -175,6 +191,54 @@ class ResourceGovernor:
         adjusted = int(max_tile_points * fator)
         min_tile = max(1, int(max_tile_points * 0.05))
         return max(min_tile, adjusted)
+
+    # ── Metodos genericos de consulta (CPU + RAM) ─────────────────
+    # Apenas dados brutos. Tooltips sao responsabilidade do consumidor.
+
+    def cpu_percent(self) -> float:
+        """Uso atual da CPU (0.0 a 100.0)."""
+        return self._cpu.percent()
+
+    def ram_percent(self) -> float:
+        """Uso atual da RAM (0.0 a 100.0)."""
+        return self._ram.percent_used()
+
+    def cpu_count_physical(self) -> int:
+        """Numero de nucleos fisicos da CPU."""
+        return self._cpu.count_physical()
+
+    def cpu_count_logical(self) -> int:
+        """Numero de nucleos logicos (threads) da CPU."""
+        return self._cpu.count_logical()
+
+    def ram_snapshot(self) -> Dict[str, object]:
+        """
+        Snapshot de RAM com dados formatados para display.
+
+        O consumidor usa os campos 'percent_system',
+        'used_system_human' e 'total_human' para montar tooltips.
+
+        Returns:
+            dict com percent_system, used_system_human, total_human, etc.
+        """
+        return self._ram.snapshot(include_history=False)
+
+    def system_stats(self) -> Dict[str, object]:
+        """
+        Retorna estatisticas brutas de CPU e RAM do sistema.
+
+        Apenas dados crus — sem tooltips. O consumidor
+        (ex: SystemMonitorService) formata o display.
+
+        Returns:
+            dict com cpu (float), ram (float).
+        """
+        return {
+            "cpu": self.cpu_percent(),
+            "ram": self.ram_percent(),
+        }
+
+    # ── Diagnostico ───────────────────────────────────────────────
 
     def snapshot(self, estimated_ram: int = 0) -> Dict[str, object]:
         """Estado completo para logging/diagnostico."""

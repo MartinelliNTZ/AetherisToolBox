@@ -76,6 +76,13 @@ grid["Imagem Treino"].path()  # acessa o caminho
 ### `SimpleSelector` — `SimpleSelector.py`
 Linha com **label + QLineEdit + botão "..."** para selecionar arquivo/pasta. **O widget composto mais usado do sistema.**
 
+Possui 3 botões independentes:
+- **`...`** — abre o explorador nativo do sistema (via `ExplorerUtils`)
+- **`📂`** — botão de caminho sugerido (opcional, ativado via `set_suggested_path()`)
+- **`📄`** — botão de arquivos do projeto (aparece automaticamente nos modos `open_file`/`open_files`)
+
+O botão **📄** abre um `ListFileDialog` com as extensões extraídas do `file_filter` atual. Só funciona se houver um projeto ativo. No modo `open_files`, o diálogo permite multi-seleção.
+
 ```python
 from resources.widgets.SimpleSelector import SimpleSelector
 sel = SimpleSelector(
@@ -1018,6 +1025,37 @@ recent_menu.project_clicked.connect(self._on_recent_clicked)
 
 ---
 
+### `GridPercentView` — `grid/GridPercentView.py`
+Grade horizontal de indicadores percentuais generica. Exibe N indicadores lado a lado, cada um com label, valor percentual, barra de preenchimento e tooltip individual ao passar o mouse. Suporta callback por item.
+
+Nao contem logica de negocios — o consumidor define os itens via config e atualiza via `set(key, value, tooltip)`.
+
+```python
+from resources.widgets.grid.GridPercentView import GridPercentView
+
+view = GridPercentView({
+    "cpu": {"label": "CPU", "value": 0.0, "tooltip": "Aguardando...",
+            "callback": self._on_cpu_clicked},
+    "ram": {"label": "RAM", "value": 0.0, "tooltip": "Aguardando..."},
+})
+view.set("cpu", 45.2, tooltip="CPU: 45.2% (8 cores fisicos, ...)")
+view.set("ram", 72.8, tooltip="RAM: 72.8% (23.4 GB / 32.0 GB usados)")
+
+view.values           # {"cpu": 45.2, "ram": 72.8}
+view.get("cpu")       # 45.2
+view.item_clicked.connect(self._on_item_clicked)
+```
+
+**Sinais:** `item_clicked(key, value)` — emitido ao clicar em item com callback
+
+**Parâmetros do config:**
+- `label`: str — texto do indicador
+- `value`: float — valor inicial (0-100)
+- `tooltip`: str — tooltip exibido ao passar mouse sobre o item
+- `callback`: callable(key, value) | None — opcional, ativa clique
+
+---
+
 ### `GridRadio` — `GridRadio.py`
 Grade de radio buttons organizados em colunas configuráveis, similar a `GridCheckBox`. Cada radio button tem label, description e tooltip definidos por dicionário.
 
@@ -1058,6 +1096,30 @@ grid.changed.connect(self._on_radio_changed)
 
 ---
 
+### `ListFileDialog` — `dialogs/ListFileDialog.py`
+Diálogo que exibe uma lista de arquivos do projeto ativo filtrados por extensões. Herda de `BaseDialog` com AppBar no topo. Suporta seleção única ou múltipla.
+
+```python
+from resources.widgets.dialogs.ListFileDialog import ListFileDialog
+
+dialog = ListFileDialog(
+    extensions=[".las", ".laz"],
+    multi_select=True,
+    parent=self,
+)
+if dialog.exec():
+    selected = dialog.selected_paths  # list[str]
+```
+
+**Parâmetros do construtor:**
+- `extensions: list[str]` — extensões para filtrar (ex: `[".las", ".laz"]`)
+- `multi_select: bool = False` — True permite selecionar múltiplos arquivos
+
+**Propriedades:**
+- `selected_paths` → `list[str]` — caminhos selecionados após `exec()` retornar True
+
+---
+
 > 💡 **Consulte também:** `docs/skills/SKILL_HUD_PROGRESS.md` para documentação sobre o HUD Loader (`HudCircularRingsLoader`) e a ProgressBar central da MainWindow.
 
 ## 🆕 Como criar um Novo Widget
@@ -1084,4 +1146,3 @@ grid.changed.connect(self._on_radio_changed)
 - [ ] O componente que preciso já existe como widget composto?
 - [ ] Se não existe, criei em `resources/widgets/` e atualizei esta skill?
 - [ ] Se modifiquei um existente, mantive compatibilidade retroativa?
-

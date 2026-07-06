@@ -282,6 +282,18 @@ class ToolRegistry:
             category=CategoryTool.CENTRAL,
             show_in_toolbar=True,
         ),
+        ToolKey.LAS_VECTOR_CONVERTER.value: Tool(
+            name=ToolKey.LAS_VECTOR_CONVERTER.value,
+            title="Conversor de Pontos",
+            widget_factory=_make_factory(
+                "plugins.las_vector_converter.LasVectorConverterPlugin",
+                "LasVectorConverterPlugin",
+            ),
+            tooltip="Converte nuvens LAS/LAZ para vetores de pontos (SHP, GPKG, CSV) e vice-versa",
+            tool_type=ToolType.VECTOR,
+            category=CategoryTool.CENTRAL,
+            show_in_toolbar=True,
+        ),
     }
 
     def register_default_tools(self) -> None:

@@ -149,3 +149,76 @@ A solução escolhida combina:
 
 1. `utils/raster/InterpolatorUtils.py` — `calcular_tiles_por_densidade()` ganha parâmetro `max_tile_pixels`
 2. `plugins/idw_interpolator/IdwInterpolatorTask.py` — chama com `max_tile_pixels`, adiciona verificação RAM pós-grid
+
+---
+
+## 🔗 Integração com SystemMonitorService
+
+Como parte da centralização de dados do sistema, o `ResourceGovernor` agora expõe
+`system_stats()` que retorna CPU + RAM unificados, e o `SystemMonitorService`
+passou a consumir **exclusivamente** do `ResourceGovernor` em vez de chamar
+`psutil` diretamente.
+
+### Regras de arquitetura
+
+
+4. **Nenhum consumidor importa CpuGovernor ou RamGovernor** — tudo passa pelo ResourceGovernor
+
+### Fluxo de dados
+
+```
+psutil
+  ├── RamGovernor (ResourceGovernor._ram)
+  │     └── snapshot() → percent_system, used_system_human, total_human
+  │
+  └── CpuGovernor (ResourceGovernor._cpu)
+        └── percent(), count_physical(), count_logical()
+              │
+              ▼
+    ResourceGovernor  ← ponto unico de acesso (dados BRUTOS apenas)
+      ├── system_stats()         →  {"cpu": 45.2, "ram": 72.8}
+      ├── cpu_percent()          →  45.2
+      ├── cpu_count_physical()   →  8
+      ├── cpu_count_logical()    →  16
+      └── ram_snapshot()         →  {percent_system, used_system_human, total_human}
+              │
+              ▼
+    SystemMonitorService._build_tooltips()  ← tooltips NO CONSUMIDOR
+      ├── phys = governor.cpu_count_physical()
+      ├── log  = governor.cpu_count_logical()
+      ├── cpu_tip = f"CPU: {cpu}% ({phys} cores fisicos, {log} logicos)"
+      ├── snap   = governor.ram_snapshot()
+      └── ram_tip = f"RAM: {ram}% ({snap['used']} / {snap['total']} usados)"
+              │
+              ▼
+    GridPercentView (generico — N indicadores)
+      ├── set("cpu", 45.2, tooltip=cpu_tip)
+      └── set("ram", 72.8, tooltip=ram_tip)
+              │
+              ├── mouse sobre CPU → tooltip CPU (info de CPU)
+              ├── mouse sobre RAM → tooltip RAM (info de RAM)
+              └── mouse fora      → fallback "CPU: 45.2%  RAM: 72.8%"
+```
+
+### Mudanças realizadas
+
+| Arquivo | Tipo | O quê muda |
+|---|---|---|
+| `core/governor/CpuGovernor.py` | 🔧 MODIFICAR | Remove `tooltip()` (governor nao sabe o que é tooltip). Mantém `percent()`, `count_physical()`, `count_logical()` como métodos de instância. `max_workers()`/`n_jobs()` como `@classmethod` (retrocompatível) |
+| `core/governor/ResourceGovernor.py` | 🔧 MODIFICAR | Remove `cpu_tooltip()`/`ram_tooltip()`. Adiciona `cpu_count_physical()`, `cpu_count_logical()`, `ram_snapshot()` — métodos genéricos que retornam dados brutos |
+| `core/monitor/SystemMonitorService.py` | 🔧 MODIFICAR | Importa APENAS `ResourceGovernor`. Tooltips montadas em `_build_tooltips()` a partir de `governor.cpu_percent()`, `governor.cpu_count_physical()`, `governor.cpu_count_logical()`, `governor.ram_snapshot()` |
+| `resources/widgets/grid/GridPercentView.py` | 🔧 CORRIGIR | Docstring genérica (sem menção a CPU/RAM). Tooltip individual por item SEMPRE funciona (antes só com callback). Mouse sobre CPU → tooltip CPU, mouse sobre RAM → tooltip RAM |
+| `core/config/MenuManager.py` | 🔧 MODIFICAR | Cria `ResourceGovernor` e o injeta no `SystemMonitorService` |
+| `core/governor/RamGovernor.py` | 🔧 CORRIGIR | `_record_history()` movido para dentro de `if include_history:`; `except` com `as e` + `LogUtils` |
+| `docs/skills/SKILL_WIDGETS.md` | 📝 ATUALIZAR | Adiciona `GridPercentView` ao catálogo de widgets |
+
+### Benefícios
+
+1. **Fonte única de verdade** — `psutil` é chamado apenas pelo `RamGovernor` e `CpuGovernor`
+2. **Dados consistentes** — CPU e RAM vêm do mesmo ciclo de polling
+3. **Governor aware** — o monitor reflete as mesmas métricas que o governor usa para decisões
+4. **Sem quebra de contrato** — `SystemMonitorService` mantém mesma API pública (`start()`, `stop()`, `poll_once()`, `stats_updated`)
+5. **LogUtils em vez de logging bruto** — `RamGovernor` usa `LogUtils` com `ToolKey.SYSTEM` (Contrato 3 e 26)
+6. **Governors não sabem o que é tooltip** — retornam apenas dados; formatação é responsabilidade do consumidor
+7. **GridPercentView é genérico** — pode exibir qualquer N indicadores, sem acoplamento a CPU/RAM
+8. **Nenhum import de sub-governor fora do pacote** — `SystemMonitorService` importa APENAS `ResourceGovernor`

@@ -121,6 +121,48 @@ ToolKey.MINHA_FERRAMENTA.value: Tool(
 
 ---
 
+## 💬 Passo 5: Mensagens de Sucesso Padronizadas
+
+O `BasePlugin` fornece **3 helpers** para mensagens de sucesso. Use-os no callback `_on_done()` da pipeline:
+
+### `self.stats_message(n_arquivos, n_processed, ntype)`
+Emite no Console o resumo de processamento com tempo decorrido do `ProcessStatisticsUtil`:
+```
+[MinhaFerramenta] 5 arquivo(s) processados | 38.705 pontos | em 4.2s.
+```
+```python
+def _on_done(self, context):
+    elapsed = self.statistics.end()
+    self.stats_message(
+        n_arquivos=5,
+        n_processed=38705,
+        ntype="pontos",
+    )
+```
+
+### `self.output_message(output_path, label="Pasta de Saída")`
+Emite no Console um **link clicável** (HTML) que abre o caminho no Windows Explorer:
+```
+[MinhaFerramenta] Resultado disponível em: 📂 Pasta de Saída  ← link clicável
+```
+```python
+self.output_message(output_path="/path/to/output", label="Pasta de Saída")
+```
+
+### `self.success_message(output_path, label, summary, n_input, n_output, n_arquivos)`
+Combina ambos + `execution_finished` + `MessageBox.show_info`:
+```python
+self.success_message(
+    output_path=output_dir,
+    label="Pasta de Saída",
+    summary="Processamento concluído!",
+    n_output=38705,
+    n_arquivos=5,
+)
+```
+
+---
+
 > 💡 **Consulte também:** `docs/skills/SKILL_HUD_PROGRESS.md` para entender como emitir progresso (HUD + ProgressBar) durante a execução de operações longas em background.
 
 ## ✅ Checklist de Verificação
@@ -131,6 +173,7 @@ ToolKey.MINHA_FERRAMENTA.value: Tool(
 - [ ] **Widgets reutilizáveis**: consultei `docs/skills/widgets_skill.md` antes de criar UI? (Contrato 11)
 - [ ] **Preferências**: A ferramenta implementa `load_prefs()` e `save_prefs()` para persistir dados do usuário? (Obrigatório)
 - [ ] 🛑 **Logs Obrigatórios**: A ferramenta deve registrar logs em pontos críticos (inicialização, início/fim de processos, capturas de erro). Ferramentas sem log não serão aceitas no core.
+- [ ] **Mensagens de sucesso**: use `self.stats_message()` + `self.output_message()` ou `self.success_message()` para feedback padronizado ao usuário.
 - [ ] **Documentação**: se criei um widget novo, atualizei `docs/skills/widgets_skill.md`? (Contrato 12)
 
 ---

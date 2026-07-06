@@ -33,6 +33,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QLabel, QLineEdit
 
 from core.config.LogUtils import LogUtils
+from resources.widgets.dialogs.ListFileDialog import ListFileDialog
 from resources.widgets.grid.GridRadio import GridRadio
 from resources.widgets.simple.SimpleSecondaryButton import SimpleSecondaryButton
 from utils.ExplorerUtils import ExplorerUtils
@@ -118,6 +119,9 @@ class SimpleSelector(QWidget):
         else:
             self._build_simple(label_text, default_path, placeholder, tooltip, label_width)
 
+        # Mostra botão 📄 apenas nos modos open_file / open_files
+        self._update_project_button_visibility()
+
     def _build_simple(self, label_text, default_path, placeholder, tooltip, label_width):
         """Constrói layout horizontal simples (sem mode_selector)."""
         layout = QHBoxLayout(self)
@@ -194,6 +198,14 @@ class SimpleSelector(QWidget):
         self._btn_suggest.setToolTip("Usar pasta do projeto")
         layout.addWidget(self._btn_suggest)
 
+        # ── Botão de Arquivos do Projeto (📄) ──
+        self._btn_project = SimpleSecondaryButton("📄")
+        self._btn_project.setFixedWidth(30)
+        self._btn_project.setVisible(False)
+        self._btn_project.clicked.connect(self._on_project_clicked)
+        self._btn_project.setToolTip("Selecionar arquivo do projeto")
+        layout.addWidget(self._btn_project)
+
     def _on_mode_changed(self, mode_key: str):
         """Callback quando o radio mode muda."""
         self._mode = mode_key
@@ -204,6 +216,11 @@ class SimpleSelector(QWidget):
         )
         if self.on_mode_change:
             self.on_mode_change(mode_key)
+
+    def _update_project_button_visibility(self):
+        """Mostra/esconde o botão 📄 conforme o browse_mode."""
+        visible = self._browse_mode in ("open_file", "open_files")
+        self._btn_project.setVisible(visible)
 
     def _apply_mode(self, mode_key: str):
         """Aplica configurações de browse_mode e placeholder conforme o modo."""
@@ -222,6 +239,8 @@ class SimpleSelector(QWidget):
             # Modo arquivo (default)
             self._browse_mode = "open_file"
             self.edit.setPlaceholderText("Selecione um arquivo...")
+
+        self._update_project_button_visibility()
 
     # ── Handlers internos (log + callback externo) ─────────────────────
 
@@ -276,6 +295,66 @@ class SimpleSelector(QWidget):
                 )
             if path:
                 self.edit.setText(path)
+
+    def _on_project_clicked(self):
+        """
+        Callback do botão 📄.
+        Abre ListFileDialog com as extensões do filtro atual.
+        Só funciona se houver um projeto ativo.
+        """
+        self._logger.info(
+            "botão '📄' clicado",
+            code="PROJECT_CLICKED",
+        )
+
+        # Verifica se há projeto ativo
+        root_folder = ProjectUtil.get_root_folder()
+        if not root_folder:
+            self._logger.warning(
+                "Nenhum projeto ativo — botão não fará nada",
+                code="PROJECT_NO_PROJECT",
+            )
+            return
+
+        # Extrai extensões do file_filter
+        extensions = self._parse_extensions_from_filter(self._file_filter)
+        if not extensions:
+            self._logger.warning(
+                "Nenhuma extensão extraída do filtro",
+                code="PROJECT_NO_EXT",
+                file_filter=self._file_filter,
+            )
+            return
+
+        multi = self._browse_mode == "open_files"
+
+        dialog = ListFileDialog(
+            extensions=extensions,
+            multi_select=multi,
+            parent=self,
+        )
+        if dialog.exec():
+            paths = dialog.selected_paths
+            if paths:
+                if multi:
+                    self.edit.setText("; ".join(paths))
+                else:
+                    self.edit.setText(paths[0])
+
+    @staticmethod
+    def _parse_extensions_from_filter(file_filter: str) -> list[str]:
+        """
+        Extrai extensões de um filtro de arquivo no formato
+        "Descrição (*.ext1 *.ext2)".
+        Ex: "LAS/LAZ (*.las *.laz)" → [".las", ".laz"]
+        """
+        import re
+        match = re.search(r'\(([^)]+)\)', file_filter)
+        if not match:
+            return []
+        parts = match.group(1).split()
+        exts = [p.strip().lower() for p in parts if p.startswith("*")]
+        return [e.replace("*", "") for e in exts if e.replace("*", "")]
 
     def _on_suggest_clicked(self):
         """
@@ -379,6 +458,19 @@ class SimpleSelector(QWidget):
                 code="SUGGEST_DEACTIVATED",
             )
 
+    def set_project_button_visible(self, visible: bool):
+        """
+        Controla a visibilidade do botão 📄 (arquivos do projeto).
+
+        Args:
+            visible: True para mostrar, False para esconder.
+        """
+        self._btn_project.setVisible(visible)
+        self._logger.info(
+            f"Botão 📄 visibilidade: {visible}",
+            code="PROJECT_BTN_VISIBLE",
+        )
+
     def set_suggested_callback(self, callback: Callable[[], None], tooltip: str = ""):
         """
         Permite que o plugin defina um callback personalizado para o botão 📂,
@@ -400,6 +492,38 @@ class SimpleSelector(QWidget):
         if tooltip:
             self._btn_suggest.setToolTip(tooltip)
         self._btn_suggest.setVisible(True)
+
+    @property
+    def file_filter(self) -> str:
+        """Filtro de arquivo atual."""
+        return self._file_filter
+
+    @file_filter.setter
+    def file_filter(self, value: str) -> None:
+        """Define o filtro e loga a mudança."""
+        old = self._file_filter
+        self._file_filter = value
+        self._logger.info(
+            f"file_filter alterado: '{value}'",
+            code="FILE_FILTER_CHANGED",
+        )
+
+    @property
+    def browse_mode(self) -> str:
+        """Modo de seleção atual."""
+        return self._browse_mode
+
+    @browse_mode.setter
+    def browse_mode(self, value: str) -> None:
+        """Define o browse_mode e atualiza botão 📄."""
+        old = self._browse_mode
+        self._browse_mode = value
+        if old != value:
+            self._update_project_button_visibility()
+            self._logger.info(
+                f"browse_mode alterado: '{value}'",
+                code="BROWSE_MODE_CHANGED",
+            )
 
     def set_path(self, path: str):
         """Define o caminho do QLineEdit."""

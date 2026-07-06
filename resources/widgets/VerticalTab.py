@@ -170,7 +170,7 @@ class VerticalTab(QWidget):
         self.update()
         super().enterEvent(event)
 
-    def leaveEvent(self, event):
+    def leaveEvent(self, event):#
         self._hovered = False
         self.update()
         super().leaveEvent(event)

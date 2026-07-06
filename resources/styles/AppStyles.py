@@ -679,3 +679,58 @@ class AppStyles(BaseStyle):
             f"  background-color: {t.SURFACE_2};"
             f"}}"
         )
+
+    # ────────────────────────────────────────────────────────────────────
+    # GRID PERCENT VIEW — cores para GridPercentView (system monitor)
+    # ────────────────────────────────────────────────────────────────────
+
+    @classmethod
+    def grid_percent_colors(cls) -> dict[str, str]:
+        """Retorna cores para o GridPercentView (paintEvent).
+        Usa tokens semânticos — zero hardcoded."""
+        t = ct.theme
+        return {
+            "label_fg":       t.TEXT_MEDIUM,
+            "value_fg":       t.ACCENT,
+            "value_fg_hover": t.ACCENT_HOVER,
+            "bar_bg":         t.SURFACE_3,
+            "bar_fill":       t.ACCENT,
+            "bar_border":     t.BORDER_SUBTLE,
+            "hover_bg":       t.ACCENT + "15",
+        }
+
+    @classmethod
+    def menu_bar_container_style(cls) -> str:
+        """Estilo do QWidget container da MenuBar (fundo igual ao TITLE_BAR)."""
+        t = ct.theme
+        return (
+            f"QWidget#app_menu_bar_container {{"
+            f"  background-color: {t.TITLE_BAR};"
+            f"  border-bottom: 1px solid {t.BORDER_DEFAULT};"
+            f"}}"
+        )
+
+    @classmethod
+    def explorer_link_style(cls) -> str:
+        """
+        Estilo CSS para links clicáveis que abrem no Windows Explorer.
+
+        Usa ACCENT como cor e RADIUS_XS para border-radius.
+        Retorna apenas o trecho style='...' para uso inline em tags <a>.
+        """
+        t = ct.theme
+        return (
+            f"color: {t.ACCENT}; "
+            f"text-decoration: underline; "
+            f"cursor: pointer;"
+        )
+
+    @classmethod
+    def grid_percent_font_label(cls) -> str:
+        """Família e tamanho da fonte do label no GridPercentView."""
+        return f"{ct.theme.FONT_FAMILY_MONO}, 10px"
+
+    @classmethod
+    def grid_percent_font_value(cls) -> str:
+        """Família e tamanho da fonte do valor no GridPercentView."""
+        return f"{ct.theme.FONT_FAMILY_MONO}, 10px bold"

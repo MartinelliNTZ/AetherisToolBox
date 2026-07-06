@@ -203,7 +203,7 @@ class MrkSubstitutorPlugin(BasePlugin):
         self._btns.set_all_enabled(False)
 
         SignalManager.instance().execution_started.emit(self.tool_key)
-        SignalManager.instance().console_message.emit(f"[{self.tool_key}] Iniciando execucao...")
+        SignalManager.instance().console_message.emit(f"Iniciando execucao...")
         SignalManager.instance().progress_update.emit(0.0)
         SignalManager.instance().hud_show.emit({"message": "Preparando..."})
 

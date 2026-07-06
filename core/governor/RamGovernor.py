@@ -20,6 +20,8 @@ from typing import Dict, Optional
 
 import psutil
 
+from core.config.LogUtils import LogUtils
+from core.enum.ToolKey import ToolKey
 from utils.FormatUtils import FormatUtils
 
 
@@ -103,8 +105,14 @@ class RamGovernor:
                 pressure = ram_pressure * (1.0 + swap_pressure * 0.5)
             else:
                 pressure = ram_pressure
-        except Exception:
+        except Exception as e:
             pressure = ram_pressure
+            LogUtils(
+                tool=ToolKey.SYSTEM.value, class_name="RamGovernor",
+            ).warning(
+                "Erro ao ler swap para memory_pressure", code="RAM_SWAP_ERR",
+                error=str(e),
+            )
         return pressure
 
     def process_growth_rate(self, samples: int = 3) -> float:
@@ -136,9 +144,15 @@ class RamGovernor:
         try:
             swap = psutil.swap_memory()
             s_total, s_used, s_pct = swap.total, swap.used, swap.percent
-        except Exception:
+        except Exception as e:
             s_total = s_used = 0
             s_pct = 0.0
+            LogUtils(
+                tool=ToolKey.SYSTEM.value, class_name="RamGovernor",
+            ).warning(
+                "Erro ao ler swap para snapshot", code="RAM_SWAP_SNAP_ERR",
+                error=str(e),
+            )
 
         result: Dict[str, object] = {
             "total_bytes": self._cached_total,
@@ -165,6 +179,6 @@ class RamGovernor:
             abs_rate = abs(int(rate))
             sign = "-" if rate < 0 else ""
             result["process_growth_rate_human"] = f"{sign}{FormatUtils.format_size(abs_rate)}/s"
+            self._record_history()
 
-        self._record_history()
         return result
