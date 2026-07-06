@@ -2,59 +2,26 @@
 """
 ComplexSelector — Seletor avançado com suporte a file/folder/files/folders.
 ============================================================================
-NÃO usa GridRadio (mode_selector). O tipo de seleção é definido pelos
-parâmetros allow_file, allow_folder e multiple na criação.
+NÃO usa GridRadio. O comportamento é definido pelos parâmetros:
+  - allow_file / allow_folder: quais botões aparecem (🔍 / 📁)
+  - multiple: se pode selecionar múltiplos itens
+  - selection_mode: modo padrão ("file" ou "folder")
+  - mode_type: "input" ou "output"
 
 Lógica central:
   - O widget sempre guarda: root_path (diretório base) + selected_list (itens)
-  - Quando seleciona 1 arquivo: root_path = dirname, selected_list = [path]
-  - Quando seleciona pasta: root_path = path, selected_list = [todos arquivos]
-  - Quando seleciona files: root_path = dirname, selected_list = [paths]
-  - Quando seleciona folders: root_path = path, selected_list = [subpastas]
-
-Botões:
-  🔍 (file)   — Buscar arquivo(s) — aparece se allow_file=True
-  📁 (folder) — Buscar pasta(s)   — aparece se allow_folder=True
-  📂          — Caminho do projeto (só output) — ProjectUtil + subfolder + fixed_name
-  📄          — Arquivos do projeto (só input) — ListFileDialog
+  - 🔍 clicado → seleciona arquivo(s) via ExplorerUtils
+  - 📁 clicado → seleciona pasta(s) via ExplorerUtils
+  - 📂 (só output) → gera path com ProjectUtil + subfolder + fixed_name
+  - 📄 (só input) → ListFileDialog
 
 Uso:
-    # Apenas 1 arquivo
-    sel = ComplexSelector(label_text="Entrada:", allow_file=True, allow_folder=False)
+    sel = ComplexSelector(label_text="Entrada:", allow_file=True, allow_folder=True, multiple=False, selection_mode="file")
 
-    # Apenas 1 pasta
-    sel = ComplexSelector(label_text="Pasta:", allow_file=False, allow_folder=True)
-
-    # Múltiplos arquivos
-    sel = ComplexSelector(label_text="Arquivos:", allow_file=True, allow_folder=False, multiple=True)
-
-    # Ambos (file + folder)
-    sel = ComplexSelector(label_text="Dados:", allow_file=True, allow_folder=True)
-
-    # Output com suggested_path
-    sel = ComplexSelector(
-        label_text="Saída:",
-        allow_file=True,
-        allow_folder=False,
-        mode_type="output",
-        fixed_name="resultado.gpkg",
-        subfolder="converted",
-    )
-
-API:
-    sel.get_root_path()      # str — diretório base
-    sel.get_selected_list()  # list[str] — itens selecionados
-    sel.get_paths()          # list[str] — atalho para get_selected_list()
-    sel.path()               # str — primeiro item (compatível)
+    sel.get_root_path()      # diretório base
+    sel.get_selected_list()  # itens selecionados
+    sel.path()               # primeiro item
     sel.path_type()          # "file" | "folder" | "files" | "folders"
-    sel.path_count()         # int
-    sel.is_multi()           # bool
-    sel.is_single()          # bool
-    sel.is_file_mode()       # bool
-    sel.is_folder_mode()     # bool
-    sel.set_path(path)       # define path único
-    sel.set_paths(paths)     # define múltiplos
-    sel.clear()              # limpa
 """
 
 from __future__ import annotations
@@ -63,7 +30,7 @@ import os
 from typing import Callable, Optional
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QLabel, QLineEdit
+from PySide6.QtWidgets import QWidget, QHBoxLayout, QLabel, QLineEdit
 
 from core.config.LogUtils import LogUtils
 from resources.widgets.dialogs.ListFileDialog import ListFileDialog
@@ -72,14 +39,13 @@ from utils.ExplorerUtils import ExplorerUtils
 from utils.ProjectUtil import ProjectUtil
 
 
-
-
 class ComplexSelector(QWidget):
     """
     Seletor avançado com suporte a file/folder/files/folders.
 
     Diferente do SimpleSelector, NÃO usa GridRadio. O comportamento
-    é definido pelos parâmetros allow_file, allow_folder e multiple.
+    é definido pelos parâmetros allow_file, allow_folder, multiple,
+    selection_mode e mode_type na criação.
 
     O widget sempre armazena:
       - root_path: diretório base da seleção
@@ -98,7 +64,7 @@ class ComplexSelector(QWidget):
         allow_file: bool = True,
         allow_folder: bool = False,
         multiple: bool = False,
-        selection_mode: str = "file",  # "file" | "folder" 
+        selection_mode: str = "file",   # "file" | "folder"
         # ── Controle de botões ──
         show_suggest_button: bool = False,
         show_project_button: bool = False,
@@ -113,12 +79,21 @@ class ComplexSelector(QWidget):
 
         # Validação
         if not allow_file and not allow_folder:
-            allow_file = True  # fallback seguro
+            allow_file = True
+
+        # Sanitiza selection_mode
+        if selection_mode not in ("file", "folder"):
+            selection_mode = "file"
+        if selection_mode == "folder" and not allow_folder:
+            selection_mode = "file"
+        if selection_mode == "file" and not allow_file:
+            selection_mode = "folder"
 
         self._file_filter = file_filter
         self._allow_file = allow_file
         self._allow_folder = allow_folder
         self._multiple = multiple
+        self._selection_mode = selection_mode
         self._show_suggest_button = show_suggest_button
         self._show_project_button = show_project_button
         self._suggested_rel_path: str = suggested_path
@@ -129,7 +104,6 @@ class ComplexSelector(QWidget):
         # Estado interno
         self._root_path: str = ""
         self._selected_list: list[str] = []
-        self._current_mode: str = self._resolve_initial_mode()
 
         # Logger
         self._logger = LogUtils(tool="ComplexSelector", class_name="ComplexSelector")
@@ -145,16 +119,6 @@ class ComplexSelector(QWidget):
         # Se default_path foi passado, inicializa
         if default_path:
             self.set_path(default_path)
-
-    def _resolve_initial_mode(self) -> str:
-        """Resolve o modo inicial baseado nos parâmetros."""
-        if self._allow_file and not self._allow_folder:
-            return MODE_FILES if self._multiple else MODE_FILE
-        elif self._allow_folder and not self._allow_file:
-            return MODE_FOLDERS if self._multiple else MODE_FOLDER
-        else:
-            # Ambos ativos: default é file/files
-            return MODE_FILES if self._multiple else MODE_FILE
 
     # ══════════════════════════════════════════════════════════════════
     # UI
@@ -173,12 +137,12 @@ class ComplexSelector(QWidget):
             self._label.setToolTip(tooltip)
         layout.addWidget(self._label)
 
-        # QLineEdit
+        # QLineEdit (sempre read-only)
         self._edit = QLineEdit()
         self._edit.setPlaceholderText(placeholder)
         if tooltip:
             self._edit.setToolTip(tooltip)
-        self._edit.setReadOnly(True)  # sempre read-only (path é gerenciado internamente)
+        self._edit.setReadOnly(True)
         layout.addWidget(self._edit, 1)
 
         # Botões
@@ -235,7 +199,7 @@ class ComplexSelector(QWidget):
             self._edit.setText("")
             return
 
-        if self._current_mode in _SINGLE_MODES:
+        if not self._multiple:
             # Mostra o path completo
             self._edit.setText(self._selected_list[0])
         else:
@@ -248,25 +212,12 @@ class ComplexSelector(QWidget):
             else:
                 self._edit.setText(f"{count} itens selecionados")
 
-    def _update_mode_from_selection(self):
-        """Atualiza _current_mode baseado no que foi selecionado."""
-        if not self._selected_list:
-            return
-
-        first = self._selected_list[0]
-        is_dir = os.path.isdir(first)
-
-        if self._multiple:
-            self._current_mode = MODE_FOLDERS if is_dir else MODE_FILES
-        else:
-            self._current_mode = MODE_FOLDER if is_dir else MODE_FILE
-
     # ══════════════════════════════════════════════════════════════════
     # Handlers de busca
     # ══════════════════════════════════════════════════════════════════
 
     def _browse_file(self):
-        """Busca arquivo(s)."""
+        """Busca arquivo(s) — disparado pelo 🔍."""
         self._logger.info("🔍 clicado", code="COMPLEX_FILE_CLICKED")
         if self.on_browse_click:
             self.on_browse_click()
@@ -282,7 +233,6 @@ class ComplexSelector(QWidget):
             if paths:
                 self._root_path = os.path.dirname(paths[0]) if paths else ""
                 self._selected_list = list(paths)
-                self._current_mode = MODE_FILES
                 self._update_display()
                 self._emit_path_change()
         else:
@@ -292,12 +242,11 @@ class ComplexSelector(QWidget):
             if path:
                 self._root_path = os.path.dirname(path)
                 self._selected_list = [path]
-                self._current_mode = MODE_FILE
                 self._update_display()
                 self._emit_path_change()
 
     def _browse_folder(self):
-        """Busca pasta(s)."""
+        """Busca pasta(s) — disparado pelo 📁."""
         self._logger.info("📁 clicado", code="COMPLEX_FOLDER_CLICKED")
         if self.on_browse_click:
             self.on_browse_click()
@@ -313,7 +262,6 @@ class ComplexSelector(QWidget):
             if paths:
                 self._root_path = paths[0] if paths else ""
                 self._selected_list = list(paths)
-                self._current_mode = MODE_FOLDERS
                 self._update_display()
                 self._emit_path_change()
         else:
@@ -323,7 +271,6 @@ class ComplexSelector(QWidget):
             if path:
                 self._root_path = path
                 self._selected_list = [path]
-                self._current_mode = MODE_FOLDER
                 self._update_display()
                 self._emit_path_change()
 
@@ -342,18 +289,12 @@ class ComplexSelector(QWidget):
 
         extensions = self._parse_extensions_from_filter(self._file_filter)
         if not extensions:
-            self._logger.warning(
-                "Nenhuma extensão extraída",
-                code="COMPLEX_NO_EXT",
-                file_filter=self._file_filter,
-            )
+            self._logger.warning("Nenhuma extensão extraída", code="COMPLEX_NO_EXT")
             return
-
-        multi = self._multiple
 
         dialog = ListFileDialog(
             extensions=extensions,
-            multi_select=multi,
+            multi_select=self._multiple,
             parent=self,
         )
         if dialog.exec():
@@ -361,7 +302,6 @@ class ComplexSelector(QWidget):
             if paths:
                 self._root_path = os.path.dirname(paths[0]) if paths else ""
                 self._selected_list = list(paths)
-                self._current_mode = MODE_FILES if multi else MODE_FILE
                 self._update_display()
                 self._emit_path_change()
 
@@ -382,7 +322,7 @@ class ComplexSelector(QWidget):
 
     def _on_suggest_clicked(self):
         """
-        Gera path de saída usando ProjectUtil.get_root_folder() + subfolder + fixed_name.
+        Gera path de saída: ProjectUtil.get_root_folder() + subfolder + fixed_name.
         Ex: C:/projeto/lasvectorconverter/lasvectorconverted.gpkg
         """
         self._logger.info("📂 clicado (output)", code="COMPLEX_SUGGEST_CLICKED")
@@ -394,7 +334,6 @@ class ComplexSelector(QWidget):
             self._logger.warning("Nenhum projeto ativo", code="COMPLEX_NO_PROJECT")
             return
 
-        # Monta path: root_folder / subfolder / fixed_name
         if self._subfolder:
             output_dir = os.path.join(root_folder, self._subfolder)
         else:
@@ -407,12 +346,11 @@ class ComplexSelector(QWidget):
 
         self._root_path = output_dir
         self._selected_list = [output_path]
-        self._current_mode = MODE_FILE
         self._update_display()
         self._emit_path_change()
 
         self._logger.info(
-            f"Output gerado: {output_path}",
+            f"Output: {output_path}",
             code="COMPLEX_SUGGEST_PATH",
             root=root_folder,
             subfolder=self._subfolder,
@@ -460,37 +398,40 @@ class ComplexSelector(QWidget):
 
     def path_type(self) -> str:
         """
-        Retorna o tipo do modo atual:
-        'file', 'folder', 'files' ou 'folders'.
+        Retorna o tipo do modo atual baseado em selection_mode e multiple:
+        - single + file  → "file"
+        - single + folder → "folder"
+        - multi + file   → "files"
+        - multi + folder → "folders"
         """
-        return self._current_mode
+        if self._multiple:
+            return f"{self._selection_mode}s"
+        return self._selection_mode
 
     def path_count(self) -> int:
         """Número de paths selecionados."""
         return len(self._selected_list)
 
     def is_multi(self) -> bool:
-        return self._current_mode in _MULTI_MODES
+        return self._multiple
 
     def is_single(self) -> bool:
-        return self._current_mode in _SINGLE_MODES
+        return not self._multiple
 
     def is_folder_mode(self) -> bool:
-        return self._current_mode in _FOLDER_MODES
+        return self._selection_mode == "folder"
 
     def is_file_mode(self) -> bool:
-        return self._current_mode in _FILE_MODES
+        return self._selection_mode == "file"
 
     def set_path(self, path: str):
         """Define um path único."""
         if path:
             self._root_path = os.path.dirname(path) if os.path.isfile(path) else path
             self._selected_list = [path]
-            self._update_mode_from_selection()
         else:
             self._root_path = ""
             self._selected_list = []
-            self._current_mode = self._resolve_initial_mode()
         self._update_display()
         self._emit_path_change()
 
@@ -500,11 +441,9 @@ class ComplexSelector(QWidget):
             first = paths[0]
             self._root_path = os.path.dirname(first) if os.path.isfile(first) else first
             self._selected_list = list(paths)
-            self._update_mode_from_selection()
         else:
             self._root_path = ""
             self._selected_list = []
-            self._current_mode = self._resolve_initial_mode()
         self._update_display()
         self._emit_path_change()
 
@@ -512,7 +451,6 @@ class ComplexSelector(QWidget):
         """Limpa tudo."""
         self._root_path = ""
         self._selected_list = []
-        self._current_mode = self._resolve_initial_mode()
         self._update_display()
         self._emit_path_change()
 
@@ -576,3 +514,12 @@ class ComplexSelector(QWidget):
     @property
     def mode_type(self) -> str:
         return self._mode_type
+
+    @property
+    def selection_mode(self) -> str:
+        return self._selection_mode
+
+    @selection_mode.setter
+    def selection_mode(self, value: str) -> None:
+        if value in ("file", "folder"):
+            self._selection_mode = value

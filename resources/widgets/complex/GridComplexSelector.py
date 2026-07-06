@@ -255,7 +255,6 @@ class GridComplexSelector(QWidget):
             return
 
         selector = self._selectors[label]
-        parent_mode = parent_selector.path_type()
         parent_path = parent_paths[0] if parent_paths else ""
 
         if not parent_path:
@@ -265,7 +264,7 @@ class GridComplexSelector(QWidget):
         subfolder = meta.get("subfolder", "")
         fixed_name = meta.get("fixed_name", "")
 
-        if parent_mode in ("folder", "folders"):
+        if parent_selector.is_folder_mode():
             # Modo pasta: output = parent_path / subfolder
             if subfolder:
                 output_path = os.path.join(parent_path, subfolder)

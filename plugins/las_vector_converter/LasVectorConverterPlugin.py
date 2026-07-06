@@ -87,7 +87,7 @@ class LasVectorConverterPlugin(BasePlugin):
                 "mode_type": "input",
                 "allow_file": True,
                 "allow_folder": True,
-                "multiple": False,
+                "multiple": True,
                 "show_project_button": True,
             },
             "Saída": {
@@ -97,6 +97,7 @@ class LasVectorConverterPlugin(BasePlugin):
                 "allow_file": True,
                 "allow_folder": False,
                 "multiple": False,
+                "dinamic_parent": True,
                 "show_suggest_button": True,
                 "subfolder": "lasvectorconverter",
                 "fixed_name": "lasvectorconverted.gpkg",
