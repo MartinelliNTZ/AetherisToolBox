@@ -207,14 +207,8 @@ class ComplexSelector(QWidget):
                 # Mostra o path completo
                 self._edit.setText(self._selected_list[0])
             else:
-                # Mostra contagem
-                count = len(self._selected_list)
-                if count == 0:
-                    self._edit.setText("Nenhum item selecionado")
-                elif count == 1:
-                    self._edit.setText("1 item selecionado")
-                else:
-                    self._edit.setText(f"{count} itens selecionados")
+                # Mostra paths separados por "; "
+                self._edit.setText("; ".join(self._selected_list))
         finally:
             self._updating_display = False
 
@@ -226,6 +220,8 @@ class ComplexSelector(QWidget):
         """
         Sincroniza a digitação manual do usuário com o estado interno.
         Quando o usuário digita manualmente, atualiza _selected_list e _root_path.
+
+        Em modo multiple, paths separados por ";" são convertidos em lista.
         """
         # Ignora se estamos atualizando o display programaticamente
         if self._updating_display:
@@ -237,12 +233,23 @@ class ComplexSelector(QWidget):
             self._emit_path_change()
             return
 
-        # Em modo single, o texto digitado vira o primeiro item
         if not self._multiple:
+            # Modo single: o texto digitado vira o primeiro item
             self._root_path = os.path.dirname(text) if os.path.isfile(text) else text
             self._selected_list = [text]
             self._emit_path_change()
-        # Em modo multiple, não sincronizamos texto livre (mostra contagem)
+        else:
+            # Modo multiple: paths separados por "; " ou ";"
+            parts = [p.strip() for p in text.replace("; ", ";").split(";")]
+            parts = [p for p in parts if p]
+            if parts:
+                first = parts[0]
+                self._root_path = os.path.dirname(first) if os.path.isfile(first) else first
+                self._selected_list = parts
+            else:
+                self._root_path = ""
+                self._selected_list = []
+            self._emit_path_change()
 
     def _browse_file(self):
         """Busca arquivo(s) — disparado pelo 🔍.
