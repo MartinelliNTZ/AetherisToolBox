@@ -522,10 +522,6 @@ class LasVectorConverterPlugin(BasePlugin):
             n_arquivos=n_arquivos,
         )
 
-        if output_files:
-                SignalManager.instance().console_message.emit(
-                    f"Primeiro arquivo: {output_files[0]}"
-                )
 
         self.logger.info(
             "Conversão concluída com sucesso",
@@ -709,6 +705,7 @@ class LasVectorConverterPlugin(BasePlugin):
         elif last_mode == "file" and file_path:
             self._current_path = file_path
             self._sel_entrada.edit.setText(file_path)
+            self._btns.set_enabled("executar", True)
 
         # Reconecta callbacks
         self._sel_entrada.on_mode_change = saved_mode_callback
