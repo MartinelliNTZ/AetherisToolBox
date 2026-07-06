@@ -1375,6 +1375,53 @@ grid.set_output_suffix("Saída", "_converted")
 
 ---
 
+### `CrsSelectorWidget` — `crs/CrsSelectorWidget.py`
+Widget de seleção de CRS/EPSG com ComboBox (EPSGs comuns do `CommonCrs` enum) + botão 🌎 que abre a `CrsSearchDialog` para busca completa. Não persiste o EPSG selecionado em disco.
+
+```python
+from resources.widgets.crs.CrsSelectorWidget import CrsSelectorWidget
+
+selector = CrsSelectorWidget()
+selector.crs_changed.connect(self._on_crs_changed)
+selector.set_crs("EPSG:31983")
+current = selector.get_crs()      # "EPSG:31983"
+code = selector.crs_code          # 31983
+label = selector.crs_label        # "EPSG:31983 - SIRGAS 2000 / UTM zone 23S"
+```
+
+**Sinais:** `crs_changed(str)` — emitido com o código EPSG completo (ex: `"EPSG:4326"`)
+
+**API pública:**
+- `set_crs(epsg_code)` — define programaticamente; EPSGs fora do enum são adicionados como temporários
+- `get_crs()` — retorna o código EPSG completo selecionado
+- `crs_code` (property) — código numérico (int)
+- `crs_label` (property) — texto exibido no combo
+
+---
+
+### `CrsSearchDialog` — `crs/CrsSearchDialog.py`
+Diálogo de busca de CRS/EPSG com campo de filtro em tempo real e lista agrupada por categoria (Geográfico 2D/3D, Projetado, Geocêntrico, Composto). Usa `pyproj.database.query_crs_info` (cache lazy) como fonte de dados principal, com fallback para `CommonCrs` se pyproj não estiver disponível. Herda de `BaseDialog`.
+
+```python
+from resources.widgets.crs.CrsSearchDialog import CrsSearchDialog
+
+dialog = CrsSearchDialog(parent=self)
+dialog.crs_selected.connect(self._on_crs_selected)
+if dialog.exec():
+    epsg = dialog.selected_epsg  # "EPSG:31983"
+```
+
+**Sinais:** `crs_selected(str)` — emitido ao selecionar um CRS
+
+**Propriedades:** `selected_epsg` → `str`
+
+**Notas técnicas:**
+- Consulta pyproj uma única vez (cache lazy na primeira abertura)
+- Filtro é 100% em memória — NÃO reconsulta o banco a cada tecla
+- Fallback offline: se pyproj não estiver instalado, exibe apenas os CRS do `CommonCrs` enum
+
+---
+
 > 💡 **Consulte também:** `docs/skills/SKILL_HUD_PROGRESS.md` para documentação sobre o HUD Loader (`HudCircularRingsLoader`) e a ProgressBar central da MainWindow.
 
 ## 🆕 Como criar um Novo Widget

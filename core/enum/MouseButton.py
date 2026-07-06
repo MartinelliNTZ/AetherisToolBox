@@ -30,6 +30,10 @@ class MouseButton(str, Enum):
         return ["Left", "Right", "Middle", "X1", "X2"]
 
     @classmethod
+    def _build_value_map(cls) -> dict[str, "MouseButton"]:
+        """Mapeia nome minúsculo → enum."""
+        return {member.value: member for member in cls}
+    @classmethod
     def _value2member_map_(cls) -> dict[str, "MouseButton"]:
         """Mapeia nome minúsculo → enum."""
         return {member.value: member for member in cls}
