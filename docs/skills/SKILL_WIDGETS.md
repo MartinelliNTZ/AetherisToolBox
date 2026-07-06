@@ -76,6 +76,13 @@ grid["Imagem Treino"].path()  # acessa o caminho
 ### `SimpleSelector` — `SimpleSelector.py`
 Linha com **label + QLineEdit + botão "..."** para selecionar arquivo/pasta. **O widget composto mais usado do sistema.**
 
+Possui 3 botões independentes:
+- **`...`** — abre o explorador nativo do sistema (via `ExplorerUtils`)
+- **`📂`** — botão de caminho sugerido (opcional, ativado via `set_suggested_path()`)
+- **`📄`** — botão de arquivos do projeto (aparece automaticamente nos modos `open_file`/`open_files`)
+
+O botão **📄** abre um `ListFileDialog` com as extensões extraídas do `file_filter` atual. Só funciona se houver um projeto ativo. No modo `open_files`, o diálogo permite multi-seleção.
+
 ```python
 from resources.widgets.SimpleSelector import SimpleSelector
 sel = SimpleSelector(
@@ -1089,6 +1096,30 @@ grid.changed.connect(self._on_radio_changed)
 
 ---
 
+### `ListFileDialog` — `dialogs/ListFileDialog.py`
+Diálogo que exibe uma lista de arquivos do projeto ativo filtrados por extensões. Herda de `BaseDialog` com AppBar no topo. Suporta seleção única ou múltipla.
+
+```python
+from resources.widgets.dialogs.ListFileDialog import ListFileDialog
+
+dialog = ListFileDialog(
+    extensions=[".las", ".laz"],
+    multi_select=True,
+    parent=self,
+)
+if dialog.exec():
+    selected = dialog.selected_paths  # list[str]
+```
+
+**Parâmetros do construtor:**
+- `extensions: list[str]` — extensões para filtrar (ex: `[".las", ".laz"]`)
+- `multi_select: bool = False` — True permite selecionar múltiplos arquivos
+
+**Propriedades:**
+- `selected_paths` → `list[str]` — caminhos selecionados após `exec()` retornar True
+
+---
+
 > 💡 **Consulte também:** `docs/skills/SKILL_HUD_PROGRESS.md` para documentação sobre o HUD Loader (`HudCircularRingsLoader`) e a ProgressBar central da MainWindow.
 
 ## 🆕 Como criar um Novo Widget
@@ -1115,4 +1146,3 @@ grid.changed.connect(self._on_radio_changed)
 - [ ] O componente que preciso já existe como widget composto?
 - [ ] Se não existe, criei em `resources/widgets/` e atualizei esta skill?
 - [ ] Se modifiquei um existente, mantive compatibilidade retroativa?
-

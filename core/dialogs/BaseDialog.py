@@ -203,17 +203,16 @@ class BaseDialog(QDialog):
         self.main_layout.addLayout(btn_layout)
         return created
 
-    @staticmethod
-    def _button_meta(key: str) -> Dict[str, object]:
+    def _button_meta(self, key: str) -> Dict[str, object]:
         """Retorna metadados para chaves de botão conhecidas."""
         meta: Dict[str, object] = {
-            "ok": {"text": "OK", "callback": QDialog.accept},
-            "cancel": {"text": "Cancelar", "callback": QDialog.reject},
-            "save": {"text": "Salvar", "callback": QDialog.accept},
-            "close": {"text": "Fechar", "callback": QDialog.accept},
-            "carregar": {"text": "Carregar", "callback": QDialog.accept},
+            "ok": {"text": "OK", "callback": self.accept},
+            "cancel": {"text": "Cancelar", "callback": self.reject},
+            "save": {"text": "Salvar", "callback": self.accept},
+            "close": {"text": "Fechar", "callback": self.accept},
+            "carregar": {"text": "Carregar", "callback": self.accept},
         }
-        return dict(meta.get(key, {"text": key, "callback": QDialog.accept}))
+        return dict(meta.get(key, {"text": key, "callback": self.accept}))
 
     @staticmethod
     def _create_button(
