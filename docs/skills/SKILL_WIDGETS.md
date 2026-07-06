@@ -1376,12 +1376,12 @@ grid.set_output_suffix("Saída", "_converted")
 ---
 
 ### `CrsSelectorWidget` — `crs/CrsSelectorWidget.py`
-Widget de seleção de CRS/EPSG com ComboBox (EPSGs comuns do `CommonCrs` enum) + botão 🌎 que abre a `CrsSearchDialog` para busca completa. Não persiste o EPSG selecionado em disco.
+Widget de seleção de CRS/EPSG com label opcional + `SimpleComboBox` (EPSGs comuns do `CommonCrs` enum) + botão 🌎 (`SimpleSecondaryButton`) que abre a `CrsSearchDialog` para busca completa. Não persiste o EPSG selecionado em disco.
 
 ```python
 from resources.widgets.crs.CrsSelectorWidget import CrsSelectorWidget
 
-selector = CrsSelectorWidget()
+selector = CrsSelectorWidget(label="CRS:")
 selector.crs_changed.connect(self._on_crs_changed)
 selector.set_crs("EPSG:31983")
 current = selector.get_crs()      # "EPSG:31983"
@@ -1396,6 +1396,10 @@ label = selector.crs_label        # "EPSG:31983 - SIRGAS 2000 / UTM zone 23S"
 - `get_crs()` — retorna o código EPSG completo selecionado
 - `crs_code` (property) — código numérico (int)
 - `crs_label` (property) — texto exibido no combo
+
+**Parâmetros do construtor:**
+- `label: str | None = "CRS:"` — texto do label à esquerda; `None` para omitir
+- `parent: QWidget | None = None`
 
 ---
 
