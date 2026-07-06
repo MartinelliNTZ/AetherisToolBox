@@ -49,6 +49,7 @@ class LasVectorConverterPlugin(BasePlugin):
     _LAS_FILTER = "LAS/LAZ (*.las *.laz)"
     _VECTOR_FILTER = "Vetor (*.shp *.gpkg *.geojson *.csv *.kml)"
     SULFIX = "_converted"
+    CURRENT_EXTENSION = ".gpkg"
 
     def __init__(self, parent=None):
         self._current_path: str = ""
@@ -112,7 +113,7 @@ class LasVectorConverterPlugin(BasePlugin):
                 "dynamic_parent": True,
                 "show_suggest_button": True,
                 "subfolder": "lasvectorconverter",
-                "fixed_name": "lasvectorconverted.gpkg",
+                "fixed_name": f"lasvectorconverted{self.CURRENT_EXTENSION}",
             },
         })
         grupo_io.group_layout.addWidget(self._grid_io)
@@ -243,7 +244,13 @@ class LasVectorConverterPlugin(BasePlugin):
             f"Direção: {'LAS→Vetor' if key == 'las_to_vector' else 'Vetor→LAS'}"
         )
 
-    def _on_format_changed(self, key: str, text: str):
+    def _on_format_changed(self, key: str):
+        """
+        Disparado quando o formato de saída muda.
+
+        SimpleComboBox chama o callback com apenas 1 argumento (o valor interno).
+        O texto de exibição pode ser obtido via self._combo_formato.current_text se necessário.
+        """
         self.logger.info("Formato alterado", code="FORMAT_CHANGED", formato=key)
         # Atualiza extensão dinâmica no output via API pública
         self._grid_io.set_output_extension("Saída", key)
