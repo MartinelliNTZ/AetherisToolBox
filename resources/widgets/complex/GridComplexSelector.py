@@ -408,6 +408,33 @@ class GridComplexSelector(QWidget):
         self._generate_output(label, parent_paths)
         self._self_generated[label] = True
 
+    def set_output_extension(self, label: str, extension: str):
+        """
+        Atualiza a extensão do output para um selector.
+        Usado pelo plugin quando o formato de saída muda (ex: gpkg → shp).
+        O próximo output gerado usará a nova extensão.
+
+        Args:
+            label: Nome do selector (ex: "Saída").
+            extension: Extensão sem ponto (ex: "gpkg", "shp").
+        """
+        meta = self._link_meta.get(label)
+        if meta:
+            meta["extension"] = extension
+
+    def set_output_suffix(self, label: str, suffix: str):
+        """
+        Atualiza o sufixo do output para um selector.
+        Usado pelo plugin para definir sufixo como "_converted".
+
+        Args:
+            label: Nome do selector (ex: "Saída").
+            suffix: Sufixo a adicionar ao nome base (ex: "_converted").
+        """
+        meta = self._link_meta.get(label)
+        if meta:
+            meta["suffix"] = suffix
+
     def _generate_output(self, label: str, parent_paths: list[str]):
         """Gera path de output baseado no parent."""
         if label in self._generating_output:
@@ -432,6 +459,8 @@ class GridComplexSelector(QWidget):
             parent_dir = os.path.dirname(parent_path) if os.path.isfile(parent_path) else parent_path
             subfolder = meta.get("subfolder", "")
             fixed_name = meta.get("fixed_name", "")
+            suffix = meta.get("suffix", "")
+            extension = meta.get("extension", "")
             dynamic = meta.get("dynamic_parent", False)
 
             parent_type = parent_selector.path_type()
@@ -448,11 +477,18 @@ class GridComplexSelector(QWidget):
                     and parent_type in ("file", "files")
                 )
                 if is_single_file:
-                    # 1 arquivo (mesmo em modo multi-select) → output = dirname/subfolder/fixed_name
-                    if subfolder:
-                        output_path = os.path.join(parent_dir, subfolder, fixed_name)
+                    # 1 arquivo → output = dirname/subfolder/{nome_base}{suffix}.{extension}
+                    # Se suffix estiver definido, usa nome do parent + suffix + extension
+                    # Se não, usa fixed_name (compatibilidade)
+                    if suffix:
+                        parent_stem = os.path.splitext(os.path.basename(parent_path))[0]
+                        output_name = f"{parent_stem}{suffix}.{extension}" if extension else f"{parent_stem}{suffix}"
                     else:
-                        output_path = os.path.join(parent_dir, fixed_name)
+                        output_name = fixed_name
+                    if subfolder:
+                        output_path = os.path.join(parent_dir, subfolder, output_name)
+                    else:
+                        output_path = os.path.join(parent_dir, output_name)
                     selector.set_path(output_path)
                     selector.set_mode(allow_file=True, allow_folder=False, selection_mode="file")
                     selector.edit.setPlaceholderText("Arquivo de saída")

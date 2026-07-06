@@ -156,6 +156,11 @@ class LasVectorConverterPlugin(BasePlugin):
         )
         grupo_config.group_layout.addWidget(self._combo_formato)
 
+        # Configura sufixo + extensão dinâmica para o output
+        # (suffix + extension substituem fixed_name quando em modo origem)
+        self._grid_io.set_output_suffix("Saída", self.SULFIX)
+        self._grid_io.set_output_extension("Saída", self._combo_formato.current_value)
+
         # GridDoubleSpinBox: CRS
         self._spin_crs = GridDoubleSpinBox(
             {
@@ -224,6 +229,12 @@ class LasVectorConverterPlugin(BasePlugin):
 
     def _on_format_changed(self, key: str, text: str):
         self.logger.info("Formato alterado", code="FORMAT_CHANGED", formato=key)
+        # Atualiza extensão dinâmica no output
+        self._grid_io.set_output_extension("Saída", key)
+        # Se o output já foi gerado, regenera com nova extensão
+        saida = self._grid_io["Saída"]
+        if saida.get_paths():
+            self._grid_io.use_origin("Saída")
 
     def _on_input_changed(self, label: str, paths: list[str]):
 
