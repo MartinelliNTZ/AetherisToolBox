@@ -1189,6 +1189,9 @@ sel.has_extension(*exts) -> bool        # Verifica extensão
 sel.on_path_change = callback           # recebe (paths: list[str])
 sel.on_browse_click = callback          # recebe ()
 sel.on_suggest_click = callback         # recebe ()
+
+# Configuração dinâmica
+sel.set_fixed_name("resultado.gpkg")    # Atualiza fixed_name para 📂
 ```
 
 **Parâmetros do construtor:**
@@ -1222,6 +1225,9 @@ sel.allow_folder = False  # esconde
 
 # Atalho para alterar modo completo de uma vez
 sel.set_mode(allow_file=True, allow_folder=False, selection_mode="file")
+
+# Atualiza fixed_name dinamicamente (útil quando extensão muda)
+sel.set_fixed_name("lasvectorconverted.shp")
 ```
 `set_mode()` sanitiza automaticamente: se `selection_mode="file"` mas `allow_file=False`, corrige para `"folder"`.
 
@@ -1229,6 +1235,11 @@ sel.set_mode(allow_file=True, allow_folder=False, selection_mode="file")
 
 ### `GridComplexSelector` — `complex/GridComplexSelector.py`
 Grade de `ComplexSelector`s configurados por dicionário, com suporte a **linking entre selectores** (parent/subfolder/fixed_name) e **dynamic_parent** (modo alterna conforme o tipo do parent). Botão "USAR ORIGEM" automático para outputs com parent.
+
+**REGRAS DE ACOPLAMENTO:**
+- O plugin **NUNCA** acessa atributos privados do widget (`_user_callbacks`, `edit`, `file_filter`)
+- O plugin **NUNCA** sobrescreve `on_path_change` diretamente — usa `set_on_input_changed()` ou `set_on_changed()`
+- Toda comunicação é via API pública
 
 ```python
 from resources.widgets.complex.GridComplexSelector import GridComplexSelector
@@ -1251,7 +1262,7 @@ grid = GridComplexSelector({
         "dynamic_parent": True,    # Ativa modo dinâmico
         "show_suggest_button": True,
         "subfolder": "lasvectorconverter",
-        "fixed_name": "resultado.gpkg",  # Ignorado se parent for pasta
+        "fixed_name": "resultado",  # Sem extensão — set_output_extension adiciona
     },
 }, title="Entrada e Saída")
 
@@ -1271,6 +1282,47 @@ grid.use_origin_all()
 grid.refresh_links()
 ```
 
+**API Pública para Callbacks (NÃO sobrescrever `on_path_change`):**
+```python
+# ✅ RECOMENDADO — para reagir a QUALQUER entrada:
+grid.set_on_input_changed(self._on_input_changed)
+# callback recebe (label: str, paths: list[str])
+
+# ✅ Para reagir a um selector específico:
+grid.set_on_changed("Entrada", self._on_entrada_changed)
+# callback recebe (paths: list[str])
+
+# ❌ NUNCA faça isso — quebra o chaining interno:
+grid["Entrada"].on_path_change = callback  # PROIBIDO
+```
+
+**API Pública para Configuração (plugin não acessa sub-widgets):**
+```python
+# Substitui entrada.edit.setPlaceholderText(...)
+grid.set_input_placeholder("Entrada", "Selecione o arquivo...")
+
+# Substitui entrada.file_filter = value
+grid.set_input_file_filter("Entrada", "LAS/LAZ (*.las *.laz)")
+
+# Suspende/restaura callbacks para set_path sem re-avaliação
+saved = grid.suspend_callbacks()
+try:
+    grid["Entrada"].set_path(saved_path)
+finally:
+    grid.resume_callbacks(saved)
+```
+
+**API Pública para Output Dinâmico:**
+```python
+# Atualiza extensão + sincroniza fixed_name no 📂
+grid.set_output_extension("Saída", "shp")
+# → fixed_name muda de "resultado.gpkg" para "resultado.shp"
+# → 📂 agora gera "resultado.shp"
+
+# Atualiza sufixo (ex: "_converted")
+grid.set_output_suffix("Saída", "_converted")
+```
+
 **Parâmetros do spec (por chave):**
 | Parâmetro | Tipo | Default | Descrição |
 |-----------|------|---------|-----------|
@@ -1285,7 +1337,7 @@ grid.refresh_links()
 | `show_suggest_button` | bool | False | Mostra 📂 (só output) |
 | `show_project_button` | bool | False | Mostra 📄 (só input) |
 | `subfolder` | str | "" | Subpasta para output |
-| `fixed_name` | str | "" | Nome fixo do arquivo de saída |
+| `fixed_name` | str | "" | Nome fixo do arquivo de saída (pode ser sem extensão) |
 | `suggested_path` | str | "" | Path relativo pro 📂 |
 | `default_path` | str | "" | Path inicial |
 | `tooltip` | str | "" | Tooltip |
@@ -1310,8 +1362,14 @@ grid.refresh_links()
    - Output gerado: `parent_path / subfolder` (ou `converted` se subfolder vazio)
    - Placeholder: "Pasta de saída"
    - **fixed_name é ignorado**
-3. Callback `on_path_change` do plugin **não é sobrescrito** — usa chaining automático
+3. Callback do plugin **NUNCA** sobrescreve `on_path_change` — use `set_on_input_changed()`
 4. `allow_file=True` e `allow_folder=True` devem ser configurados no spec para suportar alternância
+
+**Extensão Dinâmica:**
+- `fixed_name` pode ser definido **sem extensão** (ex: `"lasvectorconverted"`)
+- `set_output_extension("Saída", "gpkg")` adiciona a extensão: `"lasvectorconverted.gpkg"`
+- O 📂 (suggest button) usa o `fixed_name` atualizado com a extensão correta
+- `_generate_output()` também adiciona extensão se `fixed_name` não tiver
 
 **Importante:** Ao usar `dynamic_parent`, configure o spec com `allow_file=True` e `allow_folder=True` para que o filho possa alternar entre os modos.
 
