@@ -42,19 +42,25 @@ except ImportError:
 
 
 # ── Categorias de CRS (mesmo agrupamento do QGIS) ────────────────────────
+# A primeira categoria "⭐ Mais Comuns" é populada manualmente com os itens
+# do CommonCrs (WGS84, SIRGAS 2000 UTM). As demais vêm do pyproj.
 _CRS_CATEGORIES: Dict[str, tuple] = {
+    "⭐ Mais Comuns": None,  # manual — não usa pyproj query
     "🌍 Geográfico 2D": (PJType.GEOGRAPHIC_2D_CRS,),
     "🌐 Geográfico 3D": (PJType.GEOGRAPHIC_3D_CRS,),
     "📐 Projetado": (PJType.PROJECTED_CRS,),
     "🌌 Geocêntrico": (PJType.GEOCENTRIC_CRS,),
+    "📏 Vertical": (PJType.VERTICAL_CRS,),
     "🧩 Composto": (PJType.COMPOUND_CRS,),
 }
 
 _CATEGORY_ORDER: list[str] = [
+    "⭐ Mais Comuns",
+    "📐 Projetado",
     "🌍 Geográfico 2D",
     "🌐 Geográfico 3D",
-    "📐 Projetado",
     "🌌 Geocêntrico",
+    "📏 Vertical",
     "🧩 Composto",
 ]
 
@@ -79,7 +85,7 @@ class CrsSearchDialog(BaseDialog):
             parent=parent,
             title="Selecionar Sistema de Referência de Coordenadas (CRS)",
             object_name="crs_search_dialog",
-            fixed_size=(680, 520),
+            fixed_size=(760, 560),
             modal=True,
             has_appbar=True,
         )
@@ -106,15 +112,17 @@ class CrsSearchDialog(BaseDialog):
         self.main_layout.addWidget(self._filter_edit)
 
         # ── TreeWidget com colunas ──
+        # Coluna "Código" maior (140px) para não precisar reajustar toda vez
         self._tree = QTreeWidget()
         self._tree.setHeaderLabels(["Código", "Nome", "Tipo"])
-        self._tree.setColumnWidth(0, 100)
-        self._tree.setColumnWidth(1, 350)
+        self._tree.setColumnWidth(0, 140)
+        self._tree.setColumnWidth(1, 360)
         self._tree.setColumnWidth(2, 120)
         self._tree.setAlternatingRowColors(False)
         self._tree.setRootIsDecorated(True)
         self._tree.setAnimated(True)
         self._tree.setSortingEnabled(False)
+        self._tree.setStyleSheet(AppStyles.tree_branch_style())
         self._tree.itemDoubleClicked.connect(self._on_item_double_clicked)
         self.main_layout.addWidget(self._tree, 1)
 
@@ -129,7 +137,36 @@ class CrsSearchDialog(BaseDialog):
         # ── Carrega dados (lazy) ──
         self._load_all_crs()
 
-    # ── Carga de dados (lazy, uma única vez) ──────────────────────────────
+    # ── Carga de dados "⭐ Mais Comuns" ───────────────────────────────────
+
+    def _get_common_crs_data(self) -> list:
+        """Retorna lista de dicts com os CRS mais comuns do CommonCrs."""
+        from core.enum.CommonCrs import CommonCrs
+
+        _COMMON_TO_CATEGORY = {
+            4326: "🌍 Geográfico 2D",
+            31980: "📐 Projetado",
+            31981: "📐 Projetado",
+            31982: "📐 Projetado",
+            31983: "📐 Projetado",
+            31984: "📐 Projetado",
+        }
+
+        result = []
+        for item in CommonCrs:
+            if not item.value:
+                continue
+            cat = _COMMON_TO_CATEGORY.get(item.code, "Projetado")
+            result.append({
+                "code": item.code,
+                "code_str": item.value,
+                "name": item.name_clean,
+                "type": cat.split(" ", 1)[1] if " " in cat else cat,
+                "tooltip": item.label(),
+            })
+        return result
+
+    # ── Carga de dados geral (lazy, uma única vez) ───────────────────────
 
     def _load_all_crs(self) -> None:
         """Carrega todos os CRS do banco PROJ em cache."""
@@ -144,14 +181,20 @@ class CrsSearchDialog(BaseDialog):
 
         self._filter_edit.setPlaceholderText("Carregando CRS...")
         self._filter_edit.setEnabled(False)
-        # Processa eventos para mostrar o placeholder antes do bloqueio
         from PySide6.QtWidgets import QApplication
 
         QApplication.processEvents()
 
         try:
-            self._all_crs = {}
+            self._all_crs: Dict[str, list] = {}
+
+            # Primeiro: dados comuns (manuais)
+            self._all_crs["⭐ Mais Comuns"] = self._get_common_crs_data()
+
+            # Depois: consulta pyproj para cada categoria
             for category_name, pj_types in _CRS_CATEGORIES.items():
+                if pj_types is None:
+                    continue
                 results = query_crs_info(
                     auth_name="EPSG", pj_types=list(pj_types)
                 )
@@ -171,13 +214,25 @@ class CrsSearchDialog(BaseDialog):
         """Popula a lista com dados estáticos de fallback (sem pyproj)."""
         from core.enum.CommonCrs import CommonCrs
 
-        root = QTreeWidgetItem(self._tree, ["EPSG Comuns", "", ""])
+        _COMMON_TO_CATEGORY = {
+            4326: "🌍 Geográfico 2D",
+            31980: "📐 Projetado",
+            31981: "📐 Projetado",
+            31982: "📐 Projetado",
+            31983: "📐 Projetado",
+            31984: "📐 Projetado",
+        }
+
+        root = QTreeWidgetItem(self._tree, ["⭐ EPSG Comuns", "", ""])
         root.setFlags(root.flags() & ~Qt.ItemFlag.ItemIsSelectable)
         for item in CommonCrs:
+            if not item.value:
+                continue
             child = QTreeWidgetItem(root)
             child.setText(0, item.value)
             child.setText(1, item.name_clean)
-            child.setText(2, "Geográfico 2D" if item.code == 4326 else "Projetado")
+            cat = _COMMON_TO_CATEGORY.get(item.code, "Projetado")
+            child.setText(2, cat.split(" ", 1)[1] if " " in cat else cat)
             child.setData(0, Qt.ItemDataRole.UserRole, str(item.code))
             child.setToolTip(0, item.label())
         root.setExpanded(True)
@@ -204,12 +259,30 @@ class CrsSearchDialog(BaseDialog):
 
             for crs_info in items:
                 child = QTreeWidgetItem(parent)
-                code_str = f"EPSG:{crs_info.code}"
+                # Suporta tanto objetos pyproj (categorias regulares)
+                # quanto dicts (⭐ Mais Comuns)
+                if isinstance(crs_info, dict):
+                    code_str = crs_info["code_str"]
+                    name = crs_info["name"]
+                    type_name = crs_info["type"]
+                    code_data = str(crs_info["code"])
+                    tooltip = crs_info["tooltip"]
+                else:
+                    code_str = f"EPSG:{crs_info.code}"
+                    name = crs_info.name
+                    type_name = (
+                        category_name.split(" ", 1)[1]
+                        if " " in category_name
+                        else category_name
+                    )
+                    code_data = crs_info.code
+                    tooltip = f"{code_str} - {crs_info.name}"
+
                 child.setText(0, code_str)
-                child.setText(1, crs_info.name)
-                child.setText(2, category_name.split(" ", 1)[1] if " " in category_name else category_name)
-                child.setData(0, Qt.ItemDataRole.UserRole, crs_info.code)
-                child.setToolTip(0, f"{code_str} - {crs_info.name}")
+                child.setText(1, name)
+                child.setText(2, type_name)
+                child.setData(0, Qt.ItemDataRole.UserRole, code_data)
+                child.setToolTip(0, tooltip)
                 total += 1
 
         self._status_label.setText(f"{total} CRS encontrados")
@@ -231,7 +304,14 @@ class CrsSearchDialog(BaseDialog):
         for category_name in _CATEGORY_ORDER:
             items = self._all_crs.get(category_name, [])
             for crs_info in items:
-                if text_lower in crs_info.name.lower() or text_lower in crs_info.code:
+                if isinstance(crs_info, dict):
+                    name = crs_info["name"].lower()
+                    code = str(crs_info["code"])
+                else:
+                    name = crs_info.name.lower()
+                    code = str(crs_info.code)
+
+                if text_lower in name or text_lower in code:
                     filtered[category_name].append(crs_info)
 
         self._populate_tree(filtered)
@@ -248,7 +328,6 @@ class CrsSearchDialog(BaseDialog):
         item = self._tree.currentItem()
         if item and item.data(0, Qt.ItemDataRole.UserRole):
             self._select_item(item)
-        # Se não houver seleção, não fecha
 
     def _select_item(self, item: QTreeWidgetItem) -> None:
         """Seleciona um item e fecha o diálogo."""

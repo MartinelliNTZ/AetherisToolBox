@@ -726,6 +726,52 @@ class AppStyles(BaseStyle):
         )
 
     @classmethod
+    def tree_branch_style(cls) -> str:
+        """
+        Estilo QSS para as setas expandir/recolher de QTreeWidget,
+        com contraste melhorado. Usa tokens do tema (ACCENT, SURFACE_5).
+        """
+        t = ct.theme
+        return (
+            f"QTreeWidget::branch:has-children:!has-siblings:closed,\n"
+            f"QTreeWidget::branch:closed:has-children:has-siblings {{\n"
+            f"    border-image: none;\n"
+            f"    image: none;\n"
+            f"}}\n"
+            f"QTreeWidget::branch:open:has-children:!has-siblings,\n"
+            f"QTreeWidget::branch:open:has-children:has-siblings {{\n"
+            f"    border-image: none;\n"
+            f"    image: none;\n"
+            f"}}\n"
+            f"QTreeWidget::branch:has-children:!has-siblings:closed,\n"
+            f"QTreeWidget::branch:closed:has-children:has-siblings {{\n"
+            f"    background: {t.SURFACE_5};\n"
+            f"    border-radius: 3px;\n"
+            f"    min-width: 18px;\n"
+            f"    min-height: 18px;\n"
+            f"}}\n"
+            f"QTreeWidget::branch:open:has-children:!has-siblings,\n"
+            f"QTreeWidget::branch:open:has-children:has-siblings {{\n"
+            f"    background: {t.SURFACE_5};\n"
+            f"    border-radius: 3px;\n"
+            f"    min-width: 18px;\n"
+            f"    min-height: 18px;\n"
+            f"}}\n"
+            f"QTreeWidget::branch:has-children:!has-siblings:closed:hover,\n"
+            f"QTreeWidget::branch:closed:has-children:has-siblings:hover {{\n"
+            f"    background: {t.ACCENT};\n"
+            f"}}\n"
+            f"QTreeWidget::branch:open:has-children:!has-siblings:hover,\n"
+            f"QTreeWidget::branch:open:has-children:has-siblings:hover {{\n"
+            f"    background: {t.ACCENT};\n"
+            f"}}\n"
+            f"QTreeWidget::indicator {{\n"
+            f"    width: 16px;\n"
+            f"    height: 16px;\n"
+            f"}}\n"
+        )
+
+    @classmethod
     def grid_percent_font_label(cls) -> str:
         """Família e tamanho da fonte do label no GridPercentView."""
         return f"{ct.theme.FONT_FAMILY_MONO}, 10px"
