@@ -351,27 +351,27 @@ class LasReprojectionPlugin(BasePlugin):
             n_pontos = info["point_count"]
             self._current_path = path
 
-            # Detecta CRS automaticamente
-            crs_detectado = LasLayerProjection.get_crs(path, tool_key=self.tool_key)
-            self._source_crs = crs_detectado
+            # Detecta CRS automaticamente (ou força caso não detectado)
+            crs = self.las_projection(path)
+            self._source_crs = crs or ""
 
             # Atualiza UI
             self._result_label.set("arquivo", os.path.basename(path))
             self._result_label.set("n_pontos", f"{n_pontos:,}")
 
-            if crs_detectado:
-                self._crs_origem.set_crs(crs_detectado)
-                self._result_label.set("crs_origem", crs_detectado)
+            if crs:
+                self._crs_origem.set_crs(crs)
+                self._result_label.set("crs_origem", crs)
                 self.logger.info(
-                    "CRS detectado automaticamente",
-                    code="LASREPROJ_CRS_AUTO",
-                    crs=crs_detectado,
+                    "CRS definido para o LAS",
+                    code="LASREPROJ_CRS_OK",
+                    crs=crs,
                 )
             else:
                 self._crs_origem.set_crs("")
                 self._result_label.set("crs_origem", "Não detectado")
                 self.logger.warning(
-                    "CRS nao detectado no LAS",
+                    "CRS nao detectado e usuario recusou forcar",
                     code="LASREPROJ_CRS_NOT_FOUND",
                 )
 
@@ -380,7 +380,7 @@ class LasReprojectionPlugin(BasePlugin):
 
             SignalManager.instance().console_message.emit(
                 f"Carregado: {os.path.basename(path)} "
-                f"({n_pontos:,} pontos, CRS: {crs_detectado or 'não detectado'})"
+                f"({n_pontos:,} pontos, CRS: {crs or 'não detectado'})"
             )
 
             self.logger.info(
@@ -388,7 +388,7 @@ class LasReprojectionPlugin(BasePlugin):
                 code="LASREPROJ_LAS_LOADED",
                 path=path,
                 points=n_pontos,
-                crs=crs_detectado,
+                crs=crs,
             )
 
         except Exception as e:
