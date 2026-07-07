@@ -40,6 +40,23 @@ class ToolKey(str, Enum):
     LAS_VECTOR_CONVERTER = "LasVectorConverter"
     LAS_REPROJECTION = "LasReprojection"
 
+
+    CUT_BY_TRAJECTORY = "CutByTrajectory"  # Ainda não implementado
+    IBGE_HNOR_ORGANIZER = "IBGEHnorOrganizer"  # Ainda não implementado
+    IBGE_PPP_CONVERTER = "IBGEPPPConverter"  # Ainda não implementado
+    JOHN_DEERE_ORGANIZER = "JohnDeereOrganizer"  # Ainda não implementado
+    LAS_LAZ_CONVERT = "LasLazConvert"  # Ainda não implementado
+    LAS_MERGE = "LasMerge"  # Ainda não implementado
+    PYTHON_LIBRARY_MANAGER = "PythonLibraryManager"  # Ainda não implementado
+    RASTER_CHECK = "RasterCheck"  # Ainda não implementado
+    RASTER_FREE = "RasterFree"  # Ainda não implementado
+    RASTER_FREE_2 = "RasterFree (2)"  # Ainda não implementado
+    RASTER_MERGE = "RasterMerge"  # Ainda não implementado
+    RASTER_MERGE_2 = "RasterMerge2"  # Ainda não implementado
+    RASTER_TO_LAS = "RasterToLas"  # Ainda não implementado
+    RASTER_TO_LAS_2 = "RasterToLas2"  # Ainda não implementado
+    RASTER_VISION_CLASSIFIER = "RasterVisionClassifier"  # Ainda não implementado
+
     # ── Método utilitário ──────────────────────────────────────────────
 
     @classmethod
