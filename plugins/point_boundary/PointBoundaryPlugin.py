@@ -7,9 +7,9 @@ fontes (LAS/LAZ, SHP, GPKG, KML, CSV, GeoJSON), com validação iterativa
 via concave hull e detecção automática de "escada".
 
 Fluxo:
-  1. SelectorGrid para selecionar arquivo de entrada (LAS, vetor ou CSV)
+  1. GridComplexSelector para entrada (LAS, vetor ou CSV) e saída (linked)
   2. GridDoubleSpinBox para parâmetros (ratio, step, limiar, suavização, amostras)
-  3. GridLineEdit para CRS + colunas CSV
+  3. CrsSelectorWidget para CRS de saída
   4. GridLabel com resultados
   5. ExecutionButtons: EXECUTAR + SALVAR JSON
   6. PipelineRunner + PointBoundaryStep em background
@@ -31,9 +31,9 @@ from resources.widgets.grid.GridCheckBox import GridCheckBox
 from resources.widgets.grid.GridLabel import GridLabel
 from resources.widgets.grid.GridLineEdit import GridLineEdit
 from resources.widgets.GroupPainel import GroupPainel
-from resources.widgets.grid.GridSelector import GridSelector
-from resources.widgets.simple.SimpleSelector import SimpleSelector
+from resources.widgets.complex.GridComplexSelector import GridComplexSelector
 from resources.widgets.simple.SimpleLabel import SimpleLabel
+from resources.widgets.crs.CrsSelectorWidget import CrsSelectorWidget
 from utils.ExplorerUtils import ExplorerUtils
 from utils.las.LasLayerSource import LasLayerSource
 from utils.MessageBox import MessageBox
@@ -99,28 +99,44 @@ class PointBoundaryPlugin(BasePlugin):
         self._btns.set_enabled("salvar_json", False)
         self.main_layout.addWidget(self._btns)
 
-        # ── GroupPainel "Arquivo de Entrada" ────────────────────────
-        grupo_entrada = GroupPainel("Arquivo de Entrada")
-        self.main_layout.addWidget(grupo_entrada)
+        # ── GroupPainel "Arquivos" ──────────────────────────────────
+        grupo_arquivos = GroupPainel("Arquivos")
+        self.main_layout.addWidget(grupo_arquivos)
 
-        self._selector_grid = GridSelector(
+        self._selector_grid = GridComplexSelector(
             {
                 "Arquivo de Pontos": {
                     "file_filter": SUPPORTED_EXTENSIONS,
-                    "browse_mode": "open_file",
-                    "placeholder": "Selecione LAS/LAZ, SHP, GPKG, KML, CSV ou GeoJSON...",
+                    "mode_type": "input",
+                    "allow_file": True,
+                    "allow_folder": False,
+                    "multiple": False,
+                    "show_project_button": True,
+                },
+                "Saída": {
+                    "mode_type": "output",
+                    "parent": "Arquivo de Pontos",
+                    "dynamic_parent": True,
+                    "allow_file": True,
+                    "allow_folder": False,
+                    "multiple": False,
+                    "show_suggest_button": True,
+                    "suffix": "_boundary",
+                    "extension": "gpkg",
+                    "fixed_name": "boundary.gpkg",
+                    "subfolder": "boundary",
                 },
             },
         )
-        grupo_entrada.group_layout.addWidget(self._selector_grid)
+        grupo_arquivos.group_layout.addWidget(self._selector_grid)
 
-        sel_entrada = self._selector_grid["Arquivo de Pontos"]
-        sel_entrada.edit.textChanged.connect(self._on_input_path_changed)
+        # Conecta callback de mudança na entrada
+        self._selector_grid.set_on_input_changed(self._on_input_changed)
 
         # Label de info da fonte (visível apenas quando arquivo carregado)
         self._info_label = SimpleLabel("")
         self._info_label.setVisible(False)
-        grupo_entrada.group_layout.addWidget(self._info_label)
+        grupo_arquivos.group_layout.addWidget(self._info_label)
 
         # ── GridLineEdit para CSV (invisível por padrão) ────────────
         self._csv_grid = GridLineEdit({
@@ -138,18 +154,7 @@ class PointBoundaryPlugin(BasePlugin):
             },
         })
         self._csv_grid.setVisible(False)
-        grupo_entrada.group_layout.addWidget(self._csv_grid)
-
-        # ── GroupPainel "Arquivo de Saída" ──────────────────────────
-        grupo_saida = GroupPainel("Arquivo de Saída")
-        self.main_layout.addWidget(grupo_saida)
-        self._sel_output = SimpleSelector(
-            label_text="GPKG de Saída",
-            file_filter="GeoPackage (*.gpkg)",
-            browse_mode="save_file",
-            placeholder="Salvar boundary como GPKG...",
-        )
-        grupo_saida.group_layout.addWidget(self._sel_output)
+        grupo_arquivos.group_layout.addWidget(self._csv_grid)
 
         # ── GroupPainel "Parâmetros" ────────────────────────────────
         grupo_params = GroupPainel("Parâmetros")
@@ -203,7 +208,7 @@ class PointBoundaryPlugin(BasePlugin):
                 "max": 10_000_000,
                 "step": 10000,
             },
-        })
+        }, columns=2)
         self._params_grid.changed.connect(self._on_param_changed)
         grupo_params.group_layout.addWidget(self._params_grid)
 
@@ -219,16 +224,13 @@ class PointBoundaryPlugin(BasePlugin):
         )
         grupo_params.group_layout.addWidget(self._ckb_intermediarios)
 
-        # GridLineEdit para CRS
-        self._crs_grid = GridLineEdit({
-            "crs": {
-                "label": "CRS",
-                "description": "CRS de saída (ex: EPSG:31982). Se vazio, usa EPSG:4326",
-                "default": "EPSG:31982",
-                "placeholder": "EPSG:31982",
-            },
-        })
-        grupo_params.group_layout.addWidget(self._crs_grid)
+        # CrsSelectorWidget para CRS de saída
+        self._crs_selector = CrsSelectorWidget(label="CRS:")
+        grupo_params.group_layout.addWidget(self._crs_selector)
+        self._crs_selector.set_crs("EPSG:31982")
+
+        # Conecta mudança de CRS para atualizar botão executar
+        self._crs_selector.crs_changed.connect(self._on_crs_changed)
 
         # ── GroupPainel "Resultados" ────────────────────────────────
         grupo_result = GroupPainel("Resultados")
@@ -256,9 +258,15 @@ class PointBoundaryPlugin(BasePlugin):
     # Handlers
     # ══════════════════════════════════════════════════════════════════
 
-    def _on_input_path_changed(self, text: str):
-        """Disparado quando o texto do selector de entrada muda."""
-        path = text.strip()
+    def _on_crs_changed(self, value: str):
+        """Disparado quando o CRS muda."""
+        self._atualizar_botao_executar()
+
+    def _on_input_changed(self, label: str, paths: list[str]):
+        """Disparado quando o path do selector de entrada muda."""
+        if label != "Arquivo de Pontos":
+            return
+        path = paths[0] if paths else ""
         if not path or not os.path.isfile(path):
             return
         if path == self._current_path:
@@ -280,6 +288,10 @@ class PointBoundaryPlugin(BasePlugin):
                 n_pontos = info.get("point_count", 0)
                 has_rgb = info.get("has_rgb", False)
                 fonte_nome = "LAS" if ext == ".las" else "LAZ"
+
+                # ── Pergunta sobre projeção se LAS sem CRS ──────────
+                self.las_projection(path)
+
             elif ext in (".shp", ".gpkg", ".kml", ".geojson", ".csv"):
                 # Usa VectorLayerSource para metadados básicos
                 _, _, metadata = VectorLayerSource.extract_point_coordinates(
@@ -325,6 +337,12 @@ class PointBoundaryPlugin(BasePlugin):
             self._info_label.setText(f"Erro: {str(e)}")
             self._info_label.setVisible(True)
 
+    def _atualizar_botao_executar(self):
+        """Habilita/desabilita o botão executar conforme estado."""
+        tem_path = bool(self._current_path)
+        tem_crs = bool(self._crs_selector.get_crs())
+        self._btns.set_enabled("executar", tem_path and tem_crs)
+
     def _on_param_changed(self, key: str, value: float):
         """Disparado quando qualquer parâmetro numérico muda."""
         self.logger.debug(
@@ -365,7 +383,7 @@ class PointBoundaryPlugin(BasePlugin):
         # Coleta parâmetros
         params = self._params_grid.values
         csv_values = self._csv_grid.values if self._csv_grid.isVisible() else {}
-        crs = self._crs_grid.get("crs") or "EPSG:31982"
+        crs = self._crs_selector.get_crs() or "EPSG:31982"
 
         # Prepara UI para execução
         self._btns.set_all_enabled(False)
@@ -414,8 +432,8 @@ class PointBoundaryPlugin(BasePlugin):
             f"{os.path.basename(self._current_path)}"
         )
 
-        # Diretório de saída (do selector ou padrão)
-        output_path = self._sel_output.path()
+        # Diretório de saída
+        output_path = self._selector_grid["Saída"].path()
         output_dir = os.path.dirname(output_path) if output_path else os.path.dirname(self._current_path)
 
         # Cria step com parâmetros exclusivos no construtor (Contrato 28)
@@ -478,14 +496,11 @@ class PointBoundaryPlugin(BasePlugin):
 
             if gpkg_final:
                 pasta = os.path.dirname(gpkg_final)
-                encoded = pasta.replace("\\", "/")
-                html_msg = (
-                    f"Limite gerado: "
-                    f"area={hull_summary.get('area_hull', '?')}, "
-                    f"ratio={hull_summary.get('ratio_ideal', '?')} | "
-                    f'<a href="file:///{encoded}" style="color:#3B82F6;">Abrir pasta</a>'
+                self.output_message(
+                    output_path=pasta,
+                    label="Pasta de Saída",
+                    message=f"Limite gerado: area={hull_summary.get('area_hull', '?')}, ratio={hull_summary.get('ratio_ideal', '?')} | ",
                 )
-                SignalManager.instance().console_html.emit(html_msg)
             else:
                 msg = (
                     f"Limite gerado: "
@@ -629,11 +644,10 @@ class PointBoundaryPlugin(BasePlugin):
         csv_fields = self.preferences.get("csv_fields", {})
 
         if last_path:
-            sel = self._selector_grid["Arquivo de Pontos"]
-            sel.edit.blockSignals(True)
-            sel.set_path(last_path)
-            sel.edit.blockSignals(False)
-            self._on_input_path_changed(last_path)
+            self._selector_grid["Arquivo de Pontos"].set_path(last_path)
+
+        if last_output_gpkg:
+            self._selector_grid["Saída"].set_path(last_output_gpkg)
 
         if params:
             self._params_grid.set_values(params)
@@ -642,23 +656,20 @@ class PointBoundaryPlugin(BasePlugin):
         self._ckb_intermediarios.set_all({"salvar_intermediarios": salvar_inter})
 
         if crs:
-            self._crs_grid.set("crs", crs)
+            self._crs_selector.set_crs(crs)
 
         if csv_fields:
             self._csv_grid.set_values(csv_fields)
-
-        if last_output_gpkg:
-            self._sel_output.set_path(last_output_gpkg)
 
         self.logger.info("Preferencias carregadas", code="PB_PREFS_LOADED")
 
     def save_prefs(self) -> None:
         """Salva preferências atuais no cache de memória."""
-        self.preferences["last_path"] = self._current_path
-        self.preferences["output_gpkg"] = self._sel_output.path()
+        self.preferences["last_path"] = self._selector_grid["Arquivo de Pontos"].path()
+        self.preferences["output_gpkg"] = self._selector_grid["Saída"].path()
         self.preferences["params"] = self._params_grid.values
         self.preferences["salvar_intermediarios"] = self._ckb_intermediarios.checked.get("salvar_intermediarios", False)
-        self.preferences["crs"] = self._crs_grid.get("crs")
+        self.preferences["crs"] = self._crs_selector.get_crs()
         if self._csv_grid.isVisible():
             self.preferences["csv_fields"] = self._csv_grid.values
         self.logger.info("Preferencias salvas no cache", code="PB_PREFS_SAVED")
