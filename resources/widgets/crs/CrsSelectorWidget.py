@@ -53,10 +53,12 @@ class CrsSelectorWidget(QWidget):
         self,
         label: str | None = "CRS:",
         parent: QWidget | None = None,
+        compact: bool = False,
     ):
         super().__init__(parent)
         self._extra_items: Dict[str, str] = {}  # EPSGs temporários (não do enum)
         self._label_text = label
+        self._compact = compact
 
         self._build_ui()
         self._connect_signals()
@@ -75,11 +77,13 @@ class CrsSelectorWidget(QWidget):
             layout.addWidget(lbl)
 
         # ── ComboBox com itens do CommonCrs ──
+        items = CommonCrs.to_simple_dict() if self._compact else CommonCrs.to_dict()
         self._combo = SimpleComboBox(
-            items=CommonCrs.to_dict(),
+            items=items,
             on_item_changed=self._on_combo_changed,
         )
-        self._combo.setMinimumWidth(320)
+        min_width = 150 if self._compact else 320
+        self._combo.setMinimumWidth(min_width)
         layout.addWidget(self._combo, 1)
 
         # ── Botão 🌎 para abrir busca avançada ──

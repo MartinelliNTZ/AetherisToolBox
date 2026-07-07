@@ -72,6 +72,8 @@ class ComplexSelector(QWidget):
         show_explorer_button: bool = True,
         show_origin_button: bool = False,
         suggested_path: str = "",
+        # ── CRS embutido ──
+        crs_enable: bool = False,
         # ── Output config ──
         mode_type: str = "input",  # "input" | "output"
         fixed_name: str = "",
@@ -113,6 +115,10 @@ class ComplexSelector(QWidget):
 
         # Logger
         self._logger = LogUtils(tool="ComplexSelector", class_name="ComplexSelector")
+
+        # CRS embutido
+        self._crs_enable = crs_enable
+        self._crs_widget = None  # CrsSelectorWidget | None
 
         # Callbacks públicos
         self.on_path_change = None    # callback(paths: list[str])
@@ -213,6 +219,14 @@ class ComplexSelector(QWidget):
             self._btn_explorer.setToolTip("Abrir localização no Explorer")
             self._btn_explorer.clicked.connect(self._open_explorer)
             layout.addWidget(self._btn_explorer)
+            
+        # ── CRS embutido (ao lado dos botões) ──
+        if self._crs_enable:
+            from resources.widgets.crs.CrsSelectorWidget import CrsSelectorWidget
+            self._crs_widget = CrsSelectorWidget(label=None, compact=True)
+            self._crs_widget.setFixedWidth(150)
+            layout.addWidget(self._crs_widget)
+
 
     # ══════════════════════════════════════════════════════════════════
     # Display
@@ -521,9 +535,55 @@ class ComplexSelector(QWidget):
     # ══════════════════════════════════════════════════════════════════
 
     def _emit_path_change(self):
-        """Dispara callback de path change."""
+        """Dispara callback de path change + detecção CRS se aplicável."""
         if self.on_path_change:
             self.on_path_change(self._selected_list)
+
+        # ── CRS: detecção automática se for input ──
+        if self._crs_enable and self._mode_type == "input" and self._crs_widget:
+            self._auto_detect_crs()
+
+    def _auto_detect_crs(self):
+        """Detecta CRS automaticamente ou pergunta para forçar (só input)."""
+        path = self.path()
+        if not path or not os.path.isfile(path):
+            return
+
+        ext = os.path.splitext(path)[1].lower()
+        if ext not in (".las", ".laz"):
+            return  # Só detecta CRS em LAS/LAZ
+
+        from utils.las.LasLayerProjection import LasLayerProjection
+
+        crs = LasLayerProjection.get_crs(path)
+        if crs:
+            self._crs_widget.set_crs(crs)
+            self._crs_widget.setToolTip(f"CRS detectado: {crs}")
+            return
+
+        # Não detectou — pergunta se quer forçar
+        from utils.MessageBox import MessageBox
+        resposta = MessageBox.show_question(
+            f"Não foi possível detectar a projeção do arquivo:\n{path}\n\n"
+            "Deseja forçar uma projeção no arquivo?\n"
+            "(será criado um arquivo .mdata)",
+            title="Projeção não detectada",
+            buttons=MessageBox.YES_NO,
+            default_button=MessageBox.YES,
+        )
+
+        if resposta != MessageBox.YES:
+            self._crs_widget.setToolTip("CRS não detectado")
+            return
+
+        from resources.widgets.crs.CrsSearchDialog import CrsSearchDialog
+        dialog = CrsSearchDialog(parent=self.window() if self.window() else self)
+        if dialog.exec():
+            epsg = dialog.selected_epsg
+            if epsg:
+                LasLayerProjection.save_mdata(path, epsg)
+                self._crs_widget.set_crs(epsg)
+                self._crs_widget.setToolTip(f"CRS forçado: {epsg}")
 
     # ══════════════════════════════════════════════════════════════════
     # API Pública
@@ -639,6 +699,26 @@ class ComplexSelector(QWidget):
             return False
         ext = self.extension()
         return any(ext == e.lower() for e in exts)
+
+    # ── CRS embutido ───────────────────────────────────────────────
+
+    @property
+    def crs_widget(self):  # -> CrsSelectorWidget | None
+        """Retorna o widget CRS embutido, ou None se crs_enable=False."""
+        return self._crs_widget
+
+    @property
+    def crs(self) -> str:
+        """Retorna o CRS selecionado (ex: 'EPSG:31983') ou vazio."""
+        if self._crs_widget:
+            return self._crs_widget.get_crs()
+        return ""
+
+    @crs.setter
+    def crs(self, value: str) -> None:
+        """Define o CRS programaticamente."""
+        if self._crs_widget:
+            self._crs_widget.set_crs(value)
 
     # ── Configuração ────────────────────────────────────────────────
 

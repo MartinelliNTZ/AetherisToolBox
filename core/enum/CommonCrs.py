@@ -80,6 +80,36 @@ class CommonCrs(str, Enum):
         """
         return {item.value: item.label() for item in cls}
 
+    def simple_name(self) -> str:
+        """
+        Nome simplificado sem o prefixo 'EPSG:' e sem 'zone'.
+        Ex: 'SIRGAS 2000 23S' ao invés de 'EPSG:31983 - SIRGAS 2000 / UTM zone 23S'.
+        """
+        _simple = {
+            "": "",
+            "EPSG:4326": "WGS 84",
+            "EPSG:31980": "SIRGAS 2000 20S",
+            "EPSG:31981": "SIRGAS 2000 21S",
+            "EPSG:31982": "SIRGAS 2000 22S",
+            "EPSG:31983": "SIRGAS 2000 23S",
+            "EPSG:31984": "SIRGAS 2000 24S",
+        }
+        return _simple.get(self.value, self.value)
+
+    @classmethod
+    def to_simple_dict(cls) -> dict[str, str]:
+        """
+        Retorna dicionário {valor_epsg: nome_simplificado} para uso
+        em CRS embutido no ComplexSelector (modo compacto).
+
+        Exemplo:
+            {
+                "EPSG:4326": "WGS 84",
+                "EPSG:31983": "SIRGAS 2000 23S",
+            }
+        """
+        return {item.value: item.simple_name() for item in cls}
+
     @classmethod
     def from_code(cls, code: int) -> "CommonCrs | None":
         """
