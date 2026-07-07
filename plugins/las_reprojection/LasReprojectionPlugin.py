@@ -418,12 +418,31 @@ class LasReprojectionPlugin(BasePlugin):
     # Preferências
     # ══════════════════════════════════════════════════════════════════
 
+    @staticmethod
+    def _silent_set_path(selector, path: str):
+        """Define o path de um ComplexSelector sem disparar callbacks."""
+        if path:
+            selector._root_path = os.path.dirname(path) if os.path.isfile(path) else path
+            selector._selected_list = [path]
+        else:
+            selector._root_path = ""
+            selector._selected_list = []
+        selector._update_display()
+
     def load_prefs(self) -> None:
         """Carrega preferências salvas."""
         self.logger.info("Carregando preferencias", code="LASREPROJ_PREFS_LOAD")
         last_path = self.preferences.get("last_path", "")
         last_target_crs = self.preferences.get("last_target_crs", "")
+        last_output_path = self.preferences.get("last_output_path", "")
 
+        if last_path:
+            self._silent_set_path(self._selector_grid["LAS/LAZ de Entrada"], last_path)
+
+        if last_output_path:
+            self._silent_set_path(self._selector_grid["Saída"], last_output_path)
+
+        # Carrega LAS manualmente se houver last_path
         if last_path:
             self._carregar_las(last_path)
 
@@ -436,4 +455,5 @@ class LasReprojectionPlugin(BasePlugin):
         """Salva preferências atuais no cache de memória."""
         self.preferences["last_path"] = self._current_path
         self.preferences["last_target_crs"] = self._crs_destino.get_crs()
+        self.preferences["last_output_path"] = self._selector_grid["Saída"].path() or ""
         self.logger.info("Preferencias salvas no cache", code="LASREPROJ_PREFS_SAVED")
