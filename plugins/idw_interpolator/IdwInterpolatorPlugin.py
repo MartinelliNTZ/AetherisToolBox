@@ -34,7 +34,7 @@ from resources.widgets.grid.GridLabel import GridLabel
 from resources.widgets.GroupPainel import GroupPainel
 from resources.widgets.grid.GridSelector import GridSelector
 from resources.widgets.simple.SimpleLabel import SimpleLabel
-from utils.LasUtil import LasUtil
+from utils.las.LasLayerSource import LasLayerSource
 from utils.MessageBox import MessageBox
 from utils.ProcessStatisticsUtil import ProcessStatisticsUtil
 
@@ -328,7 +328,7 @@ class IdwInterpolatorPlugin(BasePlugin):
 
         try:
             fator = self._params_grid.get("fator_conversao")
-            result = LasUtil.calcular_pixel_ideal(
+            result = LasLayerSource.calcular_pixel_ideal(
                 self._current_path,
                 fator_conversao=fator,
                 tool_key=self.tool_key,
@@ -643,7 +643,7 @@ class IdwInterpolatorPlugin(BasePlugin):
         self.logger.info("Carregando LAS", code="IDW_LAS_LOAD", path=path)
 
         try:
-            info = LasUtil.get_info(path, tool_key=self.tool_key)
+            info = LasLayerSource.get_info(path, tool_key=self.tool_key)
             if info.get("error"):
                 raise RuntimeError(info["error"])
 

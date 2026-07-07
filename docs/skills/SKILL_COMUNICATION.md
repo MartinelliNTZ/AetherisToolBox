@@ -192,7 +192,48 @@ SignalManager.instance().hud_stage_done.emit(3)  # stage 3 concluido -> pula par
 - Registrar exceções e contexto (`logger.error("msg", code="COD", error=str(e))`).
 - Registrar variáveis, estados e entradas/saídas críticas.
 
-### Assinatura dos métodos
+### 📝 Regras de Log
+
+**Prefira f-string de uma linha** em vez de dict com code/data excessivo:
+```python
+# ✅ RECOMENDADO — f-string simples de uma linha
+self.logger.info(f"Executando: {path}")
+self.logger.info(f"OK: {n} pontos salvos em {output}")
+self.logger.warning(f"CRS nao detectado: {path}")
+
+# ✅ Erros usam code + error (obrigatório)
+self.logger.error(f"Falha ao processar {path}", code="PROC_ERR", error=str(e))
+self.logger.critical(f"Pipeline falhou: {msg}", code="PIPE_FAIL", error=msg)
+
+# ⚠️ ACEITÁVEL — quando muitos dados estruturados são necessários
+self.logger.info(f"LAS carregado: {path}", code="LAS_OK", points=n, crs=crs)
+
+# ❌ EVITE — dict com code/data excessivo para logs simples
+self.logger.info("Iniciando processamento", code="START", path=p, modo=m, ...)
+```
+
+**Regras:**
+- Logs de início/fim/diagnóstico simples: **f-string de uma linha, sem code**
+- Logs de erro: **f-string + code + error=str(e)** (obrigatório)
+- Logs com muitos dados estruturados: **f-string + code + kwargs específicos**
+- `print()` só para testes locais — remova antes do commit
+
+### 📝 Regras de Console (console_message)
+
+**NÃO** emita o nome da ferramenta no início da mensagem — o ConsolePlugin já mostra o tooltip de origem. Mensagens devem ser limpas e diretas:
+
+```python
+# ✅ RECOMENDADO — sem prefixo [NomeDaFerramenta]
+SignalManager.instance().console_message.emit("Processando arquivo...")
+SignalManager.instance().console_message.emit("5 arquivos processados em 4.2s")
+SignalManager.instance().console_message.emit("ERRO: formato inválido")
+SignalManager.instance().console_message.emit("Concluído com 3 falhas!")
+
+# ❌ EVITE — prefixo [Ferramenta] redundante
+SignalManager.instance().console_message.emit("[MinhaFerramenta] Iniciando...")
+```
+
+### Assinatura dos métodos (referência)
 
 Todos os métodos de log (`debug`, `info`, `warning`, `error`, `critical`) seguem o mesmo padrão:
 

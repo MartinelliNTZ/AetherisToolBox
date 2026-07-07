@@ -203,7 +203,7 @@ class IdwInterpolatorTask(BaseTask):
         if not self._check_during_execution():
             return False
 
-        from utils.LasUtil import LasUtil
+        from utils.las.LasLayerSource import LasLayerSource
 
         all_x, all_y = [], []
         all_r, all_g, all_b, all_z = [], [], [], []
@@ -217,7 +217,7 @@ class IdwInterpolatorTask(BaseTask):
                 "message": f"Lendo {_os.path.basename(las_path)} ({i+1}/{len(las_files)})..."
             })
 
-            arrays = LasUtil.extract_point_arrays(
+            arrays = LasLayerSource.extract_point_arrays(
                 las_path, target, tool_key=self._tool_key,
             )
             n = arrays["n_points"]

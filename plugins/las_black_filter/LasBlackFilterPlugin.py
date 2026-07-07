@@ -35,7 +35,7 @@ from resources.widgets.GroupPainel import GroupPainel
 from resources.widgets.grid.GridSelector import GridSelector
 from resources.widgets.simple.SimpleSelector import SimpleSelector
 from utils.ExplorerUtils import ExplorerUtils
-from utils.LasUtil import LasUtil
+from utils.las.LasLayerSource import LasLayerSource
 from utils.MessageBox import MessageBox
 from utils.Preferences import Preferences
 from utils.ProcessStatisticsUtil import ProcessStatisticsUtil
@@ -418,7 +418,7 @@ class LasBlackFilterPlugin(BasePlugin):
 
         output_pretos = self._sel_pretos.path() if salvar_pretos else ""
 
-        n_total = LasUtil.get_point_count(
+        n_total = LasLayerSource.get_point_count(
             self._current_path, tool_key=self.tool_key
         )
 
@@ -619,7 +619,7 @@ class LasBlackFilterPlugin(BasePlugin):
         self.logger.info("Carregando LAS", code="LAS_LOAD", path=path)
 
         try:
-            info = LasUtil.get_info(path, tool_key=self.tool_key)
+            info = LasLayerSource.get_info(path, tool_key=self.tool_key)
             if info.get("error"):
                 raise RuntimeError(info["error"])
 
@@ -637,7 +637,7 @@ class LasBlackFilterPlugin(BasePlugin):
             self._info_label.set("pontos", f"{n_pontos:,}")
             self._info_label.set("has_rgb", "Sim" if has_rgb else "Não")
 
-            bbox = LasUtil.get_bounding_box(path, tool_key=self.tool_key)
+            bbox = LasLayerSource.get_bounding_box(path, tool_key=self.tool_key)
             if bbox:
                 self._info_label.set(
                     "bbox",

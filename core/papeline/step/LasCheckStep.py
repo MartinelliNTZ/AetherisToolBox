@@ -20,7 +20,7 @@ from core.manager.SignalManager import SignalManager
 from core.papeline.BaseStep import BaseStep
 from core.papeline.ExecutionContext import ExecutionContext
 from utils.BaseUtil import BaseUtil
-from utils.LasUtil import LasUtil
+from utils.las.LasLayerSource import LasLayerSource
 
 
 class LasCheckStep(BaseStep):

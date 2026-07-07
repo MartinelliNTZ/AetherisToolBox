@@ -14,6 +14,7 @@ Lógica central:
   - 📁 clicado → seleciona pasta(s) via ExplorerUtils
   - 📂 (só output) → gera path com ProjectUtil + subfolder + fixed_name
   - 📄 (só input) → ListFileDialog
+  - ➡️ → abre o Windows Explorer no diretório do path atual
 
 Uso:
     sel = ComplexSelector(label_text="Entrada:", allow_file=True, allow_folder=True, multiple=False, selection_mode="file")
@@ -27,6 +28,7 @@ Uso:
 from __future__ import annotations
 
 import os
+import subprocess
 from typing import Callable, Optional
 
 from PySide6.QtWidgets import QWidget, QHBoxLayout, QLabel, QLineEdit
@@ -67,6 +69,7 @@ class ComplexSelector(QWidget):
         # ── Controle de botões ──
         show_suggest_button: bool = False,
         show_project_button: bool = False,
+        show_explorer_button: bool = True,
         suggested_path: str = "",
         # ── Output config ──
         mode_type: str = "input",  # "input" | "output"
@@ -95,6 +98,7 @@ class ComplexSelector(QWidget):
         self._selection_mode = selection_mode
         self._show_suggest_button = show_suggest_button
         self._show_project_button = show_project_button
+        self._show_explorer_button = show_explorer_button
         self._suggested_rel_path: str = suggested_path
         self._mode_type = mode_type
         self._fixed_name = fixed_name
@@ -167,7 +171,7 @@ class ComplexSelector(QWidget):
         # ── 📁 (folder) ──
         if self._allow_folder:
             self._btn_folder = SimpleSecondaryButton("📁")
-            self._btn_folder.setFixedWidth(32)
+            self._btn_folder.setFixedWidth(30)
             self._btn_folder.setToolTip(
                 "Selecionar pastas" if self._multiple else "Selecionar pasta"
             )
@@ -189,6 +193,14 @@ class ComplexSelector(QWidget):
             self._btn_project.setToolTip("Selecionar arquivo do projeto")
             self._btn_project.clicked.connect(self._on_project_clicked)
             layout.addWidget(self._btn_project)
+
+        # ── ➡️ (explorer — sempre visível por padrão) ──
+        if self._show_explorer_button:
+            self._btn_explorer = SimpleSecondaryButton("➡️")
+            self._btn_explorer.setFixedWidth(30)
+            self._btn_explorer.setToolTip("Abrir localização no Explorer")
+            self._btn_explorer.clicked.connect(self._open_explorer)
+            layout.addWidget(self._btn_explorer)
 
     # ══════════════════════════════════════════════════════════════════
     # Display
@@ -320,6 +332,46 @@ class ComplexSelector(QWidget):
                 self._selected_list = [path]
                 self._update_display()
                 self._emit_path_change()
+
+    # ══════════════════════════════════════════════════════════════════
+    # ➡️ (explorer — abrir localização no Windows Explorer)
+    # ══════════════════════════════════════════════════════════════════
+
+    def _open_explorer(self):
+        """Abre o Windows Explorer no diretório do path atual."""
+        target = None
+        if self._selected_list:
+            first = self._selected_list[0]
+            if os.path.isdir(first):
+                target = first
+            else:
+                target = os.path.dirname(first)
+
+        if not target or not os.path.isdir(target):
+            self._logger.info(
+                "Nenhum diretório válido para abrir no Explorer",
+                code="COMPLEX_EXPLORER_NO_DIR",
+            )
+            return
+
+        self._logger.info(
+            f"Abrindo Explorer em: {target}",
+            code="COMPLEX_EXPLORER_OPEN",
+            path=target,
+        )
+        try:
+            if os.name == "nt":
+                # Windows: usa explorer com separador de subcomando
+                os.startfile(target)  # type: ignore[attr-defined]
+            else:
+                # Linux / macOS
+                subprocess.Popen(["xdg-open", target], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except Exception as e:
+            self._logger.error(
+                "Erro ao abrir Explorer",
+                code="COMPLEX_EXPLORER_ERROR",
+                error=str(e),
+            )
 
     # ══════════════════════════════════════════════════════════════════
     # 📄 (project — só input)

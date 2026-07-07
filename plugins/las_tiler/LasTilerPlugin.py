@@ -33,7 +33,7 @@ from resources.widgets.grid.GridDoubleSpinBox import GridDoubleSpinBox
 from resources.widgets.grid.GridLabel import GridLabel
 from resources.widgets.grid.GridCheckBox import GridCheckBox
 from resources.widgets.GroupPainel import GroupPainel
-from utils.LasUtil import LasUtil
+from utils.las.LasLayerSource import LasLayerSource
 from utils.MessageBox import MessageBox
 from utils.ProcessStatisticsUtil import ProcessStatisticsUtil
 
@@ -403,7 +403,7 @@ class LasTilerPlugin(BasePlugin):
         self.logger.info("Carregando LAS", code="TILER_LAS_LOAD", path=path)
 
         try:
-            info = LasUtil.get_info(path, tool_key=self.tool_key)
+            info = LasLayerSource.get_info(path, tool_key=self.tool_key)
             if info.get("error"):
                 raise RuntimeError(info["error"])
 

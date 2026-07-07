@@ -21,7 +21,8 @@ Use `utils` sempre que precisar de:
 - extração de markdown de DoclingDocument (`MdManager`)
 - logger centralizado via `BaseUtil._get_logger()`
 - monitoramento de tempo/ETA de processamento (`ProcessStatisticsUtil`)
-- leitura de metadados de arquivos LAS/LAZ (`LasUtil`)
+- leitura de metadados de arquivos LAS/LAZ (`LasUtil` / `utils.las.LasLayerSource`)
+- leitura de CRS e reprojeção de LAS/LAZ (`LasLayerProjection` / `utils.las.LasLayerProjection`)
 
 ## 📦 Módulos principais e suas responsabilidades
 
@@ -294,6 +295,53 @@ manager = RecentProjectsManager()
 manager.add_recent("C:/projetos/MeuProjeto.mtl")
 recents = manager.get_recents()
 ```
+
+### `utils.las.LasLayerProjection`
+
+Utilitário estático para leitura de CRS e reprojeção de arquivos LAS/LAZ. Classe irmã de `LasLayerSource` em `utils/las/LasLayerProjection.py`.
+
+```python
+from utils.las.LasLayerProjection import LasLayerProjection
+
+# Detectar CRS automaticamente
+crs = LasLayerProjection.get_crs("nuvem.las", tool_key=ToolKey.LAS_REPROJECTION.value)
+print(crs)  # "EPSG:31983" ou "" se não encontrado
+
+# Reprojetar LAS
+result = LasLayerProjection.reproject_las(
+    input_path="nuvem.las",
+    output_path="nuvem_reprojetada.las",
+    source_crs="EPSG:4326",
+    target_crs="EPSG:31983",
+    tool_key=ToolKey.LAS_REPROJECTION.value,
+)
+print(result["n_points"])   # 1_234_567
+print(result["error"])      # None
+```
+
+**Métodos:**
+
+| Método | Descrição | Retorno |
+|--------|-----------|---------|
+| `get_crs(path)` | Lê CRS do header do LAS via VLRs | `str` (ex: "EPSG:31983" ou "") |
+| `reproject_las(input_path, output_path, target_crs, source_crs)` | Reprojeta nuvem LAS/LAZ | `dict` com n_points, output_path, error |
+
+**Detalhamento:**
+
+**`get_crs(path, tool_key)`** — Lê o CRS dos VLRs do LAS. Retorna string vazia se não encontrado.
+- Levanta `FileNotFoundError` se o arquivo não existir.
+- Levanta `ValueError` se a extensão não for `.las` ou `.laz`.
+
+**`reproject_las(input_path, output_path, target_crs, source_crs, tool_key)`** — Transforma coordenadas X, Y, Z usando `pyproj.Transformer`.
+- `source_crs` opcional: se vazio, tenta detectar automaticamente com `get_crs()`.
+- Requer `pyproj` instalado (em `requirements.txt`).
+- Retorna dict com `n_points`, `output_path`, `source_crs`, `target_crs`, `error`.
+- Se `source_crs` não informado e não detectável, levanta `ValueError`.
+
+**Regras:**
+- Todos os métodos aceitam `tool_key: str = ToolKey.UNTRACEABLE.value`.
+- Herda de `BaseUtil`.
+- `get_crs` e `reproject_las` levantam `FileNotFoundError` / `ValueError` nas validações de path.
 
 ### `utils/vector/VectorLayerSource`
 

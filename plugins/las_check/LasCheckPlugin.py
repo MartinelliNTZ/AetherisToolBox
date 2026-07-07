@@ -30,7 +30,7 @@ from resources.widgets.grid.GridLabel import GridLabel
 from resources.widgets.GroupPainel import GroupPainel
 from resources.widgets.grid.GridSelector import GridSelector
 from utils.ExplorerUtils import ExplorerUtils
-from utils.LasUtil import LasUtil
+from utils.las.LasLayerSource import LasLayerSource
 from utils.MessageBox import MessageBox
 from utils.ProcessStatisticsUtil import ProcessStatisticsUtil
 
@@ -607,7 +607,7 @@ class LasCheckPlugin(BasePlugin):
         )
 
         try:
-            info = LasUtil.get_info(path, tool_key=self.tool_key)
+            info = LasLayerSource.get_info(path, tool_key=self.tool_key)
             if info.get("error"):
                 raise RuntimeError(info["error"])
 
@@ -629,7 +629,7 @@ class LasCheckPlugin(BasePlugin):
 
             self._result_label.set("total_pontos", f"{n_pontos:,}")
 
-            bbox = LasUtil.get_bounding_box(path, tool_key=self.tool_key)
+            bbox = LasLayerSource.get_bounding_box(path, tool_key=self.tool_key)
             if bbox:
                 self._result_label.set(
                     "bbox",

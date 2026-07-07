@@ -25,7 +25,7 @@ from core.enum.ToolKey import ToolKey
 from core.manager.SignalManager import SignalManager
 from core.papeline.BaseTask import BaseTask
 from utils.BaseUtil import BaseUtil
-from utils.LasUtil import LasUtil
+from utils.las.LasLayerSource import LasLayerSource
 from utils.vector.VectorLayerGeometry import VectorLayerGeometry
 from utils.vector.VectorLayerSource import VectorLayerSource
 
@@ -95,7 +95,7 @@ class PointBoundaryTask(BaseTask):
 
         try:
             if ext in (".las", ".laz"):
-                x, y, metadata = LasUtil.extract_points(
+                x, y, metadata = LasLayerSource.extract_points(
                     self._file_path,
                     tool_key=self._tool_key,
                     sample=self._n_amostras,

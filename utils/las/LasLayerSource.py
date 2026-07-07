@@ -26,7 +26,7 @@ from core.enum.ToolKey import ToolKey
 from utils.BaseUtil import BaseUtil
 
 
-class LasUtil(BaseUtil):
+class LasLayerSource(BaseUtil):
     """
     Métodos estáticos para extração de metadados de arquivos LAS/LAZ.
 
@@ -129,7 +129,7 @@ class LasUtil(BaseUtil):
             Número total de pontos (0 se erro).
         """
         try:
-            info = LasUtil.get_info(path, tool_key=tool_key)
+            info = LasLayerSource.get_info(path, tool_key=tool_key)
             return info.get("point_count", 0)
         except Exception:
             return 0
@@ -150,7 +150,7 @@ class LasUtil(BaseUtil):
             True se tem bandas 'red', 'green', 'blue'.
         """
         try:
-            info = LasUtil.get_info(path, tool_key=tool_key)
+            info = LasLayerSource.get_info(path, tool_key=tool_key)
             return info.get("has_rgb", False)
         except Exception:
             return False
@@ -175,7 +175,7 @@ class LasUtil(BaseUtil):
         """
         logger = BaseUtil._get_logger(tool_key, "LasUtil")
         try:
-            info = LasUtil.get_info(path, tool_key=tool_key)
+            info = LasLayerSource.get_info(path, tool_key=tool_key)
             if info.get("error"):
                 return {}
 
@@ -345,7 +345,7 @@ class LasUtil(BaseUtil):
             las_out = laspy.LasData(las.header)
             las_out.points = las.points[mask]
 
-            if not LasUtil.ensure_output_dir(output_path, tool_key=tool_key):
+            if not LasLayerSource.ensure_output_dir(output_path, tool_key=tool_key):
                 return None
 
             las_out.write(output_path)
@@ -497,13 +497,13 @@ class LasUtil(BaseUtil):
         logger = BaseUtil._get_logger(tool_key, "LasUtil")
         logger.info("Calculando pixel ideal", code="LAS_PIXEL_IDEAL", path=path)
 
-        info = LasUtil.get_info(path, tool_key=tool_key)
+        info = LasLayerSource.get_info(path, tool_key=tool_key)
         n_pontos = info.get("point_count", 0)
         if n_pontos == 0:
             logger.warning("LAS vazio — pixel ideal nao calculado", code="LAS_PIXEL_EMPTY")
             return {}
 
-        bbox = LasUtil.get_bounding_box(path, tool_key=tool_key)
+        bbox = LasLayerSource.get_bounding_box(path, tool_key=tool_key)
         if not bbox:
             return {}
 
@@ -605,7 +605,7 @@ class LasUtil(BaseUtil):
                 nome_out = f"{basename}_part_{i+1:04d}.las"
                 out_path = os.path.join(output_dir, nome_out)
 
-                n_salvos = LasUtil.create_filtered_las(
+                n_salvos = LasLayerSource.create_filtered_las(
                     las, mask, out_path, tool_key=tool_key,
                 )
                 if n_salvos is not None and n_salvos > 0:
