@@ -21,6 +21,7 @@ class LasReprojectionStep(BaseStep):
     Parâmetros do construtor:
         source_crs: CRS de origem (ex: "EPSG:4326").
         target_crs: CRS de destino (ex: "EPSG:31983").
+        output_path: Caminho completo do arquivo de saída (se vazio, usa output_subdir).
         advance_input: Se False (padrão), não avança input_path.
         input_path: Caminho específico (opcional, sobrescreve context.input_path).
     """
@@ -32,11 +33,13 @@ class LasReprojectionStep(BaseStep):
         self,
         source_crs: str,
         target_crs: str,
+        output_path: str = "",
         advance_input: bool = False,
         input_path: str = "",
     ):
         self._source_crs = source_crs
         self._target_crs = target_crs
+        self._custom_output_path = output_path
         self.advance_input = advance_input
         self._custom_input_path = input_path
 
@@ -49,9 +52,13 @@ class LasReprojectionStep(BaseStep):
 
     def create_task(self, context: ExecutionContext) -> BaseTask | None:
         path = self._custom_input_path or context.input_path
-        output = self.output_subdir(context)
-        basename = context.get_result("input_basename", "output")
-        output_path = f"{output}/{basename}_reprojected.las"
+
+        if self._custom_output_path:
+            output_path = self._custom_output_path
+        else:
+            output = self.output_subdir(context)
+            basename = context.get_result("input_basename", "output")
+            output_path = f"{output}/{basename}_reprojected.las"
 
         return LasReprojectionTask(
             input_path=path,

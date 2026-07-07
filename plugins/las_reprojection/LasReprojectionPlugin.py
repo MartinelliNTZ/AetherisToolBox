@@ -223,7 +223,7 @@ class LasReprojectionPlugin(BasePlugin):
 
         SignalManager.instance().execution_started.emit(self.tool_key)
         SignalManager.instance().console_message.emit(
-            f"[LasReprojection] Reprojeta: {os.path.basename(self._current_path)} "
+            f"Reprojeta: {os.path.basename(self._current_path)} "
             f"{source_crs} → {target_crs}"
         )
         SignalManager.instance().hud_show.emit({
@@ -231,19 +231,12 @@ class LasReprojectionPlugin(BasePlugin):
             "timer": 30.0,
         })
 
-        # Cria step com os CRS
+        # Cria step com os CRS e output_path direto
         step = LasReprojectionStep(
             source_crs=source_crs,
             target_crs=target_crs,
+            output_path=output_path,
         )
-
-        # Cria contexto com output_path customizado
-        ctx = ExecutionContext(
-            input_path=self._current_path,
-            output_path=output_dir,
-            tool_key=self.tool_key,
-        )
-        ctx.set_result("input_basename", basename)
 
         runner = PipelineRunner(
             steps=[step],
@@ -288,7 +281,7 @@ class LasReprojectionPlugin(BasePlugin):
 
         SignalManager.instance().execution_finished.emit(self.tool_key)
         SignalManager.instance().console_message.emit(
-            f"[LasReprojection] Reprojeta concluida! "
+            f"Reprojeta concluida! "
             f"{n_points:,} pontos | {source_crs} → {target_crs}"
         )
 
@@ -315,7 +308,7 @@ class LasReprojectionPlugin(BasePlugin):
         )
         SignalManager.instance().execution_cancelled.emit(self.tool_key)
         SignalManager.instance().console_message.emit(
-            f"[LasReprojection] ERRO: {message}"
+            f"ERRO: {message}"
         )
         self._result_label.set("status", "❌ Erro")
         self.logger.error(
@@ -395,7 +388,7 @@ class LasReprojectionPlugin(BasePlugin):
             self._atualizar_botao_executar()
 
             SignalManager.instance().console_message.emit(
-                f"[LasReprojection] Carregado: {os.path.basename(path)} "
+                f"Carregado: {os.path.basename(path)} "
                 f"({n_pontos:,} pontos, CRS: {crs_detectado or 'não detectado'})"
             )
 
