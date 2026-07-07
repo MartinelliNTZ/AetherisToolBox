@@ -387,7 +387,11 @@ class GridComplexSelector(QWidget):
                     self._install_user_callback_wrapper(label, selector)
 
     def _generate_output(self, label: str, parent_paths: list[str]):
-        """Gera path de output baseado no parent."""
+        """Gera path de output baseado no parent.
+        
+        O subfolder é usado APENAS pelo 
+        O 📥 (usar origem) gera o output no MESMO diretório do parent.
+        """
         if label in self._generating_output:
             return
         self._generating_output.add(label)
@@ -408,7 +412,6 @@ class GridComplexSelector(QWidget):
                 return
 
             parent_dir = os.path.dirname(parent_path) if os.path.isfile(parent_path) else parent_path
-            subfolder = meta.get("subfolder", "")
             fixed_name = meta.get("fixed_name", "")
             suffix = meta.get("suffix", "")
             extension = meta.get("extension", "")
@@ -423,42 +426,34 @@ class GridComplexSelector(QWidget):
                     and parent_type in ("file", "files")
                 )
                 if is_single_file:
+                    # 📥: output no MESMO diretório do parent
                     if suffix:
                         parent_stem = os.path.splitext(os.path.basename(parent_path))[0]
                         output_name = f"{parent_stem}{suffix}.{extension}" if extension else f"{parent_stem}{suffix}"
                     else:
                         output_name = fixed_name
-                    if subfolder:
-                        output_path = os.path.join(parent_dir, subfolder, output_name)
-                    else:
-                        output_path = os.path.join(parent_dir, output_name)
+                    output_path = os.path.join(parent_dir, output_name)
                     selector.set_path(output_path)
                     selector.set_mode(allow_file=True, allow_folder=False, selection_mode="file")
                     selector.edit.setPlaceholderText("Arquivo de saída")
                 else:
-                    if subfolder:
-                        output_path = os.path.join(parent_path, subfolder)
-                    else:
-                        output_path = os.path.join(parent_path, "converted")
+                    # 📥: output no MESMO diretório do parent
+                    output_path = os.path.join(parent_path, "converted")
                     selector.set_path(output_path)
                     selector.set_mode(allow_file=False, allow_folder=True, selection_mode="folder")
                     selector.edit.setPlaceholderText("Pasta de saída")
             else:
                 if parent_selector.is_folder_mode():
-                    if subfolder:
-                        output_path = os.path.join(parent_path, subfolder)
-                    else:
-                        output_path = os.path.join(parent_path, "converted")
+                    # 📥: output no MESMO diretório do parent
+                    output_path = os.path.join(parent_path, "converted")
                     selector.set_path(output_path)
                     selector.selection_mode = "folder"
                 else:
+                    # 📥: output no MESMO diretório do parent
                     output_name = fixed_name
                     if extension and not os.path.splitext(fixed_name)[1]:
                         output_name = f"{fixed_name}.{extension}"
-                    if subfolder:
-                        output_path = os.path.join(parent_dir, subfolder, output_name)
-                    else:
-                        output_path = os.path.join(parent_dir, output_name)
+                    output_path = os.path.join(parent_dir, output_name)
                     selector.set_path(output_path)
                     selector.selection_mode = "file"
 
