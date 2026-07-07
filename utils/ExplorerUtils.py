@@ -260,6 +260,37 @@ class ExplorerUtils(BaseUtil):
         logger.info("Busca de arquivos concluida", code="EXPL_FIND_DONE", root=root_path, count=len(results), recursive=recursive)
         return results
 
+    # ── System Temp ────────────────────────────────────────────────
+
+    @staticmethod
+    def get_system_temp_dir(
+        subfolder: str = "",
+        tool_key: str = ToolKey.UNTRACEABLE.value,
+    ) -> str:
+        """
+        Retorna (e garante) um diretório temporário no sistema.
+
+        Se subfolder for fornecido, cria ``C:\\Users\\<user>\\AppData\\Local\\Temp\\<subfolder>\\``.
+        Se vazio, retorna o temp root.
+
+        Args:
+            subfolder: Subpasta opcional (ex: "aetheris/football").
+            tool_key: Chave da ferramenta para logging.
+
+        Returns:
+            Caminho absoluto do diretório (já criado).
+        """
+        import tempfile
+        logger = BaseUtil._get_logger(tool_key, "ExplorerUtils")
+        base = tempfile.gettempdir()
+        if not subfolder:
+            result = base
+        else:
+            result = os.path.join(base, subfolder)
+        os.makedirs(result, exist_ok=True)
+        logger.info("Diretorio temp do sistema garantido", code="EXPL_TEMP_DIR", path=result)
+        return result
+
     # ── Default Paths ──────────────────────────────────────────────
 
     @staticmethod

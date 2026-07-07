@@ -50,7 +50,7 @@ maiores_competicoes = [
     "AFC Champions League",
 ]
 # Maiores competicoes do mundo
-competicao = [
+competicao_escolhidas= [
     "World Cup",
     "UEFA Champions League",
     "UEFA Europa League",

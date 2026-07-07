@@ -17,6 +17,7 @@ from .LasCheckTask import LasCheckTask
 from .LasTilerTask import LasTilerTask
 from .LasToVectorTask import LasToVectorTask
 from .VectorToLasTask import VectorToLasTask
+from .FootballFetchTask import FootballFetchTask
 
 __all__ = [
     "MrkSinglePipelineTask",
@@ -26,4 +27,5 @@ __all__ = [
     "LasTilerTask",
     "LasToVectorTask",
     "VectorToLasTask",
+    "FootballFetchTask",
 ]

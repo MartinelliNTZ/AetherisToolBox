@@ -116,6 +116,108 @@ SPREADSHEET_EXTENSIONS: Dict[str, Dict[str, Any]] = {
     ".xlsx":  {"label": ".xlsx",  "description": "Microsoft Excel (moderno)", "default": True},
 }
 
+# ── Football — Top Clubs (World) ──────────────────────────────────────
+TOP_CLUBS_WORLD: Dict[str, Dict[str, Any]] = {
+    "real_madrid":       {"label": "Real Madrid",       "description": "Spain - La Liga",          "default": True},
+    "barcelona":         {"label": "Barcelona",         "description": "Spain - La Liga",          "default": True},
+    "atletico_madrid":   {"label": "Atletico Madrid",   "description": "Spain - La Liga",          "default": True},
+    "man_city":          {"label": "Manchester City",   "description": "England - Premier League", "default": True},
+    "man_united":        {"label": "Manchester United", "description": "England - Premier League", "default": True},
+    "liverpool":         {"label": "Liverpool",         "description": "England - Premier League", "default": True},
+    "chelsea":           {"label": "Chelsea",           "description": "England - Premier League", "default": True},
+    "arsenal":           {"label": "Arsenal",           "description": "England - Premier League", "default": True},
+    "tottenham":         {"label": "Tottenham",         "description": "England - Premier League", "default": True},
+    "psg":               {"label": "PSG",               "description": "France - Ligue 1",         "default": True},
+    "marseille":         {"label": "Marseille",         "description": "France - Ligue 1",         "default": True},
+    "lyon":              {"label": "Lyon",              "description": "France - Ligue 1",         "default": True},
+    "bayern_munich":     {"label": "Bayern Munich",     "description": "Germany - Bundesliga",     "default": True},
+    "borussia_dortmund": {"label": "Borussia Dortmund", "description": "Germany - Bundesliga",     "default": True},
+    "rb_leipzig":        {"label": "RB Leipzig",        "description": "Germany - Bundesliga",     "default": True},
+    "juventus":          {"label": "Juventus",          "description": "Italy - Serie A",          "default": True},
+    "inter_milan":       {"label": "Inter",             "description": "Italy - Serie A",          "default": True},
+    "ac_milan":          {"label": "AC Milan",          "description": "Italy - Serie A",          "default": True},
+    "napoli":            {"label": "Napoli",            "description": "Italy - Serie A",          "default": True},
+    "roma":              {"label": "Roma",              "description": "Italy - Serie A",          "default": True},
+    "ajax":              {"label": "Ajax",              "description": "Netherlands - Eredivisie", "default": True},
+    "psv":               {"label": "PSV Eindhoven",     "description": "Netherlands - Eredivisie", "default": True},
+    "feyenoord":         {"label": "Feyenoord",         "description": "Netherlands - Eredivisie", "default": True},
+    "porto":             {"label": "Porto",             "description": "Portugal - Primeira Liga", "default": True},
+    "benfica":           {"label": "Benfica",           "description": "Portugal - Primeira Liga", "default": True},
+    "sporting":          {"label": "Sporting CP",       "description": "Portugal - Primeira Liga", "default": True},
+    "celtic":            {"label": "Celtic",            "description": "Scotland - Premiership",   "default": True},
+    "rangers":           {"label": "Rangers",           "description": "Scotland - Premiership",   "default": True},
+    "al_hilal":          {"label": "Al Hilal",          "description": "Saudi Arabia - SPL",       "default": True},
+    "al_nassr":          {"label": "Al Nassr",          "description": "Saudi Arabia - SPL",       "default": True},
+    "al_ittihad":        {"label": "Al Ittihad",        "description": "Saudi Arabia - SPL",       "default": True},
+    "boca_juniors":      {"label": "Boca Juniors",      "description": "Argentina - Liga Profesional", "default": True},
+    "river_plate":       {"label": "River Plate",       "description": "Argentina - Liga Profesional", "default": True},
+}
+
+# ── Football — Top Clubs (Brazil) ─────────────────────────────────────
+TOP_CLUBS_BRAZIL: Dict[str, Dict[str, Any]] = {
+    "flamengo":          {"label": "Flamengo",          "description": "Brazil - Serie A", "default": True},
+    "palmeiras":         {"label": "Palmeiras",         "description": "Brazil - Serie A", "default": True},
+    "corinthians":       {"label": "Corinthians",       "description": "Brazil - Serie A", "default": True},
+    "sao_paulo":         {"label": "Sao Paulo",         "description": "Brazil - Serie A", "default": True},
+    "santos":            {"label": "Santos",            "description": "Brazil - Serie A", "default": True},
+    "gremio":            {"label": "Gremio",            "description": "Brazil - Serie A", "default": True},
+    "internacional":     {"label": "Internacional",     "description": "Brazil - Serie A", "default": True},
+    "cruzeiro":          {"label": "Cruzeiro",          "description": "Brazil - Serie A", "default": True},
+    "atletico_mineiro":  {"label": "Atletico Mineiro",  "description": "Brazil - Serie A", "default": True},
+    "fluminense":        {"label": "Fluminense",        "description": "Brazil - Serie A", "default": True},
+    "vasco":             {"label": "Vasco",             "description": "Brazil - Serie A", "default": True},
+    "botafogo":          {"label": "Botafogo",          "description": "Brazil - Serie A", "default": True},
+}
+
+# ── Football — Top National Teams ─────────────────────────────────────
+TOP_NATIONAL_TEAMS: Dict[str, Dict[str, Any]] = {
+    "brazil":            {"label": "Brazil",            "description": "CONMEBOL", "default": True},
+    "argentina":         {"label": "Argentina",         "description": "CONMEBOL", "default": True},
+    "germany":           {"label": "Germany",           "description": "UEFA",    "default": True},
+    "france":            {"label": "France",            "description": "UEFA",    "default": True},
+    "spain":             {"label": "Spain",             "description": "UEFA",    "default": True},
+    "england":           {"label": "England",           "description": "UEFA",    "default": True},
+    "portugal":          {"label": "Portugal",          "description": "UEFA",    "default": True},
+    "italy":             {"label": "Italy",             "description": "UEFA",    "default": True},
+    "netherlands":       {"label": "Netherlands",       "description": "UEFA",    "default": True},
+    "belgium":           {"label": "Belgium",           "description": "UEFA",    "default": True},
+}
+
+# ── Football — Top Competitions (long list) ───────────────────────────
+TOP_COMPETITIONS: Dict[str, Dict[str, Any]] = {
+    "world_cup":                 {"label": "World Cup",                 "description": "FIFA",            "default": True},
+    "champions_league":          {"label": "UEFA Champions League",     "description": "UEFA",            "default": True},
+    "europa_league":             {"label": "UEFA Europa League",        "description": "UEFA",            "default": True},
+    "conference_league":         {"label": "UEFA Europa Conference League", "description": "UEFA",        "default": True},
+    "libertadores":              {"label": "Copa Libertadores",         "description": "CONMEBOL",        "default": True},
+    "sudamericana":              {"label": "Copa Sudamericana",         "description": "CONMEBOL",        "default": True},
+    "premier_league":            {"label": "Premier League",            "description": "England",         "default": True},
+    "la_liga":                   {"label": "La Liga",                   "description": "Spain",           "default": True},
+    "serie_a_italy":             {"label": "Serie A",                   "description": "Italy",           "default": True},
+    "bundesliga":                {"label": "Bundesliga",                "description": "Germany",         "default": True},
+    "ligue_1":                   {"label": "Ligue 1",                   "description": "France",          "default": True},
+    "brasileirao":               {"label": "Brasileirao",               "description": "Brazil - Serie A","default": True},
+    "copa_do_brasil":            {"label": "Copa do Brasil",            "description": "Brazil",          "default": True},
+    "primeira_liga":             {"label": "Primeira Liga",             "description": "Portugal",        "default": True},
+    "eredivisie":                {"label": "Eredivisie",                "description": "Netherlands",     "default": True},
+    "copa_america":              {"label": "Copa America",              "description": "CONMEBOL",        "default": True},
+    "euro_championship":         {"label": "Euro Championship",         "description": "UEFA",            "default": True},
+    "afc_champions_league":      {"label": "AFC Champions League",      "description": "AFC",             "default": True},
+}
+
+# ── Football — Filtered Competitions (only these are used for filtering) ──
+TOP_COMPETITIONS_FILTER: Dict[str, Dict[str, Any]] = {
+    "world_cup":            {"label": "World Cup",            "description": "FIFA",     "default": True},
+    "champions_league":     {"label": "UEFA Champions League","description": "UEFA",     "default": True},
+    "europa_league":        {"label": "UEFA Europa League",   "description": "UEFA",     "default": True},
+    "conference_league":    {"label": "UEFA Europa Conference League", "description": "UEFA", "default": True},
+    "libertadores":         {"label": "Copa Libertadores",    "description": "CONMEBOL", "default": True},
+    "copa_america":         {"label": "Copa America",         "description": "CONMEBOL", "default": True},
+    "copa_america_pt":      {"label": "Copa América",         "description": "CONMEBOL", "default": True},
+    "euro_championship":    {"label": "Euro Championship",    "description": "UEFA",     "default": True},
+    "afc_champions_league": {"label": "AFC Champions League", "description": "AFC",      "default": True},
+}
+
 # ── Texto editável (abre como bloco de notas) ─────────────────────────
 TEXT_EXTENSIONS: Dict[str, Dict[str, Any]] = {
     ".bat":   {"label": ".bat",   "description": "Windows batch script", "default": True},
@@ -171,3 +273,42 @@ class DictManager:
             **PROGRAMMING_EXTENSIONS,
             **SPREADSHEET_EXTENSIONS,
         }
+
+    # ── Football Dictionaries ──────────────────────────────────────
+
+    @staticmethod
+    def football_clubs_world() -> Dict[str, Dict[str, Any]]:
+        """Top clubs from around the world (non-Brazil)."""
+        return TOP_CLUBS_WORLD
+
+    @staticmethod
+    def football_clubs_brazil() -> Dict[str, Dict[str, Any]]:
+        """Top clubs from Brazil."""
+        return TOP_CLUBS_BRAZIL
+
+    @staticmethod
+    def football_national_teams() -> Dict[str, Dict[str, Any]]:
+        """Top national teams."""
+        return TOP_NATIONAL_TEAMS
+
+    @staticmethod
+    def football_competitions() -> Dict[str, Dict[str, Any]]:
+        """Top competitions / leagues."""
+        return TOP_COMPETITIONS
+
+    @staticmethod
+    def football_competitions_filter() -> Dict[str, Dict[str, Any]]:
+        """Filtered competition list (only these are used for filtering by default)."""
+        return TOP_COMPETITIONS_FILTER
+
+    @staticmethod
+    def football_filter_labels() -> list[str]:
+        """Returns the display labels for filter matching using the FILTER competition list."""
+        result: list[str] = []
+        for d in (TOP_CLUBS_WORLD, TOP_CLUBS_BRAZIL, TOP_NATIONAL_TEAMS):
+            for entry in d.values():
+                result.append(entry["label"])
+        # Use the short filter list for competitions, not the full list
+        for entry in TOP_COMPETITIONS_FILTER.values():
+            result.append(entry["label"])
+        return result

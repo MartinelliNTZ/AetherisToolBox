@@ -39,6 +39,7 @@ class ToolKey(str, Enum):
     SYSTEM_MONITOR = "SystemMonitor"
     LAS_VECTOR_CONVERTER = "LasVectorConverter"
     LAS_REPROJECTION = "LasReprojection"
+    FOOTBALL_FETCH = "FootballFetch"
 
 
     CUT_BY_TRAJECTORY = "CutByTrajectory"  # Ainda não implementado
