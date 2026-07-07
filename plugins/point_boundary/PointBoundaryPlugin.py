@@ -407,11 +407,7 @@ class PointBoundaryPlugin(BasePlugin):
             ntype=ProcessStatisticsUtil.POINTS,
             ntotal=n_total,
         )
-        total_estimate = max(
-            self.statistics.remaining_time,
-            self.statistics.total_time,
-            30.0,
-        )
+        total_estimate = self.get_eta_seconds()
 
         self.logger.info(
             "Iniciando geracao de limite em background",
@@ -426,6 +422,7 @@ class PointBoundaryPlugin(BasePlugin):
         SignalManager.instance().hud_show.emit({
             "message": "Validando limite de pontos...",
             "stages": [total_estimate, 3],
+            "eta": total_estimate,
         })
         SignalManager.instance().console_message.emit(
             f"Iniciando geracao de limite: "

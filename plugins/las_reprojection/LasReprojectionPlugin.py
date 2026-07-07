@@ -29,7 +29,7 @@ from resources.widgets.grid.GridLabel import GridLabel
 from resources.widgets.complex.GridComplexSelector import GridComplexSelector
 from resources.widgets.GroupPainel import GroupPainel
 from resources.widgets.crs.CrsSelectorWidget import CrsSelectorWidget
-from utils.las.LasLayerProjection import LasLayerProjection
+from utils.ProcessStatisticsUtil import ProcessStatisticsUtil
 from utils.MessageBox import MessageBox
 
 
@@ -217,6 +217,10 @@ class LasReprojectionPlugin(BasePlugin):
 
         self.logger.info(f"Reprojetando: {self._current_path} → {output_path} ({source_crs} → {target_crs})")
 
+        # Inicia monitoramento de estatísticas
+        self.statistics.start(n=0, ntype=ProcessStatisticsUtil.POINTS, ntotal=0)
+        total_estimate = self.get_eta_seconds()
+
         SignalManager.instance().execution_started.emit(self.tool_key)
         SignalManager.instance().console_message.emit(
             f"Reprojetando: {os.path.basename(self._current_path)} "
@@ -224,7 +228,8 @@ class LasReprojectionPlugin(BasePlugin):
         )
         SignalManager.instance().hud_show.emit({
             "message": "Reprojetando nuvem de pontos...",
-            "timer": 30.0,
+            "timer": total_estimate,
+            "eta": total_estimate,
         })
 
         # Cria step com os CRS e output_path direto
@@ -263,6 +268,9 @@ class LasReprojectionPlugin(BasePlugin):
             "Reprojeção concluida com sucesso",
             code="LASREPROJ_PIPELINE_DONE",
         )
+
+        self.statistics.end()
+
         result = context.get_result("reprojection_result", {})
 
         n_points = result.get("n_points", 0)
