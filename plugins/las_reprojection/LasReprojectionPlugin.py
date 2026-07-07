@@ -6,7 +6,7 @@ Permite reprojetar (transformar CRS) nuvens de pontos LAS/LAZ
 com detecção automática do CRS de origem e seleção do CRS de destino.
 
 Fluxo:
-  - GridSelector para entrada (LAS/LAZ) e saída
+  - GridComplexSelector para entrada (LAS/LAZ) e saída (linked + dynamic_parent)
   - CrsSelectorWidget para CRS de origem (auto-detectado)
   - CrsSelectorWidget para CRS de destino
   - ExecutionButtons: EXECUTAR
@@ -22,15 +22,13 @@ import traceback
 from core.enum.ToolKey import ToolKey
 from core.manager.SignalManager import SignalManager
 from core.papeline.PipelineRunner import PipelineRunner
-from core.papeline.ExecutionContext import ExecutionContext
 from plugins.BasePlugin import BasePlugin
 from plugins.las_reprojection.LasReprojectionStep import LasReprojectionStep
 from resources.widgets.ExecutionButtons import ExecutionButtons
 from resources.widgets.grid.GridLabel import GridLabel
-from resources.widgets.grid.GridSelector import GridSelector
+from resources.widgets.complex.GridComplexSelector import GridComplexSelector
 from resources.widgets.GroupPainel import GroupPainel
 from resources.widgets.crs.CrsSelectorWidget import CrsSelectorWidget
-from utils.ExplorerUtils import ExplorerUtils
 from utils.las.LasLayerProjection import LasLayerProjection
 from utils.MessageBox import MessageBox
 
@@ -77,23 +75,34 @@ class LasReprojectionPlugin(BasePlugin):
         grupo_arquivos = GroupPainel("Arquivos")
         self.main_layout.addWidget(grupo_arquivos)
 
-        self._selector_grid = GridSelector(
+        self._selector_grid = GridComplexSelector(
             {
                 "LAS/LAZ de Entrada": {
                     "file_filter": self._LAS_FILTER,
-                    "browse_mode": "open_file",
-                    "placeholder": "Selecione o arquivo LAS/LAZ...",
+                    "mode_type": "input",
+                    "allow_file": True,
+                    "allow_folder": False,
+                    "multiple": False,
+                    "show_project_button": True,
                 },
-                "Pasta de Saída": {
-                    "browse_mode": "directory",
-                    "placeholder": "Pasta para salvar o resultado...",
+                "Saída": {
+                    "mode_type": "output",
+                    "parent": "LAS/LAZ de Entrada",
+                    "dynamic_parent": True,
+                    "allow_file": True,
+                    "allow_folder": False,
+                    "multiple": False,
+                    "show_suggest_button": True,
+                    "suffix": "_reproj",
+                    "extension": "las",
+                    "fixed_name": "Lasreproj.las"
                 },
             },
         )
         grupo_arquivos.group_layout.addWidget(self._selector_grid)
 
-        sel_entrada = self._selector_grid["LAS/LAZ de Entrada"]
-        sel_entrada.edit.textChanged.connect(self._on_input_path_changed)
+        # Conecta callback de mudança na entrada
+        self._selector_grid.set_on_input_changed(self._on_input_changed)
 
         # ── GroupPainel "Sistema de Coordenadas" ────────────────────
         grupo_crs = GroupPainel("Sistema de Coordenadas")
@@ -104,7 +113,6 @@ class LasReprojectionPlugin(BasePlugin):
         grupo_crs.group_layout.addWidget(self._crs_origem)
         grupo_crs.group_layout.addWidget(self._crs_destino)
 
-        # Conecta mudanças de CRS para validar botão executar
         self._crs_origem.crs_changed.connect(self._on_crs_changed)
         self._crs_destino.crs_changed.connect(self._on_crs_changed)
 
@@ -130,9 +138,11 @@ class LasReprojectionPlugin(BasePlugin):
     # Handlers
     # ══════════════════════════════════════════════════════════════════
 
-    def _on_input_path_changed(self, text: str):
-        """Disparado quando o texto do selector de entrada muda."""
-        path = text.strip()
+    def _on_input_changed(self, label: str, paths: list[str]):
+        """Disparado quando o path da entrada muda."""
+        if label != "LAS/LAZ de Entrada":
+            return
+        path = paths[0] if paths else ""
         if not path:
             return
         ext = os.path.splitext(path)[1].lower()
@@ -199,13 +209,13 @@ class LasReprojectionPlugin(BasePlugin):
             )
             return
 
-        # Resolve pasta de saída
-        output_dir = self._selector_grid["Pasta de Saída"].path()
-        if not output_dir:
+        # Resolve output_path do selector de saída
+        output_path = self._selector_grid["Saída"].path()
+        if not output_path:
+            # Fallback: mesmo diretório do input
+            basename = os.path.splitext(os.path.basename(self._current_path))[0]
             output_dir = os.path.dirname(self._current_path)
-
-        basename = os.path.splitext(os.path.basename(self._current_path))[0]
-        output_path = os.path.join(output_dir, f"{basename}_reprojected.las")
+            output_path = os.path.join(output_dir, f"{basename}_reproj.las")
 
         # Prepara UI para execução
         self._btns.set_all_enabled(False)
@@ -241,7 +251,7 @@ class LasReprojectionPlugin(BasePlugin):
         runner = PipelineRunner(
             steps=[step],
             input_path=self._current_path,
-            output_path=output_dir,
+            output_path=os.path.dirname(output_path),
             tool_key=self.tool_key,
             parent=self,
         )
@@ -431,14 +441,10 @@ class LasReprojectionPlugin(BasePlugin):
         """Carrega preferências salvas."""
         self.logger.info("Carregando preferencias", code="LASREPROJ_PREFS_LOAD")
         last_path = self.preferences.get("last_path", "")
-        last_output = self.preferences.get("last_output", "")
         last_target_crs = self.preferences.get("last_target_crs", "")
 
         if last_path:
             self._carregar_las(last_path)
-
-        if last_output:
-            self._selector_grid["Pasta de Saída"].set_path(last_output)
 
         if last_target_crs:
             self._crs_destino.set_crs(last_target_crs)
@@ -448,6 +454,5 @@ class LasReprojectionPlugin(BasePlugin):
     def save_prefs(self) -> None:
         """Salva preferências atuais no cache de memória."""
         self.preferences["last_path"] = self._current_path
-        self.preferences["last_output"] = self._selector_grid["Pasta de Saída"].path()
         self.preferences["last_target_crs"] = self._crs_destino.get_crs()
         self.logger.info("Preferencias salvas no cache", code="LASREPROJ_PREFS_SAVED")
