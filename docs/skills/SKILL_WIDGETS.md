@@ -1244,6 +1244,7 @@ Grade de `ComplexSelector`s configurados por dicionário, com suporte a **linkin
 - O plugin **NUNCA** acessa atributos privados do widget (`_user_callbacks`, `edit`, `file_filter`)
 - O plugin **NUNCA** sobrescreve `on_path_change` diretamente — usa `set_on_input_changed()` ou `set_on_changed()`
 - Toda comunicação é via API pública
+- Cada `ComplexSelector` com parent tem seu próprio botão 📥 nativo, eliminando o botão "USAR ORIGEM" externo do grid
 
 ```python
 from resources.widgets.complex.GridComplexSelector import GridComplexSelector

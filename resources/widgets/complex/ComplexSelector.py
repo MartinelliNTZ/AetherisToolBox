@@ -70,6 +70,7 @@ class ComplexSelector(QWidget):
         show_suggest_button: bool = False,
         show_project_button: bool = False,
         show_explorer_button: bool = True,
+        show_origin_button: bool = False,
         suggested_path: str = "",
         # ── Output config ──
         mode_type: str = "input",  # "input" | "output"
@@ -99,6 +100,7 @@ class ComplexSelector(QWidget):
         self._show_suggest_button = show_suggest_button
         self._show_project_button = show_project_button
         self._show_explorer_button = show_explorer_button
+        self._show_origin_button = show_origin_button
         self._suggested_rel_path: str = suggested_path
         self._mode_type = mode_type
         self._fixed_name = fixed_name
@@ -116,6 +118,7 @@ class ComplexSelector(QWidget):
         self.on_path_change = None    # callback(paths: list[str])
         self.on_browse_click = None   # callback()
         self.on_suggest_click = None  # callback()
+        self.on_origin_click = None   # callback() — botão 📥, grid configura
 
         # Constrói UI
         self._build_ui(label_text, placeholder, tooltip, label_width)
@@ -193,8 +196,15 @@ class ComplexSelector(QWidget):
             self._btn_project.setToolTip("Selecionar arquivo do projeto")
             self._btn_project.clicked.connect(self._on_project_clicked)
             layout.addWidget(self._btn_project)
-            
-            #botao de usar a origem (📥)
+
+        # ── 📥 (origin — só output com parent) ──
+        if self._show_origin_button:
+            self._btn_origin = SimpleSecondaryButton("📥")
+            self._btn_origin.setFixedWidth(30)
+            self._btn_origin.setToolTip("Usar mesmo diretório da origem")
+            # Conecta ao callback público — o grid configura depois
+            self._btn_origin.clicked.connect(self._on_origin_clicked)
+            layout.addWidget(self._btn_origin)
 
         # ── ➡️ (explorer — sempre visível por padrão) ──
         if self._show_explorer_button:
@@ -416,6 +426,54 @@ class ComplexSelector(QWidget):
         parts = match.group(1).split()
         exts = [p.strip().lower() for p in parts if p.startswith("*")]
         return [e.replace("*", "") for e in exts if e.replace("*", "")]
+
+    # ══════════════════════════════════════════════════════════════════
+    # 📥 (origin — botão de usar origem)
+    # ══════════════════════════════════════════════════════════════════
+
+    def _on_origin_clicked(self):
+        """Disparado pelo 📥. Delega para callback público."""
+        self._logger.info(
+            "📥 clicado (origin)",
+            code="COMPLEX_ORIGIN_CLICKED",
+            has_callback=str(self.on_origin_click is not None),
+            mode=self._mode_type,
+            has_parent=str(bool(self.on_origin_click)),
+        )
+        if self.on_origin_click:
+            self.on_origin_click()
+
+    def set_origin_callback(self, callback: Callable[[], None], tooltip: str = ""):
+        """
+        Define callback personalizado para o botão 📥.
+        Usado pelo GridComplexSelector para conectar a lógica de geração de output.
+
+        Args:
+            callback: Função sem argumentos a ser chamada quando 📥 for clicado.
+            tooltip: Tooltip opcional para o botão.
+        """
+        if hasattr(self, '_btn_origin'):
+            try:
+                self._btn_origin.clicked.disconnect()
+            except TypeError:
+                pass
+            self._btn_origin.clicked.connect(callback)
+            if tooltip:
+                self._btn_origin.setToolTip(tooltip)
+
+    @property
+    def show_origin_button(self) -> bool:
+        """Se o botão 📥 está visível."""
+        return self._show_origin_button
+
+    @show_origin_button.setter
+    def show_origin_button(self, value: bool) -> None:
+        """Mostra/esconde o botão 📥."""
+        self._show_origin_button = value
+        btn = getattr(self, '_btn_origin', None)
+        if btn:
+            btn.setVisible(value)
+            btn.setEnabled(value)
 
     # ══════════════════════════════════════════════════════════════════
     # 📂 (suggested — só output)
