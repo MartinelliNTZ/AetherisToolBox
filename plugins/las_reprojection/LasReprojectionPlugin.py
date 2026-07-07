@@ -160,17 +160,10 @@ class LasReprojectionPlugin(BasePlugin):
 
     def _on_executar(self):
         """Executa a reprojeção via PipelineRunner em background."""
-        self.logger.info(
-            "Botao EXECUTAR pressionado",
-            code="LASREPROJ_EXEC_BTN",
-            path=self._current_path,
-        )
+        self.logger.info(f"EXECUTAR: {self._current_path}")
 
         if self._runner is not None and self._runner.isRunning():
-            self.logger.warning(
-                "Tentativa de executar enquanto ja em execucao",
-                code="LASREPROJ_EXEC_ALREADY_RUNNING",
-            )
+            self.logger.warning("Ja em execucao")
             MessageBox.show_warning(
                 "Ja existe uma reprojeção em andamento.", title="Aguarde"
             )
@@ -222,18 +215,11 @@ class LasReprojectionPlugin(BasePlugin):
         self.page.set_badge(self.page.RUNNING)
         self._result_label.set("status", "Reprojetando...")
 
-        self.logger.info(
-            "Iniciando reprojeção em background",
-            code="LASREPROJ_EXEC_START",
-            input_path=self._current_path,
-            output_path=output_path,
-            source_crs=source_crs,
-            target_crs=target_crs,
-        )
+        self.logger.info(f"Reprojetando: {self._current_path} → {output_path} ({source_crs} → {target_crs})")
 
         SignalManager.instance().execution_started.emit(self.tool_key)
         SignalManager.instance().console_message.emit(
-            f"Reprojeta: {os.path.basename(self._current_path)} "
+            f"Reprojetando: {os.path.basename(self._current_path)} "
             f"{source_crs} → {target_crs}"
         )
         SignalManager.instance().hud_show.emit({
@@ -300,14 +286,9 @@ class LasReprojectionPlugin(BasePlugin):
             n_processed=n_points,
             ntype="pontos",
         )
-        self.output_message(output_path, label="LAS Reprojetado")
+        self.output_message(os.path.dirname(output_path), label="Pasta de Saída")
 
-        self.logger.info(
-            "Reprojeção finalizada com sucesso",
-            code="LASREPROJ_EXEC_DONE",
-            n_points=n_points,
-            output_path=output_path,
-        )
+        self.logger.info(f"Concluido: {n_points} pts → {output_path}")
 
     def _on_error(self, message: str):
         """Callback de erro da pipeline."""

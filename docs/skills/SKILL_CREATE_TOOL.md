@@ -128,7 +128,7 @@ O `BasePlugin` fornece **3 helpers** para mensagens de sucesso. Use-os no callba
 ### `self.stats_message(n_arquivos, n_processed, ntype)`
 Emite no Console o resumo de processamento com tempo decorrido do `ProcessStatisticsUtil`:
 ```
-[MinhaFerramenta] 5 arquivo(s) processados | 38.705 pontos | em 4.2s.
+5 arquivo(s) processados | 38.705 pontos | em 4.2s.
 ```
 ```python
 def _on_done(self, context):
@@ -143,10 +143,11 @@ def _on_done(self, context):
 ### `self.output_message(output_path, label="Pasta de Saída")`
 Emite no Console um **link clicável** (HTML) que abre o caminho no Windows Explorer:
 ```
-[MinhaFerramenta] Resultado disponível em: 📂 Pasta de Saída  ← link clicável
+Resultado disponível em: 📂 Pasta de Saída  ← link clicável
 ```
+**Sempre passe o diretório, não o arquivo:**
 ```python
-self.output_message(output_path="/path/to/output", label="Pasta de Saída")
+self.output_message(os.path.dirname(output_path), label="Pasta de Saída")
 ```
 
 ### `self.success_message(output_path, label, summary, n_input, n_output, n_arquivos)`
@@ -160,6 +161,22 @@ self.success_message(
     n_arquivos=5,
 )
 ```
+
+### 📝 Regras de Log e Console
+
+**Logs (LogUtils / self.logger):**
+- Use **f-string de uma linha** — sem dict com code/data excessivo
+- Preferência: `self.logger.info(f"Executando: {path}")` em vez de dict com code
+- Erros ainda usam `self.logger.error(f"Falha: {e}")` com `code=` e `error=str(e)`
+
+**Console (SignalManager.console_message):**
+- **NÃO** emita o nome da ferramenta no início da mensagem — o ConsolePlugin já mostra de quem é
+- Mensagens limpas e diretas:
+  ```python
+  SignalManager.instance().console_message.emit(f"Processando: {arquivo}")
+  SignalManager.instance().console_message.emit(f"Concluido: {n} pontos")
+  SignalManager.instance().console_message.emit(f"ERRO: {mensagem}")
+  ```
 
 ---
 
