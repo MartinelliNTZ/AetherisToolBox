@@ -193,6 +193,8 @@ class ComplexSelector(QWidget):
             self._btn_project.setToolTip("Selecionar arquivo do projeto")
             self._btn_project.clicked.connect(self._on_project_clicked)
             layout.addWidget(self._btn_project)
+            
+            #botao de usar a origem (📥)
 
         # ── ➡️ (explorer — sempre visível por padrão) ──
         if self._show_explorer_button:
