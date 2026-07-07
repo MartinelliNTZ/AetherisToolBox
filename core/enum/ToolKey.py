@@ -34,7 +34,7 @@ class ToolKey(str, Enum):
     LAS_CHECK = "LasCheck"
     STATISTICS = "Statistics"
     POINT_BOUNDARY = "PointBoundary"
-    IDW_INTERPOLATOR = "IdwInterpolator"
+    IDW_INTERPOLATOR = "IdwInterpolator"#
     LAS_TILER = "LasTiler"
     SYSTEM_MONITOR = "SystemMonitor"
     LAS_VECTOR_CONVERTER = "LasVectorConverter"
