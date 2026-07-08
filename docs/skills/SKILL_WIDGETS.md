@@ -1433,6 +1433,106 @@ if dialog.exec():
 
 > 💡 **Consulte também:** `docs/skills/SKILL_HUD_PROGRESS.md` para documentação sobre o HUD Loader (`HudCircularRingsLoader`) e a ProgressBar central da MainWindow.
 
+---
+
+### `ListViewWidget` — `ListViewWidget.py`
+Lista vertical genérica com scroll opcional. Similar a um RecyclerView. Container com QVBoxLayout que aceita adicionar/remover widgets dinamicamente.
+
+Com `scroll=True` (padrão), envolve em QScrollArea frameless. Com `scroll=False`, vira um QVBoxLayout puro.
+
+```python
+from resources.widgets.ListViewWidget import ListViewWidget
+
+# Com scroll (padrão):
+view = ListViewWidget(spacing=6)
+view.add_widget(QLabel("Item 1"))
+view.add_widget(QLabel("Item 2"))
+view.remove_all()
+view.count()          # número de widgets
+view.scroll_to_top()
+view.scroll_to_bottom()
+
+# Sem scroll (layout puro):
+view = ListViewWidget(scroll=False)
+view.add_widget(MeuWidget())
+```
+
+**Parâmetros do construtor:**
+- `spacing: int = 8` — espaçamento entre widgets
+- `margins: tuple = (0, 0, 0, 0)` — margens do conteúdo
+- `scroll: bool = True` — True envolve em QScrollArea, False = layout puro
+
+**API pública:**
+- `add_widget(widget, stretch=0)` — adiciona ao final
+- `insert_widget(index, widget)` — insere em posição específica
+- `remove_widget(widget)` — remove um widget específico
+- `remove_all()` — limpa todos os widgets
+- `count()` — número de widgets
+- `scroll_to_top()` / `scroll_to_bottom()` — rolagem programática (no-op se scroll=False)
+
+---
+
+### `ScrollWidget` — `ScrollWidget.py`
+Container rolável genérico. Envolve qualquer widget em uma QScrollArea frameless. Útil para conteúdos grandes que precisam de scroll mas não são listas.
+
+```python
+from resources.widgets.ScrollWidget import ScrollWidget
+
+scroll = ScrollWidget(meu_widget_grande)
+parent_layout.addWidget(scroll)
+```
+
+**Parâmetros do construtor:**
+- `widget: QWidget | None = None` — widget interno (opcional, pode ser definido depois via `set_widget()`)
+
+**API pública:**
+- `set_widget(widget)` — define/substitui o widget interno
+- `scroll_to_top()` / `scroll_to_bottom()` — rolagem programática
+
+---
+
+### `SeparatorWidget` — `SeparatorWidget.py`
+Linha horizontal ou vertical estilizada. Substitui QFrame com HLine/VLine manual. Estilizado via QSS global (`QFrame#separator`), sem hardcoded colors.
+
+```python
+from resources.widgets.SeparatorWidget import SeparatorWidget
+
+hline = SeparatorWidget(orientation="horizontal")
+vline = SeparatorWidget(orientation="vertical")
+```
+
+**Parâmetros do construtor:**
+- `orientation: str = "horizontal"` — "horizontal" ou "vertical"
+
+---
+
+### `FootballMatchWidget` — `FootballMatchWidget.py`
+Card individual de partida de futebol. Recebe um `Fixture` do `core.model.FootballModel` e exibe:
+
+- **Linha 1:** Data/hora no horário de Brasília (esq) | Campeonato + rodada (dir)
+- **Linha 2:** [Logo + nome do time casa] [placar/VS] [Logo + nome do time fora]
+- **Linha 3:** Status (ex: "Match Finished") | Estádio, cidade
+
+Os gols (fulltime ou penalty) aparecem abaixo do nome de cada time quando a partida já foi realizada. O status tem cores diferentes:
+- Cinza escuro para partidas finalizadas
+- Verde para partidas ao vivo
+- Dourado para partidas decididas nos pênaltis
+
+```python
+from core.model.FootballModel import Fixture
+from resources.widgets.FootballMatchWidget import FootballMatchWidget
+
+widget = FootballMatchWidget(fixture)
+```
+
+**Parâmetros do construtor:**
+- `fixture: Fixture` — modelo da partida (obrigatório)
+
+**Propriedades:**
+- `fixture` → `Fixture` — retorna a fixture associada
+
+---
+
 ## 🆕 Como criar um Novo Widget
 
 1. Crie o arquivo em `resources/widgets/MeuWidget.py`

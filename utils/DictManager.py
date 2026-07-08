@@ -208,14 +208,10 @@ TOP_COMPETITIONS: Dict[str, Dict[str, Any]] = {
 # ── Football — Filtered Competitions (only these are used for filtering) ──
 TOP_COMPETITIONS_FILTER: Dict[str, Dict[str, Any]] = {
     "world_cup":            {"label": "World Cup",            "description": "FIFA",     "default": True},
-    "champions_league":     {"label": "UEFA Champions League","description": "UEFA",     "default": True},
     "europa_league":        {"label": "UEFA Europa League",   "description": "UEFA",     "default": True},
-    "conference_league":    {"label": "UEFA Europa Conference League", "description": "UEFA", "default": True},
     "libertadores":         {"label": "Copa Libertadores",    "description": "CONMEBOL", "default": True},
     "copa_america":         {"label": "Copa America",         "description": "CONMEBOL", "default": True},
     "copa_america_pt":      {"label": "Copa América",         "description": "CONMEBOL", "default": True},
-    "euro_championship":    {"label": "Euro Championship",    "description": "UEFA",     "default": True},
-    "afc_champions_league": {"label": "AFC Champions League", "description": "AFC",      "default": True},
 }
 
 # ── Texto editável (abre como bloco de notas) ─────────────────────────

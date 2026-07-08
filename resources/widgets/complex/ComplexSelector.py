@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-ComplexSelector — Seletor avançado com suporte a file/folder/files/folders.
+ComplexSelector -— Seletor avançado com suporte a file/folder/files/folders.
 ============================================================================
 NÃO usa GridRadio. O comportamento é definido pelos parâmetros:
   - allow_file / allow_folder: quais botões aparecem (🔍 / 📁)
