@@ -1433,6 +1433,66 @@ if dialog.exec():
 
 > 💡 **Consulte também:** `docs/skills/SKILL_HUD_PROGRESS.md` para documentação sobre o HUD Loader (`HudCircularRingsLoader`) e a ProgressBar central da MainWindow.
 
+---
+
+### `ScrollableListWidget` — `ScrollableListWidget.py`
+Lista rolável genérica com QScrollArea. Aceita adicionar/remover widgets dinamicamente. Similar a um RecyclerView/ListView. Ideal para exibir listas de widgets heterogêneos verticalmente.
+
+```python
+from resources.widgets.ScrollableListWidget import ScrollableListWidget
+
+scroll = ScrollableListWidget(spacing=6)
+scroll.add_widget(QLabel("Item 1"))
+scroll.add_widget(QLabel("Item 2"))
+scroll.remove_all()
+scroll.count()          # número de widgets
+scroll.scroll_to_top()
+scroll.scroll_to_bottom()
+```
+
+**Layout:** QScrollArea com QVBoxLayout interno, sem frame, sem scroll horizontal. O `content_layout` é exposto para manipulação direta se necessário.
+
+**Parâmetros do construtor:**
+- `spacing: int = 8` — espaçamento entre widgets
+- `margins: tuple = (0, 0, 0, 0)` — margens do conteúdo
+
+**API pública:**
+- `add_widget(widget, stretch=0)` — adiciona ao final
+- `insert_widget(index, widget)` — insere em posição específica
+- `remove_widget(widget)` — remove um widget específico
+- `remove_all()` — limpa todos os widgets
+- `count()` — número de widgets
+- `scroll_to_top()` / `scroll_to_bottom()` — rolagem programática
+
+---
+
+### `FootballMatchWidget` — `FootballMatchWidget.py`
+Card individual de partida de futebol. Recebe um `Fixture` do `core.model.FootballModel` e exibe:
+
+- **Linha 1:** Data/hora no horário de Brasília (esq) | Campeonato + rodada (dir)
+- **Linha 2:** [Logo + nome do time casa] [placar/VS] [Logo + nome do time fora]
+- **Linha 3:** Status (ex: "Match Finished") | Estádio, cidade
+
+Os gols (fulltime ou penalty) aparecem abaixo do nome de cada time quando a partida já foi realizada. O status tem cores diferentes:
+- Cinza escuro para partidas finalizadas
+- Verde para partidas ao vivo
+- Dourado para partidas decididas nos pênaltis
+
+```python
+from core.model.FootballModel import Fixture
+from resources.widgets.FootballMatchWidget import FootballMatchWidget
+
+widget = FootballMatchWidget(fixture)
+```
+
+**Parâmetros do construtor:**
+- `fixture: Fixture` — modelo da partida (obrigatório)
+
+**Propriedades:**
+- `fixture` → `Fixture` — retorna a fixture associada
+
+---
+
 ## 🆕 Como criar um Novo Widget
 
 1. Crie o arquivo em `resources/widgets/MeuWidget.py`
