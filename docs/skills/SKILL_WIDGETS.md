@@ -1435,26 +1435,32 @@ if dialog.exec():
 
 ---
 
-### `ScrollableListWidget` — `ScrollableListWidget.py`
-Lista rolável genérica com QScrollArea. Aceita adicionar/remover widgets dinamicamente. Similar a um RecyclerView/ListView. Ideal para exibir listas de widgets heterogêneos verticalmente.
+### `ListViewWidget` — `ListViewWidget.py`
+Lista vertical genérica com scroll opcional. Similar a um RecyclerView. Container com QVBoxLayout que aceita adicionar/remover widgets dinamicamente.
+
+Com `scroll=True` (padrão), envolve em QScrollArea frameless. Com `scroll=False`, vira um QVBoxLayout puro.
 
 ```python
-from resources.widgets.ScrollableListWidget import ScrollableListWidget
+from resources.widgets.ListViewWidget import ListViewWidget
 
-scroll = ScrollableListWidget(spacing=6)
-scroll.add_widget(QLabel("Item 1"))
-scroll.add_widget(QLabel("Item 2"))
-scroll.remove_all()
-scroll.count()          # número de widgets
-scroll.scroll_to_top()
-scroll.scroll_to_bottom()
+# Com scroll (padrão):
+view = ListViewWidget(spacing=6)
+view.add_widget(QLabel("Item 1"))
+view.add_widget(QLabel("Item 2"))
+view.remove_all()
+view.count()          # número de widgets
+view.scroll_to_top()
+view.scroll_to_bottom()
+
+# Sem scroll (layout puro):
+view = ListViewWidget(scroll=False)
+view.add_widget(MeuWidget())
 ```
-
-**Layout:** QScrollArea com QVBoxLayout interno, sem frame, sem scroll horizontal. O `content_layout` é exposto para manipulação direta se necessário.
 
 **Parâmetros do construtor:**
 - `spacing: int = 8` — espaçamento entre widgets
 - `margins: tuple = (0, 0, 0, 0)` — margens do conteúdo
+- `scroll: bool = True` — True envolve em QScrollArea, False = layout puro
 
 **API pública:**
 - `add_widget(widget, stretch=0)` — adiciona ao final
@@ -1462,7 +1468,41 @@ scroll.scroll_to_bottom()
 - `remove_widget(widget)` — remove um widget específico
 - `remove_all()` — limpa todos os widgets
 - `count()` — número de widgets
+- `scroll_to_top()` / `scroll_to_bottom()` — rolagem programática (no-op se scroll=False)
+
+---
+
+### `ScrollWidget` — `ScrollWidget.py`
+Container rolável genérico. Envolve qualquer widget em uma QScrollArea frameless. Útil para conteúdos grandes que precisam de scroll mas não são listas.
+
+```python
+from resources.widgets.ScrollWidget import ScrollWidget
+
+scroll = ScrollWidget(meu_widget_grande)
+parent_layout.addWidget(scroll)
+```
+
+**Parâmetros do construtor:**
+- `widget: QWidget | None = None` — widget interno (opcional, pode ser definido depois via `set_widget()`)
+
+**API pública:**
+- `set_widget(widget)` — define/substitui o widget interno
 - `scroll_to_top()` / `scroll_to_bottom()` — rolagem programática
+
+---
+
+### `SeparatorWidget` — `SeparatorWidget.py`
+Linha horizontal ou vertical estilizada. Substitui QFrame com HLine/VLine manual. Estilizado via QSS global (`QFrame#separator`), sem hardcoded colors.
+
+```python
+from resources.widgets.SeparatorWidget import SeparatorWidget
+
+hline = SeparatorWidget(orientation="horizontal")
+vline = SeparatorWidget(orientation="vertical")
+```
+
+**Parâmetros do construtor:**
+- `orientation: str = "horizontal"` — "horizontal" ou "vertical"
 
 ---
 

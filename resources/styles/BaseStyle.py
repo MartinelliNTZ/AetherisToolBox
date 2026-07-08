@@ -242,7 +242,7 @@ class BaseStyle:
             padding: 0px;
         }}
 
-        QFrame#workspace_separator {{
+        QFrame#workspace_separator, QFrame#separator {{
             background-color: {t.BORDER_DEFAULT};
             border: none;
         }}

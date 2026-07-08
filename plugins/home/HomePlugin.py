@@ -11,9 +11,7 @@ após a pipeline de fetch ser concluída.
 from __future__ import annotations
 
 from PySide6.QtCore import Qt, QTimer
-from PySide6.QtWidgets import (
-    QLabel, QVBoxLayout, QFrame,
-)
+from PySide6.QtWidgets import QVBoxLayout
 
 from core.enum.ToolKey import ToolKey
 from core.model.FootballModel import Fixture
@@ -22,7 +20,9 @@ from core.papeline.step import FootballFetchStep
 from plugins.BasePlugin import BasePlugin
 from resources.widgets.FootballMatchWidget import FootballMatchWidget
 from resources.widgets.GroupPainel import GroupPainel
-from resources.widgets.ScrollableListWidget import ScrollableListWidget
+from resources.widgets.ListViewWidget import ListViewWidget
+from resources.widgets.SeparatorWidget import SeparatorWidget
+from resources.widgets.simple.SimpleLabel import SimpleLabel
 from utils.JsonUtil import JsonUtil
 
 
@@ -38,55 +38,52 @@ class HomePlugin(BasePlugin):
     """
 
     def __init__(self, parent=None):
-        # Init these BEFORE super() so _build_ui() populates them,
-        # and the subclass init doesn't overwrite with None after.
         self._runner = None
         self._matches_container = None
         self._scroll_list = None
         super().__init__(tool_key=ToolKey.HOME.value, parent=parent)
 
     def _build_ui(self):
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(40, 40, 40, 40)
-        layout.setSpacing(16)
-        layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        # BasePlugin cria self.main_layout (PluginPage) com margins padrão.
+        # Vamos sobrescrever com layout próprio para a Home.
+        # Remove o PluginPage criado por BasePlugin e cria layout direto.
+        self.main_layout = QVBoxLayout(self)
+        self.main_layout.setContentsMargins(40, 40, 40, 40)
+        self.main_layout.setSpacing(16)
+        self.main_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
         # === HEADER ===
-        header = QLabel("Aetheris ToolBox")
+        header = SimpleLabel("Aetheris ToolBox")
         header.setObjectName("header_title")
         header.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(header)
+        self.main_layout.addWidget(header)
 
-        subtitle = QLabel("Bem-vindo! Selecione uma ferramenta nas abas acima.")
+        subtitle = SimpleLabel("Bem-vindo! Selecione uma ferramenta nas abas acima.")
         subtitle.setObjectName("header_subtitle")
         subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(subtitle)
+        self.main_layout.addWidget(subtitle)
 
         # === SEPARATOR ===
-        sep = QFrame()
-        sep.setFrameShape(QFrame.Shape.HLine)
-        sep.setFixedHeight(1)
-        sep.setStyleSheet("background-color: #2A2A30; border: none;")
-        layout.addWidget(sep)
+        self.main_layout.addWidget(SeparatorWidget(orientation="horizontal"))
 
         # === FOOTBALL MATCHES ===
         self._matches_container = GroupPainel("Partidas de Futebol — Hoje")
-        self._scroll_list = ScrollableListWidget(spacing=6)
+        self._scroll_list = ListViewWidget(spacing=6, scroll=True)
         self._matches_container.group_layout.addWidget(self._scroll_list)
-        self._matches_container.setVisible(False)  # esconde até carregar
-        layout.addWidget(self._matches_container)
+        self._matches_container.setVisible(False)
+        self.main_layout.addWidget(self._matches_container)
 
         # ── Placeholder ────────────────────────────────────────────
-        self._placeholder = QLabel(
+        self._placeholder = SimpleLabel(
             "Utilize as abas do Workspace para acessar\n"
             "as ferramentas disponíveis."
         )
         self._placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._placeholder.setStyleSheet("color: #888890; font-size: 13px;")
-        layout.addWidget(self._placeholder)
+        self.main_layout.addWidget(self._placeholder)
 
         # Espaçador
-        layout.addStretch(1)
+        self.main_layout.addStretch(1)
 
         # ── Start football fetch pipeline after UI is ready ──────
         QTimer.singleShot(500, self._start_football_pipeline)
@@ -120,7 +117,6 @@ class HomePlugin(BasePlugin):
             code="HOME_FOOT_DONE",
         )
 
-        # Obter caminho do JSON filtrado
         result = context.get_result("football_fetch")
         if not result:
             self.logger.warning(
@@ -152,7 +148,7 @@ class HomePlugin(BasePlugin):
     def _load_matches(self, json_path: str) -> None:
         """
         Lê o JSON filtrado, converte para lista de Fixture
-        e preenche o ScrollableListWidget com FootballMatchWidgets.
+        e preenche o ListViewWidget com FootballMatchWidgets.
         """
         try:
             data = JsonUtil.read_json(json_path, tool_key=self.tool_key)
@@ -170,7 +166,6 @@ class HomePlugin(BasePlugin):
                 )
                 return
 
-            # Converte cada item do JSON para Fixture
             fixtures: list[Fixture] = []
             for item in fixtures_data:
                 fixture = Fixture.from_api_response(item)
@@ -182,7 +177,6 @@ class HomePlugin(BasePlugin):
                 count=len(fixtures),
             )
 
-            # Preenche a UI
             self._display_matches(fixtures)
 
         except Exception as e:
@@ -194,7 +188,6 @@ class HomePlugin(BasePlugin):
 
     def _display_matches(self, fixtures: list[Fixture]) -> None:
         """Preenche o scroll list com widgets de partida."""
-        # Limpa widgets anteriores
         if self._scroll_list:
             self._scroll_list.remove_all()
 
@@ -202,7 +195,5 @@ class HomePlugin(BasePlugin):
             widget = FootballMatchWidget(fixture)
             self._scroll_list.add_widget(widget)
 
-        # Mostra o container e esconde o placeholder
         self._matches_container.setVisible(True)
         self._placeholder.setVisible(False)
-        self._matches_container.group_layout.parent().update()
