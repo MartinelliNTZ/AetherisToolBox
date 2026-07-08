@@ -726,6 +726,19 @@ class AppStyles(BaseStyle):
         )
 
     @classmethod
+    def tree_branch_style(cls) -> str:
+        """
+        Estilo QSS para as setas expandir/recolher de QTreeWidget,
+        com contraste melhorado. Usa tokens do tema (ACCENT, SURFACE_5).
+        Ícone SVG inline (triângulo) com cores do tema.
+        """
+      
+
+        return (
+            f""
+        )
+
+    @classmethod
     def grid_percent_font_label(cls) -> str:
         """Família e tamanho da fonte do label no GridPercentView."""
         return f"{ct.theme.FONT_FAMILY_MONO}, 10px"

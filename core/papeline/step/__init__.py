@@ -20,6 +20,7 @@ from .LasCheckStep import LasCheckStep
 from .LasTilerStep import LasTilerStep
 from .LasToVectorStep import LasToVectorStep
 from .VectorToLasStep import VectorToLasStep
+from .FootballFetchStep import FootballFetchStep
 
 __all__ = [
     "MrkLoadDataStep",
@@ -32,4 +33,5 @@ __all__ = [
     "LasTilerStep",
     "LasToVectorStep",
     "VectorToLasStep",
+    "FootballFetchStep",
 ]

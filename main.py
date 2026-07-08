@@ -42,7 +42,7 @@ def main():
                 traceback=tb_text,
             )
         except Exception:
-            pass  # LogUtils indisponível — segue para stdout
+            pass  # LogUtils indisponível — segue para stdout -
 
         # Mensagem no console
         print("=" * 60, file=sys.stderr)

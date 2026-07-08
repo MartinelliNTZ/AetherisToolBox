@@ -5,10 +5,12 @@ LasReprojectionPlugin — Ferramenta de Reprojeção de Nuvens LAS/LAZ
 Permite reprojetar (transformar CRS) nuvens de pontos LAS/LAZ
 com detecção automática do CRS de origem e seleção do CRS de destino.
 
+O CRS de origem é detectado automaticamente pelo ComplexSelector (crs_enable)
+ao selecionar o arquivo de entrada. O CRS de destino é selecionado manualmente
+no próprio seletor de saída (também com crs_enable).
+
 Fluxo:
-  - GridComplexSelector para entrada (LAS/LAZ) e saída (linked + dynamic_parent)
-  - CrsSelectorWidget para CRS de origem (auto-detectado)
-  - CrsSelectorWidget para CRS de destino
+  - GridComplexSelector com crs_enable=True em ambos selectors
   - ExecutionButtons: EXECUTAR
   - PipelineRunner + LasReprojectionStep para execução em background
   - GridLabel com metadados da reprojeção
@@ -28,8 +30,7 @@ from resources.widgets.ExecutionButtons import ExecutionButtons
 from resources.widgets.grid.GridLabel import GridLabel
 from resources.widgets.complex.GridComplexSelector import GridComplexSelector
 from resources.widgets.GroupPainel import GroupPainel
-from resources.widgets.crs.CrsSelectorWidget import CrsSelectorWidget
-from utils.las.LasLayerProjection import LasLayerProjection
+from utils.ProcessStatisticsUtil import ProcessStatisticsUtil
 from utils.MessageBox import MessageBox
 
 
@@ -42,7 +43,6 @@ class LasReprojectionPlugin(BasePlugin):
 
     def __init__(self, parent=None):
         self._current_path: str = ""
-        self._source_crs: str = ""
         self._runner: PipelineRunner | None = None
         super().__init__(
             tool_key=ToolKey.LAS_REPROJECTION.value,
@@ -75,6 +75,9 @@ class LasReprojectionPlugin(BasePlugin):
         grupo_arquivos = GroupPainel("Arquivos")
         self.main_layout.addWidget(grupo_arquivos)
 
+        # GridComplexSelector com CRS embutido em entrada e saída
+        # Entrada: detecta CRS automaticamente (input + crs_enable)
+        # Saída: permite selecionar CRS de destino manualmente (output + crs_enable)
         self._selector_grid = GridComplexSelector(
             {
                 "LAS/LAZ de Entrada": {
@@ -84,6 +87,7 @@ class LasReprojectionPlugin(BasePlugin):
                     "allow_folder": False,
                     "multiple": False,
                     "show_project_button": True,
+                    "crs_enable": True,  # CRS de origem embutido (detecta automaticamente)
                 },
                 "Saída": {
                     "mode_type": "output",
@@ -95,7 +99,8 @@ class LasReprojectionPlugin(BasePlugin):
                     "show_suggest_button": True,
                     "suffix": "_reproj",
                     "extension": "las",
-                    "fixed_name": "Lasreproj.las"
+                    "fixed_name": "Lasreproj.las",
+                    "crs_enable": True,  # CRS de destino embutido (seleção manual)
                 },
             },
         )
@@ -104,17 +109,13 @@ class LasReprojectionPlugin(BasePlugin):
         # Conecta callback de mudança na entrada
         self._selector_grid.set_on_input_changed(self._on_input_changed)
 
-        # ── GroupPainel "Sistema de Coordenadas" ────────────────────
-        grupo_crs = GroupPainel("Sistema de Coordenadas")
-        self.main_layout.addWidget(grupo_crs)
-
-        self._crs_origem = CrsSelectorWidget(label="CRS de Origem:")
-        self._crs_destino = CrsSelectorWidget(label="CRS de Destino:")
-        grupo_crs.group_layout.addWidget(self._crs_origem)
-        grupo_crs.group_layout.addWidget(self._crs_destino)
-
-        self._crs_origem.crs_changed.connect(self._on_crs_changed)
-        self._crs_destino.crs_changed.connect(self._on_crs_changed)
+        # Conecta mudanças nos CRS embutidos para habilitar botão
+        entrada_crs = self._selector_grid["LAS/LAZ de Entrada"].crs_widget
+        saida_crs = self._selector_grid["Saída"].crs_widget
+        if entrada_crs:
+            entrada_crs.crs_changed.connect(self._atualizar_botao_executar)
+        if saida_crs:
+            saida_crs.crs_changed.connect(self._atualizar_botao_executar)
 
         # ── GroupPainel "Metadados" ─────────────────────────────────
         grupo_meta = GroupPainel("Metadados")
@@ -154,10 +155,6 @@ class LasReprojectionPlugin(BasePlugin):
             return
         self._carregar_las(path)
 
-    def _on_crs_changed(self, value: str):
-        """Disparado quando algum CRS muda."""
-        self._atualizar_botao_executar()
-
     def _on_executar(self):
         """Executa a reprojeção via PipelineRunner em background."""
         self.logger.info(f"EXECUTAR: {self._current_path}")
@@ -179,8 +176,12 @@ class LasReprojectionPlugin(BasePlugin):
             )
             return
 
-        source_crs = self._crs_origem.get_crs()
-        target_crs = self._crs_destino.get_crs()
+        # Obtém CRS dos widgets embutidos nos selectors
+        entrada_selector = self._selector_grid["LAS/LAZ de Entrada"]
+        saida_selector = self._selector_grid["Saída"]
+
+        source_crs = entrada_selector.crs
+        target_crs = saida_selector.crs
 
         if not source_crs:
             self.logger.warning(
@@ -203,7 +204,7 @@ class LasReprojectionPlugin(BasePlugin):
             return
 
         # Resolve output_path do selector de saída
-        output_path = self._selector_grid["Saída"].path()
+        output_path = saida_selector.path()
         if not output_path:
             # Fallback: mesmo diretório do input
             basename = os.path.splitext(os.path.basename(self._current_path))[0]
@@ -217,6 +218,10 @@ class LasReprojectionPlugin(BasePlugin):
 
         self.logger.info(f"Reprojetando: {self._current_path} → {output_path} ({source_crs} → {target_crs})")
 
+        # Inicia monitoramento de estatísticas
+        self.statistics.start(n=0, ntype=ProcessStatisticsUtil.POINTS, ntotal=0)
+        total_estimate = self.get_eta_seconds()
+
         SignalManager.instance().execution_started.emit(self.tool_key)
         SignalManager.instance().console_message.emit(
             f"Reprojetando: {os.path.basename(self._current_path)} "
@@ -224,7 +229,8 @@ class LasReprojectionPlugin(BasePlugin):
         )
         SignalManager.instance().hud_show.emit({
             "message": "Reprojetando nuvem de pontos...",
-            "timer": 30.0,
+            "timer": total_estimate,
+            "eta": total_estimate,
         })
 
         # Cria step com os CRS e output_path direto
@@ -263,6 +269,9 @@ class LasReprojectionPlugin(BasePlugin):
             "Reprojeção concluida com sucesso",
             code="LASREPROJ_PIPELINE_DONE",
         )
+
+        self.statistics.end()
+
         result = context.get_result("reprojection_result", {})
 
         n_points = result.get("n_points", 0)
@@ -330,7 +339,7 @@ class LasReprojectionPlugin(BasePlugin):
     # ══════════════════════════════════════════════════════════════════
 
     def _carregar_las(self, path: str):
-        """Carrega metadados do LAS e detecta CRS automaticamente."""
+        """Carrega metadados do LAS e atualiza UI."""
         if getattr(self, "_loading_las", False):
             return
         self._loading_las = True
@@ -351,36 +360,25 @@ class LasReprojectionPlugin(BasePlugin):
             n_pontos = info["point_count"]
             self._current_path = path
 
-            # Detecta CRS automaticamente
-            crs_detectado = LasLayerProjection.get_crs(path, tool_key=self.tool_key)
-            self._source_crs = crs_detectado
+            # O CRS de origem é detectado automaticamente pelo ComplexSelector
+            # (crs_enable=True no input faz isso internamente via _auto_detect_crs)
 
             # Atualiza UI
             self._result_label.set("arquivo", os.path.basename(path))
             self._result_label.set("n_pontos", f"{n_pontos:,}")
-
-            if crs_detectado:
-                self._crs_origem.set_crs(crs_detectado)
-                self._result_label.set("crs_origem", crs_detectado)
-                self.logger.info(
-                    "CRS detectado automaticamente",
-                    code="LASREPROJ_CRS_AUTO",
-                    crs=crs_detectado,
-                )
-            else:
-                self._crs_origem.set_crs("")
-                self._result_label.set("crs_origem", "Não detectado")
-                self.logger.warning(
-                    "CRS nao detectado no LAS",
-                    code="LASREPROJ_CRS_NOT_FOUND",
-                )
-
             self._result_label.set("status", "Carregado")
             self._atualizar_botao_executar()
 
+            # Sincroniza CRS detectado no label de metadados
+            entrada_selector = self._selector_grid["LAS/LAZ de Entrada"]
+            if entrada_selector.crs:
+                self._result_label.set("crs_origem", entrada_selector.crs)
+            else:
+                self._result_label.set("crs_origem", "Não detectado")
+
             SignalManager.instance().console_message.emit(
                 f"Carregado: {os.path.basename(path)} "
-                f"({n_pontos:,} pontos, CRS: {crs_detectado or 'não detectado'})"
+                f"({n_pontos:,} pontos, CRS: {entrada_selector.crs or 'não detectado'})"
             )
 
             self.logger.info(
@@ -388,7 +386,7 @@ class LasReprojectionPlugin(BasePlugin):
                 code="LASREPROJ_LAS_LOADED",
                 path=path,
                 points=n_pontos,
-                crs=crs_detectado,
+                crs=entrada_selector.crs,
             )
 
         except Exception as e:
@@ -408,26 +406,17 @@ class LasReprojectionPlugin(BasePlugin):
 
     def _atualizar_botao_executar(self):
         """Habilita/desabilita o botão executar conforme estado."""
+        entrada_selector = self._selector_grid["LAS/LAZ de Entrada"]
+        saida_selector = self._selector_grid["Saída"]
         tem_path = bool(self._current_path)
-        tem_crs_origem = bool(self._crs_origem.get_crs())
-        tem_crs_destino = bool(self._crs_destino.get_crs())
+        tem_crs_origem = bool(entrada_selector.crs)
+        tem_crs_destino = bool(saida_selector.crs)
         pode_executar = tem_path and tem_crs_origem and tem_crs_destino
         self._btns.set_enabled("executar", pode_executar)
 
     # ══════════════════════════════════════════════════════════════════
     # Preferências
     # ══════════════════════════════════════════════════════════════════
-
-    @staticmethod
-    def _silent_set_path(selector, path: str):
-        """Define o path de um ComplexSelector sem disparar callbacks."""
-        if path:
-            selector._root_path = os.path.dirname(path) if os.path.isfile(path) else path
-            selector._selected_list = [path]
-        else:
-            selector._root_path = ""
-            selector._selected_list = []
-        selector._update_display()
 
     def load_prefs(self) -> None:
         """Carrega preferências salvas."""
@@ -437,23 +426,23 @@ class LasReprojectionPlugin(BasePlugin):
         last_output_path = self.preferences.get("last_output_path", "")
 
         if last_path:
-            self._silent_set_path(self._selector_grid["LAS/LAZ de Entrada"], last_path)
+            self._selector_grid["LAS/LAZ de Entrada"].set_path(last_path)
 
         if last_output_path:
-            self._silent_set_path(self._selector_grid["Saída"], last_output_path)
-
-        # Carrega LAS manualmente se houver last_path
-        if last_path:
-            self._carregar_las(last_path)
+            self._selector_grid["Saída"].set_path(last_output_path)
 
         if last_target_crs:
-            self._crs_destino.set_crs(last_target_crs)
+            saida_crs = self._selector_grid["Saída"].crs_widget
+            if saida_crs:
+                saida_crs.set_crs(last_target_crs)
 
         self.logger.info("Preferencias carregadas", code="LASREPROJ_PREFS_LOADED")
 
     def save_prefs(self) -> None:
         """Salva preferências atuais no cache de memória."""
         self.preferences["last_path"] = self._current_path
-        self.preferences["last_target_crs"] = self._crs_destino.get_crs()
+        saida_crs = self._selector_grid["Saída"].crs_widget
+        if saida_crs:
+            self.preferences["last_target_crs"] = saida_crs.get_crs()
         self.preferences["last_output_path"] = self._selector_grid["Saída"].path() or ""
         self.logger.info("Preferencias salvas no cache", code="LASREPROJ_PREFS_SAVED")
