@@ -93,7 +93,9 @@ class FootballMatchWidget(QFrame):
         self._home_goals = QLabel()
         self._home_goals.setObjectName("team_goals")
         self._home_goals.setStyleSheet("color: #F5C842; font-size: 18px; font-weight: bold;")
-        self._home_goals.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._home_goals.setAlignment(
+            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+        )
 
         self._home_layout.addWidget(self._home_logo)
         self._home_layout.addWidget(self._home_name)
@@ -124,7 +126,9 @@ class FootballMatchWidget(QFrame):
         self._away_goals = QLabel()
         self._away_goals.setObjectName("team_goals")
         self._away_goals.setStyleSheet("color: #F5C842; font-size: 18px; font-weight: bold;")
-        self._away_goals.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._away_goals.setAlignment(
+            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
+        )
 
         self._away_layout.addWidget(self._away_logo)
         self._away_layout.addWidget(self._away_name)
@@ -182,18 +186,19 @@ class FootballMatchWidget(QFrame):
         has_result = has_fulltime or has_penalty
 
         if has_result:
-            home_goals = str(
-                fixture.score.fulltime_home
-                if has_fulltime
-                else fixture.score.penalty_home
-            )
-            away_goals = str(
-                fixture.score.fulltime_away
-                if has_fulltime
-                else fixture.score.penalty_away
-            )
-            self._home_goals.setText(home_goals)
-            self._away_goals.setText(away_goals)
+            if has_fulltime and has_penalty:
+                # Ex: "0(4)" para home, "0(3)" para away
+                home_text = f"{fixture.score.fulltime_home}({fixture.score.penalty_home})"
+                away_text = f"{fixture.score.fulltime_away}({fixture.score.penalty_away})"
+            elif has_fulltime:
+                home_text = str(fixture.score.fulltime_home)
+                away_text = str(fixture.score.fulltime_away)
+            else:
+                home_text = str(fixture.score.penalty_home)
+                away_text = str(fixture.score.penalty_away)
+
+            self._home_goals.setText(home_text)
+            self._away_goals.setText(away_text)
             self._home_goals.setVisible(True)
             self._away_goals.setVisible(True)
             self._score_label.setText("×")
