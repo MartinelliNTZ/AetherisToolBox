@@ -11,7 +11,6 @@ após a pipeline de fetch ser concluída.
 from __future__ import annotations
 
 from PySide6.QtCore import Qt, QTimer
-from PySide6.QtWidgets import QVBoxLayout
 
 from core.enum.ToolKey import ToolKey
 from core.model.FootballModel import Fixture
@@ -44,10 +43,10 @@ class HomePlugin(BasePlugin):
         super().__init__(tool_key=ToolKey.HOME.value, parent=parent)
 
     def _build_ui(self):
-        # BasePlugin cria self.main_layout (PluginPage) com margins padrão.
-        # Vamos sobrescrever com layout próprio para a Home.
-        # Remove o PluginPage criado por BasePlugin e cria layout direto.
-        self.main_layout = QVBoxLayout(self)
+        # BasePlugin já cria PluginPage + self.main_layout (QVBoxLayout)
+        super()._build_ui()
+
+        # Ajusta margins, spacing e alinhamento para a Home
         self.main_layout.setContentsMargins(40, 40, 40, 40)
         self.main_layout.setSpacing(16)
         self.main_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
