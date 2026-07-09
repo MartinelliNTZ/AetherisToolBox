@@ -208,7 +208,6 @@ TOP_COMPETITIONS: Dict[str, Dict[str, Any]] = {
 # ── Football — Filtered Competitions (only these are used for filtering) ──
 TOP_COMPETITIONS_FILTER: Dict[str, Dict[str, Any]] = {
     "world_cup":            {"label": "World Cup",            "description": "FIFA",     "default": True},
-    "europa_league":        {"label": "UEFA Europa League",   "description": "UEFA",     "default": True},
     "libertadores":         {"label": "Copa Libertadores",    "description": "CONMEBOL", "default": True},
     "copa_america":         {"label": "Copa America",         "description": "CONMEBOL", "default": True},
     "copa_america_pt":      {"label": "Copa América",         "description": "CONMEBOL", "default": True},
