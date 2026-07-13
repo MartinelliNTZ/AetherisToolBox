@@ -113,7 +113,11 @@ class BaseStyle:
         Tipos suportados:
             LINEAR  → qlineargradient(x1,y1,x2,y2, stop:...)
             RADIAL  → qradialgradient(cx,cy,radius,fx,fy, stop:...)
-            CONICAL → qconicalgradient(cx,cy,angle, stop:...)
+
+        ⚠ ATENÇÃO: CONICAL (qconicalgradient) NÃO é suportado em QSS.
+        Qt Style Sheets aceita apenas qlineargradient e qradialgradient.
+        Para gradiente cônico, use _build_conical_gradient() com QPainter
+        em paintEvent customizado.
 
         Se a tupla de stops estiver vazia, usa o fallback de 2 cores
         (comportamento legado, sem mudança visual).
@@ -123,16 +127,16 @@ class BaseStyle:
             angle_deg: Ângulo do gradiente em graus (LINEAR) ou ângulo inicial (CONICAL).
             fallback_start: Cor inicial do fallback (ex: ACCENT_GRADIENT[0]).
             fallback_end: Cor final do fallback (ex: ACCENT_GRADIENT[1]).
-            gradient_type: Tipo de gradiente (GradientType.LINEAR/RADIAL/CONICAL).
-            cx: Centro X para RADIAL e CONICAL (0.0–1.0).
-            cy: Centro Y para RADIAL e CONICAL (0.0–1.0).
+            gradient_type: Tipo de gradiente (GradientType.LINEAR/RADIAL).
+            cx: Centro X para RADIAL (0.0–1.0).
+            cy: Centro Y para RADIAL (0.0–1.0).
             fx: Ponto focal X para RADIAL (0.0–1.0).
             fy: Ponto focal Y para RADIAL (0.0–1.0).
             radius: Raio para RADIAL (0.0–1.0).
 
         Returns:
-            String QSS ``qlineargradient(...)``, ``qradialgradient(...)``
-            ou ``qconicalgradient(...)``.
+            String QSS ``qlineargradient(...)`` ou ``qradialgradient(...)``.
+            CONICAL não é suportado em QSS — use _build_conical_gradient().
         """
         if not stops:
             return cls._gradient(fallback_start, fallback_end)

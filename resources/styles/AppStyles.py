@@ -477,7 +477,15 @@ class AppStyles(BaseStyle):
           - selected: fundo ACCENT, texto SURFACE_0, border ACCENT_DIM, indicator ACCENT_HOVER
           - hovered:  fundo ACCENT, texto SURFACE_0, border BORDER_ACCENT
           - default:  fundo SURFACE_0, texto TEXT_HIGH, border BORDER_DEFAULT
-        Cacheado por performance."""
+        Cacheado por performance.
+
+        ⚠ Nota de design:
+        Diferente de `vertical_tab_colors()`, que usa ACCENT apenas para `selected`
+        e SURFACE_3 para `hovered` (hover sutil). Este método (`tab_common_colors`)
+        usa ACCENT tanto para `selected` quanto para `hovered` (hover ousado).
+        A escolha entre um e outro define a agressividade visual do feedback
+        de hover na tab. Para consistência, HorizontalTab e VerticalTab podem usar
+        métodos diferentes — verifique qual se adequa ao design desejado."""
         t = ct.theme
         cache_key = ct.current_key
         if cls._TAB_COLORS_CACHE.get("_cache_key") != cache_key:
@@ -623,7 +631,7 @@ class AppStyles(BaseStyle):
         return (
             f"QWidget#collapsible_content {{"
             f"  background-color: {t.SURFACE_1};"
-            f"  border: 1px solid {t.BORDER};"
+            f"  border: 1px solid {t.BORDER_DEFAULT};"
             f"  border-top: none;"
             f"  border-radius: 0px 0px {t.RADIUS_SM}px {t.RADIUS_SM}px;"
             f"}}"
