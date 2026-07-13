@@ -59,6 +59,17 @@ THEMES: dict[str, dict] = {
                        "Fundo azul-escuro profundo, cards em glassmorphism sutil, "
                        "acento azul elétrico vibrante e texto branco suave.",
     },
+    "gold_premium": {
+        "module":      "resources.styles.GoldPremiumTheme",
+        "label":       "Gold Premium",
+        "description": "Tema premium dourado com gradientes multi-stop (5 stops, "
+                       "reflexo metálico a 20°), foil borders em gradiente, "
+                       "glow estruturado, sombras numéricas discretas, fonte "
+                       "display serifada e badge outline habilitado. Demonstra "
+                       "todos os novos tokens de estilo premium.",
+        "author":      "Aetheris ToolBox",
+        "version":     "1.0.0",
+    },
 }
 
 # ═══════════════════════════════════════════════════════════════════

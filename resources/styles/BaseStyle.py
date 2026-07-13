@@ -9,6 +9,11 @@ Zero valores hardcoded — tudo centralizado no tema via tokens semânticos.
 
 from __future__ import annotations
 
+import math
+
+from PySide6.QtGui import QColor, QLinearGradient, QBrush, QPen
+from PySide6.QtWidgets import QGraphicsDropShadowEffect, QWidget
+
 from resources.styles.ThemeManager import ct
 
 
@@ -25,6 +30,170 @@ class BaseStyle:
             f"qlineargradient(x1:0,y1:0,x2:1,y2:1,"
             f"stop:0 {start},stop:1 {end})"
         )
+
+    # ────────────────────────────────────────────────────────────────
+    # HELPERS PARA SOMBRA / GLOW PROGRAMÁTICO (QGraphicsDropShadowEffect)
+    # ────────────────────────────────────────────────────────────────
+
+    @classmethod
+    def apply_drop_shadow(
+        cls,
+        widget: QWidget,
+        blur: int,
+        offset_x: int = 0,
+        offset_y: int = 0,
+        color_rgb: str = "#000000",
+        alpha: int = 0,
+    ) -> None:
+        """
+        Aplica um QGraphicsDropShadowEffect no widget usando valores
+        numéricos discretos. Se blur == 0 ou alpha == 0, não aplica nada
+        (efeito desligado).
+
+        Args:
+            widget: Widget alvo.
+            blur: Raio de desfoque (px).
+            offset_x: Deslocamento horizontal (px).
+            offset_y: Deslocamento vertical (px).
+            color_rgb: Cor base em hex (ex: "#000000").
+            alpha: Canal alfa 0-255. 0 = invisível.
+        """
+        if blur <= 0 or alpha <= 0:
+            return
+        color = QColor(color_rgb)
+        color.setAlpha(alpha)
+        effect = QGraphicsDropShadowEffect(widget)
+        effect.setBlurRadius(blur)
+        effect.setOffset(offset_x, offset_y)
+        effect.setColor(color)
+        widget.setGraphicsEffect(effect)
+
+    # ────────────────────────────────────────────────────────────────
+    # HELPERS PARA GRADIENTE MULTI-STOP COM ÂNGULO
+    # ────────────────────────────────────────────────────────────────
+
+    @classmethod
+    def _gradient_angle_to_points(cls, angle_deg: int) -> tuple[float, float, float, float]:
+        """
+        Converte um ângulo em graus para coordenadas (x1,y1,x2,y2)
+        no espaço 0..1, simulando a direção do gradiente.
+
+        Ângulos:
+            0   → left → right   (x1:0,y1:0 → x2:1,y2:0)
+            45  → top-left → bottom-right (padrão)
+            90  → top → bottom   (x1:0,y1:0 → x2:0,y2:1)
+            180 → right → left   (x1:1,y1:0 → x2:0,y2:0)
+        """
+        rad = math.radians(angle_deg)
+        # Ponto central (0.5, 0.5), raio 0.5
+        x1 = 0.5 - 0.5 * math.cos(rad)
+        y1 = 0.5 - 0.5 * math.sin(rad)
+        x2 = 0.5 + 0.5 * math.cos(rad)
+        y2 = 0.5 + 0.5 * math.sin(rad)
+        return (x1, y1, x2, y2)
+
+    @classmethod
+    def _gradient_qss_from_stops(
+        cls,
+        stops: tuple,
+        angle_deg: int = 45,
+        fallback_start: str = "",
+        fallback_end: str = "",
+    ) -> str:
+        """
+        Gera string QSS ``qlineargradient(...)`` a partir de uma tupla
+        de stops (pos, cor) e um ângulo.
+
+        Se a tupla estiver vazia, usa o fallback de 2 cores (comportamento
+        legado, sem mudança visual).
+
+        Args:
+            stops: Tupla de (pos_float, cor_hex_str), ordenada por posição.
+            angle_deg: Ângulo do gradiente em graus.
+            fallback_start: Cor inicial do fallback (ex: ACCENT_GRADIENT[0]).
+            fallback_end: Cor final do fallback (ex: ACCENT_GRADIENT[1]).
+
+        Returns:
+            String QSS ``qlineargradient(...)``.
+        """
+        if not stops:
+            # Fallback para gradiente de 2 cores
+            return cls._gradient(fallback_start, fallback_end)
+
+        x1, y1, x2, y2 = cls._gradient_angle_to_points(angle_deg)
+        parts = [f"qlineargradient(x1:{x1:.3f},y1:{y1:.3f},x2:{x2:.3f},y2:{y2:.3f}"]
+        for pos, color in stops:
+            parts.append(f"stop:{pos} {color}")
+        return ",".join(parts) + ")"
+
+    @classmethod
+    def _build_linear_gradient(
+        cls,
+        stops: tuple,
+        angle_deg: int = 45,
+        rect_width: float = 100,
+        rect_height: float = 100,
+    ) -> QLinearGradient:
+        """
+        Constrói um QLinearGradient a partir de stops e ângulo,
+        para uso em paintEvent customizado (QPainter).
+
+        Se stops estiver vazio, retorna um gradiente vazio (sem stops)
+        — quem chamar deve tratar o fallback.
+
+        Args:
+            stops: Tupla de (pos_float, cor_hex_str).
+            angle_deg: Ângulo em graus.
+            rect_width: Largura do retângulo alvo (para calcular pontos reais).
+            rect_height: Altura do retângulo alvo.
+
+        Returns:
+            QLinearGradient configurado.
+        """
+        x1, y1, x2, y2 = cls._gradient_angle_to_points(angle_deg)
+        grad = QLinearGradient(x1 * rect_width, y1 * rect_height,
+                               x2 * rect_width, y2 * rect_height)
+        for pos, color_hex in stops:
+            grad.setColorAt(pos, QColor(color_hex))
+        return grad
+
+    # ────────────────────────────────────────────────────────────────
+    # HELPER PARA BORDA EM GRADIENTE ("efeito foil")
+    # ────────────────────────────────────────────────────────────────
+
+    @classmethod
+    def _border_gradient_pen(
+        cls,
+        stops: tuple,
+        width: float = 1.0,
+        angle_deg: int = 45,
+        rect_width: float = 100,
+        rect_height: float = 100,
+        fallback_color: str = "",
+    ) -> QPen:
+        """
+        Retorna um QPen com QBrush(QLinearGradient) para desenhar borda
+        em gradiente (efeito foil).
+
+        Se stops estiver vazio, retorna uma caneta com cor sólida
+        (fallback_color), sem gradiente.
+
+        Args:
+            stops: Tupla de (pos_float, cor_hex_str).
+            width: Largura da borda.
+            angle_deg: Ângulo do gradiente.
+            rect_width: Largura do retângulo alvo.
+            rect_height: Altura do retângulo alvo.
+            fallback_color: Cor sólida de fallback (ex: BORDER_ACCENT).
+
+        Returns:
+            QPen configurado.
+        """
+        if not stops:
+            return QPen(QColor(fallback_color), width)
+
+        grad = cls._build_linear_gradient(stops, angle_deg, rect_width, rect_height)
+        return QPen(QBrush(grad), width)
 
     @classmethod
     def global_stylesheet(cls) -> str:

@@ -176,19 +176,19 @@ class AppStyles(BaseStyle):
             f"QMenuBar::item:hover {{"
             f"  background-color: {t.ACCENT};"
             f"  color: {t.SURFACE_0};"
-            f"  border-radius: {t.MENUBAR_ITEM_BORDER_RADIUS};"
+            f"  border-radius: {t.MENUBAR_ITEM_BORDER_RADIUS}px;"
             f"  font-weight: {t.FONT_WEIGHT_EXTRABOLD};"
             f"}}"
             f"QMenuBar::item:selected {{"
             f"  background-color: {t.ACCENT};"
             f"  color: {t.SURFACE_0};"
-            f"  border-radius: {t.MENUBAR_ITEM_BORDER_RADIUS};"
+            f"  border-radius: {t.MENUBAR_ITEM_BORDER_RADIUS}px;"
             f"  font-weight: {t.FONT_WEIGHT_EXTRABOLD};"
             f"}}"
             f"QMenuBar::item:pressed {{"
             f"  background-color: {t.ACCENT_ACTIVE};"
             f"  color: {t.SURFACE_0};"
-            f"  border-radius: {t.MENUBAR_ITEM_BORDER_RADIUS};"
+            f"  border-radius: {t.MENUBAR_ITEM_BORDER_RADIUS}px;"
             f"}}"
         )
 
@@ -242,12 +242,41 @@ class AppStyles(BaseStyle):
 
     @classmethod
     def badge_style(cls, bg_color: str, text_color: Optional[str] = None) -> str:
+        """Badge preenchido padrão — fundo sólido, texto claro."""
         t = ct.theme
         tc = text_color or t.SURFACE_0
         return (
             f"QLabel {{"
             f"  background-color: {bg_color};"
             f"  color: {tc};"
+            f"  border-radius: {t.BORDER_RADIUS_BADGE}px;"
+            f"  padding: {t.BADGE_PADDING_V} {t.BADGE_PADDING_H};"
+            f"  font-weight: {t.FONT_WEIGHT_HEAVY};"
+            f"  font-size: {t.FONT_SIZE_TINY}px;"
+            f"  letter-spacing: {t.BADGE_LETTER_SPACING};"
+            f"}}"
+        )
+
+    @classmethod
+    def badge_outline_style(cls, border_color: str, bg_color: str = "") -> str:
+        """
+        Badge estilo outline — borda colorida + fundo translúcido.
+
+        Args:
+            border_color: Cor da borda (ex: ACCENT, COLOR_SUCCESS).
+            bg_color: Cor de fundo translúcido (ex: ACCENT_SOFT).
+                      Vazio = usa ACCENT_SOFT do tema como fallback.
+
+        Returns:
+            String QSS para QLabel.
+        """
+        t = ct.theme
+        bg = bg_color or t.ACCENT_SOFT
+        return (
+            f"QLabel {{"
+            f"  background: {bg};"
+            f"  border: {t.BADGE_OUTLINE_BORDER_WIDTH}px solid {border_color};"
+            f"  color: {border_color};"
             f"  border-radius: {t.BORDER_RADIUS_BADGE}px;"
             f"  padding: {t.BADGE_PADDING_V} {t.BADGE_PADDING_H};"
             f"  font-weight: {t.FONT_WEIGHT_HEAVY};"
@@ -385,8 +414,8 @@ class AppStyles(BaseStyle):
             "gradient_default_end":   t.GRADIENT_TAB[1],
             "gradient_hovered_start": t.GRADIENT_BUTTON[0],
             "gradient_hovered_end":   t.GRADIENT_BUTTON[1],
-            "gradient_selected_start": "",
-            "gradient_selected_end":   "",
+            "gradient_selected_start": t.ACCENT_GRADIENT[0],
+            "gradient_selected_end":   t.ACCENT_GRADIENT[1],
         }
 
     # ────────────────────────────────────────────────────────────────────
@@ -402,26 +431,26 @@ class AppStyles(BaseStyle):
     @classmethod
     def tab_common_colors(cls) -> dict[str, str]:
         """Retorna cores padronizadas para tabs (vertical e horizontal).
-        Todas as tabs usam o mesmo schema de cores:
-          - selected: fundo GOLD, texto BG_DEEPEST, border GOLD_DIM, indicator GOLD_HOVER
-          - hovered:  fundo GOLD, texto BG_DEEPEST, border BORDER_HOVER
-          - default:  fundo BG_DEEPEST, texto TEXT_BRIGHT, border BORDER
+        Todas as tabs usam o mesmo schema de cores via tokens semânticos:
+          - selected: fundo ACCENT, texto SURFACE_0, border ACCENT_DIM, indicator ACCENT_HOVER
+          - hovered:  fundo ACCENT, texto SURFACE_0, border BORDER_ACCENT
+          - default:  fundo SURFACE_0, texto TEXT_HIGH, border BORDER_DEFAULT
         Cacheado por performance."""
         t = ct.theme
         cache_key = ct.current_key
         if cls._TAB_COLORS_CACHE.get("_cache_key") != cache_key:
             cls._TAB_COLORS_CACHE = {
                 "_cache_key": cache_key,
-                "bg_selected":    t.GOLD,
-                "fg_selected":    t.BG_DEEPEST,
-                "border_selected": t.GOLD_DIM,
-                "indicator":       t.GOLD_HOVER,
-                "bg_hovered":     t.GOLD,
-                "fg_hovered":     t.BG_DEEPEST,
-                "border_hovered": t.BORDER_HOVER,
-                "bg_default":     t.BG_DEEPEST,
-                "fg_default":     t.TEXT_BRIGHT,
-                "border_default": t.BORDER,
+                "bg_selected":    t.ACCENT,
+                "fg_selected":    t.SURFACE_0,
+                "border_selected": t.ACCENT_DIM,
+                "indicator":       t.ACCENT_HOVER,
+                "bg_hovered":     t.ACCENT,
+                "fg_hovered":     t.SURFACE_0,
+                "border_hovered": t.BORDER_ACCENT,
+                "bg_default":     t.SURFACE_0,
+                "fg_default":     t.TEXT_HIGH,
+                "border_default": t.BORDER_DEFAULT,
             }
         return cls._TAB_COLORS_CACHE
 
@@ -588,11 +617,11 @@ class AppStyles(BaseStyle):
         Estilo para os labels de path e data (RecentProjectsMenu).
 
         Args:
-            active: Se True, cor TEXT_SECONDARY. Se False,
-                    mesma cor (mas o item está desabilitado visualmente).
+            active: Se True, cor TEXT_LOW. Se False,
+                    cor TEXT_DISABLED (projeto não encontrado).
         """
         t = ct.theme
-        color = t.TEXT_SECONDARY
+        color = t.TEXT_LOW if active else t.TEXT_DISABLED
         return (
             f"QLabel {{"
             f"  color: {color};"
@@ -714,8 +743,7 @@ class AppStyles(BaseStyle):
     def explorer_link_style(cls) -> str:
         """
         Estilo CSS para links clicáveis que abrem no Windows Explorer.
-
-        Usa ACCENT como cor e RADIUS_XS para border-radius.
+        Usa ACCENT como cor.
         Retorna apenas o trecho style='...' para uso inline em tags <a>.
         """
         t = ct.theme
@@ -725,18 +753,8 @@ class AppStyles(BaseStyle):
             f"cursor: pointer;"
         )
 
-    @classmethod
-    def tree_branch_style(cls) -> str:
-        """
-        Estilo QSS para as setas expandir/recolher de QTreeWidget,
-        com contraste melhorado. Usa tokens do tema (ACCENT, SURFACE_5).
-        Ícone SVG inline (triângulo) com cores do tema.
-        """
-      
-
-        return (
-            f""
-        )
+    # tree_branch_style foi removido — o corpo estava vazio (código morto).
+    # Se for necessário no futuro, implementar com SVG inline via tokens semânticos.
 
     @classmethod
     def grid_percent_font_label(cls) -> str:

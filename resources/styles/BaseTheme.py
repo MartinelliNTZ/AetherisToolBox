@@ -88,6 +88,12 @@ class BaseTheme:
     GRADIENT_TAB: tuple[str, str] = ("", "")     # tabs (não selecionadas)
     GRADIENT_INPUT: tuple[str, str] = ("", "")   # inputs, combo, spin
 
+    # ── Gradiente rico (3+ stops) para uso em QPainter/QLinearGradient e/ou QSS ──
+    # Formato: tupla de (posicao_float_0_a_1, cor_hex_str), ordenada por posição.
+    # Tupla vazia = recurso desligado, componente deve usar ACCENT_GRADIENT (2 stops) como fallback.
+    GRADIENT_ACCENT_STOPS: tuple = ()
+    GRADIENT_ACCENT_ANGLE: int = 45   # graus; 45 = comportamento atual (top-left → bottom-right)
+
     # ═══════════════════════════════════════════════════════════════════
     # 3. TEXT — Hierarquia de texto
     #    TEXT_HIGH      → títulos, labels importantes
@@ -111,6 +117,10 @@ class BaseTheme:
     #    BORDER_STRONG  → borda de destaque (foco, validação)
     #    BORDER_ACCENT  → borda com cor de acento
     #    DIVIDER        → separadores (linhas horizontais/verticais)
+    #
+    #    Abaixo: tokens para borda em gradiente ("efeito foil")
+    #    Tupla vazia = sem gradiente, componente deve usar BORDER_ACCENT
+    #    (cor sólida) como fallback.
     # ═══════════════════════════════════════════════════════════════════
 
     BORDER_SUBTLE: str = ""
@@ -119,15 +129,19 @@ class BaseTheme:
     BORDER_ACCENT: str = ""
     DIVIDER: str = ""
 
+    # ── Borda em gradiente ("efeito foil") ────────────────────────
+    BORDER_GRADIENT_STOPS: tuple = ()
+    BORDER_GRADIENT_WIDTH: float = 1.0
+
     # ═══════════════════════════════════════════════════════════════════
     # 5. SHADOW — Sombras por tamanho (usadas em QGraphicsDropShadowEffect)
-    #    SHADOW_SM      → sombra pequena (tooltip, badge)
-    #    SHADOW_MD      → sombra média (card, dropdown)
-    #    SHADOW_LG      → sombra grande (modal, dialog)
-    #    SHADOW_XL      → sombra extra grande (popup, overlay)
-    #    SHADOW_ACCENT  → sombra com cor de acento (glow)
-    #    GLOW           → brilho sutil (hover em botões)
-    #    GLOW_STRONG    → brilho forte (foco, destaque)
+    #    SHADOW_SM/D/LG/XL → string com tom (cor) da sombra, estilo legado
+    #    SHADOW_ACCENT  → sombra com cor de acento (glow) — string legado
+    #    GLOW / GLOW_STRONG → brilho legado como string (cor+alpha)
+    #
+    #    Abaixo: versões numéricas discretas para QGraphicsDropShadowEffect
+    #    (blur radius, offset, cor rgb + canal alfa separado).
+    #    blur=0 ou alpha=0 ⇒ efeito desligado, tema antigo não muda visualmente.
     # ═══════════════════════════════════════════════════════════════════
 
     SHADOW_SM: str = ""
@@ -137,6 +151,26 @@ class BaseTheme:
     SHADOW_ACCENT: str = ""
     GLOW: str = ""
     GLOW_STRONG: str = ""
+
+    # ── Sombra estruturada (uso em QGraphicsDropShadowEffect, não em QSS) ──
+    SHADOW_BLUR_SM: int = 0
+    SHADOW_BLUR_MD: int = 0
+    SHADOW_BLUR_LG: int = 0
+    SHADOW_BLUR_XL: int = 0
+    SHADOW_OFFSET_Y_SM: int = 0
+    SHADOW_OFFSET_Y_MD: int = 0
+    SHADOW_OFFSET_Y_LG: int = 0
+    SHADOW_COLOR_RGB: str = "#000000"   # cor base, sem alfa
+    SHADOW_COLOR_ALPHA: int = 0          # 0-255, 0 = sombra invisível
+
+    # ── Glow (brilho) estruturado ──
+    GLOW_BLUR: int = 0
+    GLOW_OFFSET_X: int = 0
+    GLOW_OFFSET_Y: int = 0
+    GLOW_COLOR_RGB: str = ""             # se vazio, cai no ACCENT do tema
+    GLOW_ALPHA: int = 0                  # 0-255, 0 = glow invisível
+    GLOW_STRONG_BLUR: int = 0
+    GLOW_STRONG_ALPHA: int = 0
 
     # ═══════════════════════════════════════════════════════════════════
     # 6. RADIUS — Escala global de arredondamento (pixels)
@@ -294,12 +328,24 @@ class BaseTheme:
     FONT_FAMILY_DEFAULT: str = ""
     FONT_FAMILY_MONO: str = ""
 
+    # ── Fonte display/serif para títulos editoriais ──────────────
+    # Vazio = usa FONT_FAMILY_DEFAULT como fallback.
+    FONT_FAMILY_DISPLAY: str = ""
+
+    # Letter-spacing numérico para QFont.setLetterSpacing (widgets
+    # com paintEvent customizado). 0 = sem espaçamento extra.
+    # Diferente de LETTER_SPACING_TITLE que é string CSS.
+    FONT_LETTER_SPACING_DISPLAY: int = 0
+
     FONT_SIZE_TITLE: int = 0
     FONT_SIZE_BIG: int = 0
     FONT_SIZE_NORMAL: int = 0
     FONT_SIZE_SMALL: int = 0
     FONT_SIZE_TINY: int = 0
 
+    # Nota: FONT_WEIGHT_NORMAL/BOLD/EXTRABOLD/HEAVY são constantes
+    # globais de design (pesos de fonte não variam por tema).
+    # Mantidos aqui para documentação e consistência de override.
     FONT_WEIGHT_NORMAL: int = 400
     FONT_WEIGHT_BOLD: int = 600
     FONT_WEIGHT_EXTRABOLD: int = 700
@@ -358,7 +404,9 @@ class BaseTheme:
     BORDER_RADIUS_MENU_ITEM: int = 0
     BORDER_RADIUS_GROUP_TITLE: int = 0
     BORDER_RADIUS_DIALOG: int = 0    # ≈ RADIUS_XL (about dialog, modals)
-    MENUBAR_ITEM_BORDER_RADIUS: str = ""
+    # Nota: MENUBAR_ITEM_BORDER_RADIUS era str; padronizado para int como os demais.
+    # O px é concatenado no uso em AppStyles.menu_bar_style().
+    MENUBAR_ITEM_BORDER_RADIUS: int = 0
 
     # ── Checkbox ─────────────────────────────────────────────────
     CHECKBOX_BORDER_WIDTH: int = 0
@@ -368,6 +416,12 @@ class BaseTheme:
     BADGE_PADDING_V: str = ""
     BADGE_PADDING_H: str = ""
     BADGE_LETTER_SPACING: str = ""
+
+    # ── Badge Outline (variante contorno) ────────────────────────
+    # False = usa o badge preenchido de sempre.
+    BADGE_OUTLINE_ENABLED: bool = False
+    BADGE_OUTLINE_BORDER_WIDTH: int = 1
+    BADGE_OUTLINE_BG_ALPHA: int = 0   # 0-255, alfa do fundo translúcido (usa ACCENT_SOFT/ACCENT como base)
 
     # ── Button ───────────────────────────────────────────────────
     BUTTON_PADDING_V: str = ""

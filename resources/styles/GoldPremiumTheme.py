@@ -1,12 +1,21 @@
 # -*- coding: utf-8 -*-
 """
-DarkCharcoalTheme — Tema concreto Dark Charcoal + Gold
-=======================================================
-Subclasse de BaseTheme com valores para o tema escuro atual.
+GoldPremiumTheme — Tema Premium Dourado (5 estilos "gold")
+==========================================================
+Tema demonstrativo que usa 100% dos novos tokens de estilo premium:
+  - Gradientes multi-stop com ângulo para reflexo metálico
+  - Sombra/glow estruturados para QGraphicsDropShadowEffect
+  - Borda em gradiente ("efeito foil")
+  - Fonte display serifada para títulos editoriais
+  - Letter-spacing numérico para QFont
+  - Badge outline habilitado
 
-Todos os grupos semânticos têm valores concretos.
-Aliases de compatibilidade (BG_DARK, GOLD, etc.) apontam
-para os mesmos valores → código legado continua funcionando.
+Identidade visual:
+  - ACCENT: Dourado luxo (#D4AF37 → gradientes 5 stops)
+  - SURFACE: Preto aveludado profundo
+  - TEXT: Off-white quente com hierarquia clara
+  - GLOW: Dourado translúcido estruturado
+  - FONTE DISPLAY: Georgia / serif para títulos
 """
 
 from __future__ import annotations
@@ -14,101 +23,143 @@ from __future__ import annotations
 from resources.styles.BaseTheme import BaseTheme
 
 
-class DarkCharcoalTheme(BaseTheme):
+class GoldPremiumTheme(BaseTheme):
     """
-    Tema Dark Charcoal + Gold — design minimalista com profundidade via sombras.
+    Tema Gold Premium — demonstra todos os novos tokens de estilo.
+    Visual dourado/luxo com gradientes multi-stop, foil borders,
+    glow estruturado e tipografia display.
     """
 
     # ═══════════════════════════════════════════════════════════════════
-    # 1. ACCENT — Dourado
+    # 1. ACCENT — Dourado Luxo
     # ═══════════════════════════════════════════════════════════════════
 
-    ACCENT = "#C9A84C"
-    ACCENT_HOVER = "#D4B85A"
-    ACCENT_ACTIVE = "#B8983E"
-    ACCENT_DIM = "#8A7A3A"
-    ACCENT_LIGHT = "#E8D08A"
-    ACCENT_SOFT = "rgba(201,168,76,0.12)"
-    ACCENT_TEXT = "#C9A84C"
-    ACCENT_BRIGHT = "#E0C878"
-    ACCENT_GRADIENT = ("#C9A84C", "#B8963A")
+    ACCENT = "#D4AF37"
+    ACCENT_HOVER = "#E0C25A"
+    ACCENT_ACTIVE = "#C49A2E"
+    ACCENT_DIM = "#A08020"
+    ACCENT_LIGHT = "#F0DF8A"
+    ACCENT_SOFT = "rgba(212,175,55,0.12)"
+    ACCENT_TEXT = "#D4AF37"
+    ACCENT_BRIGHT = "#F5E6A3"
+    ACCENT_GRADIENT = ("#D4AF37", "#B8961A")
 
     # ═══════════════════════════════════════════════════════════════════
-    # 2. SURFACE — Profundidade (0 = fundo, 5 = topo)
+    # 2. SURFACE — Veludo Preto Profundo (0=fundo … 5=topo)
     # ═══════════════════════════════════════════════════════════════════
 
-    SURFACE_0 = "#08080A"
-    SURFACE_1 = "#0C0C0F"
-    SURFACE_2 = "#121216"
-    SURFACE_3 = "#18181D"
-    SURFACE_4 = "#1E1E24"
-    SURFACE_5 = "#24242B"
-    TITLE_BAR = "#0A0A0D"
+    SURFACE_0 = "#050504"
+    SURFACE_1 = "#0A0A08"
+    SURFACE_2 = "#10100D"
+    SURFACE_3 = "#161612"
+    SURFACE_4 = "#1C1C17"
+    SURFACE_5 = "#22221C"
+    TITLE_BAR = "#070706"
 
-    # ── Gradientes de superfície (top-left → bottom-right) ─────
-    # start = mais escuro (~ SURFACE_0 / SURFACE_2), end = SURFACE_4 / SURFACE_5
-    # PANEL/TAB precisam contrastar com SURFACE_1 (fundo da janela)
-    GRADIENT_BUTTON = ("#08080A", "#1E1E24")   # SURFACE_0 → SURFACE_4
-    GRADIENT_PANEL = ("#121216", "#24242B")     # SURFACE_3 → SURFACE_5 (mais claro, contrasta com fundo)
-    GRADIENT_TAB = ("#18181D", "#1E1E24")       # SURFACE_3 → SURFACE_4 (mais claro que fundo)
-    GRADIENT_INPUT = ("#0C0C0F", "#1E1E24")    # SURFACE_1 → SURFACE_4
+    # ── Gradientes de superfície ─────────────────────────────────
+    GRADIENT_BUTTON = ("#050504", "#1C1C17")
+    GRADIENT_PANEL = ("#10100D", "#22221C")
+    GRADIENT_TAB = ("#161612", "#1C1C17")
+    GRADIENT_INPUT = ("#0A0A08", "#1C1C17")
+
+    # ── Gradiente rico multi-stop (5 stops, reflexo metálico) ────
+    # Ângulo 20° simula reflexo de metal polido (GoldText do protótipo)
+    GRADIENT_ACCENT_STOPS: tuple = (
+        (0.00, "#A08020"),
+        (0.35, "#D4AF37"),
+        (0.55, "#F5E6A3"),
+        (0.80, "#D4AF37"),
+        (1.00, "#8A6A10"),
+    )
+    GRADIENT_ACCENT_ANGLE: int = 20
 
     # ═══════════════════════════════════════════════════════════════════
-    # 3. TEXT — Hierarquia
+    # 3. TEXT — Hierarquia tipográfica quente
     # ═══════════════════════════════════════════════════════════════════
 
-    TEXT_HIGH = "#F0F0F0"
-    TEXT_MEDIUM = "#DCDCDC"
-    TEXT_LOW = "#888890"
-    TEXT_DISABLED = "#585860"
-    TEXT_ON_ACCENT = "#08080A"
+    TEXT_HIGH = "#F5F0E8"
+    TEXT_MEDIUM = "#E0D8C8"
+    TEXT_LOW = "#A09888"
+    TEXT_DISABLED = "#605850"
+    TEXT_ON_ACCENT = "#050504"
     TEXT_ON_DANGER = "#FFFFFF"
 
     # ═══════════════════════════════════════════════════════════════════
-    # 4. BORDER — Hierarquia
+    # 4. BORDER — Hierarquia com foil
     # ═══════════════════════════════════════════════════════════════════
 
-    BORDER_SUBTLE = "#1A1A20"
-    BORDER_DEFAULT = "#2A2A30"
-    BORDER_STRONG = "#3A3A44"
-    BORDER_ACCENT = "#C9A84C"
-    DIVIDER = "#1A1A20"
+    BORDER_SUBTLE = "#181812"
+    BORDER_DEFAULT = "#282820"
+    BORDER_STRONG = "#383830"
+    BORDER_ACCENT = "#D4AF37"
+    DIVIDER = "#181812"
+
+    # ── Borda em gradiente ("efeito foil") ────────────────────────
+    # Borda metálica que muda de tom ao longo do contorno.
+    BORDER_GRADIENT_STOPS: tuple = (
+        (0.00, "#D4AF37"),
+        (0.25, "#F5E6A3"),
+        (0.50, "#A08020"),
+        (0.75, "#D4AF37"),
+        (1.00, "#8A6A10"),
+    )
+    BORDER_GRADIENT_WIDTH: float = 2.0
 
     # ═══════════════════════════════════════════════════════════════════
-    # 5. SHADOW — Sombras
+    # 5. SHADOW — Sombras e glow estruturados
     # ═══════════════════════════════════════════════════════════════════
 
-    SHADOW_SM = "#040405"
-    SHADOW_MD = "#040405"
+    SHADOW_SM = "#000000"
+    SHADOW_MD = "#000000"
     SHADOW_LG = "#000000"
     SHADOW_XL = "#000000"
-    SHADOW_ACCENT = "#C9A84C15"
-    GLOW = "#C9A84C15"
-    GLOW_STRONG = "#C9A84C25"
+    SHADOW_ACCENT = "#D4AF3720"
+    GLOW = "#D4AF3718"
+    GLOW_STRONG = "#D4AF3730"
+
+    # ── Sombra estruturada (QGraphicsDropShadowEffect) ──────────
+    SHADOW_BLUR_SM: int = 4
+    SHADOW_BLUR_MD: int = 8
+    SHADOW_BLUR_LG: int = 16
+    SHADOW_BLUR_XL: int = 24
+    SHADOW_OFFSET_Y_SM: int = 1
+    SHADOW_OFFSET_Y_MD: int = 2
+    SHADOW_OFFSET_Y_LG: int = 4
+    SHADOW_COLOR_RGB: str = "#000000"
+    SHADOW_COLOR_ALPHA: int = 128   # 50% opacity
+
+    # ── Glow estruturado (brilho dourado) ───────────────────────
+    GLOW_BLUR: int = 12
+    GLOW_OFFSET_X: int = 0
+    GLOW_OFFSET_Y: int = 0
+    GLOW_COLOR_RGB: str = "#D4AF37"   # fallback to gold accent
+    GLOW_ALPHA: int = 60              # ~24% opacity
+    GLOW_STRONG_BLUR: int = 20
+    GLOW_STRONG_ALPHA: int = 80
 
     # ═══════════════════════════════════════════════════════════════════
-    # 6. RADIUS — Escala global
+    # 6. RADIUS — Arredondamento generoso (visual premium)
     # ═══════════════════════════════════════════════════════════════════
 
-    RADIUS_XS = 2
-    RADIUS_SM = 4
-    RADIUS_MD = 6
-    RADIUS_LG = 10
-    RADIUS_XL = 16
+    RADIUS_XS = 3
+    RADIUS_SM = 5
+    RADIUS_MD = 8
+    RADIUS_LG = 12
+    RADIUS_XL = 20
     RADIUS_FULL = 999
 
     # ═══════════════════════════════════════════════════════════════════
-    # 7. SPACE — Escala global de espaçamento
+    # 7. SPACE — Espaçamento generoso
     # ═══════════════════════════════════════════════════════════════════
 
-    SPACE_XXS = 2
-    SPACE_XS = 4
-    SPACE_SM = 8
-    SPACE_MD = 12
-    SPACE_LG = 16
-    SPACE_XL = 24
-    SPACE_2XL = 32
-    SPACE_3XL = 48
+    SPACE_XXS = 3
+    SPACE_XS = 5
+    SPACE_SM = 10
+    SPACE_MD = 14
+    SPACE_LG = 18
+    SPACE_XL = 28
+    SPACE_2XL = 36
+    SPACE_3XL = 52
 
     # ═══════════════════════════════════════════════════════════════════
     # 8. ICON — Tamanhos
@@ -119,9 +170,7 @@ class DarkCharcoalTheme(BaseTheme):
     ICON_MD = 20
     ICON_LG = 24
     ICON_XL = 32
-    TOOLBAR_ICON_SIZE = 34
-    TOOLBAR_BTN_SIZE = 40
-    TOOLBAR_BTN_HOVER_GROW = 4
+    TOOLBAR_ICON_SIZE = 22
 
     # ═══════════════════════════════════════════════════════════════════
     # 9. ANIMATION
@@ -145,9 +194,9 @@ class DarkCharcoalTheme(BaseTheme):
     # 11. LAYOUT
     # ═══════════════════════════════════════════════════════════════════
 
-    PAGE_PADDING = 24
-    SECTION_GAP = 24
-    GRID_GAP = 20
+    PAGE_PADDING = 28
+    SECTION_GAP = 28
+    GRID_GAP = 22
     CONTENT_MAX_WIDTH = 1600
 
     # ═══════════════════════════════════════════════════════════════════
@@ -163,43 +212,52 @@ class DarkCharcoalTheme(BaseTheme):
     # 13. OVERLAY / Glass
     # ═══════════════════════════════════════════════════════════════════
 
-    OVERLAY_BG = "rgba(8, 8, 10, 0.75)"
-    BACKDROP_BLUR = "4px"
+    OVERLAY_BG = "rgba(5, 5, 4, 0.75)"
+    BACKDROP_BLUR = "6px"
 
     # ═══════════════════════════════════════════════════════════════════
     # 14. FOCUS_RING
     # ═══════════════════════════════════════════════════════════════════
 
-    FOCUS_RING_COLOR = "#C9A84C"
+    FOCUS_RING_COLOR = "#D4AF37"
     FOCUS_RING_WIDTH = "2px"
     FOCUS_RING_OFFSET = "1px"
 
     # ═══════════════════════════════════════════════════════════════════
-    # 15. STATUS
+    # 15. STATUS — Cores de estado
     # ═══════════════════════════════════════════════════════════════════
 
-    COLOR_SUCCESS = "#43A047"
+    COLOR_SUCCESS = "#4CAF50"
     COLOR_SUCCESS_HOVER = "#66BB6A"
     COLOR_SUCCESS_DIM = "#2E7D32"
-    COLOR_WARNING = "#EF9A00"
-    COLOR_WARNING_HOVER = "#FFB74D"
+    COLOR_WARNING = "#FFB300"
+    COLOR_WARNING_HOVER = "#FFCA28"
     COLOR_WARNING_DIM = "#BF6E00"
-    COLOR_DANGER = "#D32F2F"
-    COLOR_DANGER_HOVER = "#E53935"
+    COLOR_DANGER = "#E53935"
+    COLOR_DANGER_HOVER = "#EF5350"
     COLOR_DANGER_DIM = "#A02020"
     COLOR_INFO = "#5B9BD5"
     COLOR_INFO_HOVER = "#7BB8E8"
     COLOR_INFO_DIM = "#3A7CC2"
 
     # ═══════════════════════════════════════════════════════════════════
-    # 16. FONT
+    # 16. FONT — Tipografia com fonte display serifada
     # ═══════════════════════════════════════════════════════════════════
 
     FONT_FAMILY_DEFAULT = "'Segoe UI', 'Inter', 'Roboto', sans-serif"
     FONT_FAMILY_MONO = "'Consolas', 'Courier New', monospace"
 
-    FONT_SIZE_TITLE = 21
-    FONT_SIZE_BIG = 16
+    # ── Fonte display/serif para títulos editoriais ──────────────
+    # "Georgia" como fallback seguro; "'Cormorant Garamond'" seria ideal
+    # se instalada no sistema.
+    FONT_FAMILY_DISPLAY: str = "'Georgia', 'Playfair Display', serif"
+
+    # Letter-spacing numérico para QFont.setLetterSpacing em
+    # widgets com paintEvent customizado (ex: GoldText).
+    FONT_LETTER_SPACING_DISPLAY: int = 2
+
+    FONT_SIZE_TITLE = 24
+    FONT_SIZE_BIG = 18
     FONT_SIZE_NORMAL = 13
     FONT_SIZE_SMALL = 11
     FONT_SIZE_TINY = 10
@@ -210,131 +268,157 @@ class DarkCharcoalTheme(BaseTheme):
     FONT_WEIGHT_HEAVY = 800
 
     # ═══════════════════════════════════════════════════════════════════
-    # 17. DIMENSIONS
+    # 17. DIMENSIONS — Alturas e tamanhos de widgets
     # ═══════════════════════════════════════════════════════════════════
 
-    INPUT_HEIGHT = 24
+    INPUT_HEIGHT = 28
     BUTTON_HEIGHT = 0
     BUTTON_HEIGHT_PRIMARY = 0
     ITEM_HEIGHT = 0
     CHECKBOX_SIZE = 16
     RADIO_SIZE = 16
     SCROLLBAR_WIDTH = 6
-    SCROLLBAR_MIN_HEIGHT = 28
+    SCROLLBAR_MIN_HEIGHT = 30
     TAB_HEIGHT = 0
     TAB_CLOSE_BUTTON_SIZE = 20
     CLOSE_BUTTON_BORDER_RADIUS = 3
-    PROGRESS_BAR_HEIGHT = 18
-    TITLE_BTN_HEIGHT = 22
-    TITLE_BTN_WIDTH = 28
+    PROGRESS_BAR_HEIGHT = 20
+    TITLE_BTN_HEIGHT = 24
+    TITLE_BTN_WIDTH = 30
     TITLE_BTN_FONT_SIZE = 11
-    GROUP_MARGIN_TOP = 8
+    TOOLBAR_BTN_SIZE = 42
+    TOOLBAR_BTN_HOVER_GROW = 5
+    GROUP_MARGIN_TOP = 10
     SPLITTER_HANDLE_WIDTH = 4
 
     # ═══════════════════════════════════════════════════════════════════
-    # 18. SPECIFICS — BORDER_RADIUS (usam RADIUS semântico como base)
+    # 18. SPECIFICS — Tokens específicos de implementação
     # ═══════════════════════════════════════════════════════════════════
 
-    BORDER_RADIUS_CARD = 10       # ≈ RADIUS_LG
-    BORDER_RADIUS_BUTTON = 6       # ≈ RADIUS_MD
-    BORDER_RADIUS_INPUT = 6        # ≈ RADIUS_MD
-    BORDER_RADIUS_CHECKBOX = 3     # ≈ RADIUS_XS+1
+    # ── Border Radius ────────────────────────────────────────────
+    BORDER_RADIUS_CARD = 12
+    BORDER_RADIUS_BUTTON = 8
+    BORDER_RADIUS_INPUT = 8
+    BORDER_RADIUS_CHECKBOX = 4
     BORDER_RADIUS_RADIO = 0
-    BORDER_RADIUS_BADGE = 4        # ≈ RADIUS_SM
-    BORDER_RADIUS_PROGRESS = 5
-    BORDER_RADIUS_TABLE = 8        # ≈ RADIUS_SM*2
-    BORDER_RADIUS_TITLE_BTN = 3
-    BORDER_RADIUS_TOOLBAR_BTN = 4   # ≈ RADIUS_SM
-    BORDER_RADIUS_GHOST = 5
-    BORDER_RADIUS_TOOL_SELECTOR = 6  # ≈ RADIUS_MD
+    BORDER_RADIUS_BADGE = 5
+    BORDER_RADIUS_PROGRESS = 6
+    BORDER_RADIUS_TABLE = 10
+    BORDER_RADIUS_TITLE_BTN = 4
+    BORDER_RADIUS_TOOLBAR_BTN = 5
+    BORDER_RADIUS_GHOST = 6
+    BORDER_RADIUS_TOOL_SELECTOR = 8
     BORDER_RADIUS_SCROLLBAR = 3
-    BORDER_RADIUS_SPINBOX_BTN = 2    # ≈ RADIUS_XS
+    BORDER_RADIUS_SPINBOX_BTN = 2
     BORDER_RADIUS_TAB_CLOSE = 3
-    BORDER_RADIUS_COMBO_POPUP = 4    # ≈ RADIUS_SM
-    BORDER_RADIUS_MENU = 6          # ≈ RADIUS_MD
-    BORDER_RADIUS_MENU_ITEM = 3
-    BORDER_RADIUS_GROUP_TITLE = 4   # ≈ RADIUS_SM
-    BORDER_RADIUS_DIALOG = 16       # ≈ RADIUS_XL
+    BORDER_RADIUS_COMBO_POPUP = 5
+    BORDER_RADIUS_MENU = 8
+    BORDER_RADIUS_MENU_ITEM = 4
+    BORDER_RADIUS_GROUP_TITLE = 5
+    BORDER_RADIUS_DIALOG = 20
     MENUBAR_ITEM_BORDER_RADIUS = 1
 
+    # ── Checkbox ─────────────────────────────────────────────────
     CHECKBOX_BORDER_WIDTH = 0
     CHECKBOX_SPACING = 8
 
+    # ── Badge ────────────────────────────────────────────────────
     BADGE_PADDING_V = "3px"
-    BADGE_PADDING_H = "12px"
-    BADGE_LETTER_SPACING = "0.3px"
+    BADGE_PADDING_H = "14px"
+    BADGE_LETTER_SPACING = "0.4px"
 
-    BUTTON_PADDING_V = "2px"
-    BUTTON_PADDING_H = "2px"
+    # ── Badge Outline (habilitado para estilo premium) ───────────
+    BADGE_OUTLINE_ENABLED: bool = True
+    BADGE_OUTLINE_BORDER_WIDTH: int = 1
+    BADGE_OUTLINE_BG_ALPHA: int = 30   # fundo translúcido ~12%
+
+    # ── Button ───────────────────────────────────────────────────
+    BUTTON_PADDING_V = "3px"
+    BUTTON_PADDING_H = "3px"
     BUTTON_PADDING_V_SMALL = "2px"
     BUTTON_PADDING_H_SMALL = "2px"
-    BUTTON_PADDING_V_PRIMARY = "2px"
-    BUTTON_PADDING_H_PRIMARY = "2px"
-    BUTTON_LETTER_SPACING_NORMAL = "0.3px"
-    BUTTON_LETTER_SPACING_PRIMARY = "0.5px"
-    LETTER_SPACING_TITLE = "1px"
-    LETTER_SPACING_BADGE = "0.3px"
-    LETTER_SPACING_GROUP = "0.5px"
-    LETTER_SPACING_BUTTON = "0.3px"
-    LETTER_SPACING_BUTTON_PRIMARY = "0.5px"
-    LETTER_SPACING_HEADER = "0.3px"
-    LETTER_SPACING_TOOL_SELECTOR = "0.3px"
-    LETTER_SPACING_WINDOW_TITLE = "0.3px"
+    BUTTON_PADDING_V_PRIMARY = "3px"
+    BUTTON_PADDING_H_PRIMARY = "3px"
+    BUTTON_LETTER_SPACING_NORMAL = "0.4px"
+    BUTTON_LETTER_SPACING_PRIMARY = "0.6px"
 
-    TOOLBAR_BTN_PADDING_V = "4px"
-    TOOLBAR_BTN_PADDING_H = "10px"
+    # ── Toolbar ──────────────────────────────────────────────────
+    TOOLBAR_BTN_PADDING_V = "5px"
+    TOOLBAR_BTN_PADDING_H = "12px"
 
-    TOOL_SELECTOR_PADDING_V = "6px"
-    TOOL_SELECTOR_PADDING_H = "4px"
-    TOOL_SELECTOR_LETTER_SPACING = "0.3px"
+    # ── Tool Selector ────────────────────────────────────────────
+    TOOL_SELECTOR_PADDING_V = "7px"
+    TOOL_SELECTOR_PADDING_H = "5px"
+    TOOL_SELECTOR_LETTER_SPACING = "0.4px"
 
-    INPUT_PADDING_V = "2px"
-    INPUT_PADDING_H = "2px"
+    # ── Input ────────────────────────────────────────────────────
+    INPUT_PADDING_V = "3px"
+    INPUT_PADDING_H = "3px"
 
-    SPINBOX_PADDING = "3px 8px"
+    # ── SpinBox ──────────────────────────────────────────────────
+    SPINBOX_PADDING = "4px 10px"
     SPINBOX_BTN_WIDTH = 16
     SPINBOX_BTN_MARGIN = "1px"
 
-    COMBOBOX_PADDING = "3px 8px"
+    # ── ComboBox ─────────────────────────────────────────────────
+    COMBOBOX_PADDING = "4px 10px"
     COMBOBOX_MIN_WIDTH = 80
     COMBOBOX_DROPDOWN_WIDTH = 22
     COMBOBOX_ARROW_SIZE = "4px"
-    COMBOBOX_POPUP_BORDER_RADIUS = 4
+    COMBOBOX_POPUP_BORDER_RADIUS = 5
 
-    TEXT_EDIT_PADDING = "8px"
+    # ── TextEdit / TextBrowser ───────────────────────────────────
+    TEXT_EDIT_PADDING = "10px"
     TEXT_EDIT_FONT_SIZE = 12
 
-    GROUP_TITLE_LEFT = 4
+    # ── GroupBox ─────────────────────────────────────────────────
+    GROUP_TITLE_LEFT = 6
     GROUP_TITLE_TOP = -2
-    GROUP_TITLE_PADDING = "0 6px"
-    GROUP_TITLE_BORDER_RADIUS = 4
-    GROUP_TITLE_LETTER_SPACING = "0.5px"
+    GROUP_TITLE_PADDING = "0 8px"
+    GROUP_TITLE_BORDER_RADIUS = 5
+    GROUP_TITLE_LETTER_SPACING = "0.6px"
 
+    # ── Letter Spacing ───────────────────────────────────────────
+    LETTER_SPACING_TITLE = "1.2px"
+    LETTER_SPACING_BADGE = "0.4px"
+    LETTER_SPACING_GROUP = "0.6px"
+    LETTER_SPACING_BUTTON = "0.4px"
+    LETTER_SPACING_BUTTON_PRIMARY = "0.6px"
+    LETTER_SPACING_HEADER = "0.4px"
+    LETTER_SPACING_TOOL_SELECTOR = "0.4px"
+    LETTER_SPACING_WINDOW_TITLE = "0.4px"
+
+    # ── Window Title ─────────────────────────────────────────────
     WINDOW_TITLE_FONT_SIZE = 11
-    WINDOW_TITLE_LETTER_SPACING = "0.3px"
+    WINDOW_TITLE_LETTER_SPACING = "0.4px"
 
+    # ── Title Bar ────────────────────────────────────────────────
     TITLE_BAR_BORDER_WIDTH = "1px"
-    TITLE_BAR_BORDER_COLOR = ""  # usa BG_PANEL por compatibilidade
-    CARD_PADDING_V = 16
-    CARD_PADDING_H = 10
+    TITLE_BAR_BORDER_COLOR = ""
 
+    # ── Card ─────────────────────────────────────────────────────
+    CARD_PADDING_V = 18
+    CARD_PADDING_H = 12
+
+    # ── Splitter ─────────────────────────────────────────────────
     SPLITTER_HANDLE_WIDTH_H = 4
     SPLITTER_HANDLE_WIDTH_V = 4
 
-    MENU_PADDING = "2px"
+    # ── Menu ─────────────────────────────────────────────────────
+    MENU_PADDING = "3px"
     MENU_MARGIN_V = "1px 0"
-    MENU_ITEM_PADDING = "4px 16px 4px 8px"
+    MENU_ITEM_PADDING = "5px 18px 5px 10px"
     MENU_SEPARATOR_HEIGHT = "1px"
-    MENU_SEPARATOR_MARGIN = "2px 6px"
+    MENU_SEPARATOR_MARGIN = "3px 8px"
 
+    # ── Table / Header ───────────────────────────────────────────
     HEADER_FONT_SIZE = 11
-    HEADER_LETTER_SPACING = "0.3px"
-    TABLE_ITEM_PADDING = "3px 6px"
-    HEADER_PADDING = "4px 6px"
+    HEADER_LETTER_SPACING = "0.4px"
+    TABLE_ITEM_PADDING = "4px 8px"
+    HEADER_PADDING = "5px 8px"
 
     # ═══════════════════════════════════════════════════════════════════
     # ALIASES DE COMPATIBILIDADE RETROATIVA
-    # Mapeiam nomes antigos → tokens semânticos
     # ═══════════════════════════════════════════════════════════════════
 
     # ── Fundos (BG_*) → SURFACE ─────────────────────────────────────
