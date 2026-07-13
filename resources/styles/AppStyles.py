@@ -52,12 +52,27 @@ class AppStyles(BaseStyle):
 
     @classmethod
     def btn_primary_style(cls) -> str:
-        """Botao primario — gradiente."""
+        """
+        Botao primario — gradiente.
+        Usa GRADIENT_ACCENT_STOPS (3+ stops) com angulo do tema quando disponivel,
+        ou ACCENT_GRADIENT (2 stops) como fallback para compatibilidade retroativa.
+        """
         t = ct.theme
+        bg_gradient = cls._gradient_qss_from_stops(
+            t.GRADIENT_ACCENT_STOPS,
+            t.GRADIENT_ACCENT_ANGLE,
+            t.ACCENT_GRADIENT[0],
+            t.ACCENT_GRADIENT[1],
+        )
+        hover_gradient = cls._gradient_qss_from_stops(
+            (),
+            45,
+            t.ACCENT_HOVER,
+            t.ACCENT,
+        )
         return (
             f"QPushButton {{"
-            f"  background: qlineargradient(x1:0,y1:0,x2:1,y2:0,"
-            f"    stop:0 {t.ACCENT_GRADIENT[0]}, stop:1 {t.ACCENT_GRADIENT[1]});"
+            f"  background: {bg_gradient};"
             f"  color: {t.SURFACE_0};"
             f"  border: none;"
             f"  border-radius: {t.BORDER_RADIUS_BUTTON}px;"
@@ -67,8 +82,7 @@ class AppStyles(BaseStyle):
             f"  letter-spacing: {t.BUTTON_LETTER_SPACING_PRIMARY};"
             f"}}"
             f"QPushButton:hover {{"
-            f"  background: qlineargradient(x1:0,y1:0,x2:1,y2:0,"
-            f"    stop:0 {t.ACCENT_HOVER}, stop:1 {t.ACCENT});"
+            f"  background: {hover_gradient};"
             f"}}"
             f"QPushButton:pressed {{"
             f"  background: {t.ACCENT_ACTIVE};"
