@@ -11,9 +11,10 @@ from __future__ import annotations
 
 import math
 
-from PySide6.QtGui import QColor, QLinearGradient, QBrush, QPen
+from PySide6.QtGui import QColor, QLinearGradient, QRadialGradient, QConicalGradient, QBrush, QPen
 from PySide6.QtWidgets import QGraphicsDropShadowEffect, QWidget
 
+from core.enum.GradientType import GradientType
 from resources.styles.ThemeManager import ct
 
 
@@ -99,32 +100,145 @@ class BaseStyle:
         angle_deg: int = 45,
         fallback_start: str = "",
         fallback_end: str = "",
+        gradient_type: GradientType = GradientType.LINEAR,
+        cx: float = 0.5,
+        cy: float = 0.5,
+        fx: float = 0.5,
+        fy: float = 0.5,
+        radius: float = 0.5,
     ) -> str:
         """
-        Gera string QSS ``qlineargradient(...)`` a partir de uma tupla
-        de stops (pos, cor) e um ângulo.
+        Gera string QSS para gradiente a partir de stops, tipo e parâmetros.
 
-        Se a tupla estiver vazia, usa o fallback de 2 cores (comportamento
-        legado, sem mudança visual).
+        Tipos suportados:
+            LINEAR  → qlineargradient(x1,y1,x2,y2, stop:...)
+            RADIAL  → qradialgradient(cx,cy,radius,fx,fy, stop:...)
+            CONICAL → qconicalgradient(cx,cy,angle, stop:...)
+
+        Se a tupla de stops estiver vazia, usa o fallback de 2 cores
+        (comportamento legado, sem mudança visual).
 
         Args:
             stops: Tupla de (pos_float, cor_hex_str), ordenada por posição.
-            angle_deg: Ângulo do gradiente em graus.
+            angle_deg: Ângulo do gradiente em graus (LINEAR) ou ângulo inicial (CONICAL).
             fallback_start: Cor inicial do fallback (ex: ACCENT_GRADIENT[0]).
             fallback_end: Cor final do fallback (ex: ACCENT_GRADIENT[1]).
+            gradient_type: Tipo de gradiente (GradientType.LINEAR/RADIAL/CONICAL).
+            cx: Centro X para RADIAL e CONICAL (0.0–1.0).
+            cy: Centro Y para RADIAL e CONICAL (0.0–1.0).
+            fx: Ponto focal X para RADIAL (0.0–1.0).
+            fy: Ponto focal Y para RADIAL (0.0–1.0).
+            radius: Raio para RADIAL (0.0–1.0).
 
         Returns:
-            String QSS ``qlineargradient(...)``.
+            String QSS ``qlineargradient(...)``, ``qradialgradient(...)``
+            ou ``qconicalgradient(...)``.
         """
         if not stops:
-            # Fallback para gradiente de 2 cores
             return cls._gradient(fallback_start, fallback_end)
 
+        if gradient_type == GradientType.RADIAL:
+            parts = [
+                f"qradialgradient("
+                f"cx:{cx:.3f},cy:{cy:.3f},"
+                f"radius:{radius:.3f},"
+                f"fx:{fx:.3f},fy:{fy:.3f}"
+            ]
+            for pos, color in stops:
+                parts.append(f"stop:{pos} {color}")
+            return ",".join(parts) + ")"
+
+        elif gradient_type == GradientType.CONICAL:
+            parts = [
+                f"qconicalgradient("
+                f"cx:{cx:.3f},cy:{cy:.3f},"
+                f"angle:{angle_deg}"
+            ]
+            for pos, color in stops:
+                parts.append(f"stop:{pos} {color}")
+            return ",".join(parts) + ")"
+
+        # LINEAR (padrão)
         x1, y1, x2, y2 = cls._gradient_angle_to_points(angle_deg)
         parts = [f"qlineargradient(x1:{x1:.3f},y1:{y1:.3f},x2:{x2:.3f},y2:{y2:.3f}"]
         for pos, color in stops:
             parts.append(f"stop:{pos} {color}")
         return ",".join(parts) + ")"
+
+    @classmethod
+    def _build_radial_gradient(
+        cls,
+        stops: tuple,
+        cx: float = 0.5,
+        cy: float = 0.5,
+        fx: float = 0.5,
+        fy: float = 0.5,
+        radius: float = 0.5,
+        rect_width: float = 100,
+        rect_height: float = 100,
+    ) -> QRadialGradient:
+        """
+        Constrói um QRadialGradient a partir de stops e parâmetros,
+        para uso em paintEvent customizado (QPainter).
+
+        Se stops estiver vazio, retorna um gradiente vazio (sem stops)
+        — quem chamar deve tratar o fallback.
+
+        Args:
+            stops: Tupla de (pos_float, cor_hex_str).
+            cx: Centro X (0.0–1.0, relativo à largura).
+            cy: Centro Y (0.0–1.0, relativo à altura).
+            fx: Ponto focal X (0.0–1.0).
+            fy: Ponto focal Y (0.0–1.0).
+            radius: Raio (0.0–1.0, relativo à diagonal).
+            rect_width: Largura do retângulo alvo.
+            rect_height: Altura do retângulo alvo.
+
+        Returns:
+            QRadialGradient configurado.
+        """
+        diag = math.sqrt(rect_width**2 + rect_height**2)
+        grad = QRadialGradient(
+            cx * rect_width, cy * rect_height,
+            radius * diag,
+            fx * rect_width, fy * rect_height,
+        )
+        for pos, color_hex in stops:
+            grad.setColorAt(pos, QColor(color_hex))
+        return grad
+
+    @classmethod
+    def _build_conical_gradient(
+        cls,
+        stops: tuple,
+        cx: float = 0.5,
+        cy: float = 0.5,
+        angle_deg: float = 0.0,
+        rect_width: float = 100,
+        rect_height: float = 100,
+    ) -> QConicalGradient:
+        """
+        Constrói um QConicalGradient a partir de stops e parâmetros,
+        para uso em paintEvent customizado (QPainter).
+
+        Se stops estiver vazio, retorna um gradiente vazio (sem stops)
+        — quem chamar deve tratar o fallback.
+
+        Args:
+            stops: Tupla de (pos_float, cor_hex_str).
+            cx: Centro X (0.0–1.0).
+            cy: Centro Y (0.0–1.0).
+            angle_deg: Ângulo inicial em graus.
+            rect_width: Largura do retângulo alvo.
+            rect_height: Altura do retângulo alvo.
+
+        Returns:
+            QConicalGradient configurado.
+        """
+        grad = QConicalGradient(cx * rect_width, cy * rect_height, angle_deg)
+        for pos, color_hex in stops:
+            grad.setColorAt(pos, QColor(color_hex))
+        return grad
 
     @classmethod
     def _build_linear_gradient(

@@ -54,15 +54,28 @@ class AppStyles(BaseStyle):
     def btn_primary_style(cls) -> str:
         """
         Botao primario — gradiente.
-        Usa GRADIENT_ACCENT_STOPS (3+ stops) com angulo do tema quando disponivel,
-        ou ACCENT_GRADIENT (2 stops) como fallback para compatibilidade retroativa.
+        Usa GRADIENT_ACCENT_STOPS (3+ stops) com tipo, angulo e parametros
+        do tema quando disponivel, ou ACCENT_GRADIENT (2 stops) como fallback
+        para compatibilidade retroativa.
+
+        Tipos de gradiente suportados (via GradientType):
+            LINEAR  — gradiente linear com angulo (padrao)
+            RADIAL  — gradiente radial com centro e ponto focal
+            CONICAL — gradiente conico com centro e angulo inicial
         """
         t = ct.theme
+        gtype = t.GRADIENT_ACCENT_TYPE
         bg_gradient = cls._gradient_qss_from_stops(
             t.GRADIENT_ACCENT_STOPS,
             t.GRADIENT_ACCENT_ANGLE,
             t.ACCENT_GRADIENT[0],
             t.ACCENT_GRADIENT[1],
+            gradient_type=gtype,
+            cx=t.GRADIENT_RADIAL_CX,
+            cy=t.GRADIENT_RADIAL_CY,
+            fx=t.GRADIENT_RADIAL_FX,
+            fy=t.GRADIENT_RADIAL_FY,
+            radius=t.GRADIENT_RADIAL_RADIUS,
         )
         hover_gradient = cls._gradient_qss_from_stops(
             (),

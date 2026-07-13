@@ -20,6 +20,7 @@ Identidade visual:
 
 from __future__ import annotations
 
+from core.enum.GradientType import GradientType
 from resources.styles.BaseTheme import BaseTheme
 
 
@@ -64,6 +65,7 @@ class GoldPremiumTheme(BaseTheme):
 
     # ── Gradiente rico multi-stop (5 stops, reflexo metálico) ────
     # Ângulo 20° simula reflexo de metal polido (GoldText do protótipo)
+    GRADIENT_ACCENT_TYPE: GradientType = GradientType.RADIAL
     GRADIENT_ACCENT_STOPS: tuple = (
         (0.00, "#A08020"),
         (0.35, "#D4AF37"),
@@ -72,6 +74,18 @@ class GoldPremiumTheme(BaseTheme):
         (1.00, "#8A6A10"),
     )
     GRADIENT_ACCENT_ANGLE: int = 20
+
+    # ── Parâmetros do gradiente RADIAL (spotlight no centro) ─────
+    GRADIENT_RADIAL_CX: float = 0.5
+    GRADIENT_RADIAL_CY: float = 0.5
+    GRADIENT_RADIAL_FX: float = 0.5
+    GRADIENT_RADIAL_FY: float = 0.3   # foco levemente acima do centro
+    GRADIENT_RADIAL_RADIUS: float = 0.6
+
+    # ── Parâmetros do gradiente CONICAL (fallback) ───────────────
+    GRADIENT_CONICAL_CX: float = 0.5
+    GRADIENT_CONICAL_CY: float = 0.5
+    GRADIENT_CONICAL_ANGLE: float = 0.0
 
     # ═══════════════════════════════════════════════════════════════════
     # 3. TEXT — Hierarquia tipográfica quente

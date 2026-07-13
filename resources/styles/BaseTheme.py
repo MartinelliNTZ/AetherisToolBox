@@ -32,6 +32,8 @@ Grupos de tokens semânticos (organizados por categoria):
 
 from __future__ import annotations
 
+from typing import Any
+
 
 class BaseTheme:
     """Classe base para temas. Todos os atributos devem ser sobrescritos."""
@@ -91,8 +93,26 @@ class BaseTheme:
     # ── Gradiente rico (3+ stops) para uso em QPainter/QLinearGradient e/ou QSS ──
     # Formato: tupla de (posicao_float_0_a_1, cor_hex_str), ordenada por posição.
     # Tupla vazia = recurso desligado, componente deve usar ACCENT_GRADIENT (2 stops) como fallback.
+
+    # Tipo de gradiente para elementos de acento (botões, progress, etc.)
+    # Valores possíveis: GradientType.LINEAR | GradientType.RADIAL | GradientType.CONICAL
+    # Padrão = LINEAR (compatibilidade retroativa total)
+    GRADIENT_ACCENT_TYPE: "GradientType" = None  # noqa: F821 — resolvido em __init_subclass__
     GRADIENT_ACCENT_STOPS: tuple = ()
     GRADIENT_ACCENT_ANGLE: int = 45   # graus; 45 = comportamento atual (top-left → bottom-right)
+
+    # ── Parâmetros específicos para gradientes RADIAL e CONICAL ──────────
+    # Radial: ponto focal (fx,fy) e raio como fração 0.0–1.0
+    GRADIENT_RADIAL_CX: float = 0.5
+    GRADIENT_RADIAL_CY: float = 0.5
+    GRADIENT_RADIAL_FX: float = 0.5
+    GRADIENT_RADIAL_FY: float = 0.5
+    GRADIENT_RADIAL_RADIUS: float = 0.5
+
+    # Conical: centro (cx,cy) e ângulo inicial em graus
+    GRADIENT_CONICAL_CX: float = 0.5
+    GRADIENT_CONICAL_CY: float = 0.5
+    GRADIENT_CONICAL_ANGLE: float = 0.0
 
     # ═══════════════════════════════════════════════════════════════════
     # 3. TEXT — Hierarquia de texto
