@@ -333,7 +333,7 @@ class AppStyles(BaseStyle):
         t = ct.theme
         return (
             f"QLabel {{"
-            f"  color: {t.TEXT_GOLD};"
+            f"  color: {t.TEXT_ACCENT};"
             f"  font-size: {t.FONT_SIZE_TINY}px;"
             f"  padding: 0px;"
             f"  margin: 0px;"
@@ -530,12 +530,12 @@ class AppStyles(BaseStyle):
                 "TEXT_PRIMARY": t.TEXT_PRIMARY,
                 "TEXT_SECONDARY": t.TEXT_SECONDARY,
                 "TEXT_MUTED": t.TEXT_MUTED,
-                "TEXT_GOLD": t.TEXT_GOLD,
-                "GOLD": t.GOLD,
-                "GOLD_HOVER": t.GOLD_HOVER,
-                "GOLD_DIM": t.GOLD_DIM,
-                "GOLD_LIGHT": t.GOLD_LIGHT,
-                "GOLD_GRADIENT": t.GOLD_GRADIENT,
+                "TEXT_ACCENT": t.TEXT_ACCENT,
+                "ACCENT_COLOR": t.ACCENT_COLOR,
+                "ACCENT_COLOR_HOVER": t.ACCENT_COLOR_HOVER,
+                "ACCENT_COLOR_DIM": t.ACCENT_COLOR_DIM,
+                "ACCENT_COLOR_LIGHT": t.ACCENT_COLOR_LIGHT,
+                "ACCENT_COLOR_GRADIENT": t.ACCENT_COLOR_GRADIENT,
                 # Tokens semânticos
                 "ACCENT": t.ACCENT,
                 "ACCENT_TEXT": t.ACCENT_TEXT,

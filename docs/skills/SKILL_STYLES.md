@@ -89,14 +89,26 @@ Classe base abstrata que define **todos os tokens semânticos** do sistema. Cada
 | `BG_CARD` | `SURFACE_3` |
 | `BG_ELEVATED` | `SURFACE_4` |
 | `BG_SURFACE` | `SURFACE_5` |
-| `GOLD` | `ACCENT` |
-| `GOLD_HOVER` | `ACCENT_HOVER` |
-| `GOLD_DIM` | `ACCENT_DIM` |
+| `ACCENT_COLOR` | `ACCENT` |
+| ~~`GOLD`~~ | *(renomeado para `ACCENT_COLOR`)* |
+| `ACCENT_COLOR_HOVER` | `ACCENT_HOVER` |
+| ~~`GOLD_HOVER`~~ | *(renomeado para `ACCENT_COLOR_HOVER`)* |
+| `ACCENT_COLOR_ACTIVE` | `ACCENT_ACTIVE` |
+| ~~`GOLD_ACTIVE`~~ | *(renomeado para `ACCENT_COLOR_ACTIVE`)* |
+| `ACCENT_COLOR_DIM` | `ACCENT_DIM` |
+| ~~`GOLD_DIM`~~ | *(renomeado para `ACCENT_COLOR_DIM`)* |
+| `ACCENT_COLOR_LIGHT` | `ACCENT_LIGHT` |
+| ~~`GOLD_LIGHT`~~ | *(renomeado para `ACCENT_COLOR_LIGHT`)* |
+| `ACCENT_COLOR_GRADIENT` | `ACCENT_GRADIENT` |
+| ~~`GOLD_GRADIENT`~~ | *(renomeado para `ACCENT_COLOR_GRADIENT`)* |
 | `TEXT_BRIGHT` | `TEXT_HIGH` |
 | `TEXT_PRIMARY` | `TEXT_MEDIUM` |
 | `TEXT_SECONDARY` | `TEXT_LOW` |
 | `TEXT_MUTED` | `TEXT_DISABLED` |
-| `TEXT_GOLD` | `ACCENT_TEXT` |
+| `TEXT_ACCENT` | `ACCENT_TEXT` |
+| ~~`TEXT_GOLD`~~ | *(renomeado para `TEXT_ACCENT`)* |
+| `TEXT_ACCENT_BRIGHT` | `ACCENT_BRIGHT` |
+| ~~`TEXT_GOLD_BRIGHT`~~ | *(renomeado para `TEXT_ACCENT_BRIGHT`)* |
 | `BORDER` | `BORDER_DEFAULT` |
 | `BORDER_HOVER` | `BORDER_ACCENT` |
 | `SUCCESS` | `COLOR_SUCCESS` |
