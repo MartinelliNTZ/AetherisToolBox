@@ -17,11 +17,13 @@ Args:
 from __future__ import annotations
 
 from PySide6.QtCore import Qt, QRect, QSize
-from PySide6.QtGui import QPainter, QPen, QColor, QFont, QFontMetrics, QPainterPath
+from PySide6.QtGui import QPainter, QPen, QColor, QFont, QFontMetrics, QPainterPath, QBrush
 from PySide6.QtWidgets import QTabBar
 
 from core.config.LogUtils import LogUtils
 from resources.styles.AppStyles import AppStyles
+from resources.styles.BaseStyle import BaseStyle
+from resources.styles.ThemeManager import ct
 
 
 class HorizontalTab(QTabBar):
@@ -120,6 +122,7 @@ class HorizontalTab(QTabBar):
             painter.fillRect(event.rect(), QColor(AppStyles.theme_colors()["TITLE_BAR_BG"]))
 
             P = AppStyles.tab_common_colors()
+            t = ct.theme
 
             for i in range(self.count()):
                 rect = self._tab_rect(i)
@@ -130,21 +133,48 @@ class HorizontalTab(QTabBar):
                 hovered  = (i == self._hovered_tab)
 
                 if selected:
-                    bg     = QColor(P["bg_selected"])
                     fg     = QColor(P["fg_selected"])
                     border = QColor(P["border_selected"])
                 elif hovered:
-                    bg     = QColor(P["bg_hovered"])
                     fg     = QColor(P["fg_hovered"])
                     border = QColor(P["border_hovered"])
                 else:
-                    bg     = QColor(P["bg_default"])
                     fg     = QColor(P["fg_default"])
                     border = QColor(P["border_default"])
 
                 path = self._draw_rounded_rect(painter, rect, tl=2, tr=8, br=2, bl=2)
                 painter.setClipPath(path)
-                painter.fillPath(path, bg)
+
+                # ── Preencher com gradiente ──────────────────────────
+                if selected:
+                    # Selected: usa GRADIENT_ACCENT_STOPS (gradiente de acento)
+                    accent_stops = t.GRADIENT_ACCENT_STOPS
+                    if accent_stops:
+                        grad = BaseStyle._build_linear_gradient(
+                            accent_stops, t.GRADIENT_ACCENT_ANGLE,
+                            rect.width(), rect.height(),
+                        )
+                        painter.fillPath(path, QBrush(grad))
+                    else:
+                        # Fallback: cor sólida ACCENT (comportamento original)
+                        painter.fillPath(path, QColor(P["bg_selected"]))
+                else:
+                    # Default/hovered: usa gradiente via GRADIENT_TAB_STOPS
+                    tab_stops = t.GRADIENT_TAB_STOPS
+                    if tab_stops:
+                        grad = BaseStyle._build_linear_gradient(
+                            tab_stops, t.GRADIENT_TAB_ANGLE,
+                            rect.width(), rect.height(),
+                        )
+                        painter.fillPath(path, QBrush(grad))
+                    else:
+                        grad_stops = (
+                            (0.0, t.GRADIENT_TAB[0]),
+                            (1.0, t.GRADIENT_TAB[1]),
+                        )
+                        grad = BaseStyle._build_linear_gradient(grad_stops, 45,
+                            rect.width(), rect.height())
+                        painter.fillPath(path, QBrush(grad))
 
                 # Indicador de seleção (barra no topo)
                 if selected:
@@ -153,6 +183,13 @@ class HorizontalTab(QTabBar):
                 painter.setPen(QPen(border, 1))
                 painter.drawPath(path)
                 painter.setClipping(False)
+
+                # ── Glow na aba selecionada (opcional) ────────────
+                if selected and t.GLOW_TAB_ENABLED and t.GLOW_BLUR > 0:
+                    glow_color = QColor(t.GLOW_COLOR_RGB or t.ACCENT)
+                    glow_color.setAlpha(t.GLOW_ALPHA)
+                    painter.setPen(QPen(glow_color, 2))
+                    painter.drawPath(path)
 
                 # Texto da aba — usa o title (segundo elemento do tuple)
                 data = self.tabData(i)

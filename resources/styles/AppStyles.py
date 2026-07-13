@@ -28,9 +28,24 @@ class AppStyles(BaseStyle):
 
     @classmethod
     def btn_secondary_style(cls) -> str:
-        """Botao secundario — gradiente suave, hover com glow."""
+        """
+        Botao secundario — gradiente suave, hover com glow.
+        Usa GRADIENT_BUTTON_STOPS com tipo e angulo do tema quando disponivel,
+        ou GRADIENT_BUTTON (2-stop) como fallback.
+        """
         t = ct.theme
-        grad = cls._gradient(*t.GRADIENT_BUTTON)
+        grad = cls._gradient_qss_from_stops(
+            t.GRADIENT_BUTTON_STOPS,
+            t.GRADIENT_BUTTON_ANGLE,
+            t.GRADIENT_BUTTON[0],
+            t.GRADIENT_BUTTON[1],
+            gradient_type=t.GRADIENT_BUTTON_TYPE,
+            cx=t.GRADIENT_RADIAL_CX,
+            cy=t.GRADIENT_RADIAL_CY,
+            fx=t.GRADIENT_RADIAL_FX,
+            fy=t.GRADIENT_RADIAL_FY,
+            radius=t.GRADIENT_RADIAL_RADIUS,
+        )
         return (
             f"QPushButton {{"
             f"  background: {grad};"

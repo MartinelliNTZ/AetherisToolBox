@@ -75,6 +75,27 @@ class GoldPremiumTheme(BaseTheme):
     )
     GRADIENT_ACCENT_ANGLE: int = 20
 
+    # ── BUTTON GRADIENT (botões secundários) — também radial dourado ─
+    GRADIENT_BUTTON_TYPE: GradientType = GradientType.RADIAL
+    GRADIENT_BUTTON_STOPS: tuple = (
+        (0.00, "#1C1C17"),
+        (0.50, "#2A2A22"),
+        (1.00, "#0A0A08"),
+    )
+    GRADIENT_BUTTON_ANGLE: int = 45
+
+    # ── TAB GRADIENT (tabs não selecionadas) — gradiente suave ──────
+    GRADIENT_TAB_TYPE: GradientType = GradientType.LINEAR
+    GRADIENT_TAB_STOPS: tuple = (
+        (0.00, "#22221C"),
+        (1.00, "#10100D"),
+    )
+    GRADIENT_TAB_ANGLE: int = 45
+
+    # ── GLOW CONTROLES ──────────────────────────────────────────────
+    GLOW_BUTTON_ENABLED: bool = True
+    GLOW_TAB_ENABLED: bool = True
+
     # ── Parâmetros do gradiente RADIAL (spotlight no centro) ─────
     GRADIENT_RADIAL_CX: float = 0.5
     GRADIENT_RADIAL_CY: float = 0.5

@@ -92,14 +92,35 @@ class BaseTheme:
 
     # ── Gradiente rico (3+ stops) para uso em QPainter/QLinearGradient e/ou QSS ──
     # Formato: tupla de (posicao_float_0_a_1, cor_hex_str), ordenada por posição.
-    # Tupla vazia = recurso desligado, componente deve usar ACCENT_GRADIENT (2 stops) como fallback.
+    # Tupla vazia = recurso desligado, componente deve usar o gradiente 2-stop como fallback.
 
-    # Tipo de gradiente para elementos de acento (botões, progress, etc.)
-    # Valores possíveis: GradientType.LINEAR | GradientType.RADIAL | GradientType.CONICAL
-    # Padrão = LINEAR (compatibilidade retroativa total)
-    GRADIENT_ACCENT_TYPE: "GradientType" = None  # noqa: F821 — resolvido em __init_subclass__
+    # ── ACCENT GRADIENT (botões primários, progress bars) ──────────
+    # Tipo de gradiente para elementos de acento.
+    # Valores: GradientType.LINEAR | GradientType.RADIAL | GradientType.CONICAL
+    # None = LINEAR (compatibilidade retroativa)
+    GRADIENT_ACCENT_TYPE: "GradientType" = None
     GRADIENT_ACCENT_STOPS: tuple = ()
-    GRADIENT_ACCENT_ANGLE: int = 45   # graus; 45 = comportamento atual (top-left → bottom-right)
+    GRADIENT_ACCENT_ANGLE: int = 45   # graus
+
+    # ── BUTTON GRADIENT (botões secundários, ghost) ────────────────
+    # Tipo de gradiente para botões secundários.
+    # None = usa GRADIENT_BUTTON (2-stop) como sempre.
+    GRADIENT_BUTTON_TYPE: "GradientType" = None
+    GRADIENT_BUTTON_STOPS: tuple = ()
+    GRADIENT_BUTTON_ANGLE: int = 45
+
+    # ── TAB GRADIENT (tabs não selecionadas) ───────────────────────
+    # Tipo de gradiente para fundo de tabs (vertical e horizontal).
+    # None = usa GRADIENT_TAB (2-stop) como sempre.
+    GRADIENT_TAB_TYPE: "GradientType" = None
+    GRADIENT_TAB_STOPS: tuple = ()
+    GRADIENT_TAB_ANGLE: int = 45
+
+    # ── GLOW CONTROLE ──────────────────────────────────────────────
+    # Se True, widgets como SimpleSecondaryButton aplicam glow via
+    # QGraphicsDropShadowEffect usando os tokens GLOW_* do tema.
+    GLOW_BUTTON_ENABLED: bool = False
+    GLOW_TAB_ENABLED: bool = False
 
     # ── Parâmetros específicos para gradientes RADIAL e CONICAL ──────────
     # Radial: ponto focal (fx,fy) e raio como fração 0.0–1.0
