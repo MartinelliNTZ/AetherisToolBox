@@ -17,7 +17,7 @@ from PySide6.QtWidgets import QWidget, QSizePolicy
 
 from resources.styles.AppStyles import AppStyles
 from resources.styles.BaseStyle import BaseStyle
-from resources.styles.ThemeManager import ct
+from resources.styles.ThemeManager import theme_manager
 
 
 class VerticalTab(QWidget):
@@ -91,7 +91,7 @@ class VerticalTab(QWidget):
 
         w, h = self.width(), self.height()
         P    = AppStyles.tab_common_colors()
-        t    = ct.theme
+        t    = theme_manager.theme
 
         if self._selected:
             bg     = QColor(P["bg_selected"])

@@ -23,7 +23,7 @@ from PySide6.QtWidgets import QTabBar
 from core.config.LogUtils import LogUtils
 from resources.styles.AppStyles import AppStyles
 from resources.styles.BaseStyle import BaseStyle
-from resources.styles.ThemeManager import ct
+from resources.styles.ThemeManager import theme_manager
 
 
 class HorizontalTab(QTabBar):
@@ -122,7 +122,7 @@ class HorizontalTab(QTabBar):
             painter.fillRect(event.rect(), QColor(AppStyles.theme_colors()["TITLE_BAR_BG"]))
 
             P = AppStyles.tab_common_colors()
-            t = ct.theme
+            t = theme_manager.theme
 
             for i in range(self.count()):
                 rect = self._tab_rect(i)

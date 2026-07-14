@@ -378,7 +378,7 @@ class ExplorerUtils(BaseUtil):
         """
         from urllib.parse import quote
         # Import lazy para evitar circular imports no startup
-        from resources.styles.ThemeManager import ct
+        from resources.styles.ThemeManager import theme_manager
 
         logger = BaseUtil._get_logger(tool_key, "ExplorerUtils")
         if not path:
@@ -389,7 +389,7 @@ class ExplorerUtils(BaseUtil):
         encoded = quote(safe_path, safe='/:@!$&()*+,;=-._~')
         link = (
             f"<a href='file:///{encoded}' "
-            f"style='color: {ct.theme.ACCENT}; text-decoration: underline;'>{label}</a>"
+            f"style='color: {theme_manager.theme.ACCENT}; text-decoration: underline;'>{label}</a>"
         )
         logger.debug("Link do Explorer gerado", code="EXPL_LINK_OK", path=path)
         return link

@@ -13,7 +13,7 @@ from PySide6.QtWidgets import QPushButton
 
 from resources.styles.AppStyles import AppStyles
 from resources.styles.BaseStyle import BaseStyle
-from resources.styles.ThemeManager import ct
+from resources.styles.ThemeManager import theme_manager
 
 
 class SimplePrimaryButton(QPushButton):
@@ -37,7 +37,7 @@ class SimplePrimaryButton(QPushButton):
 
     def _apply_glow(self) -> None:
         """Aplica glow dourado usando tokens GLOW_* do tema ativo."""
-        t = ct.theme
+        t = theme_manager.theme
         glow_color = t.GLOW_COLOR_RGB or t.ACCENT
         BaseStyle.apply_drop_shadow(
             self,

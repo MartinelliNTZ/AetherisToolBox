@@ -13,7 +13,7 @@ from PySide6.QtWidgets import QPushButton
 
 from resources.styles.AppStyles import AppStyles
 from resources.styles.BaseStyle import BaseStyle
-from resources.styles.ThemeManager import ct
+from resources.styles.ThemeManager import theme_manager
 
 
 class SimpleSecondaryButton(QPushButton):
@@ -35,7 +35,7 @@ class SimpleSecondaryButton(QPushButton):
 
     def _apply_glow(self) -> None:
         """Aplica glow se GLOW_BUTTON_ENABLED=True e GLOW_BLUR > 0."""
-        t = ct.theme
+        t = theme_manager.theme
         if not t.GLOW_BUTTON_ENABLED:
             return
         glow_color = t.GLOW_COLOR_RGB or t.ACCENT

@@ -186,5 +186,6 @@ class ThemeManager:
 
 
 # ── Singleton pré-instanciado para importação direta ──────────────
-# Uso: from resources.styles.ThemeManager import ct
-ct = ThemeManager()
+# Uso: from resources.styles.ThemeManager import theme_manager
+theme_manager = ThemeManager()
+"Instância singleton da thememanager."

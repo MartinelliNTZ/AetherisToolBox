@@ -23,4 +23,4 @@ from resources.styles.AppStyles import AppStyles
 from resources.styles.BaseStyle import BaseStyle
 from resources.styles.BaseTheme import BaseTheme
 from resources.styles.DarkCharcoalTheme import DarkCharcoalTheme
-from resources.styles.ThemeManager import ThemeManager, ct
+from resources.styles.ThemeManager import ThemeManager, theme_manager

@@ -15,7 +15,7 @@ from PySide6.QtGui import QColor, QLinearGradient, QRadialGradient, QConicalGrad
 from PySide6.QtWidgets import QGraphicsDropShadowEffect, QWidget
 
 from core.enum.GradientType import GradientType
-from resources.styles.ThemeManager import ct
+from resources.styles.ThemeManager import theme_manager
 
 
 class BaseStyle:
@@ -316,7 +316,7 @@ class BaseStyle:
     @classmethod
     def global_stylesheet(cls) -> str:
         """Gera o QSS global completo usando o tema atual. Sem hardcoded."""
-        t = ct.theme
+        t = theme_manager.theme
         grad_panel = cls._gradient(*t.GRADIENT_PANEL)
         grad_tab = cls._gradient(*t.GRADIENT_TAB)
         grad_input = cls._gradient(*t.GRADIENT_INPUT)

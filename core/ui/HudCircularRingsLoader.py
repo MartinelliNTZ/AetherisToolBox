@@ -246,7 +246,7 @@ class HudCircularRingsLoader(QWidget):
             self._draw_ring(p, center, ring)
 
         accent_color = QColor(AppStyles.hud_accent_color())
-        gold_color = QColor(AppStyles.theme_colors()["GOLD"])
+        time_color = QColor(AppStyles.hud_time_color())
         light_gray = QColor(140, 140, 140)
 
         # ── Linha superior: tempos (Decorrido | ETA | Restante) ──
@@ -255,7 +255,7 @@ class HudCircularRingsLoader(QWidget):
         eta_clock = self._eta_clock_str()
 
         p.setFont(QFont("Consolas", 8))
-        p.setPen(gold_color)
+        p.setPen(time_color)
         p.drawText(QRectF(cx - 145, cy - 115, 290, 18), Qt.AlignmentFlag.AlignCenter,
                    f"Tempo: {elapsed_str}|ETA: {eta_clock}|Restante: {remaining_str}")
 
