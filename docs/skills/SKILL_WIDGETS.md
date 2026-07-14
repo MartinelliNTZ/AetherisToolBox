@@ -1431,6 +1431,17 @@ if dialog.exec():
 
 ---
 
+## 🚫 Proibido: Import de PySide6/Qt no terminal
+
+**Nunca** execute comandos como `python -c "from PySide6.QtWidgets import ..."` ou `python -c "from resources.widgets.X import Y"` no terminal para verificar código. O PySide6/Qt **trava** ao importar widgets fora de um `QApplication` — o terminal congela sem resposta.
+
+**Sempre use `ast.parse` para verificação sintática:**
+```powershell
+python -c "import ast; ast.parse(open('arquivo.py', encoding='utf-8').read()); print('✓ OK')"
+```
+
+Para testes completos, execute o aplicativo real (`main.py`).
+
 ## 🎨 Regras de Estilo para Widgets
 
 ### Acesso ao tema

@@ -497,3 +497,26 @@ VectorLayerSource.read(path, tool_key=ToolKey.MRK_SUBSTITUTOR.value)
 # ❌ Proibido
 VectorLayerSource.read(path, tool_key="MrkSubstitutor")
 VectorLayerSource.read(path, tool_key="Untraceable")
+
+## 🔴 Contrato 27 — Verificação de Código com PySide6
+
+```
+NUNCA execute python -c "from PySide6.QtWidgets import ..." ou
+"from resources.widgets.X import Y" no terminal para verificar código.
+O PySide6/Qt TRAVA ao importar widgets fora de um QApplication.
+```
+
+**O problema:** ao executar `python -c "from PySide6.QtWidgets import QTabBar"` ou qualquer import que dependa de widgets Qt, o Python tenta inicializar o **Qt platform plugin** (subsistema gráfico do Windows). Como o terminal não tem um `QApplication` rodando, o Qt entra em espera infinita e o terminal congela.
+
+**Solução — Use `ast.parse` para verificação sintática:**
+```powershell
+python -c "import ast; ast.parse(open('arquivo.py', encoding='utf-8').read()); print('✓ OK')"
+```
+
+Isso lê o arquivo como texto e analisa a estrutura sintática sem executar nada. Para testes completos, execute o aplicativo real (`main.py`).
+
+**Regras:**
+- ✅ `ast.parse()` — seguro, rápido, não executa código
+- ❌ `python -c "from resources.widgets.X import Y"` — **TRAVA** o terminal
+- ❌ `python -c "from PySide6.QtWidgets import ..."` — **TRAVA** o terminal
+- Apenas execute imports de widgets Qt dentro de uma aplicação rodando (`main.py`)
