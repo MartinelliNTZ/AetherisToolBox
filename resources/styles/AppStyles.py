@@ -441,23 +441,23 @@ class AppStyles(BaseStyle):
         Inclui gradientes top-left → bottom-right para backgrounds."""
         t = ct.theme
         return {
-            "bg_selected":  t.ACCENT,
-            "fg_selected":  t.SURFACE_0,
+            "bg_selected": t.ACCENT,
+            "fg_selected": t.SURFACE_0,
             "border_selected": t.ACCENT_DIM,
-            "indicator":    t.ACCENT_HOVER,
-            "bg_hovered":   t.SURFACE_3,
-            "fg_hovered":   t.TEXT_MEDIUM,
+            "indicator": t.ACCENT_HOVER,
+            "bg_hovered": t.SURFACE_3,
+            "fg_hovered": t.TEXT_MEDIUM,
             "border_hovered": t.BORDER_ACCENT,
-            "bg_default":   t.SURFACE_0,
-            "fg_default":   t.TEXT_LOW,
+            "bg_default": t.SURFACE_0,
+            "fg_default": t.TEXT_LOW,
             "border_default": t.BORDER_DEFAULT,
             # Gradientes (start, end) para background
             "gradient_default_start": t.GRADIENT_TAB[0],
-            "gradient_default_end":   t.GRADIENT_TAB[1],
+            "gradient_default_end": t.GRADIENT_TAB[1],
             "gradient_hovered_start": t.GRADIENT_BUTTON[0],
-            "gradient_hovered_end":   t.GRADIENT_BUTTON[1],
+            "gradient_hovered_end": t.GRADIENT_BUTTON[1],
             "gradient_selected_start": t.ACCENT_GRADIENT[0],
-            "gradient_selected_end":   t.ACCENT_GRADIENT[1],
+            "gradient_selected_end": t.ACCENT_GRADIENT[1],
         }
 
     # ────────────────────────────────────────────────────────────────────
@@ -491,15 +491,15 @@ class AppStyles(BaseStyle):
         if cls._TAB_COLORS_CACHE.get("_cache_key") != cache_key:
             cls._TAB_COLORS_CACHE = {
                 "_cache_key": cache_key,
-                "bg_selected":    t.ACCENT,
-                "fg_selected":    t.SURFACE_0,
+                "bg_selected": t.ACCENT,
+                "fg_selected": t.SURFACE_0,
                 "border_selected": t.ACCENT_DIM,
-                "indicator":       t.ACCENT_HOVER,
-                "bg_hovered":     t.ACCENT,
-                "fg_hovered":     t.SURFACE_0,
+                "indicator": t.ACCENT_HOVER,
+                "bg_hovered": t.ACCENT,
+                "fg_hovered": t.SURFACE_0,
                 "border_hovered": t.BORDER_ACCENT,
-                "bg_default":     t.SURFACE_0,
-                "fg_default":     t.TEXT_HIGH,
+                "bg_default": t.SURFACE_0,
+                "fg_default": t.TEXT_HIGH,
                 "border_default": t.BORDER_DEFAULT,
             }
         return cls._TAB_COLORS_CACHE
@@ -516,7 +516,8 @@ class AppStyles(BaseStyle):
 
     @classmethod
     def theme_colors(cls) -> dict[str, str]:
-        """Retorna um dicionário com TODAS as cores do tema atual.
+        """DEPRECIADO, NAO ULTILIZE ESSA GAMBIARRA PARA NADA
+        Retorna um dicionário com TODAS as cores do tema atual.
         Cacheado por performance (paintEvent é chamado a 60 fps).
         Usa current_key como chave de cache (string estável)."""
         t = ct.theme
@@ -539,6 +540,11 @@ class AppStyles(BaseStyle):
                 "TEXT_SECONDARY": t.TEXT_SECONDARY,
                 "TEXT_MUTED": t.TEXT_MUTED,
                 "TEXT_ACCENT": t.TEXT_ACCENT,
+                "GOLD": t.ACCENT_COLOR,  # ← compat: GOLD → ACCENT_COLOR
+                "GOLD_HOVER": t.ACCENT_COLOR_HOVER,  # ← compat
+                "GOLD_DIM": t.ACCENT_COLOR_DIM,  # ← compat
+                "GOLD_LIGHT": t.ACCENT_COLOR_LIGHT,  # ← compat
+                "GOLD_GRADIENT": t.ACCENT_COLOR_GRADIENT,  # ← compat
                 "ACCENT_COLOR": t.ACCENT_COLOR,
                 "ACCENT_COLOR_HOVER": t.ACCENT_COLOR_HOVER,
                 "ACCENT_COLOR_DIM": t.ACCENT_COLOR_DIM,
@@ -566,8 +572,9 @@ class AppStyles(BaseStyle):
     # ────────────────────────────────────────────────────────────────────
 
     @classmethod
-    def log_html(cls, text: str, timestamp: str,
-                 color: str, ts_color: str, weight: str = "400") -> str:
+    def log_html(
+        cls, text: str, timestamp: str, color: str, ts_color: str, weight: str = "400"
+    ) -> str:
         mono = ct.theme.FONT_FAMILY_MONO
         return (
             f"<span style='color:{ts_color};"
@@ -604,7 +611,7 @@ class AppStyles(BaseStyle):
     @classmethod
     def collapsible_header_height(cls) -> str:
         """Altura do header do CollapsibleParams."""
-        return str(ct.theme.INPUT_HEIGHT+2)
+        return str(ct.theme.INPUT_HEIGHT + 2)
 
     @classmethod
     def collapsible_header_style(cls) -> str:
@@ -672,11 +679,7 @@ class AppStyles(BaseStyle):
         """
         t = ct.theme
         color = t.TEXT_LOW if active else t.TEXT_DISABLED
-        return (
-            f"QLabel {{"
-            f"  color: {color};"
-            f"}}"
-        )
+        return f"QLabel {{" f"  color: {color};" f"}}"
 
     @classmethod
     def recent_project_hover_style(cls) -> str:
@@ -693,12 +696,7 @@ class AppStyles(BaseStyle):
         Estilo do nome do projeto no hover (ACCENT_BRIGHT).
         """
         t = ct.theme
-        return (
-            f"QLabel {{"
-            f"  color: {t.ACCENT_BRIGHT};"
-            f"  font-weight: bold;"
-            f"}}"
-        )
+        return f"QLabel {{" f"  color: {t.ACCENT_BRIGHT};" f"  font-weight: bold;" f"}}"
 
     @classmethod
     def recent_project_hover_sub_style(cls) -> str:
@@ -706,11 +704,7 @@ class AppStyles(BaseStyle):
         Estilo do path/data no hover (TEXT_MEDIUM).
         """
         t = ct.theme
-        return (
-            f"QLabel {{"
-            f"  color: {t.TEXT_MEDIUM};"
-            f"}}"
-        )
+        return f"QLabel {{" f"  color: {t.TEXT_MEDIUM};" f"}}"
 
     # ────────────────────────────────────────────────────────────────────
     # TOOLBAR — tokens centralizados de tamanhos e estilos
@@ -760,6 +754,125 @@ class AppStyles(BaseStyle):
         )
 
     # ────────────────────────────────────────────────────────────────────
+    # TABLE — estilo genérico para QTableWidget
+    # ────────────────────────────────────────────────────────────────────
+
+    @classmethod
+    def table_style(
+        cls,
+        *,
+        bg_color: str = "",
+        alt_bg_color: str = "",
+        border_radius: int = 0,
+        grid_color: str = "",
+        header_bg: str = "",
+        header_fg: str = "",
+        header_border_bottom: str = "",
+        item_selected_bg: str = "",
+        item_selected_fg: str = "",
+        font_size: int = 0,
+        header_font_size: int = 0,
+        header_letter_spacing: str = "",
+    ) -> str:
+        """
+        Gera QSS completo para QTableWidget usando tokens do tema.
+        Qualquer parametro vazio usa o valor do tema ativo.
+
+        Args:
+            bg_color: Fundo da tabela (padrao: SURFACE_4).
+            alt_bg_color: Fundo alternado (padrao: SURFACE_3).
+            border_radius: Border-radius (padrao: BORDER_RADIUS_TABLE).
+            grid_color: Cor da grade (padrao: DIVIDER).
+            header_bg: Fundo do cabecalho (padrao: SURFACE_3).
+            header_fg: Texto do cabecalho (padrao: TEXT_LOW).
+            header_border_bottom: Borda inferior do cabecalho (padrao: ACCENT).
+            item_selected_bg: Fundo do item selecionado (padrao: SURFACE_5).
+            item_selected_fg: Texto do item selecionado (padrao: TEXT_HIGH).
+            font_size: Tamanho da fonte da celula (0 = usa FONT_SIZE_SMALL).
+            header_font_size: Tamanho da fonte do cabecalho (0 = usa HEADER_FONT_SIZE).
+            header_letter_spacing: Letter-spacing do cabecalho (vazio = usa HEADER_LETTER_SPACING).
+
+        Returns:
+            String QSS completa para QTableWidget + QHeaderView.
+        """
+        t = ct.theme
+        bg = bg_color or t.SURFACE_4
+        alt_bg = alt_bg_color or t.SURFACE_3
+        br = border_radius or t.BORDER_RADIUS_TABLE
+        grid = grid_color or t.DIVIDER
+        h_bg = header_bg or t.SURFACE_3
+        h_fg = header_fg or t.TEXT_LOW
+        h_border = header_border_bottom or t.ACCENT
+        sel_bg = item_selected_bg or t.SURFACE_5
+        sel_fg = item_selected_fg or t.TEXT_HIGH
+        fs = font_size or t.FONT_SIZE_SMALL
+        hfs = header_font_size or t.HEADER_FONT_SIZE
+        hls = header_letter_spacing or t.HEADER_LETTER_SPACING
+        return (
+            f"QTableWidget {{"
+            f"  background-color: {bg};"
+            f"  alternate-background-color: {alt_bg};"
+            f"  border: none;"
+            f"  border-radius: {br}px;"
+            f"  gridline-color: {grid};"
+            f"  color: {t.TEXT_MEDIUM};"
+            f"  font-size: {fs}px;"
+            f"}}"
+            f"QTableWidget::item:selected {{"
+            f"  background-color: {sel_bg};"
+            f"  color: {sel_fg};"
+            f"}}"
+            f"QHeaderView::section {{"
+            f"  background-color: {h_bg};"
+            f"  color: {h_fg};"
+            f"  padding: 4px 6px;"
+            f"  border: none;"
+            f"  border-bottom: 2px solid {h_border};"
+            f"  font-weight: {t.FONT_WEIGHT_EXTRABOLD};"
+            f"  font-size: {hfs}px;"
+            f"  letter-spacing: {hls};"
+            f"}}"
+        )
+
+    # ────────────────────────────────────────────────────────────────────
+    # LOG VIEWER TABLE — estilo dedicado para LogViewerPlugin
+    # Toda cor vem do tema via tokens semanticos. Zero acoplamento.
+    # ────────────────────────────────────────────────────────────────────
+
+    @classmethod
+    def log_viewer_table_style(cls) -> str:
+        """
+        QSS completo para a tabela do LogViewerPlugin.
+        Nao recebe parametros — todas as cores sao resolvidas internamente
+        via tokens semanticos do tema ativo.
+        """
+        t = ct.theme
+        return (
+            f"QTableWidget {{"
+            f"  background-color: {t.SURFACE_1};"
+            f"  alternate-background-color: {t.SURFACE_2};"
+            f"  border: none;"
+            f"  border-radius: {t.BORDER_RADIUS_TABLE}px;"
+            f"  gridline-color: {t.BORDER_DEFAULT};"
+            f"  color: {t.TEXT_MEDIUM};"
+            f"}}"
+            f"QTableWidget::item:selected {{"
+            f"  background-color: {t.SURFACE_5};"
+            f"  color: {t.TEXT_HIGH};"
+            f"}}"
+            f"QHeaderView::section {{"
+            f"  background-color: {t.SURFACE_3};"
+            f"  color: {t.TEXT_LOW};"
+            f"  padding: 4px 6px;"
+            f"  border: none;"
+            f"  border-bottom: 2px solid {t.ACCENT};"
+            f"  font-weight: {t.FONT_WEIGHT_EXTRABOLD};"
+            f"  font-size: {t.HEADER_FONT_SIZE}px;"
+            f"  letter-spacing: {t.HEADER_LETTER_SPACING};"
+            f"}}"
+        )
+
+    # ────────────────────────────────────────────────────────────────────
     # GRID PERCENT VIEW — cores para GridPercentView (system monitor)
     # ────────────────────────────────────────────────────────────────────
 
@@ -769,13 +882,13 @@ class AppStyles(BaseStyle):
         Usa tokens semânticos — zero hardcoded."""
         t = ct.theme
         return {
-            "label_fg":       t.TEXT_MEDIUM,
-            "value_fg":       t.ACCENT,
+            "label_fg": t.TEXT_MEDIUM,
+            "value_fg": t.ACCENT,
             "value_fg_hover": t.ACCENT_HOVER,
-            "bar_bg":         t.SURFACE_3,
-            "bar_fill":       t.ACCENT,
-            "bar_border":     t.BORDER_SUBTLE,
-            "hover_bg":       t.ACCENT + "15",
+            "bar_bg": t.SURFACE_3,
+            "bar_fill": t.ACCENT,
+            "bar_border": t.BORDER_SUBTLE,
+            "hover_bg": t.ACCENT + "15",
         }
 
     @classmethod
@@ -798,9 +911,7 @@ class AppStyles(BaseStyle):
         """
         t = ct.theme
         return (
-            f"color: {t.ACCENT}; "
-            f"text-decoration: underline; "
-            f"cursor: pointer;"
+            f"color: {t.ACCENT}; " f"text-decoration: underline; " f"cursor: pointer;"
         )
 
     # tree_branch_style foi removido — o corpo estava vazio (código morto).
