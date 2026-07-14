@@ -58,6 +58,11 @@ THEMES: dict[str, dict] = {
                        "https://dribbble.com/shots/23707627-Modern-Dashboard-UI-Design. "
                        "Fundo azul-escuro profundo, cards em glassmorphism sutil, "
                        "acento azul elétrico vibrante e texto branco suave.",
+    },    "neon_accent": {
+        "module":      "resources.styles.NeonAccentTheme",
+        "label":       "Neon Accent",
+        "description": "Tema com destaque neon, utilizando cores vibrantes e "
+                       "efeitos de brilho para um visual moderno e impactante.",
     },
     "gold_premium": {
         "module":      "resources.styles.GoldPremiumTheme",
