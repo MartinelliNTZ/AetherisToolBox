@@ -16,6 +16,7 @@ from resources.styles.ThemeManager import theme_manager
 current_theme = theme_manager.theme
 
 class AppStyles(BaseStyle):
+    current_theme = current_theme
     """
     Estilos específicos: botões (secondary, primary, danger, ghost, remove),
     badges de status, logs coloridos e menus.
@@ -420,21 +421,6 @@ class AppStyles(BaseStyle):
             f"  font-size: {t.FONT_SIZE_TINY}px;"
             f"}}"
         )
-
-    # ────────────────────────────────────────────────────────────────────
-    # HUD LOADER — cores para o HudCircularRingsLoader
-    # ────────────────────────────────────────────────────────────────────
-
-    @classmethod
-    def hud_accent_color(cls) -> str:
-        """Cor de acento para o HUD loader (usado em paintEvent)."""
-        return theme_manager.theme.ACCENT_TEXT
-
-    @classmethod
-    def hud_time_color(cls) -> str:
-        """Cor do texto de tempo/ETA no HUD loader.
-        Usa TEXT_LOW — informacao secundaria, sem hardcoded GOLD."""
-        return theme_manager.theme.TEXT_LOW
 
     # ────────────────────────────────────────────────────────────────────
     # VERTICAL TAB — cores para VerticalTab (paintEvent custom)

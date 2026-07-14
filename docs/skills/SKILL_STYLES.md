@@ -415,9 +415,9 @@ menu.setStyleSheet(AppStyles.menu_dropdown_style())
 from resources.styles.AppStyles import AppStyles
 
 def paintEvent(self, event):
-    colors = AppStyles.theme_colors()
-    painter.fillRect(rect(), QColor(colors["BG_DEEPEST"]))
-    painter.setPen(QColor(colors["GOLD"]))
+    current_theme = AppStyles.current_theme
+    painter.fillRect(rect(), QColor(current_theme.SURFACE_0))
+    painter.setPen(QColor(current_theme.ACCENT_TEXT))
     painter.drawText(rect(), "Texto")
 ```
 
@@ -439,13 +439,13 @@ else:
 
 ```python
 from resources.styles.AppStyles import AppStyles
-from resources.styles.ThemeManager import ct
 
+current_theme = AppStyles.current_theme
 html = AppStyles.log_html(
     text="Processamento concluído",
     timestamp="14:30:00",
-    color=ct.theme.COLOR_SUCCESS,
-    ts_color=ct.theme.TEXT_LOW,
+    color=current_theme.COLOR_SUCCESS,
+    ts_color=current_theme.TEXT_LOW,
 )
 browser.append(html)
 ```
@@ -499,8 +499,10 @@ class MeuTema(BaseTheme):
 | Regra | Descrição |
 |-------|-----------|
 | **Contrato 19** | Fora de `resources/styles/`, importe APENAS `AppStyles`. Nunca importe `BaseTheme`, `ThemeManager`, temas concretos ou `ct` diretamente. |
-| **Zero hardcoded** | Todo QSS deve usar tokens do tema via `ct.theme.ATRIBUTO`. Nunca use cores fixas em stylesheets. |
-| **Cache em paintEvent** | Use `AppStyles.theme_colors()` (cacheado) em vez de acessar `ct.theme` diretamente a 60fps. |
+| **Zero hardcoded** | Todo QSS deve usar tokens do tema via `current_theme.ATRIBUTO`. Nunca use cores fixas em stylesheets. |
+| **Acesso ao tema via AppStyles** | Widgets que precisam de cores em paintEvent usam `current_theme = AppStyles.current_theme` e depois acessam `current_theme.ACCENT_TEXT`, `current_theme.SURFACE_1`, etc. Esta é a ÚNICA forma de acesso. **Nunca importe** `ThemeManager` ou `ct` diretamente. |
+| **Evite metodos-ponte** | Nao crie metodos como `hud_accent_color()` no AppStyles para cada cor que um widget precisa. Se o widget precisa de uma cor em paintEvent, ele usa `AppStyles.current_theme.COR` diretamente. AppStyles expoe apenas **estilos QSS completos** (`log_viewer_table_style()`, `btn_primary_style()`, etc.), nunca cores avulsas. |
+| **Nome da variavel** | Use sempre o nome extenso `current_theme`. **Nunca** use variaveis ambiguas como `t` ou `ct`. Isso mantem o codigo legivel e consistente em todo o sistema. |
 | **Aliases para legado** | Código antigo pode usar `BG_DARK`, `GOLD`, etc. — eles mapeiam para tokens semânticos. |
 | **Tema padrão** | `dark_charcoal` é o tema padrão se não houver preferência salva. |
 | **Lazy loading** | Temas são carregados sob demanda — só o módulo do tema ativo é importado. |
@@ -626,12 +628,15 @@ class MeuTemaPremium(BaseTheme):
 ## ✅ Checklist ao usar estilos em widget
 
 - [ ] Usei `AppStyles.método()` em vez de escrever QSS manual com cores fixas?
-- [ ] Para paintEvent, usei `AppStyles.theme_colors()` ou `AppStyles.tab_common_colors()`?
+- [ ] Para paintEvent, usei `current_theme = AppStyles.current_theme` + tokens diretos (ex: `current_theme.SURFACE_0`, `current_theme.ACCENT_TEXT`)?
+- [ ] **Evitei** usar `AppStyles.theme_colors()` — é um dicionario legado com aliases GOLD que gera acoplamento. Use `current_theme.COR` diretamente.
 - [ ] Para logs HTML, usei `AppStyles.log_html()`?
 - [ ] Para badges, usei `AppStyles.badge_*()`?
 - [ ] Para botões, usei `AppStyles.btn_*_style()`?
-- [ ] Importei apenas `AppStyles` (nunca `BaseTheme` ou `ct` diretamente)?
+- [ ] Importei apenas `AppStyles` (nunca `BaseTheme`, `ThemeManager` ou `ct` diretamente)?
+- [ ] Usei nome extenso `current_theme` (nunca `t`, `ct` ou variavel ambigua)?
 - [ ] **(Widgets custom)** Se o widget usa gradiente em paintEvent, ele consulta `GRADIENT_*_STOPS` do tema?
+- [ ] **Nao criei** metodos-ponte no AppStyles para cores avulsas? AppStyles só deve expor estilos QSS completos.
 
 ---
 
