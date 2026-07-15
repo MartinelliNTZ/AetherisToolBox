@@ -306,6 +306,18 @@ class ToolRegistry:
             category=CategoryTool.CENTRAL,
             show_in_toolbar=True,
         ),
+        ToolKey.SCAN_ANGLE_FILTER.value: Tool(
+            name=ToolKey.SCAN_ANGLE_FILTER.value,
+            title="Filtro Scan Angle",
+            widget_factory=_make_factory(
+                "plugins.scan_angle_filter.ScanAngleFilterPlugin",
+                "ScanAngleFilterPlugin",
+            ),
+            tooltip="Filtra pontos de nuvens LAS/LAZ por scan angle (min/max)",
+            tool_type=ToolType.POINTS,
+            category=CategoryTool.CENTRAL,
+            show_in_toolbar=True,
+        ),
     }
 
     def register_default_tools(self) -> None:
