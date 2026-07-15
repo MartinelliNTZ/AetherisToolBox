@@ -372,6 +372,17 @@ meta = RasterLayerSource.read_metadata("imagem.tif", tool_key=ToolKey.MEU_PLUGIN
 - **Se um utilitário não existe, crie-o em `utils/`** e documente a nova função nesta skill.
 - **Toda classe util DEVE herdar de `BaseUtil`.**
 
+## 🚫 Proibido: Import de PySide6/Qt no terminal
+
+**Nunca** execute comandos como `python -c "from PySide6.QtWidgets import ..."` ou `python -c "from resources.widgets.X import Y"` no terminal para verificar código. O PySide6/Qt **trava** ao importar widgets fora de um `QApplication` — não há contexto gráfico, e o terminal congela sem resposta.
+
+**Sempre use `ast.parse` para verificação sintática:**
+```powershell
+python -c "import ast; ast.parse(open('arquivo.py', encoding='utf-8').read()); print('✓ OK')"
+```
+
+Para testes completos, execute o aplicativo real (`main.py`).
+
 ## 🔧 Boas práticas
 
 - Prefira interfaces estáticas simples e fáceis de chamar em plugins.

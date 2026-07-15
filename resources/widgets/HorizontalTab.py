@@ -5,9 +5,12 @@ HorizontalTab — Aba horizontal estilo Workspace
 QTabBar customizado com paintEvent próprio para estilo consistente.
 Substitui o antigo _WorkspaceTabBar de CentralWorkspace.
 
+Toda cor e gradiente vem do tema ativo via AppStyles.current_theme.
+Usa AppStyles.tab_common_colors() para cores padronizadas entre tabs.
+
 Corner-radius: 2 8 2 2 (top-right arredondado, encaixe no topo).
-Hover: fundo ACCENT + texto SURFACE_0
-Selected: fundo ACCENT + texto SURFACE_0 com barra indicadora no topo.
+
+Contrato 19: Fora de resources/styles/, importa APENAS AppStyles.
 
 Args:
     closable: Se True (padrão), exibe botão de fechar nas abas.
@@ -17,7 +20,7 @@ Args:
 from __future__ import annotations
 
 from PySide6.QtCore import Qt, QRect, QSize
-from PySide6.QtGui import QPainter, QPen, QColor, QFont, QFontMetrics, QPainterPath
+from PySide6.QtGui import QPainter, QPen, QColor, QFont, QFontMetrics, QPainterPath, QBrush
 from PySide6.QtWidgets import QTabBar
 
 from core.config.LogUtils import LogUtils
@@ -27,6 +30,7 @@ from resources.styles.AppStyles import AppStyles
 class HorizontalTab(QTabBar):
     """
     Abas horizontais customizadas com paintEvent próprio.
+    Toda cor e gradiente vem do tema ativo via AppStyles.current_theme.
 
     Emite os sinais padrão do QTabBar:
         - currentChanged(int)
@@ -84,8 +88,8 @@ class HorizontalTab(QTabBar):
             display = str(data) if data else f"Tab {index}"
         font = QFont("Segoe UI", 10)
         fm = QFontMetrics(font)
-        close_margin = 8 if self._closable else 0  # margem após o botão
-        text_w = fm.horizontalAdvance(display) + 30+ close_margin # padding
+        close_margin = 8 if self._closable else 0
+        text_w = fm.horizontalAdvance(display) + 30 + close_margin
         return QSize(max(text_w, 80), 28)
 
     # ── Pintura ─────────────────────────────────────────────────────
@@ -116,8 +120,10 @@ class HorizontalTab(QTabBar):
             painter.setRenderHint(QPainter.RenderHint.Antialiasing)
             painter.setRenderHint(QPainter.RenderHint.TextAntialiasing)
 
+            current_theme = AppStyles.current_theme
+
             # Fundo do tab bar (área vazia à direita)
-            painter.fillRect(event.rect(), QColor(AppStyles.theme_colors()["TITLE_BAR_BG"]))
+            painter.fillRect(event.rect(), QColor(current_theme.TITLE_BAR))
 
             P = AppStyles.tab_common_colors()
 
@@ -130,21 +136,50 @@ class HorizontalTab(QTabBar):
                 hovered  = (i == self._hovered_tab)
 
                 if selected:
-                    bg     = QColor(P["bg_selected"])
                     fg     = QColor(P["fg_selected"])
                     border = QColor(P["border_selected"])
                 elif hovered:
-                    bg     = QColor(P["bg_hovered"])
                     fg     = QColor(P["fg_hovered"])
                     border = QColor(P["border_hovered"])
                 else:
-                    bg     = QColor(P["bg_default"])
                     fg     = QColor(P["fg_default"])
                     border = QColor(P["border_default"])
 
                 path = self._draw_rounded_rect(painter, rect, tl=2, tr=8, br=2, bl=2)
                 painter.setClipPath(path)
-                painter.fillPath(path, bg)
+
+                w, h = rect.width(), rect.height()
+
+                # ── Preencher com gradiente ──────────────────────────
+                if selected:
+                    # Selected: usa GRADIENT_ACCENT_STOPS (gradiente de acento)
+                    accent_stops = current_theme.GRADIENT_ACCENT_STOPS
+                    if accent_stops:
+                        grad = AppStyles._build_linear_gradient(
+                            accent_stops, current_theme.GRADIENT_ACCENT_ANGLE, w, h,
+                        )
+                        painter.fillPath(path, QBrush(grad))
+                    else:
+                        # Fallback: cor sólida ACCENT
+                        painter.fillPath(path, QColor(P["bg_selected"]))
+                else:
+                    # Default/hovered: usa gradiente via GRADIENT_TAB_STOPS
+                    tab_stops = current_theme.GRADIENT_TAB_STOPS
+                    if tab_stops:
+                        grad = AppStyles._build_linear_gradient(
+                            tab_stops, current_theme.GRADIENT_TAB_ANGLE, w, h,
+                        )
+                        painter.fillPath(path, QBrush(grad))
+                    else:
+                        # Fallback: gradiente 2-stop clássico
+                        grad_stops = (
+                            (0.0, current_theme.GRADIENT_TAB[0]),
+                            (1.0, current_theme.GRADIENT_TAB[1]),
+                        )
+                        grad = AppStyles._build_linear_gradient(
+                            grad_stops, 45, w, h,
+                        )
+                        painter.fillPath(path, QBrush(grad))
 
                 # Indicador de seleção (barra no topo)
                 if selected:
@@ -153,6 +188,13 @@ class HorizontalTab(QTabBar):
                 painter.setPen(QPen(border, 1))
                 painter.drawPath(path)
                 painter.setClipping(False)
+
+                # ── Glow na aba selecionada (opcional) ────────────
+                if selected and current_theme.GLOW_TAB_ENABLED and current_theme.GLOW_BLUR > 0:
+                    glow_color = QColor(current_theme.GLOW_COLOR_RGB or current_theme.ACCENT)
+                    glow_color.setAlpha(current_theme.GLOW_ALPHA)
+                    painter.setPen(QPen(glow_color, 2))
+                    painter.drawPath(path)
 
                 # Texto da aba — usa o title (segundo elemento do tuple)
                 data = self.tabData(i)

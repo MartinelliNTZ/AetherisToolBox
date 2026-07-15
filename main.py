@@ -52,7 +52,7 @@ def main():
         print(f"Erro: {exc}", file=sys.stderr)
         print(f"\nTraceback:\n{tb_text}", file=sys.stderr)
         print("=" * 60, file=sys.stderr)
-        print("  Verifique o arquivo de log em /log/ para mais detalhes.", file=sys.stderr)
+        print("  Verifique o arquivo de log em /log/ para mais detalhes..", file=sys.stderr)
         print("=" * 60, file=sys.stderr)
 
         # Tenta exibir um message box amigável via MessageBox centralizado

@@ -77,6 +77,7 @@ Nunca `except:` sem capturar a exceção. Nunca `except:` sem logar. Use `Except
 ## 🚫 Proibições
 
 - **Nunca** importar `QMessageBox` diretamente. Use `MessageBox` de `utils.MessageBox`.
+- **Nunca** execute `python -c "from PySide6.QtWidgets import ..."` ou `python -c "from resources.widgets.X import Y"` no terminal para verificar código. O PySide6/Qt trava ao importar widgets fora de um `QApplication` — o terminal congela sem resposta. Use `python -c "import ast; ast.parse(open('arquivo.py').read()); print('OK')"` para verificação sintática, ou execute o aplicativo real (`main.py`) para testes completos.
 - **Nunca** usar `except:` ou `except Exception:` sem `as e` e logger.
 - **Nunca** chamar `QMessageBox` em lugar nenhum fora de `utils/MessageBox.py`.
 - **Nunca** importar widgets brutos do `PySide6.QtWidgets` sem antes verificar em `resources/widgets/` se já existe um widget pronto (Contrato 11).

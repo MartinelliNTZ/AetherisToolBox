@@ -12,10 +12,11 @@ from __future__ import annotations
 from typing import Optional
 
 from resources.styles.BaseStyle import BaseStyle
-from resources.styles.ThemeManager import ct
-
+from resources.styles.ThemeManager import theme_manager
+current_theme = theme_manager.theme
 
 class AppStyles(BaseStyle):
+    current_theme = current_theme
     """
     Estilos específicos: botões (secondary, primary, danger, ghost, remove),
     badges de status, logs coloridos e menus.
@@ -28,36 +29,79 @@ class AppStyles(BaseStyle):
 
     @classmethod
     def btn_secondary_style(cls) -> str:
-        """Botao secundario — gradiente suave, hover com glow."""
-        t = ct.theme
-        grad = cls._gradient(*t.GRADIENT_BUTTON)
+        """
+        Botao secundario — gradiente suave, hover com glow.
+        Usa GRADIENT_BUTTON_STOPS com tipo e angulo do tema quando disponivel,
+        ou GRADIENT_BUTTON (2-stop) como fallback.
+        """
+        
+        grad = cls._gradient_qss_from_stops(
+            current_theme.GRADIENT_BUTTON_STOPS,
+            current_theme.GRADIENT_BUTTON_ANGLE,
+            current_theme.GRADIENT_BUTTON[0],
+            current_theme.GRADIENT_BUTTON[1],
+            gradient_type=current_theme.GRADIENT_BUTTON_TYPE,
+            cx=current_theme.GRADIENT_RADIAL_CX,
+            cy=current_theme.GRADIENT_RADIAL_CY,
+            fx=current_theme.GRADIENT_RADIAL_FX,
+            fy=current_theme.GRADIENT_RADIAL_FY,
+            radius=current_theme.GRADIENT_RADIAL_RADIUS,
+        )
         return (
             f"QPushButton {{"
             f"  background: {grad};"
-            f"  color: {t.ACCENT_TEXT};"
+            f"  color: {current_theme.ACCENT_TEXT};"
             f"  border: none;"
-            f"  border-radius: {t.BORDER_RADIUS_BUTTON}px;"
-            f"  padding: {t.BUTTON_PADDING_V} {t.BUTTON_PADDING_H};"
-            f"  font-weight: {t.FONT_WEIGHT_BOLD};"
-            f"  font-size: {t.FONT_SIZE_SMALL}px;"
+            f"  border-radius: {current_theme.BORDER_RADIUS_BUTTON}px;"
+            f"  padding: {current_theme.BUTTON_PADDING_V} {current_theme.BUTTON_PADDING_H};"
+            f"  font-weight: {current_theme.FONT_WEIGHT_BOLD};"
+            f"  font-size: {current_theme.FONT_SIZE_SMALL}px;"
             f"}}"
             f"QPushButton:hover {{"
-            f"  background: {t.SURFACE_4};"
-            f"  color: {t.ACCENT_BRIGHT};"
+            f"  background: {current_theme.SURFACE_4};"
+            f"  color: {current_theme.ACCENT_BRIGHT};"
             f"}}"
             f"QPushButton:pressed {{"
-            f"  background: {t.SURFACE_2};"
+            f"  background: {current_theme.SURFACE_2};"
             f"}}"
         )
 
     @classmethod
     def btn_primary_style(cls) -> str:
-        """Botao primario — gradiente."""
-        t = ct.theme
+        """
+        Botao primario — gradiente.
+        Usa GRADIENT_ACCENT_STOPS (3+ stops) com tipo, angulo e parametros
+        do tema quando disponivel, ou ACCENT_GRADIENT (2 stops) como fallback
+        para compatibilidade retroativa.
+
+        Tipos de gradiente suportados (via GradientType):
+            LINEAR  — gradiente linear com angulo (padrao)
+            RADIAL  — gradiente radial com centro e ponto focal
+            CONICAL — gradiente conico com centro e angulo inicial
+        """
+        t = theme_manager.theme
+        gtype = t.GRADIENT_ACCENT_TYPE
+        bg_gradient = cls._gradient_qss_from_stops(
+            t.GRADIENT_ACCENT_STOPS,
+            t.GRADIENT_ACCENT_ANGLE,
+            t.ACCENT_GRADIENT[0],
+            t.ACCENT_GRADIENT[1],
+            gradient_type=gtype,
+            cx=t.GRADIENT_RADIAL_CX,
+            cy=t.GRADIENT_RADIAL_CY,
+            fx=t.GRADIENT_RADIAL_FX,
+            fy=t.GRADIENT_RADIAL_FY,
+            radius=t.GRADIENT_RADIAL_RADIUS,
+        )
+        hover_gradient = cls._gradient_qss_from_stops(
+            (),
+            45,
+            t.ACCENT_HOVER,
+            t.ACCENT,
+        )
         return (
             f"QPushButton {{"
-            f"  background: qlineargradient(x1:0,y1:0,x2:1,y2:0,"
-            f"    stop:0 {t.ACCENT_GRADIENT[0]}, stop:1 {t.ACCENT_GRADIENT[1]});"
+            f"  background: {bg_gradient};"
             f"  color: {t.SURFACE_0};"
             f"  border: none;"
             f"  border-radius: {t.BORDER_RADIUS_BUTTON}px;"
@@ -67,8 +111,7 @@ class AppStyles(BaseStyle):
             f"  letter-spacing: {t.BUTTON_LETTER_SPACING_PRIMARY};"
             f"}}"
             f"QPushButton:hover {{"
-            f"  background: qlineargradient(x1:0,y1:0,x2:1,y2:0,"
-            f"    stop:0 {t.ACCENT_HOVER}, stop:1 {t.ACCENT});"
+            f"  background: {hover_gradient};"
             f"}}"
             f"QPushButton:pressed {{"
             f"  background: {t.ACCENT_ACTIVE};"
@@ -82,7 +125,7 @@ class AppStyles(BaseStyle):
     @classmethod
     def btn_danger_style(cls) -> str:
         """Botao danger — vermelho escuro, sem borda."""
-        t = ct.theme
+        t = theme_manager.theme
         return (
             f"QPushButton {{"
             f"  background-color: {t.COLOR_DANGER_DIM};"
@@ -109,7 +152,7 @@ class AppStyles(BaseStyle):
     @classmethod
     def btn_ghost_style(cls) -> str:
         """Botao ghost — invisível, aparece no hover."""
-        t = ct.theme
+        t = theme_manager.theme
         return (
             f"QPushButton {{"
             f"  background-color: transparent;"
@@ -131,7 +174,7 @@ class AppStyles(BaseStyle):
     @classmethod
     def btn_remove_style(cls) -> str:
         """Botao remover — preto arredondado, fonte branca, hover vermelho."""
-        t = ct.theme
+        t = theme_manager.theme
         return (
             f"QPushButton {{"
             f"  background-color: {t.SURFACE_3};"
@@ -157,7 +200,7 @@ class AppStyles(BaseStyle):
     @classmethod
     def menu_bar_style(cls) -> str:
         """Estilo da barra de menus."""
-        t = ct.theme
+        t = theme_manager.theme
         return (
             f"QMenuBar#app_menu_bar {{"
             f"  background-color: {t.TITLE_BAR};"
@@ -176,26 +219,26 @@ class AppStyles(BaseStyle):
             f"QMenuBar::item:hover {{"
             f"  background-color: {t.ACCENT};"
             f"  color: {t.SURFACE_0};"
-            f"  border-radius: {t.MENUBAR_ITEM_BORDER_RADIUS};"
+            f"  border-radius: {t.MENUBAR_ITEM_BORDER_RADIUS}px;"
             f"  font-weight: {t.FONT_WEIGHT_EXTRABOLD};"
             f"}}"
             f"QMenuBar::item:selected {{"
             f"  background-color: {t.ACCENT};"
             f"  color: {t.SURFACE_0};"
-            f"  border-radius: {t.MENUBAR_ITEM_BORDER_RADIUS};"
+            f"  border-radius: {t.MENUBAR_ITEM_BORDER_RADIUS}px;"
             f"  font-weight: {t.FONT_WEIGHT_EXTRABOLD};"
             f"}}"
             f"QMenuBar::item:pressed {{"
             f"  background-color: {t.ACCENT_ACTIVE};"
             f"  color: {t.SURFACE_0};"
-            f"  border-radius: {t.MENUBAR_ITEM_BORDER_RADIUS};"
+            f"  border-radius: {t.MENUBAR_ITEM_BORDER_RADIUS}px;"
             f"}}"
         )
 
     @classmethod
     def menu_dropdown_style(cls) -> str:
         """Estilo do QMenu dropdown."""
-        t = ct.theme
+        t = theme_manager.theme
         return (
             f"QMenu {{"
             f"  background-color: {t.SURFACE_0};"
@@ -242,7 +285,8 @@ class AppStyles(BaseStyle):
 
     @classmethod
     def badge_style(cls, bg_color: str, text_color: Optional[str] = None) -> str:
-        t = ct.theme
+        """Badge preenchido padrão — fundo sólido, texto claro."""
+        t = theme_manager.theme
         tc = text_color or t.SURFACE_0
         return (
             f"QLabel {{"
@@ -257,12 +301,40 @@ class AppStyles(BaseStyle):
         )
 
     @classmethod
-    def tool_group_label_style(cls) -> str:
-        """Estilo do label de título de um ToolGroup na toolbar."""
-        t = ct.theme
+    def badge_outline_style(cls, border_color: str, bg_color: str = "") -> str:
+        """
+        Badge estilo outline — borda colorida + fundo translúcido.
+
+        Args:
+            border_color: Cor da borda (ex: ACCENT, COLOR_SUCCESS).
+            bg_color: Cor de fundo translúcido (ex: ACCENT_SOFT).
+                      Vazio = usa ACCENT_SOFT do tema como fallback.
+
+        Returns:
+            String QSS para QLabel.
+        """
+        t = theme_manager.theme
+        bg = bg_color or t.ACCENT_SOFT
         return (
             f"QLabel {{"
-            f"  color: {t.TEXT_GOLD};"
+            f"  background: {bg};"
+            f"  border: {t.BADGE_OUTLINE_BORDER_WIDTH}px solid {border_color};"
+            f"  color: {border_color};"
+            f"  border-radius: {t.BORDER_RADIUS_BADGE}px;"
+            f"  padding: {t.BADGE_PADDING_V} {t.BADGE_PADDING_H};"
+            f"  font-weight: {t.FONT_WEIGHT_HEAVY};"
+            f"  font-size: {t.FONT_SIZE_TINY}px;"
+            f"  letter-spacing: {t.BADGE_LETTER_SPACING};"
+            f"}}"
+        )
+
+    @classmethod
+    def tool_group_label_style(cls) -> str:
+        """Estilo do label de título de um ToolGroup na toolbar."""
+        t = theme_manager.theme
+        return (
+            f"QLabel {{"
+            f"  color: {t.TEXT_ACCENT};"
             f"  font-size: {t.FONT_SIZE_TINY}px;"
             f"  padding: 0px;"
             f"  margin: 0px;"
@@ -271,23 +343,23 @@ class AppStyles(BaseStyle):
 
     @classmethod
     def badge_success(cls) -> str:
-        return cls.badge_style(ct.theme.COLOR_SUCCESS)
+        return cls.badge_style(theme_manager.theme.COLOR_SUCCESS)
 
     @classmethod
     def badge_running(cls) -> str:
-        return cls.badge_style(ct.theme.COLOR_WARNING)
+        return cls.badge_style(theme_manager.theme.COLOR_WARNING)
 
     @classmethod
     def badge_error(cls) -> str:
-        return cls.badge_style(ct.theme.COLOR_DANGER)
+        return cls.badge_style(theme_manager.theme.COLOR_DANGER)
 
     @classmethod
     def badge_canceled(cls) -> str:
-        return cls.badge_style(ct.theme.COLOR_WARNING)
+        return cls.badge_style(theme_manager.theme.COLOR_WARNING)
 
     @classmethod
     def badge_info(cls) -> str:
-        return cls.badge_style(ct.theme.COLOR_INFO)
+        return cls.badge_style(theme_manager.theme.COLOR_INFO)
 
     # ────────────────────────────────────────────────────────────────────
     # DIALOG — Estilo base para QDialog
@@ -296,7 +368,7 @@ class AppStyles(BaseStyle):
     @classmethod
     def dialog_stylesheet(cls) -> str:
         """QSS genérico para QDialog. Nenhum hardcoded."""
-        t = ct.theme
+        t = theme_manager.theme
         return (
             f"QDialog {{"
             f"  background-color: {t.SURFACE_1};"
@@ -312,7 +384,7 @@ class AppStyles(BaseStyle):
     @classmethod
     def dialog_content_border_style(cls) -> str:
         """Borda sutil para o QWidget de conteúdo dentro do BaseDialog."""
-        t = ct.theme
+        t = theme_manager.theme
         return (
             f"QWidget#dialog_content {{"
             f"  border: 1px solid {t.BORDER_DEFAULT};"
@@ -327,7 +399,7 @@ class AppStyles(BaseStyle):
     @classmethod
     def about_dialog_stylesheet(cls) -> str:
         """QSS completo para o AboutDialog. Nenhum hardcoded."""
-        t = ct.theme
+        t = theme_manager.theme
         return cls.dialog_stylesheet() + (
             f"QLabel#about_title {{"
             f"  color: {t.ACCENT_TEXT};"
@@ -351,15 +423,6 @@ class AppStyles(BaseStyle):
         )
 
     # ────────────────────────────────────────────────────────────────────
-    # HUD LOADER — cores para o HudCircularRingsLoader
-    # ────────────────────────────────────────────────────────────────────
-
-    @classmethod
-    def hud_accent_color(cls) -> str:
-        """Cor de acento para o HUD loader (usado em paintEvent)."""
-        return ct.theme.ACCENT_TEXT
-
-    # ────────────────────────────────────────────────────────────────────
     # VERTICAL TAB — cores para VerticalTab (paintEvent custom)
     # ────────────────────────────────────────────────────────────────────
 
@@ -368,25 +431,25 @@ class AppStyles(BaseStyle):
         """Retorna cores para pintura manual do VerticalTab.
         Usa tokens semânticos — nenhum alias antigo.
         Inclui gradientes top-left → bottom-right para backgrounds."""
-        t = ct.theme
+        t = theme_manager.theme
         return {
-            "bg_selected":  t.ACCENT,
-            "fg_selected":  t.SURFACE_0,
+            "bg_selected": t.ACCENT,
+            "fg_selected": t.SURFACE_0,
             "border_selected": t.ACCENT_DIM,
-            "indicator":    t.ACCENT_HOVER,
-            "bg_hovered":   t.SURFACE_3,
-            "fg_hovered":   t.TEXT_MEDIUM,
+            "indicator": t.ACCENT_HOVER,
+            "bg_hovered": t.SURFACE_3,
+            "fg_hovered": t.TEXT_MEDIUM,
             "border_hovered": t.BORDER_ACCENT,
-            "bg_default":   t.SURFACE_0,
-            "fg_default":   t.TEXT_LOW,
+            "bg_default": t.SURFACE_0,
+            "fg_default": t.TEXT_LOW,
             "border_default": t.BORDER_DEFAULT,
             # Gradientes (start, end) para background
             "gradient_default_start": t.GRADIENT_TAB[0],
-            "gradient_default_end":   t.GRADIENT_TAB[1],
+            "gradient_default_end": t.GRADIENT_TAB[1],
             "gradient_hovered_start": t.GRADIENT_BUTTON[0],
-            "gradient_hovered_end":   t.GRADIENT_BUTTON[1],
-            "gradient_selected_start": "",
-            "gradient_selected_end":   "",
+            "gradient_hovered_end": t.GRADIENT_BUTTON[1],
+            "gradient_selected_start": t.ACCENT_GRADIENT[0],
+            "gradient_selected_end": t.ACCENT_GRADIENT[1],
         }
 
     # ────────────────────────────────────────────────────────────────────
@@ -402,26 +465,34 @@ class AppStyles(BaseStyle):
     @classmethod
     def tab_common_colors(cls) -> dict[str, str]:
         """Retorna cores padronizadas para tabs (vertical e horizontal).
-        Todas as tabs usam o mesmo schema de cores:
-          - selected: fundo GOLD, texto BG_DEEPEST, border GOLD_DIM, indicator GOLD_HOVER
-          - hovered:  fundo GOLD, texto BG_DEEPEST, border BORDER_HOVER
-          - default:  fundo BG_DEEPEST, texto TEXT_BRIGHT, border BORDER
-        Cacheado por performance."""
-        t = ct.theme
-        cache_key = ct.current_key
+        Todas as tabs usam o mesmo schema de cores via tokens semânticos:
+          - selected: fundo ACCENT, texto SURFACE_0, border ACCENT_DIM, indicator ACCENT_HOVER
+          - hovered:  fundo ACCENT, texto SURFACE_0, border BORDER_ACCENT
+          - default:  fundo SURFACE_0, texto TEXT_HIGH, border BORDER_DEFAULT
+        Cacheado por performance.
+
+        ⚠ Nota de design:
+        Diferente de `vertical_tab_colors()`, que usa ACCENT apenas para `selected`
+        e SURFACE_3 para `hovered` (hover sutil). Este método (`tab_common_colors`)
+        usa ACCENT tanto para `selected` quanto para `hovered` (hover ousado).
+        A escolha entre um e outro define a agressividade visual do feedback
+        de hover na tab. Para consistência, HorizontalTab e VerticalTab podem usar
+        métodos diferentes — verifique qual se adequa ao design desejado."""
+        t = theme_manager.theme
+        cache_key = theme_manager.current_key
         if cls._TAB_COLORS_CACHE.get("_cache_key") != cache_key:
             cls._TAB_COLORS_CACHE = {
                 "_cache_key": cache_key,
-                "bg_selected":    t.GOLD,
-                "fg_selected":    t.BG_DEEPEST,
-                "border_selected": t.GOLD_DIM,
-                "indicator":       t.GOLD_HOVER,
-                "bg_hovered":     t.GOLD,
-                "fg_hovered":     t.BG_DEEPEST,
-                "border_hovered": t.BORDER_HOVER,
-                "bg_default":     t.BG_DEEPEST,
-                "fg_default":     t.TEXT_BRIGHT,
-                "border_default": t.BORDER,
+                "bg_selected": t.ACCENT,
+                "fg_selected": t.SURFACE_0,
+                "border_selected": t.ACCENT_DIM,
+                "indicator": t.ACCENT_HOVER,
+                "bg_hovered": t.ACCENT,
+                "fg_hovered": t.SURFACE_0,
+                "border_hovered": t.BORDER_ACCENT,
+                "bg_default": t.SURFACE_0,
+                "fg_default": t.TEXT_HIGH,
+                "border_default": t.BORDER_DEFAULT,
             }
         return cls._TAB_COLORS_CACHE
 
@@ -437,11 +508,12 @@ class AppStyles(BaseStyle):
 
     @classmethod
     def theme_colors(cls) -> dict[str, str]:
-        """Retorna um dicionário com TODAS as cores do tema atual.
+        """DEPRECIADO, NAO ULTILIZE ESSA GAMBIARRA PARA NADA
+        Retorna um dicionário com TODAS as cores do tema atual.
         Cacheado por performance (paintEvent é chamado a 60 fps).
         Usa current_key como chave de cache (string estável)."""
-        t = ct.theme
-        cache_key = ct.current_key
+        t = theme_manager.theme
+        cache_key = theme_manager.current_key
         if cls._THEME_COLORS_CACHE.get("_cache_key") != cache_key:
             cls._THEME_COLORS_CACHE = {
                 "_cache_key": cache_key,
@@ -459,12 +531,17 @@ class AppStyles(BaseStyle):
                 "TEXT_PRIMARY": t.TEXT_PRIMARY,
                 "TEXT_SECONDARY": t.TEXT_SECONDARY,
                 "TEXT_MUTED": t.TEXT_MUTED,
-                "TEXT_GOLD": t.TEXT_GOLD,
-                "GOLD": t.GOLD,
-                "GOLD_HOVER": t.GOLD_HOVER,
-                "GOLD_DIM": t.GOLD_DIM,
-                "GOLD_LIGHT": t.GOLD_LIGHT,
-                "GOLD_GRADIENT": t.GOLD_GRADIENT,
+                "TEXT_ACCENT": t.TEXT_ACCENT,
+                "GOLD": t.ACCENT_COLOR,  # ← compat: GOLD → ACCENT_COLOR
+                "GOLD_HOVER": t.ACCENT_COLOR_HOVER,  # ← compat
+                "GOLD_DIM": t.ACCENT_COLOR_DIM,  # ← compat
+                "GOLD_LIGHT": t.ACCENT_COLOR_LIGHT,  # ← compat
+                "GOLD_GRADIENT": t.ACCENT_COLOR_GRADIENT,  # ← compat
+                "ACCENT_COLOR": t.ACCENT_COLOR,
+                "ACCENT_COLOR_HOVER": t.ACCENT_COLOR_HOVER,
+                "ACCENT_COLOR_DIM": t.ACCENT_COLOR_DIM,
+                "ACCENT_COLOR_LIGHT": t.ACCENT_COLOR_LIGHT,
+                "ACCENT_COLOR_GRADIENT": t.ACCENT_COLOR_GRADIENT,
                 # Tokens semânticos
                 "ACCENT": t.ACCENT,
                 "ACCENT_TEXT": t.ACCENT_TEXT,
@@ -487,9 +564,10 @@ class AppStyles(BaseStyle):
     # ────────────────────────────────────────────────────────────────────
 
     @classmethod
-    def log_html(cls, text: str, timestamp: str,
-                 color: str, ts_color: str, weight: str = "400") -> str:
-        mono = ct.theme.FONT_FAMILY_MONO
+    def log_html(
+        cls, text: str, timestamp: str, color: str, ts_color: str, weight: str = "400"
+    ) -> str:
+        mono = theme_manager.theme.FONT_FAMILY_MONO
         return (
             f"<span style='color:{ts_color};"
             f"font-family:{mono};"
@@ -501,19 +579,19 @@ class AppStyles(BaseStyle):
 
     @classmethod
     def log_link_html(cls, text: str, url: str) -> str:
-        mono = ct.theme.FONT_FAMILY_MONO
+        mono = theme_manager.theme.FONT_FAMILY_MONO
         return (
-            f"<span style='color:{ct.theme.TEXT_LOW};"
+            f"<span style='color:{theme_manager.theme.TEXT_LOW};"
             f"font-family:{mono};font-size:12px;'>"
-            f"{text}: <a href='{url}' style='color:{ct.theme.ACCENT};"
+            f"{text}: <a href='{url}' style='color:{theme_manager.theme.ACCENT};"
             f"text-decoration:none;'>abrir</a></span>"
         )
 
     @classmethod
     def log_section_html(cls, text: str) -> str:
-        mono = ct.theme.FONT_FAMILY_MONO
+        mono = theme_manager.theme.FONT_FAMILY_MONO
         return (
-            f"<span style='color:{ct.theme.ACCENT};"
+            f"<span style='color:{theme_manager.theme.ACCENT};"
             f"font-family:{mono};"
             f"font-size:12px;font-weight:700;'>{text}</span>"
         )
@@ -525,12 +603,12 @@ class AppStyles(BaseStyle):
     @classmethod
     def collapsible_header_height(cls) -> str:
         """Altura do header do CollapsibleParams."""
-        return str(ct.theme.INPUT_HEIGHT+2)
+        return str(theme_manager.theme.INPUT_HEIGHT + 2)
 
     @classmethod
     def collapsible_header_style(cls) -> str:
         """Estilo do header clicável do CollapsibleParams."""
-        t = ct.theme
+        t = theme_manager.theme
         return (
             f"QLabel#collapsible_header {{"
             f"  background-color: {t.SURFACE_3};"
@@ -548,11 +626,11 @@ class AppStyles(BaseStyle):
     @classmethod
     def collapsible_content_style(cls) -> str:
         """Estilo do container de conteúdo do CollapsibleParams."""
-        t = ct.theme
+        t = theme_manager.theme
         return (
             f"QWidget#collapsible_content {{"
             f"  background-color: {t.SURFACE_1};"
-            f"  border: 1px solid {t.BORDER};"
+            f"  border: 1px solid {t.BORDER_DEFAULT};"
             f"  border-top: none;"
             f"  border-radius: 0px 0px {t.RADIUS_SM}px {t.RADIUS_SM}px;"
             f"}}"
@@ -571,7 +649,7 @@ class AppStyles(BaseStyle):
             active: Se True, nome em ACCENT_TEXT negrito. Se False,
                     nome em TEXT_MUTED itálico (projeto não encontrado).
         """
-        t = ct.theme
+        t = theme_manager.theme
         color = t.ACCENT_TEXT if active else t.TEXT_MUTED
         italic = "font-style: italic;" if not active else ""
         return (
@@ -588,16 +666,12 @@ class AppStyles(BaseStyle):
         Estilo para os labels de path e data (RecentProjectsMenu).
 
         Args:
-            active: Se True, cor TEXT_SECONDARY. Se False,
-                    mesma cor (mas o item está desabilitado visualmente).
+            active: Se True, cor TEXT_LOW. Se False,
+                    cor TEXT_DISABLED (projeto não encontrado).
         """
-        t = ct.theme
-        color = t.TEXT_SECONDARY
-        return (
-            f"QLabel {{"
-            f"  color: {color};"
-            f"}}"
-        )
+        t = theme_manager.theme
+        color = t.TEXT_LOW if active else t.TEXT_DISABLED
+        return f"QLabel {{" f"  color: {color};" f"}}"
 
     @classmethod
     def recent_project_hover_style(cls) -> str:
@@ -605,7 +679,7 @@ class AppStyles(BaseStyle):
         Cor de fundo hover para o item do RecentProjectsMenu.
         Usa ACCENT com baixa opacidade simulada via SURFACE_3.
         """
-        t = ct.theme
+        t = theme_manager.theme
         return t.SURFACE_3
 
     @classmethod
@@ -613,25 +687,16 @@ class AppStyles(BaseStyle):
         """
         Estilo do nome do projeto no hover (ACCENT_BRIGHT).
         """
-        t = ct.theme
-        return (
-            f"QLabel {{"
-            f"  color: {t.ACCENT_BRIGHT};"
-            f"  font-weight: bold;"
-            f"}}"
-        )
+        t = theme_manager.theme
+        return f"QLabel {{" f"  color: {t.ACCENT_BRIGHT};" f"  font-weight: bold;" f"}}"
 
     @classmethod
     def recent_project_hover_sub_style(cls) -> str:
         """
         Estilo do path/data no hover (TEXT_MEDIUM).
         """
-        t = ct.theme
-        return (
-            f"QLabel {{"
-            f"  color: {t.TEXT_MEDIUM};"
-            f"}}"
-        )
+        t = theme_manager.theme
+        return f"QLabel {{" f"  color: {t.TEXT_MEDIUM};" f"}}"
 
     # ────────────────────────────────────────────────────────────────────
     # TOOLBAR — tokens centralizados de tamanhos e estilos
@@ -641,22 +706,22 @@ class AppStyles(BaseStyle):
     @classmethod
     def toolbar_icon_size(cls) -> int:
         """Tamanho do ícone na toolbar (px)."""
-        return ct.theme.TOOLBAR_ICON_SIZE
+        return theme_manager.theme.TOOLBAR_ICON_SIZE
 
     @classmethod
     def toolbar_btn_size(cls) -> int:
         """Tamanho do botão na toolbar (px)."""
-        return ct.theme.TOOLBAR_BTN_SIZE
+        return theme_manager.theme.TOOLBAR_BTN_SIZE
 
     @classmethod
     def toolbar_btn_border_radius(cls) -> int:
         """Border-radius do botão da toolbar (px). Usa BORDER_RADIUS_TOOLBAR_BTN do tema."""
-        return ct.theme.BORDER_RADIUS_TOOLBAR_BTN
+        return theme_manager.theme.BORDER_RADIUS_TOOLBAR_BTN
 
     @classmethod
     def toolbar_btn_hover_grow(cls) -> int:
         """Pixels extras no hover para animação grow."""
-        return ct.theme.TOOLBAR_BTN_HOVER_GROW
+        return theme_manager.theme.TOOLBAR_BTN_HOVER_GROW
 
     @classmethod
     def toolbar_btn_style(cls) -> str:
@@ -665,7 +730,7 @@ class AppStyles(BaseStyle):
         Zero hardcoded — border-radius, cores de hover/pressed vêm do tema.
         A animação de hover grow é feita via AnimationManager, não via QSS.
         """
-        t = ct.theme
+        t = theme_manager.theme
         return (
             f"QToolButton {{"
             f"  background-color: transparent;"
@@ -681,6 +746,125 @@ class AppStyles(BaseStyle):
         )
 
     # ────────────────────────────────────────────────────────────────────
+    # TABLE — estilo genérico para QTableWidget
+    # ────────────────────────────────────────────────────────────────────
+
+    @classmethod
+    def table_style(
+        cls,
+        *,
+        bg_color: str = "",
+        alt_bg_color: str = "",
+        border_radius: int = 0,
+        grid_color: str = "",
+        header_bg: str = "",
+        header_fg: str = "",
+        header_border_bottom: str = "",
+        item_selected_bg: str = "",
+        item_selected_fg: str = "",
+        font_size: int = 0,
+        header_font_size: int = 0,
+        header_letter_spacing: str = "",
+    ) -> str:
+        """
+        Gera QSS completo para QTableWidget usando tokens do tema.
+        Qualquer parametro vazio usa o valor do tema ativo.
+
+        Args:
+            bg_color: Fundo da tabela (padrao: SURFACE_4).
+            alt_bg_color: Fundo alternado (padrao: SURFACE_3).
+            border_radius: Border-radius (padrao: BORDER_RADIUS_TABLE).
+            grid_color: Cor da grade (padrao: DIVIDER).
+            header_bg: Fundo do cabecalho (padrao: SURFACE_3).
+            header_fg: Texto do cabecalho (padrao: TEXT_LOW).
+            header_border_bottom: Borda inferior do cabecalho (padrao: ACCENT).
+            item_selected_bg: Fundo do item selecionado (padrao: SURFACE_5).
+            item_selected_fg: Texto do item selecionado (padrao: TEXT_HIGH).
+            font_size: Tamanho da fonte da celula (0 = usa FONT_SIZE_SMALL).
+            header_font_size: Tamanho da fonte do cabecalho (0 = usa HEADER_FONT_SIZE).
+            header_letter_spacing: Letter-spacing do cabecalho (vazio = usa HEADER_LETTER_SPACING).
+
+        Returns:
+            String QSS completa para QTableWidget + QHeaderView.
+        """
+        t = theme_manager.theme
+        bg = bg_color or t.SURFACE_4
+        alt_bg = alt_bg_color or t.SURFACE_3
+        br = border_radius or t.BORDER_RADIUS_TABLE
+        grid = grid_color or t.DIVIDER
+        h_bg = header_bg or t.SURFACE_3
+        h_fg = header_fg or t.TEXT_LOW
+        h_border = header_border_bottom or t.ACCENT
+        sel_bg = item_selected_bg or t.SURFACE_5
+        sel_fg = item_selected_fg or t.TEXT_HIGH
+        fs = font_size or t.FONT_SIZE_SMALL
+        hfs = header_font_size or t.HEADER_FONT_SIZE
+        hls = header_letter_spacing or t.HEADER_LETTER_SPACING
+        return (
+            f"QTableWidget {{"
+            f"  background-color: {bg};"
+            f"  alternate-background-color: {alt_bg};"
+            f"  border: none;"
+            f"  border-radius: {br}px;"
+            f"  gridline-color: {grid};"
+            f"  color: {t.TEXT_MEDIUM};"
+            f"  font-size: {fs}px;"
+            f"}}"
+            f"QTableWidget::item:selected {{"
+            f"  background-color: {sel_bg};"
+            f"  color: {sel_fg};"
+            f"}}"
+            f"QHeaderView::section {{"
+            f"  background-color: {h_bg};"
+            f"  color: {h_fg};"
+            f"  padding: 4px 6px;"
+            f"  border: none;"
+            f"  border-bottom: 2px solid {h_border};"
+            f"  font-weight: {t.FONT_WEIGHT_EXTRABOLD};"
+            f"  font-size: {hfs}px;"
+            f"  letter-spacing: {hls};"
+            f"}}"
+        )
+
+    # ────────────────────────────────────────────────────────────────────
+    # LOG VIEWER TABLE — estilo dedicado para LogViewerPlugin
+    # Toda cor vem do tema via tokens semanticos. Zero acoplamento.
+    # ────────────────────────────────────────────────────────────────────
+
+    @classmethod
+    def log_viewer_table_style(cls) -> str:
+        """
+        QSS completo para a tabela do LogViewerPlugin.
+        Nao recebe parametros — todas as cores sao resolvidas internamente
+        via tokens semanticos do tema ativo.
+        """
+        t = theme_manager.theme
+        return (
+            f"QTableWidget {{"
+            f"  background-color: {t.SURFACE_1};"
+            f"  alternate-background-color: {t.SURFACE_2};"
+            f"  border: none;"
+            f"  border-radius: {t.BORDER_RADIUS_TABLE}px;"
+            f"  gridline-color: {t.BORDER_DEFAULT};"
+            f"  color: {t.TEXT_MEDIUM};"
+            f"}}"
+            f"QTableWidget::item:selected {{"
+            f"  background-color: {t.SURFACE_5};"
+            f"  color: {t.TEXT_HIGH};"
+            f"}}"
+            f"QHeaderView::section {{"
+            f"  background-color: {t.SURFACE_3};"
+            f"  color: {t.TEXT_LOW};"
+            f"  padding: 4px 6px;"
+            f"  border: none;"
+            f"  border-bottom: 2px solid {t.ACCENT};"
+            f"  font-weight: {t.FONT_WEIGHT_EXTRABOLD};"
+            f"  font-size: {t.HEADER_FONT_SIZE}px;"
+            f"  letter-spacing: {t.HEADER_LETTER_SPACING};"
+            f"}}"
+        )
+
+    # ────────────────────────────────────────────────────────────────────
     # GRID PERCENT VIEW — cores para GridPercentView (system monitor)
     # ────────────────────────────────────────────────────────────────────
 
@@ -688,21 +872,21 @@ class AppStyles(BaseStyle):
     def grid_percent_colors(cls) -> dict[str, str]:
         """Retorna cores para o GridPercentView (paintEvent).
         Usa tokens semânticos — zero hardcoded."""
-        t = ct.theme
+        t = theme_manager.theme
         return {
-            "label_fg":       t.TEXT_MEDIUM,
-            "value_fg":       t.ACCENT,
+            "label_fg": t.TEXT_MEDIUM,
+            "value_fg": t.ACCENT,
             "value_fg_hover": t.ACCENT_HOVER,
-            "bar_bg":         t.SURFACE_3,
-            "bar_fill":       t.ACCENT,
-            "bar_border":     t.BORDER_SUBTLE,
-            "hover_bg":       t.ACCENT + "15",
+            "bar_bg": t.SURFACE_3,
+            "bar_fill": t.ACCENT,
+            "bar_border": t.BORDER_SUBTLE,
+            "hover_bg": t.ACCENT + "15",
         }
 
     @classmethod
     def menu_bar_container_style(cls) -> str:
         """Estilo do QWidget container da MenuBar (fundo igual ao TITLE_BAR)."""
-        t = ct.theme
+        t = theme_manager.theme
         return (
             f"QWidget#app_menu_bar_container {{"
             f"  background-color: {t.TITLE_BAR};"
@@ -714,36 +898,23 @@ class AppStyles(BaseStyle):
     def explorer_link_style(cls) -> str:
         """
         Estilo CSS para links clicáveis que abrem no Windows Explorer.
-
-        Usa ACCENT como cor e RADIUS_XS para border-radius.
+        Usa ACCENT como cor.
         Retorna apenas o trecho style='...' para uso inline em tags <a>.
         """
-        t = ct.theme
+        t = theme_manager.theme
         return (
-            f"color: {t.ACCENT}; "
-            f"text-decoration: underline; "
-            f"cursor: pointer;"
+            f"color: {t.ACCENT}; " f"text-decoration: underline; " f"cursor: pointer;"
         )
 
-    @classmethod
-    def tree_branch_style(cls) -> str:
-        """
-        Estilo QSS para as setas expandir/recolher de QTreeWidget,
-        com contraste melhorado. Usa tokens do tema (ACCENT, SURFACE_5).
-        Ícone SVG inline (triângulo) com cores do tema.
-        """
-      
-
-        return (
-            f""
-        )
+    # tree_branch_style foi removido — o corpo estava vazio (código morto).
+    # Se for necessário no futuro, implementar com SVG inline via tokens semânticos.
 
     @classmethod
     def grid_percent_font_label(cls) -> str:
         """Família e tamanho da fonte do label no GridPercentView."""
-        return f"{ct.theme.FONT_FAMILY_MONO}, 10px"
+        return f"{theme_manager.theme.FONT_FAMILY_MONO}, 10px"
 
     @classmethod
     def grid_percent_font_value(cls) -> str:
         """Família e tamanho da fonte do valor no GridPercentView."""
-        return f"{ct.theme.FONT_FAMILY_MONO}, 10px bold"
+        return f"{theme_manager.theme.FONT_FAMILY_MONO}, 10px bold"

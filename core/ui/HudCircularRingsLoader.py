@@ -44,8 +44,8 @@ class HudCircularRingsLoader(QWidget):
         self._eta_seconds: float = 0.0
         self._start_datetime: datetime = datetime.now()
 
-        accent = AppStyles.hud_accent_color()
-        accent_qcolor = QColor(accent) if QColor.isValidColor(accent) else QColor(212, 168, 83)
+        current_theme = AppStyles.current_theme
+        accent_qcolor = QColor(current_theme.ACCENT_TEXT) if QColor.isValidColor(current_theme.ACCENT_TEXT) else QColor(212, 168, 83)
         bright_qcolor = QColor(232, 200, 120)
         self.rings = [
             {"radius": 82, "width": 6, "speed": 2.0, "angle": 0, "segments": 10, "seg_span": 16, "seg_gap": 18,
@@ -245,8 +245,9 @@ class HudCircularRingsLoader(QWidget):
         for ring in self.rings:
             self._draw_ring(p, center, ring)
 
-        accent_color = QColor(AppStyles.hud_accent_color())
-        gold_color = QColor(AppStyles.theme_colors()["GOLD"])
+        current_theme = AppStyles.current_theme
+        accent_color = QColor(current_theme.ACCENT_TEXT)
+        time_color = QColor(current_theme.TEXT_LOW)
         light_gray = QColor(140, 140, 140)
 
         # ── Linha superior: tempos (Decorrido | ETA | Restante) ──
@@ -255,7 +256,7 @@ class HudCircularRingsLoader(QWidget):
         eta_clock = self._eta_clock_str()
 
         p.setFont(QFont("Consolas", 8))
-        p.setPen(gold_color)
+        p.setPen(time_color)
         p.drawText(QRectF(cx - 145, cy - 115, 290, 18), Qt.AlignmentFlag.AlignCenter,
                    f"Tempo: {elapsed_str}|ETA: {eta_clock}|Restante: {remaining_str}")
 

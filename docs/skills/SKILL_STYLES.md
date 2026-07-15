@@ -6,25 +6,30 @@ Esta skill documenta o sistema de estilos e temas do **Aetheris ToolBox**, descr
 
 ## 📋 Visão Geral
 
-O sistema implementa uma **arquitetura de temas baseada em tokens semânticos** com 18 grupos de tokens organizados por categoria (ACCENT, SURFACE, TEXT, BORDER, RADIUS, SPACE, etc.). Cada tema concreto herda de `BaseTheme` e sobrescreve todos os tokens com valores específicos.
+O sistema implementa uma **arquitetura de temas baseada em tokens semânticos** com 18+ grupos de tokens organizados por categoria (ACCENT, SURFACE, TEXT, BORDER, RADIUS, SPACE, etc.). Cada tema concreto herda de `BaseTheme` e sobrescreve todos os tokens com valores específicos.
 
 ```
-BaseTheme (abstrato) ← DarkCharcoalTheme, ZeroGrausTheme, BlueTheme
+BaseTheme (abstrato) ← DarkCharcoalTheme, ZeroGrausTheme, BlueTheme, GoldPremiumTheme
        ↑
 ThemeManager (singleton) — carrega o tema ativo das preferências
        ↑
-BaseStyle (estilos globais QSS) ← AppStyles (botões, badges, menus, logs, toolbar)
+BaseStyle (estilos globais QSS + helpers de gradiente) ← AppStyles (botões, badges, menus, logs, toolbar)
        ↑
 AnimationManager (animações via QPropertyAnimation — hover grow, bounce)
 ```
 
-**Novidade:** `AnimationManager` é o gerenciador central de animações Qt. Ele cria animações de hover grow, bounce e qualquer transição de propriedade numérica. Atualmente usado pelo `ToolbarButton` para animar o crescimento no hover.
+**Novidades:**
+- **`GradientType` enum** (`core/enum/GradientType.py`) — Tipos de gradiente: `LINEAR`, `RADIAL`, `CONICAL`
+- **Gradiente multi-stop com tipo configurável** — Cada tema define o tipo de gradiente para botões primários (`GRADIENT_ACCENT_TYPE`), secundários (`GRADIENT_BUTTON_TYPE`) e tabs (`GRADIENT_TAB_TYPE`)
+- **Glow controlado por tema** — `GLOW_BUTTON_ENABLED` e `GLOW_TAB_ENABLED` ativam glow via `QGraphicsDropShadowEffect` em botões e tabs
+- **`AnimationManager`** — Gerenciador central de animações Qt (hover grow, bounce)
 
 **Princípios:**
 - **Zero valores hardcoded** — todo QSS usa tokens do tema via `ct.theme.ATRIBUTO`
 - **Tema ativo lido das preferências** — salvo em `System > "theme"` no `preferences.json`
 - **Lazy loading de temas** — só importa o módulo do tema ativo no startup
 - **Compatibilidade retroativa** — aliases antigos (BG_DARK, GOLD, etc.) mapeiam para tokens semânticos
+- **Fallback automático** — temas que não definem `GRADIENT_*_STOPS` continuam usando gradientes 2-stop clássicos
 
 ---
 
@@ -84,14 +89,26 @@ Classe base abstrata que define **todos os tokens semânticos** do sistema. Cada
 | `BG_CARD` | `SURFACE_3` |
 | `BG_ELEVATED` | `SURFACE_4` |
 | `BG_SURFACE` | `SURFACE_5` |
-| `GOLD` | `ACCENT` |
-| `GOLD_HOVER` | `ACCENT_HOVER` |
-| `GOLD_DIM` | `ACCENT_DIM` |
+| `ACCENT_COLOR` | `ACCENT` |
+| ~~`GOLD`~~ | *(renomeado para `ACCENT_COLOR`)* |
+| `ACCENT_COLOR_HOVER` | `ACCENT_HOVER` |
+| ~~`GOLD_HOVER`~~ | *(renomeado para `ACCENT_COLOR_HOVER`)* |
+| `ACCENT_COLOR_ACTIVE` | `ACCENT_ACTIVE` |
+| ~~`GOLD_ACTIVE`~~ | *(renomeado para `ACCENT_COLOR_ACTIVE`)* |
+| `ACCENT_COLOR_DIM` | `ACCENT_DIM` |
+| ~~`GOLD_DIM`~~ | *(renomeado para `ACCENT_COLOR_DIM`)* |
+| `ACCENT_COLOR_LIGHT` | `ACCENT_LIGHT` |
+| ~~`GOLD_LIGHT`~~ | *(renomeado para `ACCENT_COLOR_LIGHT`)* |
+| `ACCENT_COLOR_GRADIENT` | `ACCENT_GRADIENT` |
+| ~~`GOLD_GRADIENT`~~ | *(renomeado para `ACCENT_COLOR_GRADIENT`)* |
 | `TEXT_BRIGHT` | `TEXT_HIGH` |
 | `TEXT_PRIMARY` | `TEXT_MEDIUM` |
 | `TEXT_SECONDARY` | `TEXT_LOW` |
 | `TEXT_MUTED` | `TEXT_DISABLED` |
-| `TEXT_GOLD` | `ACCENT_TEXT` |
+| `TEXT_ACCENT` | `ACCENT_TEXT` |
+| ~~`TEXT_GOLD`~~ | *(renomeado para `TEXT_ACCENT`)* |
+| `TEXT_ACCENT_BRIGHT` | `ACCENT_BRIGHT` |
+| ~~`TEXT_GOLD_BRIGHT`~~ | *(renomeado para `TEXT_ACCENT_BRIGHT`)* |
 | `BORDER` | `BORDER_DEFAULT` |
 | `BORDER_HOVER` | `BORDER_ACCENT` |
 | `SUCCESS` | `COLOR_SUCCESS` |
@@ -398,9 +415,9 @@ menu.setStyleSheet(AppStyles.menu_dropdown_style())
 from resources.styles.AppStyles import AppStyles
 
 def paintEvent(self, event):
-    colors = AppStyles.theme_colors()
-    painter.fillRect(rect(), QColor(colors["BG_DEEPEST"]))
-    painter.setPen(QColor(colors["GOLD"]))
+    current_theme = AppStyles.current_theme
+    painter.fillRect(rect(), QColor(current_theme.SURFACE_0))
+    painter.setPen(QColor(current_theme.ACCENT_TEXT))
     painter.drawText(rect(), "Texto")
 ```
 
@@ -422,13 +439,13 @@ else:
 
 ```python
 from resources.styles.AppStyles import AppStyles
-from resources.styles.ThemeManager import ct
 
+current_theme = AppStyles.current_theme
 html = AppStyles.log_html(
     text="Processamento concluído",
     timestamp="14:30:00",
-    color=ct.theme.COLOR_SUCCESS,
-    ts_color=ct.theme.TEXT_LOW,
+    color=current_theme.COLOR_SUCCESS,
+    ts_color=current_theme.TEXT_LOW,
 )
 browser.append(html)
 ```
@@ -477,17 +494,134 @@ class MeuTema(BaseTheme):
 
 ---
 
+## 🚫 Proibido: Import de PySide6/Qt no terminal
+
+**Nunca** execute comandos como `python -c "from PySide6.QtWidgets import ..."` ou `python -c "from resources.widgets.X import Y"` no terminal para verificar código. O PySide6/Qt **trava** ao importar widgets fora de um `QApplication` — o terminal congela sem resposta.
+
+**Sempre use `ast.parse` para verificação sintática:**
+```powershell
+python -c "import ast; ast.parse(open('arquivo.py', encoding='utf-8').read()); print('✓ OK')"
+```
+
+Para testes completos, execute o aplicativo real (`main.py`).
+
 ## ⚠️ Regras e Boas Práticas
 
 | Regra | Descrição |
 |-------|-----------|
 | **Contrato 19** | Fora de `resources/styles/`, importe APENAS `AppStyles`. Nunca importe `BaseTheme`, `ThemeManager`, temas concretos ou `ct` diretamente. |
-| **Zero hardcoded** | Todo QSS deve usar tokens do tema via `ct.theme.ATRIBUTO`. Nunca use cores fixas em stylesheets. |
-| **Cache em paintEvent** | Use `AppStyles.theme_colors()` (cacheado) em vez de acessar `ct.theme` diretamente a 60fps. |
+| **Zero hardcoded** | Todo QSS deve usar tokens do tema via `current_theme.ATRIBUTO`. Nunca use cores fixas em stylesheets. |
+| **Acesso ao tema via AppStyles** | Widgets que precisam de cores em paintEvent usam `current_theme = AppStyles.current_theme` e depois acessam `current_theme.ACCENT_TEXT`, `current_theme.SURFACE_1`, etc. Esta é a ÚNICA forma de acesso. **Nunca importe** `ThemeManager` ou `ct` diretamente. |
+| **Evite metodos-ponte** | Nao crie metodos como `hud_accent_color()` no AppStyles para cada cor que um widget precisa. Se o widget precisa de uma cor em paintEvent, ele usa `AppStyles.current_theme.COR` diretamente. AppStyles expoe apenas **estilos QSS completos** (`log_viewer_table_style()`, `btn_primary_style()`, etc.), nunca cores avulsas. |
+| **Nome da variavel** | Use sempre o nome extenso `current_theme`. **Nunca** use variaveis ambiguas como `t` ou `ct`. Isso mantem o codigo legivel e consistente em todo o sistema. |
 | **Aliases para legado** | Código antigo pode usar `BG_DARK`, `GOLD`, etc. — eles mapeiam para tokens semânticos. |
 | **Tema padrão** | `dark_charcoal` é o tema padrão se não houver preferência salva. |
 | **Lazy loading** | Temas são carregados sob demanda — só o módulo do tema ativo é importado. |
 | **Compatibilidade** | Ao modificar `BaseTheme`, atualize todos os temas concretos para sobrescrever os novos tokens. |
+
+---
+
+## 🆕 Sistema de Tipos de Gradiente (GradientType)
+
+### `core/enum/GradientType.py`
+
+Enum que define os tipos de gradiente disponíveis:
+
+| Valor | QSS gerado | Descrição |
+|-------|-----------|-----------|
+| `GradientType.LINEAR` | `qlineargradient(x1,y1,x2,y2, stop:...)` | Gradiente linear entre dois pontos (padrão) |
+| `GradientType.RADIAL` | `qradialgradient(cx,cy,radius,fx,fy, stop:...)` | Gradiente radial com centro e ponto focal |
+| `GradientType.CONICAL` | `qconicalgradient(cx,cy,angle, stop:...)` | Gradiente cônico em torno de um centro |
+
+### Novos tokens no `BaseTheme`
+
+| Token | Tipo | Padrão | Descrição |
+|-------|------|--------|-----------|
+| `GRADIENT_ACCENT_TYPE` | `GradientType \| None` | `None` (=LINEAR) | Tipo de gradiente para botões primários e progress bars |
+| `GRADIENT_ACCENT_STOPS` | `tuple` | `()` | Stops multi-stop para gradiente de acento |
+| `GRADIENT_ACCENT_ANGLE` | `int` | `45` | Ângulo do gradiente linear de acento |
+| `GRADIENT_BUTTON_TYPE` | `GradientType \| None` | `None` (=LINEAR) | Tipo de gradiente para botões secundários |
+| `GRADIENT_BUTTON_STOPS` | `tuple` | `()` | Stops multi-stop para botões secundários |
+| `GRADIENT_BUTTON_ANGLE` | `int` | `45` | Ângulo do gradiente de botão secundário |
+| `GRADIENT_TAB_TYPE` | `GradientType \| None` | `None` (=LINEAR) | Tipo de gradiente para fundo de tabs |
+| `GRADIENT_TAB_STOPS` | `tuple` | `()` | Stops multi-stop para tabs |
+| `GRADIENT_TAB_ANGLE` | `int` | `45` | Ângulo do gradiente de tabs |
+| `GLOW_BUTTON_ENABLED` | `bool` | `False` | Ativa glow em botões secundários |
+| `GLOW_TAB_ENABLED` | `bool` | `False` | Ativa glow em tabs selecionadas |
+| `GRADIENT_RADIAL_CX` | `float` | `0.5` | Centro X do gradiente radial (0.0–1.0) |
+| `GRADIENT_RADIAL_CY` | `float` | `0.5` | Centro Y do gradiente radial |
+| `GRADIENT_RADIAL_FX` | `float` | `0.5` | Ponto focal X do gradiente radial |
+| `GRADIENT_RADIAL_FY` | `float` | `0.5` | Ponto focal Y do gradiente radial |
+| `GRADIENT_RADIAL_RADIUS` | `float` | `0.5` | Raio do gradiente radial |
+| `GRADIENT_CONICAL_CX` | `float` | `0.5` | Centro X do gradiente cônico |
+| `GRADIENT_CONICAL_CY` | `float` | `0.5` | Centro Y do gradiente cônico |
+| `GRADIENT_CONICAL_ANGLE` | `float` | `0.0` | Ângulo inicial do gradiente cônico |
+
+### Métodos helpers no `BaseStyle`
+
+| Método | Descrição |
+|--------|-----------|
+| `_gradient_qss_from_stops(stops, angle, fallback_start, fallback_end, gradient_type, cx, cy, fx, fy, radius)` | Gera string QSS para qualquer tipo de gradiente |
+| `_build_linear_gradient(stops, angle, rect_w, rect_h)` | Constrói `QLinearGradient` para paintEvent |
+| `_build_radial_gradient(stops, cx, cy, fx, fy, radius, rect_w, rect_h)` | Constrói `QRadialGradient` para paintEvent |
+| `_build_conical_gradient(stops, cx, cy, angle, rect_w, rect_h)` | Constrói `QConicalGradient` para paintEvent |
+| `_border_gradient_pen(stops, width, angle, rect_w, rect_h, fallback)` | Cria `QPen` com borda gradiente (efeito foil) |
+| `apply_drop_shadow(widget, blur, offset_x, offset_y, color_rgb, alpha)` | Aplica `QGraphicsDropShadowEffect` programático |
+
+### Exemplo: Tema com gradiente RADIAL e glow
+
+```python
+from core.enum.GradientType import GradientType
+from resources.styles.BaseTheme import BaseTheme
+
+class MeuTemaPremium(BaseTheme):
+    # Gradiente radial dourado para botões primários
+    GRADIENT_ACCENT_TYPE = GradientType.RADIAL
+    GRADIENT_ACCENT_STOPS = (
+        (0.00, "#A08020"),
+        (0.35, "#D4AF37"),
+        (0.55, "#F5E6A3"),
+        (0.80, "#D4AF37"),
+        (1.00, "#8A6A10"),
+    )
+    GRADIENT_RADIAL_CX = 0.5
+    GRADIENT_RADIAL_CY = 0.5
+    GRADIENT_RADIAL_FX = 0.5
+    GRADIENT_RADIAL_FY = 0.3
+    GRADIENT_RADIAL_RADIUS = 0.6
+
+    # Gradiente radial sutil para botões secundários
+    GRADIENT_BUTTON_TYPE = GradientType.RADIAL
+    GRADIENT_BUTTON_STOPS = (
+        (0.00, "#1C1C17"),
+        (0.50, "#2A2A22"),
+        (1.00, "#0A0A08"),
+    )
+
+    # Glow ativado
+    GLOW_BUTTON_ENABLED = True
+    GLOW_TAB_ENABLED = True
+    GLOW_BLUR = 12
+    GLOW_ALPHA = 60
+    GLOW_COLOR_RGB = "#D4AF37"
+```
+
+### Comportamento dos widgets com gradiente e glow
+
+| Widget | Gradiente (QSS/paintEvent) | Glow |
+|--------|---------------------------|------|
+| `SimplePrimaryButton` | Usa `GRADIENT_ACCENT_TYPE` + `GRADIENT_ACCENT_STOPS` via QSS | `QGraphicsDropShadowEffect` se `GLOW_BLUR>0` |
+| `SimpleSecondaryButton` | Usa `GRADIENT_BUTTON_TYPE` + `GRADIENT_BUTTON_STOPS` via QSS | `QGraphicsDropShadowEffect` se `GLOW_BUTTON_ENABLED` |
+| `VerticalTab` | Usa `GRADIENT_TAB_STOPS` no paintEvent (default/hovered) | Borda glow em selected se `GLOW_TAB_ENABLED` |
+| `HorizontalTab` | Usa `GRADIENT_TAB_STOPS` no paintEvent (default/hovered) | Borda glow em selected se `GLOW_TAB_ENABLED` |
+
+### Fallback automático
+
+- Se `GRADIENT_ACCENT_STOPS` estiver vazio → usa `ACCENT_GRADIENT` (2 stops, comportamento original)
+- Se `GRADIENT_BUTTON_STOPS` estiver vazio → usa `GRADIENT_BUTTON` (2 stops, comportamento original)
+- Se `GRADIENT_TAB_STOPS` estiver vazio → usa `GRADIENT_TAB` (2 stops, comportamento original)
+- Se `GLOW_BUTTON_ENABLED` for `False` → nenhum glow é aplicado
+- Se `GRADIENT_ACCENT_TYPE` for `None` → comporta-se como `GradientType.LINEAR`
 
 ---
 
@@ -499,21 +633,34 @@ class MeuTema(BaseTheme):
 - [ ] O tema foi registrado no dicionário `THEMES` do `ThemeManager`?
 - [ ] O módulo foi adicionado ao `__init__.py` de `resources/styles/`?
 - [ ] Esta skill foi atualizada com o novo tema?
+- [ ] **(Opcional)** Definir `GRADIENT_ACCENT_TYPE`/`GRADIENT_BUTTON_TYPE`/`GRADIENT_TAB_TYPE` para gradientes customizados?
+- [ ] **(Opcional)** Ativar `GLOW_BUTTON_ENABLED`/`GLOW_TAB_ENABLED` para efeito de brilho?
 
 ## ✅ Checklist ao usar estilos em widget
 
 - [ ] Usei `AppStyles.método()` em vez de escrever QSS manual com cores fixas?
-- [ ] Para paintEvent, usei `AppStyles.theme_colors()` ou `AppStyles.tab_common_colors()`?
+- [ ] Para paintEvent, usei `current_theme = AppStyles.current_theme` + tokens diretos (ex: `current_theme.SURFACE_0`, `current_theme.ACCENT_TEXT`)?
+- [ ] **Evitei** usar `AppStyles.theme_colors()` — é um dicionario legado com aliases GOLD que gera acoplamento. Use `current_theme.COR` diretamente.
 - [ ] Para logs HTML, usei `AppStyles.log_html()`?
 - [ ] Para badges, usei `AppStyles.badge_*()`?
 - [ ] Para botões, usei `AppStyles.btn_*_style()`?
-- [ ] Importei apenas `AppStyles` (nunca `BaseTheme` ou `ct` diretamente)?
+- [ ] Importei apenas `AppStyles` (nunca `BaseTheme`, `ThemeManager` ou `ct` diretamente)?
+- [ ] Usei nome extenso `current_theme` (nunca `t`, `ct` ou variavel ambigua)?
+- [ ] **(Widgets custom)** Se o widget usa gradiente em paintEvent, ele consulta `GRADIENT_*_STOPS` do tema?
+- [ ] **Nao criei** metodos-ponte no AppStyles para cores avulsas? AppStyles só deve expor estilos QSS completos.
 
 ---
 
 ## 🔗 Referências
 
+- `core/enum/GradientType.py` — Enum com tipos de gradiente (LINEAR, RADIAL, CONICAL)
 - `docs/skills/SKILL_PLUGIN_CONTRACT.md` — Contrato 19 (importação de estilos)
 - `docs/skills/SKILL_WIDGETS.md` — Widgets que usam estilos do AppStyles
 - `resources/styles/BaseTheme.py` — Definição completa de todos os tokens
+- `resources/styles/BaseStyle.py` — Helpers de gradiente e sombra
 - `resources/styles/ThemeManager.py` — Gerenciamento de temas e preferências
+- `resources/styles/GoldPremiumTheme.py` — Tema de exemplo com RADIAL + glow
+- `resources/widgets/simple/SimplePrimaryButton.py` — Botão primário com glow
+- `resources/widgets/simple/SimpleSecondaryButton.py` — Botão secundário com glow
+- `resources/widgets/VerticalTab.py` — Aba vertical com gradiente + glow
+- `resources/widgets/HorizontalTab.py` — Aba horizontal com gradiente + glow

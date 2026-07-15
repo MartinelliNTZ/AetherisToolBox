@@ -137,32 +137,7 @@ class LogViewerPlugin(BasePlugin):
         self.table.setSortingEnabled(False)
 
         self.table.cellDoubleClicked.connect(self._on_cell_double_clicked)
-
-        P = AppStyles.theme_colors()
-        self.table.setStyleSheet(f"""
-            QTableWidget {{
-                background-color: {P["BG_DARK"]};
-                alternate-background-color: {P["BG_PANEL"]};
-                border: none;
-                border-radius: 8px;
-                gridline-color: {P["BORDER"]};
-                color: {ColorProvider.text_primary()};
-            }}
-            QTableWidget::item:selected {{
-                background-color: {P["BG_SURFACE"]};
-                color: {P["TEXT_BRIGHT"]};
-            }}
-            QHeaderView::section {{
-                background-color: {P["BG_CARD"]};
-                color: {P["TEXT_SECONDARY"]};
-                padding: 4px 6px;
-                border: none;
-                border-bottom: 2px solid {P["GOLD"]};
-                font-weight: 700;
-                font-size: 11px;
-                letter-spacing: 0.3px;
-            }}
-        """)
+        self.table.setStyleSheet(AppStyles.log_viewer_table_style())
 
         header = self.table.horizontalHeader()
         header.setSectionsClickable(True)

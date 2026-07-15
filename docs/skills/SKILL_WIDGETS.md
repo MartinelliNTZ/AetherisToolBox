@@ -1431,6 +1431,56 @@ if dialog.exec():
 
 ---
 
+## 🚫 Proibido: Import de PySide6/Qt no terminal
+
+**Nunca** execute comandos como `python -c "from PySide6.QtWidgets import ..."` ou `python -c "from resources.widgets.X import Y"` no terminal para verificar código. O PySide6/Qt **trava** ao importar widgets fora de um `QApplication` — o terminal congela sem resposta.
+
+**Sempre use `ast.parse` para verificação sintática:**
+```powershell
+python -c "import ast; ast.parse(open('arquivo.py', encoding='utf-8').read()); print('✓ OK')"
+```
+
+Para testes completos, execute o aplicativo real (`main.py`).
+
+## 🎨 Regras de Estilo para Widgets
+
+### Acesso ao tema
+
+**Única forma permitida:** `AppStyles.current_theme`
+
+```python
+from resources.styles.AppStyles import AppStyles
+
+class MeuWidget(QWidget):
+    def paintEvent(self, event):
+        current_theme = AppStyles.current_theme
+        painter.fillRect(rect(), QColor(current_theme.SURFACE_1))
+        painter.setPen(QColor(current_theme.ACCENT_TEXT))
+        painter.drawText(rect(), "texto")
+```
+
+- **Nunca** importe `ThemeManager`, `BaseTheme`, `ct` ou temas concretos diretamente
+- **Nunca** crie métodos-ponte no AppStyles como `hud_accent_color()` — use `current_theme.ACCENT_TEXT` diretamente
+- **Nunca** use variáveis ambíguas como `t` ou `ct` — sempre `current_theme`
+
+### QSS via AppStyles (recomendado)
+
+Sempre que possível, use métodos de `AppStyles` que geram QSS completo:
+
+```python
+self.table.setStyleSheet(AppStyles.log_viewer_table_style())
+btn.setStyleSheet(AppStyles.btn_primary_style())
+badge.setStyleSheet(AppStyles.badge_success())
+```
+
+### O que evitar
+
+- ❌ `AppStyles.theme_colors()` — gera acoplamento com dicionário. Use `current_theme.COR` diretamente.
+- ❌ `P["GOLD"]` — GOLD não existe, é específico de tema. Use `current_theme.ACCENT`.
+- ❌ Métodos no AppStyles para cores avulsas — não escala (ex: `hud_accent_color()`).
+
+---
+
 > 💡 **Consulte também:** `docs/skills/SKILL_HUD_PROGRESS.md` para documentação sobre o HUD Loader (`HudCircularRingsLoader`) e a ProgressBar central da MainWindow.
 
 ---

@@ -22,7 +22,7 @@ from __future__ import annotations
 from PySide6.QtCore import QPropertyAnimation, QEasingCurve, QSize
 from PySide6.QtWidgets import QWidget
 
-from resources.styles.ThemeManager import ct
+from resources.styles.ThemeManager import theme_manager
 
 
 class AnimationManager:
@@ -57,7 +57,7 @@ class AnimationManager:
         Returns:
             A instância da QPropertyAnimation já iniciada.
         """
-        duration = duration or ct.theme.ANIMATION_NORMAL
+        duration = duration or theme_manager.theme.ANIMATION_NORMAL
         anim = QPropertyAnimation(widget, property_name)
         anim.setDuration(duration)
         anim.setStartValue(start_value)
@@ -90,8 +90,8 @@ class AnimationManager:
                           como base_icon + grow_px.
             duration: Duração em ms. Se None, usa ANIMATION_FAST do tema.
         """
-        grow_px = grow_px if grow_px is not None else ct.theme.TOOLBAR_BTN_HOVER_GROW
-        duration = duration if duration is not None else ct.theme.ANIMATION_FAST
+        grow_px = grow_px if grow_px is not None else theme_manager.theme.TOOLBAR_BTN_HOVER_GROW
+        duration = duration if duration is not None else theme_manager.theme.ANIMATION_FAST
         from PySide6.QtCore import QEvent
 
         original = widget.property("_hover_base_size")
@@ -167,7 +167,7 @@ class AnimationManager:
         """
         Cria uma animação bounce (vai ao pico e retorna).
         """
-        duration = duration or ct.theme.ANIMATION_SLOW
+        duration = duration or theme_manager.theme.ANIMATION_SLOW
         half = duration // 2
 
         fwd = QPropertyAnimation(widget, property_name)

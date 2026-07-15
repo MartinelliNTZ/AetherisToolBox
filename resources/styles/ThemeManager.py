@@ -58,6 +58,22 @@ THEMES: dict[str, dict] = {
                        "https://dribbble.com/shots/23707627-Modern-Dashboard-UI-Design. "
                        "Fundo azul-escuro profundo, cards em glassmorphism sutil, "
                        "acento azul elétrico vibrante e texto branco suave.",
+    },    "neon_accent": {
+        "module":      "resources.styles.NeonAccentTheme",
+        "label":       "Neon Accent",
+        "description": "Tema com destaque neon, utilizando cores vibrantes e "
+                       "efeitos de brilho para um visual moderno e impactante.",
+    },
+    "gold_premium": {
+        "module":      "resources.styles.GoldPremiumTheme",
+        "label":       "Gold Premium",
+        "description": "Tema premium dourado com gradientes multi-stop (5 stops, "
+                       "reflexo metálico a 20°), foil borders em gradiente, "
+                       "glow estruturado, sombras numéricas discretas, fonte "
+                       "display serifada e badge outline habilitado. Demonstra "
+                       "todos os novos tokens de estilo premium.",
+        "author":      "Aetheris ToolBox",
+        "version":     "1.0.0",
     },
 }
 
@@ -170,5 +186,6 @@ class ThemeManager:
 
 
 # ── Singleton pré-instanciado para importação direta ──────────────
-# Uso: from resources.styles.ThemeManager import ct
-ct = ThemeManager()
+# Uso: from resources.styles.ThemeManager import theme_manager
+theme_manager = ThemeManager()
+"Instância singleton da thememanager."
