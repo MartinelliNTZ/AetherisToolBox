@@ -173,6 +173,8 @@ class LasCheckPlugin(BasePlugin):
                 "area_bbox": {"label": "Area BBox", "value": "—"},
                 "rgb_blue": {"label": "Blue Stats", "value": "—"},
                 "volume_bbox": {"label": "Volume BBox", "value": "—"},
+                "scan_angle": {"label": "Scan Angle", "value": "—"},
+                "gps_time": {"label": "GPS Time", "value": "—"},
                 "resumo": {"label": "Resumo", "value": "—"},
             },
             columns=2,
@@ -257,6 +259,8 @@ class LasCheckPlugin(BasePlugin):
             "area_bbox": "—",
             "rgb_blue": "—",
             "volume_bbox": "—",
+            "scan_angle": "—",
+            "gps_time": "—",
             "resumo": "—",
         })
 
@@ -405,6 +409,30 @@ class LasCheckPlugin(BasePlugin):
                     "volume_bbox", f"{volume_val:,.2f} m³"
                 )
 
+                # ── Scan Angle ─────────────────────────────────────
+                scan_angle = self._statistics_data.get("scan_angle")
+                if scan_angle:
+                    self._result_label.set(
+                        "scan_angle",
+                        f"min:{scan_angle.get('min',0):.1f}° "
+                        f"max:{scan_angle.get('max',0):.1f}° "
+                        f"med:{scan_angle.get('mean',0):.1f}°",
+                    )
+                else:
+                    self._result_label.set("scan_angle", "ausente")
+
+                # ── GPS Time ────────────────────────────────────────
+                gps_time = self._statistics_data.get("gps_time")
+                if gps_time:
+                    self._result_label.set(
+                        "gps_time",
+                        f"min:{gps_time.get('min',0):.2f} "
+                        f"max:{gps_time.get('max',0):.2f} "
+                        f"med:{gps_time.get('mean',0):.2f}",
+                    )
+                else:
+                    self._result_label.set("gps_time", "ausente")
+
                 # Habilita botao JSON
                 self._btns.set_enabled("salvar_json", True)
                 self.logger.info(
@@ -426,6 +454,8 @@ class LasCheckPlugin(BasePlugin):
         else:
             for lbl in ("altimetria", "rgb_red", "rgb_green", "rgb_blue", "area_bbox", "volume_bbox"):
                 self._result_label.set(lbl, "-" if stats_result else "—")
+            self._result_label.set("scan_angle", "-" if stats_result else "—")
+            self._result_label.set("gps_time", "-" if stats_result else "—")
 
         SignalManager.instance().execution_finished.emit(self.tool_key)
         SignalManager.instance().console_message.emit(

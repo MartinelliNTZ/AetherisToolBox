@@ -218,6 +218,33 @@ class LasCheckStep(BaseStep):
         spacing = 1.0 / (density ** 0.5) if density > 0 else 0
         pixel = max(spacing * 0.75, 0.01) if density > 0 else 0.01
 
+        # ── Scan Angle ──────────────────────────────────────────────
+        scan_angle_stats = None
+        if hasattr(las, "scan_angle_rank") and las.scan_angle_rank.dtype.kind in ("i", "u", "f"):
+            arr = np.asarray(las.scan_angle_rank, dtype=np.float64)
+            scan_angle_stats = {
+                "min": round(float(np.min(arr)), 2),
+                "max": round(float(np.max(arr)), 2),
+                "mean": round(float(np.mean(arr)), 2),
+            }
+        elif hasattr(las, "scan_angle") and las.scan_angle.dtype.kind in ("i", "u", "f"):
+            arr = np.asarray(las.scan_angle, dtype=np.float64)
+            scan_angle_stats = {
+                "min": round(float(np.min(arr)), 2),
+                "max": round(float(np.max(arr)), 2),
+                "mean": round(float(np.mean(arr)), 2),
+            }
+
+        # ── GPS Time ────────────────────────────────────────────────
+        gps_time_stats = None
+        if hasattr(las, "gps_time") and las.gps_time.dtype.kind in ("i", "u", "f"):
+            arr = np.asarray(las.gps_time, dtype=np.float64)
+            gps_time_stats = {
+                "min": round(float(np.min(arr)), 4),
+                "max": round(float(np.max(arr)), 4),
+                "mean": round(float(np.mean(arr)), 4),
+            }
+
         stats = {
             "point_count": n_total,
             "bounding_box": {"x": {"min": round(x_min,4), "max": round(x_max,4)},
@@ -227,6 +254,8 @@ class LasCheckStep(BaseStep):
                           "p5": round(float(np.percentile(z,5)),4), "p95": round(float(np.percentile(z,95)),4)},
             "density_pts_per_m2": round(density, 4),
             "ideal_pixel_m": round(pixel, 6), "ideal_pixel_cm": round(pixel*100, 2),
+            "scan_angle": scan_angle_stats,
+            "gps_time": gps_time_stats,
         }
         return {"status": "pass", "message": f"Dens:{density:.2f}pts/m² Pixel:{pixel*100:.2f}cm",
                 "detail": json.dumps(stats, ensure_ascii=False), "suggestion": ""}
