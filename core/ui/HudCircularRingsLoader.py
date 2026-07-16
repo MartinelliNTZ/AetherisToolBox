@@ -122,14 +122,17 @@ class HudCircularRingsLoader(QWidget):
         self.update()
 
     def show_loader(self):
-        """Exibe o loader."""
+        """Exibe o loader e reinicia o timer de animacao."""
+        if not self._animate_timer.isActive():
+            self._animate_timer.start(16)
         self.raise_()
         self.show()
         self.update()
 
     def hide_loader(self):
-        """Esconde o loader."""
+        """Esconde o loader e para o timer de animacao."""
         self._mode = 1
+        self._animate_timer.stop()
         self.hide()
 
     # ── ETA / Time helpers ─────────────────────────────────────────
@@ -162,14 +165,16 @@ class HudCircularRingsLoader(QWidget):
 
     def _tick(self):
         """Executado a cada 16ms. Anima aneis e atualiza progresso."""
-        if self.isVisible():
-            self.phase = (self.phase + 1) % 360
-            for ring in self.rings:
-                ring["angle"] = (ring["angle"] + ring["speed"]) % 360
+        if not self.isVisible():
+            return
 
-            # Atualiza progresso automatico (modos 2 e 3)
-            if self._mode in (2, 3):
-                self._update_auto_progress()
+        self.phase = (self.phase + 1) % 360
+        for ring in self.rings:
+            ring["angle"] = (ring["angle"] + ring["speed"]) % 360
+
+        # Atualiza progresso automatico (modos 2 e 3)
+        if self._mode in (2, 3):
+            self._update_auto_progress()
 
         self.update()
 

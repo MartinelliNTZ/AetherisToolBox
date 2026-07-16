@@ -68,6 +68,11 @@ class SystemMonitorService(QObject):
             tool=ToolKey.SYSTEM_MONITOR.value,
             class_name="SystemMonitorService",
         )
+        # Cache de valores imutaveis (nunca mudam durante execucao)
+        self._cached_phys: int = governor.cpu_count_physical()
+        self._cached_log: int = governor.cpu_count_logical()
+        self._cached_total_human: str = ""
+        self._cached_total_bytes: int = 0
 
     # ── API pública ────────────────────────────────────────────────
 
@@ -104,11 +109,9 @@ class SystemMonitorService(QObject):
 
     def _build_tooltips(self, cpu: float, ram: float) -> tuple[str, str]:
         """Constrói tooltips a partir dos dados brutos do governor."""
-        phys = self._governor.cpu_count_physical()
-        log = self._governor.cpu_count_logical()
         cpu_tip = (
             f"CPU: {cpu:.1f}% "
-            f"({phys} cores fisicos, {log} logicos)"
+            f"({self._cached_phys} cores fisicos, {self._cached_log} logicos)"
         )
         snap = self._governor.ram_snapshot()
         ram_tip = (

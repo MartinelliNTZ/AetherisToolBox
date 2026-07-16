@@ -26,7 +26,7 @@ from __future__ import annotations
 
 from typing import Any, Callable, Dict, Optional
 
-from PySide6.QtCore import QRect, QSize, Qt, Signal
+from PySide6.QtCore import QRect, QSize, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QFont, QFontMetrics, QPainter, QPen, QBrush
 from PySide6.QtWidgets import QWidget
 
@@ -36,7 +36,9 @@ from resources.styles.AppStyles import AppStyles
 class _PercentItem:
     """Item interno representando um indicador percentual."""
 
-    __slots__ = ("label", "value", "tooltip", "callback", "rect")
+    __slots__ = ("label", "value", "tooltip", "callback", "rect",
+                 "anim_start", "anim_target", "anim_step", "anim_steps",
+                 "anim_count", "anim_tooltip")
 
     def __init__(
         self,
@@ -50,6 +52,13 @@ class _PercentItem:
         self.tooltip = tooltip or f"{label}: {value:.1f}%"
         self.callback = callback
         self.rect = QRect()
+        # Estado da animacao
+        self.anim_start: float = value
+        self.anim_target: float = value
+        self.anim_step: float = 0.0
+        self.anim_steps: int = 0
+        self.anim_count: int = 0
+        self.anim_tooltip: Optional[str] = None
 
 
 class GridPercentView(QWidget):
@@ -94,6 +103,12 @@ class GridPercentView(QWidget):
                 callback=cfg.get("callback"),
             )
 
+        # Timer unico de animacao (reutilizado para todos os itens)
+        self._anim_timer = QTimer(self)
+        self._anim_timer.setInterval(33)  # ~30 FPS
+        self._anim_timer.timeout.connect(self._anim_tick)
+        self._anim_queue: list[str] = []
+
         self._update_global_tooltip()
 
     # ── Size hints ─────────────────────────────────────────────────
@@ -111,7 +126,7 @@ class GridPercentView(QWidget):
 
     def set(self, key: str, value: float, tooltip: Optional[str] = None) -> None:
         """
-        Atualiza o valor de um indicador.
+        Atualiza o valor de um indicador (instantaneo).
 
         Args:
             key: Chave do indicador.
@@ -121,6 +136,11 @@ class GridPercentView(QWidget):
         item = self._items.get(key)
         if item is None:
             return
+        # Cancela animacao pendente deste item
+        self._cancel_anim(key)
+        # So atualiza UI se o valor realmente mudou (evita repaints desnecessarios)
+        if abs(item.value - value) < 0.01 and (not tooltip or item.tooltip == tooltip):
+            return
         item.value = value
         if tooltip:
             item.tooltip = tooltip
@@ -128,6 +148,105 @@ class GridPercentView(QWidget):
             item.tooltip = f"{item.label}: {value:.1f}%"
         self._update_global_tooltip()
         self.update()
+
+    def animate_to(self, key: str, target_value: float,
+                   duration_ms: int = 2000,
+                   tooltip: Optional[str] = None) -> None:
+        """
+        Anima um indicador do valor atual ate target_value em duration_ms.
+
+        Args:
+            key: Chave do indicador.
+            target_value: Valor alvo percentual (0-100).
+            duration_ms: Duracao da animacao em ms (padrao: 2000).
+            tooltip: Tooltip opcional ao final.
+        """
+        item = self._items.get(key)
+        if item is None:
+            return
+        target = max(0.0, min(100.0, float(target_value)))
+        # Se ja esta no alvo ou em animacao para o mesmo alvo, ignora
+        if (abs(item.value - target) < 0.01
+                and item.anim_target == target
+                and item.anim_steps > 0):
+            return
+        start = item.value
+        steps = max(1, int(duration_ms / self._anim_timer.interval()))
+        item.anim_start = start
+        item.anim_target = target
+        item.anim_step = (target - start) / steps
+        item.anim_steps = steps
+        item.anim_count = 0
+        item.anim_tooltip = tooltip
+        # Adiciona na fila se nao estiver
+        if key not in self._anim_queue:
+            self._anim_queue.append(key)
+        # Garante timer ativo
+        if not self._anim_timer.isActive():
+            self._anim_timer.start()
+
+    def cancel_animation(self, key: Optional[str] = None) -> None:
+        """
+        Cancela animacao de um item especifico ou de todos se None.
+
+        Args:
+            key: Chave do item ou None para cancelar todas.
+        """
+        if key is None:
+            self._anim_queue.clear()
+            self._anim_timer.stop()
+            for k, item in self._items.items():
+                item.anim_steps = 0
+        else:
+            self._cancel_anim(key)
+
+    def _cancel_anim(self, key: str) -> None:
+        """Cancela animacao de um item especifico (interno)."""
+        item = self._items.get(key)
+        if item is None:
+            return
+        item.anim_steps = 0
+        if key in self._anim_queue:
+            self._anim_queue.remove(key)
+        if not self._anim_queue and self._anim_timer.isActive():
+            self._anim_timer.stop()
+
+    def _anim_tick(self) -> None:
+        """Tick do timer de animacao — avanca um passo em cada item na fila."""
+        if not self._anim_queue:
+            self._anim_timer.stop()
+            return
+        dirty = False
+        finished: list[str] = []
+        for key in list(self._anim_queue):
+            item = self._items.get(key)
+            if item is None or item.anim_steps == 0:
+                finished.append(key)
+                continue
+            item.anim_count += 1
+            if item.anim_count >= item.anim_steps:
+                # Ultimo passo: vai direto ao alvo
+                item.value = item.anim_target
+                if item.anim_tooltip:
+                    item.tooltip = item.anim_tooltip
+                else:
+                    item.tooltip = f"{item.label}: {item.value:.1f}%"
+                item.anim_steps = 0
+                finished.append(key)
+                dirty = True
+            else:
+                # Passo intermediario
+                item.value = item.anim_start + (item.anim_step * item.anim_count)
+                dirty = True
+        # Remove finalizados da fila
+        for key in finished:
+            if key in self._anim_queue:
+                self._anim_queue.remove(key)
+        if dirty:
+            self._update_global_tooltip()
+            self.update()
+        if not self._anim_queue:
+            self._anim_timer.stop()
 
     def get(self, key: str) -> float:
         """Retorna o valor atual de um indicador."""

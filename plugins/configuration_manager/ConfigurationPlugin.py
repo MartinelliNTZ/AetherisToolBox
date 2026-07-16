@@ -11,6 +11,8 @@ Acessível pelo menu Sistema > Configuração.
 
 from __future__ import annotations
 
+from utils.MessageBox import MessageBox
+
 from plugins.BasePlugin import BasePlugin
 from resources.styles.ThemeManager import THEMES
 from resources.widgets.ExecutionButtons import ExecutionButtons
@@ -84,15 +86,23 @@ class ConfigurationPlugin(BasePlugin):
 
     def _on_salvar(self):
         """Callback do botão SALVAR CONFIG — persiste em System preferences."""
-        self.save_prefs()
-        # Salva sys_preferences em System (não em "Configuration")
-        from utils.Preferences import Preferences
-        from core.enum.ToolKey import ToolKey
-        Preferences.save_tool_prefs(ToolKey.SYSTEM, self.sys_preferences)
-        self.logger.info(
-            "Configurações salvas manualmente pelo usuário",
-            code="CONFIG_SAVED",
-        )
+        try:
+            self.save_prefs()
+            from utils.Preferences import Preferences
+            from core.enum.ToolKey import ToolKey
+            Preferences.save_tool_prefs(ToolKey.SYSTEM, self.sys_preferences)
+            self.logger.info(
+                "Configurações salvas manualmente pelo usuário",
+                code="CONFIG_SAVED",
+            )
+            MessageBox.show_toast("Configurações salvas com sucesso!")
+        except Exception as e:
+            self.logger.error(
+                "Falha ao salvar configurações",
+                code="CONFIG_SAVE_ERR",
+                error=str(e),
+            )
+            MessageBox.show_toast("Falha ao salvar configurações", is_error=True)
 
     def _on_theme_changed(self, theme_key: str):
         """Callback quando o tema é alterado no combo."""

@@ -48,8 +48,9 @@ Antes de escrever qualquer código, você DEVE:
 4. **Planejar a solução** no pensamento antes de usar ferramentas.
 5. **Escrever código enxuto e de qualidade** — sem comentários óbvios, sem print() de debug, sem imports mortos.
 6. **Evitar testes desnecessários**: não gere ou execute verificações extras a menos que sejam explicitamente solicitadas.
-7. **Verificar** se o código viola algum contrato.
-8. **Se não tiver certeza, PARE E PERGUNTE** (veja regra de ouro acima).
+7. **Atualizar o changelog** em `docs/data/changelog.txt` com formato: `[versao][data][hora] - titulo curto` seguido de bullets com cada mudança. Novas entradas sempre no **início** do arquivo.
+8. **Verificar** se o código viola algum contrato.
+9. **Se não tiver certeza, PARE E PERGUNTE** (veja regra de ouro acima).
 
 ## ✅ Clean Code — Diretrizes
 
@@ -109,3 +110,4 @@ Preferir:
 - [ ] A skill relevante foi consultada e seguida.
 - [ ] Contratos respeitados.
 - [ ] Documentação atualizada se houver mudança funcional (Contrato 12).
+- [ ] Changelog atualizado em `docs/data/changelog.txt`.

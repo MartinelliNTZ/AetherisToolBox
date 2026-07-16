@@ -1,0 +1,23 @@
+[1.1.3][2026.07.15][23:05] - Toast via MessageBox.show_toast + AppStyles.toast_style com gradiente do tema
+  - utils.MessageBox: adicionado show_toast(text, is_error) — ponto de entrada único para ToastNotification
+  - AppStyles: adicionado toast_style(is_error) com gradiente ACCENT ou COLOR_DANGER do tema
+  - ToastNotification._ToastWidget: QSS via AppStyles.toast_style() + shadow via BaseStyle.apply_drop_shadow()
+  - ToastNotification: setMinimumWidth(280) e setMaximumWidth dinâmico
+  - ConfigurationPlugin: agora importa MessageBox e chama MessageBox.show_toast() (sem import direto do ToastNotification)
+  - SKILL_COMUNICATION.md: documentado show_toast com tabela bloqueante vs não-bloqueante
+[1.1.2][2026.07.15][22:55] - ToastNotification widget + substituição do MessageBox no ConfigurationPlugin
+  - Criado resources/widgets/ToastNotification.py: notificação toast estilo Android com fade out não-bloqueante
+  - Adicionado ToastNotification ao catálogo de SKILL_WIDGETS.md
+  - ConfigurationPlugin._on_salvar: MessageBox trocado por ToastNotification (mensagem não-bloqueante)
+  - Removido import de utils.MessageBox.MessageBox
+[1.1.1][2026.07.15][22:51] - Feedback visual ao salvar configurações
+  - ConfigurationPlugin._on_salvar: adicionado try/except com ToastNotification.show
+[1.1.0][2026.07.15][22:45] - Otimização thread principal + animação smooth CPU/RAM
+  - HudCircularRingsLoader: timer 60FPS agora só roda quando visível (antes rodava sempre)
+  - HudCircularRingsLoader: hide_loader() para o timer; _tick() aborta se oculto
+  - SystemMonitorService: cpu_count_physical/logical cacheados (syscall eliminada)
+  - RamGovernor.snapshot(): memory_pressure calculado com swap já obtido (1 chamada a menos)
+  - GridPercentView.set(): só repaint se valor mudou (evita update() desnecessário)
+  - GridPercentView.animate_to(key, target, duration_ms): transição suave entre valores via QTimer 30FPS
+  - MenuManager._on_stats_updated: usa animate_to() em vez de set() para efeito visual contínuo
+[1.0.0][2026.07.15] - oque eu fiz

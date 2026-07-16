@@ -138,7 +138,7 @@ class RamGovernor:
             self._history.pop(0)
 
     def snapshot(self, include_history: bool = False) -> Dict[str, object]:
-        """Snapshot completo. Otimizado: 1 chamada virtual_memory + 1 swap."""
+        """Snapshot completo. Otimizado: 1 chamada virtual_memory + 1 swap (reutilizada para pressure)."""
         vmem = self._get_vmem()
         proc = self.process_ram()
         try:
@@ -153,6 +153,14 @@ class RamGovernor:
                 "Erro ao ler swap para snapshot", code="RAM_SWAP_SNAP_ERR",
                 error=str(e),
             )
+
+        # Calcula memory_pressure com os dados de swap ja obtidos (evita 2a chamada)
+        ram_pressure = vmem.used / max(1, vmem.total)
+        if s_total > 0:
+            swap_pressure = s_used / s_total
+            pressure = ram_pressure * (1.0 + swap_pressure * 0.5)
+        else:
+            pressure = ram_pressure
 
         result: Dict[str, object] = {
             "total_bytes": self._cached_total,
@@ -170,7 +178,7 @@ class RamGovernor:
             "swap_used_bytes": s_used,
             "swap_used_human": FormatUtils.format_size(s_used),
             "swap_percent": round(s_pct, 1),
-            "memory_pressure": round(self.memory_pressure(), 3),
+            "memory_pressure": round(pressure, 3),
         }
 
         if include_history:
