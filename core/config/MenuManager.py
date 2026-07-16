@@ -431,9 +431,9 @@ class MenuManager(QObject):
         self._menu_bar.add_widget_right(self._monitor_view)
 
     def _on_stats_updated(self, data: dict) -> None:
-        """Atualiza o GridPercentView com novos valores."""
-        self._monitor_view.set("cpu", data["cpu"], tooltip=data.get("cpu_tooltip"))
-        self._monitor_view.set("ram", data["ram"], tooltip=data.get("ram_tooltip"))
+        """Atualiza o GridPercentView com novos valores (animado)."""
+        self._monitor_view.animate_to("cpu", data["cpu"], tooltip=data.get("cpu_tooltip"))
+        self._monitor_view.animate_to("ram", data["ram"], tooltip=data.get("ram_tooltip"))
 
     def _on_cpu_clicked(self, key: str, value: float) -> None:
         """Callback ao clicar em CPU."""
