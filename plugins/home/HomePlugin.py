@@ -14,10 +14,13 @@ from PySide6.QtCore import Qt, QTimer
 
 from core.enum.ToolKey import ToolKey
 from core.model.FootballModel import Fixture
+from core.model.WeatherModel import WeatherData
 from core.papeline import PipelineRunner
 from core.papeline.step import FootballFetchStep
+from core.papeline.step.WeatherFetchStep import WeatherFetchStep
 from plugins.BasePlugin import BasePlugin
 from resources.widgets.FootballMatchWidget import FootballMatchWidget
+from resources.widgets.GridCardView import GridCardView
 from resources.widgets.GroupPainel import GroupPainel
 from resources.widgets.ListViewWidget import ListViewWidget
 from resources.widgets.SeparatorWidget import SeparatorWidget
@@ -40,6 +43,8 @@ class HomePlugin(BasePlugin):
         self._runner = None
         self._matches_container = None
         self._scroll_list = None
+        self._weather_runner = None
+        self._weather_view = None
         super().__init__(tool_key=ToolKey.HOME.value, parent=parent)
 
     def _build_ui(self):
@@ -84,8 +89,9 @@ class HomePlugin(BasePlugin):
         # Espaçador
         self.main_layout.addStretch(1)
 
-        # ── Start football fetch pipeline after UI is ready ──────
+        # ── Start pipelines after UI is ready ─────────────────────
         QTimer.singleShot(500, self._start_football_pipeline)
+        QTimer.singleShot(600, self._start_weather_pipeline)
 
     def _start_football_pipeline(self) -> None:
         """Executa a pipeline de fetch de futebol em background."""
@@ -141,6 +147,141 @@ class HomePlugin(BasePlugin):
             code="HOME_FOOT_ERR",
             error=error_msg,
         )
+
+    # ── Weather pipeline ─────────────────────────────────────────────
+
+    def _start_weather_pipeline(self) -> None:
+        """Executa pipeline de clima em background."""
+        if self._weather_runner is not None and self._weather_runner.isRunning():
+            self.logger.info(
+                "Weather pipeline já está em execução",
+                code="HOME_WEATHER_SKIP",
+            )
+            return
+
+        self._weather_runner = PipelineRunner(
+            steps=[WeatherFetchStep()],
+            tool_key=ToolKey.WEATHER_FETCH.value,
+        )
+        self._weather_runner.finished_ok.connect(self._on_weather_done)
+        self._weather_runner.failed.connect(self._on_weather_error)
+
+        self.logger.info(
+            "Iniciando pipeline de fetch de clima",
+            code="HOME_WEATHER_START",
+        )
+        self._weather_runner.start()
+
+    def _on_weather_done(self, context) -> None:
+        """Callback when weather pipeline completes successfully."""
+        self.logger.info(
+            "Pipeline de clima concluída com sucesso",
+            code="HOME_WEATHER_DONE",
+        )
+
+        result = context.get_result("weather_fetch")
+        if not result:
+            self.logger.warning(
+                "Nenhum resultado na pipeline de clima",
+                code="HOME_WEATHER_NO_RESULT",
+            )
+            return
+
+        weather_data = result.get("weather_data")
+        if not weather_data:
+            self.logger.warning(
+                "Nenhum dado climático encontrado",
+                code="HOME_WEATHER_NO_DATA",
+            )
+            return
+
+        self._display_weather(weather_data)
+
+    def _on_weather_error(self, error_msg: str) -> None:
+        """Callback when weather pipeline fails."""
+        self.logger.error(
+            "Pipeline de clima falhou",
+            code="HOME_WEATHER_ERR",
+            error=error_msg,
+        )
+        # Exibe card de erro (GridCardView com title próprio)
+        error_config = {
+            "title": "⚠️ Clima indisponível",
+            "items_per_row": 1,
+            "cards": [
+                {"labels": [
+                    {"type": "simple", "text": "Não foi possível carregar os dados climáticos. Verifique sua conexão."},
+                ]},
+            ],
+        }
+        self._weather_view = GridCardView(error_config)
+        self.main_layout.insertWidget(
+            self.main_layout.indexOf(self._placeholder),
+            self._weather_view,
+        )
+
+    def _display_weather(self, data: WeatherData) -> None:
+        """Exibe dados climáticos usando GridCardView genérico."""
+        config = self._build_weather_card_config(data)
+        self._weather_view = GridCardView(config)
+        self.main_layout.insertWidget(
+            self.main_layout.indexOf(self._placeholder),
+            self._weather_view,
+        )
+
+    @staticmethod
+    def _build_weather_card_config(data: WeatherData) -> dict:
+        """Constrói config do GridCardView a partir dos dados climáticos."""
+        return {
+            "title": f"{data.location}, {data.region}",
+            "items_per_row": 4,
+            "cards": [
+                {"logo": data.weather_icon, "labels": [
+                    {"type": "great_accent", "text": f"{data.temperature}°C"},
+                    {"type": "simple", "text": data.weather_desc},
+                ]},
+                {"labels": [
+                    {"type": "simple", "text": "🌅 Nascer"},
+                    {"type": "great", "text": data.sunrise},
+                ]},
+                {"labels": [
+                    {"type": "simple", "text": "🌇 Pôr"},
+                    {"type": "great", "text": data.sunset},
+                ]},
+                {"labels": [
+                    {"type": "simple_accent", "text": "Qualidade do Ar"},
+                    {"type": "great_accent", "text": f"{data.air_index}"},
+                ]},
+                {"labels": [
+                    {"type": "great", "text": f"{data.wind_speed} km/h"},
+                    {"type": "simple", "text": f"Vento ({data.wind_dir})"},
+                ]},
+                {"labels": [
+                    {"type": "great", "text": f"{data.humidity}%"},
+                    {"type": "simple", "text": "Umidade"},
+                ]},
+                {"labels": [
+                    {"type": "great", "text": f"{data.pressure} hPa"},
+                    {"type": "simple", "text": "Pressão"},
+                ]},
+                {"labels": [
+                    {"type": "great", "text": f"{data.precip} mm"},
+                    {"type": "simple", "text": "Precipitação"},
+                ]},
+                {"labels": [
+                    {"type": "great", "text": f"{data.cloudcover}%"},
+                    {"type": "simple", "text": "Nuvens"},
+                ]},
+                {"labels": [
+                    {"type": "great", "text": f"{data.uv_index}"},
+                    {"type": "simple", "text": "UV Index"},
+                ]},
+                {"labels": [
+                    {"type": "great", "text": f"{data.visibility} km"},
+                    {"type": "simple", "text": "Visibilidade"},
+                ]},
+            ],
+        }
 
     # ── Match loading ──────────────────────────────────────────────
 
