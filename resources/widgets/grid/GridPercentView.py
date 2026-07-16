@@ -121,6 +121,9 @@ class GridPercentView(QWidget):
         item = self._items.get(key)
         if item is None:
             return
+        # So atualiza UI se o valor realmente mudou (evita repaints desnecessarios)
+        if abs(item.value - value) < 0.01 and (not tooltip or item.tooltip == tooltip):
+            return
         item.value = value
         if tooltip:
             item.tooltip = tooltip
