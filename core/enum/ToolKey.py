@@ -40,6 +40,7 @@ class ToolKey(str, Enum):
     LAS_VECTOR_CONVERTER = "LasVectorConverter"
     LAS_REPROJECTION = "LasReprojection"
     FOOTBALL_FETCH = "FootballFetch"
+    WEATHER_FETCH = "WeatherFetch"
     SCAN_ANGLE_FILTER = "ScanAngleFilter"
 
     CUT_BY_TRAJECTORY = "CutByTrajectory"  # Ainda não implementado

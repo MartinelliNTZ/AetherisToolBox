@@ -1583,6 +1583,53 @@ widget = FootballMatchWidget(fixture)
 
 ---
 
+### `GridCardView` — `GridCardView.py`
+Grade genérica de cards configuráveis por dicionário. Widget 100% genérico, sem lógica de negócio — reutilizável por qualquer plugin.
+
+**Tipos de label:**
+- `"simple"` — texto normal, cor secundária
+- `"simple_accent"` — texto normal, cor de destaque (accent)
+- `"great"` — texto grande (22px), cor secundária
+- `"great_accent"` — texto grande (22px), cor de destaque (accent)
+
+```python
+from resources.widgets.GridCardView import GridCardView
+
+config = {
+    "items_per_row": 4,
+    "cards": [
+        {"logo": "path/to/icon.png", "labels": [
+            {"type": "great_accent", "text": "32°C"},
+            {"type": "simple", "text": "Temperatura"},
+        ]},
+        {"labels": [
+            {"type": "great", "text": "15 km/h"},
+            {"type": "simple_accent", "text": "Vento"},
+        ]},
+    ],
+}
+view = GridCardView(config)
+parent_layout.addWidget(view)
+
+# Atualizar dinamicamente
+view.set_card_value(card_index=0, label_index=0, text="35°C")
+```
+
+**Parâmetros do config:**
+- `items_per_row: int` (padrão 4) — cards por linha
+- `cards: list[dict]` — cada card pode ter:
+  - `logo: str` (opcional) — caminho/URL da imagem
+  - `labels: list[dict]` — cada label tem:
+    - `type: str` — "simple", "simple_accent", "great", "great_accent"
+    - `text: str` — conteúdo
+    - `tooltip: str` (opcional)
+
+**API pública:**
+- `build(config)` — reconstrói o grid
+- `set_card_value(card_index, label_index, text)` — atualiza label dinamicamente
+
+---
+
 ## 🆕 Como criar um Novo Widget
 
 1. Crie o arquivo em `resources/widgets/MeuWidget.py`
