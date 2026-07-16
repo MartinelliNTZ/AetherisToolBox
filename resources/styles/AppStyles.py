@@ -865,6 +865,69 @@ class AppStyles(BaseStyle):
         )
 
     # ────────────────────────────────────────────────────────────────────
+    # TOAST NOTIFICATION — estilo para ToastNotification
+    # ────────────────────────────────────────────────────────────────────
+
+    @classmethod
+    def toast_style(cls, is_error: bool = False) -> str:
+        """
+        QSS para o label interno do ToastNotification.
+        Usa gradiente do tema (ACCENT_GRADIENT para sucesso, COLOR_DANGER para erro)
+        com borda sutil, padding generoso e fonte em negrito.
+
+        Args:
+            is_error: True para estilo vermelho (erro), False para padrão (tema).
+
+        Retorna:
+            String QSS completa para o QLabel do toast.
+        """
+        t = theme_manager.theme
+
+        if is_error:
+            bg_gradient = cls._gradient_qss_from_stops(
+                (),
+                45,
+                t.COLOR_DANGER_DIM,
+                t.COLOR_DANGER,
+                gradient_type=t.GRADIENT_ACCENT_TYPE,
+                cx=t.GRADIENT_RADIAL_CX,
+                cy=t.GRADIENT_RADIAL_CY,
+                fx=t.GRADIENT_RADIAL_FX,
+                fy=t.GRADIENT_RADIAL_FY,
+                radius=t.GRADIENT_RADIAL_RADIUS,
+            )
+            border_color = t.COLOR_DANGER
+            text_color = t.TEXT_ON_DANGER
+        else:
+            bg_gradient = cls._gradient_qss_from_stops(
+                t.GRADIENT_ACCENT_STOPS,
+                t.GRADIENT_ACCENT_ANGLE,
+                t.ACCENT_GRADIENT[0],
+                t.ACCENT_GRADIENT[1],
+                gradient_type=t.GRADIENT_ACCENT_TYPE,
+                cx=t.GRADIENT_RADIAL_CX,
+                cy=t.GRADIENT_RADIAL_CY,
+                fx=t.GRADIENT_RADIAL_FX,
+                fy=t.GRADIENT_RADIAL_FY,
+                radius=t.GRADIENT_RADIAL_RADIUS,
+            )
+            border_color = t.ACCENT
+            text_color = t.SURFACE_0
+
+        return (
+            f"QLabel {{"
+            f"  background: {bg_gradient};"
+            f"  color: {text_color};"
+            f"  border: 1px solid {border_color};"
+            f"  border-radius: {t.BORDER_RADIUS_CARD}px;"
+            f"  padding: 14px 28px;"
+            f"  font-size: {t.FONT_SIZE_NORMAL}px;"
+            f"  font-weight: {t.FONT_WEIGHT_BOLD};"
+            f"  letter-spacing: {t.BUTTON_LETTER_SPACING_NORMAL};"
+            f"}}"
+        )
+
+    # ────────────────────────────────────────────────────────────────────
     # GRID PERCENT VIEW — cores para GridPercentView (system monitor)
     # ────────────────────────────────────────────────────────────────────
 

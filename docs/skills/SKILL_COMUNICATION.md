@@ -16,11 +16,35 @@ Use sempre `utils.MessageBox` para qualquer diálogo com o usuário. Exemplos de
 - Erro/alerta: `MessageBox.show_error("Falha ao abrir arquivo", detail=traceback_text)`
 - Confirmação: `if MessageBox.show_question("Deseja continuar?") == MessageBox.YES: ...`
 - Informação: `MessageBox.show_info("Processo concluído")`
+- Toast (não-bloqueante): `MessageBox.show_toast("Configurações salvas!")`
+- Toast de erro: `MessageBox.show_toast("Falha ao processar", is_error=True)`
+
+### Toast Notification (não-bloqueante)
+
+O método `show_toast` substitui `show_info`/`show_error` quando a mensagem é temporária e não requer ação do usuário. A notificação aparece por ~2.5s na parte inferior da tela, faz fade out e se auto-destrói — sem travar a UI.
+
+```python
+from utils.MessageBox import MessageBox
+
+# Sucesso — gradiente do tema (ACCENT)
+MessageBox.show_toast("Configurações salvas com sucesso!")
+
+# Erro — gradiente vermelho
+MessageBox.show_toast("Falha ao processar", is_error=True)
+```
+
+**Diferenças entre os métodos:**
+
+| Método | Bloqueante | Uso |
+|--------|-----------|-----|
+| `show_info` / `show_error` | ✅ Sim (QMessageBox.exec) | Mensagens que exigem atenção do usuário |
+| `show_toast` | ❌ Não (QTimer + fade) | Feedbacks rápidos que não exigem ação |
 
 Recomendações:
 - Forneça `detail` ao exibir exceções (traceback) para permitir suporte/diagnóstico.
 - Antes de mostrar um diálogo de erro, faça log via `self.logger.error(..., error=str(e))`.
 - Nunca importe `QMessageBox` diretamente.
+- Nunca importe `ToastNotification` diretamente — use `MessageBox.show_toast()`.
 
 ## SignalManager — Comunicação entre ferramentas
 

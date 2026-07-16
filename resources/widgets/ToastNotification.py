@@ -3,7 +3,10 @@
 ToastNotification — Notificação toast estilo Android
 ======================================================
 Exibe uma mensagem temporária que aparece, fade out e se auto-destrói,
-sem travar a UI (QTimer não-bloqueante).
+sem travar a UI (QTimer não-bloqueante + QPropertyAnimation).
+
+Usa tokens do tema ativo via AppStyles.toast_style() para gradiente,
+sombras e cores — muda automaticamente conforme o tema.
 
 Uso:
     ToastNotification.show("Configurações salvas com sucesso!")
@@ -15,6 +18,9 @@ from __future__ import annotations
 from PySide6.QtCore import QPoint, QPropertyAnimation, Qt, QTimer
 from PySide6.QtGui import QColor, QFont, QPainter, QPalette
 from PySide6.QtWidgets import QApplication, QLabel, QVBoxLayout, QWidget
+
+from resources.styles.AppStyles import AppStyles
+from resources.styles.BaseStyle import BaseStyle
 
 
 class _ToastWidget(QWidget):
@@ -44,34 +50,33 @@ class _ToastWidget(QWidget):
         self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
         self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
 
-        # ── fundo e texto ──
-        bg_color = "#C0392B" if is_error else "#2D2D2D"
-        text_color = "#FFFFFF"
-        border_color = "#E74C3C" if is_error else "#555555"
-
+        # ── fundo e texto via AppStyles (tema-aware) ──
         self._label = QLabel(text, self)
         self._label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._label.setWordWrap(True)
-        self._label.setStyleSheet(
-            f"""
-            QLabel {{
-                background-color: {bg_color};
-                color: {text_color};
-                border: 1px solid {border_color};
-                border-radius: 8px;
-                padding: 12px 24px;
-                font-size: 13px;
-                font-weight: 600;
-            }}
-            """
-        )
+        self._label.setStyleSheet(AppStyles.toast_style(is_error))
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setContentsMargins(24, 16, 24, 16)
         layout.addWidget(self._label)
         self.setLayout(layout)
 
         self.adjustSize()
+
+        # ── tamanho mínimo de 280px, máximo = tamanho do conteúdo ──
+        self.setMinimumWidth(280)
+        self.setMaximumWidth(min(self.width() + 48, 500))
+
+        # ── shadow bottom-right (profundidade) via BaseStyle ──
+        theme = AppStyles.current_theme
+        BaseStyle.apply_drop_shadow(
+            self._label,
+            blur=16,
+            offset_x=4,
+            offset_y=4,
+            color_rgb="#000000",
+            alpha=80,
+        )
 
         # ── fade out animation ──
         self._fade_anim = QPropertyAnimation(self, b"windowOpacity")

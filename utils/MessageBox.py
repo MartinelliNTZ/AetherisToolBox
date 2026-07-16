@@ -40,6 +40,7 @@ from __future__ import annotations
 import sys
 from typing import Any, Optional
 
+from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QApplication, QMessageBox
 
 from core.config.LogUtils import LogUtils
@@ -220,6 +221,33 @@ class MessageBox:
             buttons=buttons,
             default_button=default_button,
         )
+
+    # ═════════════════════════════════════════════════════════════════
+    # Toast Notification (não-bloqueante)
+    # ═════════════════════════════════════════════════════════════════
+
+    @staticmethod
+    def show_toast(
+        text: str,
+        *,
+        is_error: bool = False,
+        parent: Any = None,
+    ) -> None:
+        """
+        Exibe uma notificação toast temporária (não-bloqueante).
+        A mensagem aparece por ~2.5s, faz fade out e se auto-destrói,
+        sem travar a UI.
+
+        O import do ToastNotification é lazy para evitar dependência
+        circular e garantir que o widget só seja carregado quando usado.
+
+        Args:
+            text: Mensagem a exibir.
+            is_error: True para estilo vermelho (erro), False para padrão.
+            parent: Widget pai (opcional — usa janela ativa se omitido).
+        """
+        from resources.widgets.ToastNotification import ToastNotification
+        ToastNotification.show(text, is_error=is_error, parent=parent)
 
     # ═════════════════════════════════════════════════════════════════
     # Método genérico (para uso interno ou casos avançados)
