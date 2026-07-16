@@ -86,11 +86,18 @@ class MenuManager(QObject):
         Constrói a toolbar (ToolGroups) e popula o MenuBar.
         Chame este método antes de acessar .menu_bar e .toolbar_widget.
         """
+        import time as _time
+        _t0 = _time.perf_counter()
+
         registry = ToolRegistry()
         tools = registry.get_all()
+        _t1 = _time.perf_counter()
+        self._logger.info(f"[TIMING] ToolRegistry.get_all()", code="TIMING_TREG", elapsed_ms=f"{(_t1-_t0)*1000:.1f}")
 
         # ── 1. Criar MenuBar ──
         self._menu_bar = MenuBar()
+        _t2 = _time.perf_counter()
+        self._logger.info(f"[TIMING] MenuBar()", code="TIMING_MENUBAR", elapsed_ms=f"{(_t2-_t1)*1000:.1f}")
 
         # ── 2. Criar e registrar FileMenuItem ──
         self._file_item = FileMenuItem()
@@ -99,15 +106,20 @@ class MenuManager(QObject):
         self._file_item.salvar_como_clicked.connect(self._on_salvar_como)
         self._file_item.recente_clicked.connect(self._on_recente_abrir)
         self._file_item.sair_clicked.connect(self._on_sair)
-        # Atualiza o submenu de recentes em tempo real via sinal dedicado
         SignalManager.instance().recent_projects_changed.connect(
             self._file_item.rebuild_recentes_from_signal
         )
         self._menu_bar.add_menu_item(self._file_item)
+        _t3 = _time.perf_counter()
+        self._logger.info(f"[TIMING] FileMenuItem", code="TIMING_FILE", elapsed_ms=f"{(_t3-_t2)*1000:.1f}")
 
         # ── 3. Criar e registrar SystemMenuItem ──
         self._system_item = SystemMenuItem()
+        _t3a = _time.perf_counter()
+        self._logger.info(f"[TIMING] SystemMenuItem()", code="TIMING_SYS_INIT", elapsed_ms=f"{(_t3a-_t3)*1000:.1f}")
         self._system_item.refresh_tools()
+        _t3b = _time.perf_counter()
+        self._logger.info(f"[TIMING] SystemMenuItem.refresh_tools()", code="TIMING_SYS_REFRESH", elapsed_ms=f"{(_t3b-_t3a)*1000:.1f}")
         self._system_item.tool_clicked.connect(self._on_tool_clicked)
         self._menu_bar.add_menu_item(self._system_item)
 
@@ -115,9 +127,9 @@ class MenuManager(QObject):
         self._help_item = HelpMenuItem()
         self._help_item.sobre_clicked.connect(self._on_sobre)
         self._menu_bar.add_menu_item(self._help_item)
-
-        # Conecta sinal genérico do MenuBar (fallback para cliques não tratados)
         self._menu_bar.action_triggered.connect(self._on_menu_action)
+        _t4 = _time.perf_counter()
+        self._logger.info(f"[TIMING] HelpMenuItem + signals", code="TIMING_HELP", elapsed_ms=f"{(_t4-_t3b)*1000:.1f}")
 
         # ── 5. Criar ToolGroups (toolbar) ──
         grouped: Dict[ToolType, list[Tool]] = {}
@@ -134,6 +146,8 @@ class MenuManager(QObject):
             if tool_type in grouped and grouped[tool_type]:
                 group = ToolGroup(tool_type=tool_type, tools=grouped[tool_type])
                 self._groups.append(group)
+        _t5 = _time.perf_counter()
+        self._logger.info(f"[TIMING] ToolGroups ({len(self._groups)} groups)", code="TIMING_GROUPS", elapsed_ms=f"{(_t5-_t4)*1000:.1f}")
 
         # ── 6. Montar toolbar_widget via ToolBar ──
         if self._groups:
@@ -142,9 +156,15 @@ class MenuManager(QObject):
         else:
             self._toolbar_widget = QWidget()
             self._toolbar_widget.setVisible(False)
+        _t6 = _time.perf_counter()
+        self._logger.info(f"[TIMING] ToolBar", code="TIMING_TOOLBAR", elapsed_ms=f"{(_t6-_t5)*1000:.1f}")
 
         # ── 7. System Monitor ──
         self._setup_system_monitor()
+        _t7 = _time.perf_counter()
+        self._logger.info(f"[TIMING] _setup_system_monitor()", code="TIMING_MONITOR", elapsed_ms=f"{(_t7-_t6)*1000:.1f}")
+
+        self._logger.info(f"[TIMING] MenuManager.build() TOTAL", code="TIMING_TOTAL", elapsed_ms=f"{(_t7-_t0)*1000:.1f}")
 
     # ────────────────────────────────────────────────────────────────
     # Widgets prontos
@@ -400,7 +420,8 @@ class MenuManager(QObject):
     # ────────────────────────────────────────────────────────────────
 
     def _setup_system_monitor(self) -> None:
-        """Configura o monitor de CPU/RAM na barra de menus."""
+        """Configura o monitor de CPU/RAM na barra de menus (view imediata, service deferred)."""
+        # Cria view primeiro (leve, instantâneo)
         self._monitor_view = GridPercentView({
             "cpu": {
                 "label": "CPU",
@@ -414,8 +435,20 @@ class MenuManager(QObject):
                 "tooltip": "Aguardando...",
             },
         })
+        self._menu_bar.add_widget_right(self._monitor_view)
+        self._monitor_initialized = False
+        # ResourceGovernor + SystemMonitorService NÃO são iniciados aqui!
+        # São iniciados por MainWindow._open_home_on_startup() após Home abrir.
 
-        # ResourceGovernor com política global 90% — usado pelo monitor
+    def _init_monitor_deferred(self) -> None:
+        """Inicializa ResourceGovernor e SystemMonitorService (após UI pronta) — seguro chamar múltiplas vezes."""
+        if getattr(self, '_monitor_initialized', False):
+            return  # já inicializou
+        self._monitor_initialized = True
+        import time as _time
+        _t0 = _time.perf_counter()
+        self._logger.info(f"Monitor deferred: iniciando ResourceGovernor", code="MON_DEFERRED_START")
+
         self._governor = ResourceGovernor(
             policy=RamLimitPolicy(mode=RamLimitMode.GLOBAL, fraction=0.90),
             tool_key=ToolKey.SYSTEM.value,
@@ -428,7 +461,8 @@ class MenuManager(QObject):
         self._monitor_service.stats_updated.connect(self._on_stats_updated)
         self._monitor_service.start()
 
-        self._menu_bar.add_widget_right(self._monitor_view)
+        _t1 = _time.perf_counter()
+        self._logger.info(f"Monitor deferred: completo", code="MON_DEFERRED_DONE", elapsed_ms=f"{(_t1-_t0)*1000:.1f}")
 
     def _on_stats_updated(self, data: dict) -> None:
         """Atualiza o GridPercentView com novos valores (animado)."""

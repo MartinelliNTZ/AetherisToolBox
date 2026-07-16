@@ -156,8 +156,8 @@ class WorkspaceManager(QWidget):
             elif tool.name == "Home":
                 self._central_workspace.register_tool(tool, focus=False)
 
-        # Abre Home no central
-        self._central_workspace.set_current_tool("Home")
+        # Home NÃO é aberta aqui — é aberta via sinal app_startup
+        # após toda a UI estar pronta e visível.
 
         # Ambos os workspaces laterais ficam recolhidos por padrão.
         # O utilizador expande clicando nas abas verticais.

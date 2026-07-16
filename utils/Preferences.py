@@ -27,6 +27,40 @@ from core.enum.ToolKey import ToolKey
 from utils.BaseUtil import BaseUtil
 
 
+class _PreferencesWriteHelper:
+    """
+    Objeto helper singleton para gerenciar o timer de escrita assíncrona.
+    Evita erro Shiboken com classmethod + QTimer.
+    """
+    def __init__(self):
+        self._write_pending: bool = False
+        self._write_timer = None
+
+    def schedule(self, cache: Dict[str, Any]) -> None:
+        """Agenda escrita no disco com debounce de 500ms."""
+        if self._write_timer is None:
+            from PySide6.QtCore import QTimer
+            self._write_timer = QTimer()
+            self._write_timer.setSingleShot(True)
+            self._write_timer.setInterval(500)
+            self._write_timer.timeout.connect(self._flush)
+        self._write_pending = True
+        self._write_data = cache
+        self._write_timer.start()
+
+    def _flush(self) -> None:
+        """Executa a escrita pendente no disco (chamado pelo timer)."""
+        if not self._write_pending:
+            return
+        self._write_pending = False
+        try:
+            data = getattr(self, '_write_data', {})
+            if data:
+                Preferences._write_to_disk(data)
+        except Exception:
+            pass
+
+
 class Preferences(BaseUtil):
     """
     Gerenciador de preferências estático.
@@ -47,8 +81,22 @@ class Preferences(BaseUtil):
     """
 
     _DEFAULT_PATH: Path = Path(__file__).resolve().parent.parent / "config" / "preferences.json"
+    _cache: Dict[str, Any] = {}           # Cache em memória (fix #5)
+    _cache_loaded: bool = False           # Flag: cache já foi populado?
+    _write_helper: _PreferencesWriteHelper = _PreferencesWriteHelper()  # Singleton helper
 
-    # ── API Pública ──────────────────────────────────────────────────
+    @classmethod
+    def _ensure_cache(cls) -> Dict[str, Any]:
+        """Garante que o cache em memória está populado (lê do disco uma vez)."""
+        if not cls._cache_loaded:
+            cls._cache = cls._load_from_disk()
+            cls._cache_loaded = True
+        return cls._cache
+
+    @classmethod
+    def _schedule_write(cls) -> None:
+        """Agenda escrita no disco com debounce de 500ms via helper."""
+        cls._write_helper.schedule(cls._cache)
 
     @staticmethod
     def save_tool_prefs(
@@ -57,7 +105,7 @@ class Preferences(BaseUtil):
         caller_tool_key: str = ToolKey.UNTRACEABLE.value,
     ) -> None:
         """
-        Salva (merge) as preferências de uma ferramenta no arquivo JSON.
+        Salva (merge) as preferências de uma ferramenta (cache + write async).
 
         Args:
             tool_key: Chave da ferramenta (ToolKey enum)
@@ -66,15 +114,16 @@ class Preferences(BaseUtil):
         """
         logger = BaseUtil._get_logger(caller_tool_key, "Preferences")
         tool_name = tool_key.value if isinstance(tool_key, ToolKey) else str(tool_key)
-        all_data = Preferences._load_from_disk()
+        all_data = Preferences._ensure_cache()
 
         section = all_data.get(tool_name, {})
         section.update(data)
         all_data[tool_name] = section
 
-        Preferences._write_to_disk(all_data)
+        # Escrita assíncrona com debounce (não bloqueia UI)
+        Preferences._schedule_write()
         logger.info(
-            "Preferências salvas",
+            "Preferências salvas (cache)",
             code="PREFS_SAVE",
             tool=tool_name,
             keys=list(data.keys()),
@@ -86,7 +135,7 @@ class Preferences(BaseUtil):
         caller_tool_key: str = ToolKey.UNTRACEABLE.value,
     ) -> Dict[str, Any]:
         """
-        Carrega as preferências de uma ferramenta do arquivo JSON.
+        Carrega as preferências de uma ferramenta (do cache em memória).
 
         Args:
             tool_key: Chave da ferramenta (ToolKey enum)
@@ -97,10 +146,10 @@ class Preferences(BaseUtil):
         """
         logger = BaseUtil._get_logger(caller_tool_key, "Preferences")
         tool_name = tool_key.value if isinstance(tool_key, ToolKey) else str(tool_key)
-        all_data = Preferences._load_from_disk()
+        all_data = Preferences._ensure_cache()
         section = all_data.get(tool_name, {})
         logger.info(
-            "Preferências carregadas",
+            "Preferências carregadas (cache)",
             code="PREFS_LOAD",
             tool=tool_name,
         )

@@ -40,7 +40,7 @@ class CpuGovernor:
                          (0.0 a 1.0). Padrao: 0.25 (25%).
     """
 
-    CPU_USAGE_LIMIT: float = 0.25  # <<< EDITAVEL: 0.0 a 1.0
+    CPU_USAGE_LIMIT: float = 0.50  # <<< EDITAVEL: 0.0 a 1.0
 
     def __init__(self) -> None:
         # Chamada dummy para psutil.cpu_percent ter baseline

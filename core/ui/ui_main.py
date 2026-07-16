@@ -284,6 +284,9 @@ class MainWindow(QMainWindow):
         Emite sinais de inicializacao e mensagem de boas-vindas no console.
         O ConsolePlugin ja foi pre-carregado pelo WorkspaceManager,
         portanto ja esta ouvindo os sinais console_message / console_html.
+
+        A Home é aberta APÓS toda a UI estar construída e visível,
+        via QTimer.singleShot para garantir que event loop já iniciou.
         """
         logger = LogUtils(tool="System", class_name="MainWindow")
         logger.info(
@@ -299,6 +302,26 @@ class MainWindow(QMainWindow):
         signals.console_message.emit(
             "Selecione uma ferramenta no menu para comecar."
         )
+
+        # Abre Home ANTES do monitor deferred (que é pesado e lento)
+        # Garante que UI aparece imediatamente para o usuário
+        from PySide6.QtCore import QTimer as _Qtimer
+        _Qtimer.singleShot(0, self._open_home_on_startup)
+
+    def _open_home_on_startup(self) -> None:
+        """Abre a Home no workspace central, depois agenda monitor deferred."""
+        logger = LogUtils(tool="System", class_name="MainWindow")
+        if hasattr(self, '_workspace_manager') and self._workspace_manager is not None:
+            self._workspace_manager.switch_to_tool("Home")
+            logger.info("Home aberta via startup signal", code="HOME_OPENED")
+        else:
+            logger.warning("WorkspaceManager indisponivel ao abrir Home", code="HOME_OPEN_FAIL")
+
+        # Depois de abrir Home, agenda o monitor deferred (ResourceGovernor + psutil)
+        # para rodar APÓS a UI estar totalmente responsiva
+        if hasattr(self, '_menu_manager') and self._menu_manager is not None:
+            from PySide6.QtCore import QTimer as _Qtimer
+            _Qtimer.singleShot(0, self._menu_manager._init_monitor_deferred)
 
     def _show_about(self):
         from core.dialogs.AboutDialog import AboutDialog

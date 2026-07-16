@@ -31,7 +31,6 @@ from utils.MessageBox import MessageBox
 from utils.Preferences import Preferences
 from core.enum.ToolKey import ToolKey
 from core.manager.SignalManager import SignalManager
-from plugins.tensorflow_classifier.tensor_utils.classifier_pipeline import ClassifierPipeline
 from plugins.tensorflow_classifier.tensor_utils.pipeline_config import PipelineConfig, PipelineConfigError
 
 warnings.filterwarnings("ignore", category=DeprecationWarning)
@@ -55,6 +54,8 @@ class PipelineWorker(QThread):
 
     def run(self):
         try:
+            # Lazy import: TensorFlow só é carregado QUANDO executar pipeline
+            from plugins.tensorflow_classifier.tensor_utils.classifier_pipeline import ClassifierPipeline
             pipeline = ClassifierPipeline(
                 config=self.config,
                 logger=self.log.emit,
@@ -84,9 +85,15 @@ class MainController:
         self._eta_target = None
         self._run_estimated_seconds = 0.0
         self._last_progress_message = "Iniciando pipeline..."
+        # Timer de progresso: só inicia QUANDO execução começar (fix #3)
         self._progress_timer = QTimer()
         self._progress_timer.setInterval(500)
         self._progress_timer.timeout.connect(self._refresh_time_based_progress)
+        # Timer de debounce: agrupa salvamentos em disco (fix #1)
+        self._save_timer = QTimer()
+        self._save_timer.setSingleShot(True)
+        self._save_timer.setInterval(300)
+        self._save_timer.timeout.connect(self._do_save_preferences)
         self._last_output_tif_path: Path | None = None
         self._last_report_html_path: Path | None = None
         self._cancel_requested = False
@@ -97,7 +104,12 @@ class MainController:
         print(f"{self.view.btn_add_shp}")
         self._init_defaults()#
         self.loadpreferences()
+        # Só finaliza carregamento APÓS todos os widgets estarem populados
+        from PySide6.QtCore import QTimer as Qtimer
+        Qtimer.singleShot(0, self._finalize_load)
         self._update_resumo()
+        # Timer de progresso NÃO inicia aqui - só quando executar (fix #3)
+        self._progress_timer.stop()
 
     def _connect_signals(self):
         from core.config.LogUtils import LogUtils
@@ -479,14 +491,30 @@ class MainController:
                     self._add_shp_row(str(item["path"]), int(item["class_id"]), str(item.get("legend", "")))
         self._on_model_action_changed()
         self._update_resumo()
-        self._loading_preferences = False
-        self.savepreferences()
+        # loading_preferences NÃO é liberado aqui - isso é feito em _finalize_load
+        # após todos os signals dos widgets terminarem de processar
 
-    def savepreferences(self) -> None:
+    def _finalize_load(self) -> None:
+        """Finaliza o carregamento: libera flag e salva uma vez."""
+        self._loading_preferences = False
+        self._do_save_preferences()
+
+    def _debounce_save(self) -> None:
+        """Agenda salvamento com debounce de 300ms (evita I/O a cada digitação)."""
+        if self._loading_preferences:
+            return
+        self._save_timer.start()
+
+    def _do_save_preferences(self) -> None:
+        """Salva as preferências sem travar a UI (chamado pelo timer de debounce)."""
         if self._loading_preferences:
             return
         self._data.update(self.get_pipeline_config())
         Preferences.save_tool_prefs(ToolKey.CLASSIFIER, self._data)
+
+    def savepreferences(self) -> None:
+        """Método legado: agora usa debounce para evitar I/O excessivo."""
+        self._debounce_save()
 
     def _get_raster_pixels_and_gb(self, path: Path) -> tuple[float, float]:
         pixels = 0.0
