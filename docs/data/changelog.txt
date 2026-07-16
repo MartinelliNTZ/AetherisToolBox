@@ -1,0 +1,9 @@
+[1.1.2][2026.07.15][22:45] - Otimização thread principal + animação smooth CPU/RAM
+  - HudCircularRingsLoader: timer 60FPS agora só roda quando visível (antes rodava sempre)
+  - HudCircularRingsLoader: hide_loader() para o timer; _tick() aborta se oculto
+  - SystemMonitorService: cpu_count_physical/logical cacheados (syscall eliminada)
+  - RamGovernor.snapshot(): memory_pressure calculado com swap já obtido (1 chamada a menos)
+  - GridPercentView.set(): só repaint se valor mudou (evita update() desnecessário)
+  - GridPercentView.animate_to(key, target, duration_ms): transição suave entre valores via QTimer 30FPS
+  - MenuManager._on_stats_updated: usa animate_to() em vez de set() para efeito visual contínuo
+[1.1.1][2026.07.15] - oque eu fiz
