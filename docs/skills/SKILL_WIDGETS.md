@@ -1601,6 +1601,31 @@ widget = FootballMatchWidget(fixture)
 
 ---
 
+### `ToastNotification` — `ToastNotification.py`
+Notificação toast estilo Android. Exibe uma mensagem temporária que aparece, faz fade out e se auto-destrói, sem travar a UI (QTimer não-bloqueante + QPropertyAnimation).
+
+```python
+from resources.widgets.ToastNotification import ToastNotification
+
+# Sucesso (padrão escuro)
+ToastNotification.show("Configurações salvas com sucesso!")
+
+# Erro (fundo vermelho)
+ToastNotification.show("Falha ao processar", is_error=True)
+```
+
+**Métodos estáticos:**
+- `show(text, is_error=False, parent=None)` — exibe o toast
+- `dismiss()` — fecha o toast atual
+
+**Comportamento:**
+- 2.5s visível → 500ms fade out → auto-destrói (`WA_DeleteOnClose`)
+- Reposiciona automaticamente ao redimensionar a janela pai
+- Não bloqueia a UI (assíncrono)
+- Fecha toast anterior se novo for chamado
+
+---
+
 ## ✅ Checklist ao criar/alterar UI
 
 - [ ] Consultei o catálogo acima antes de importar de `PySide6.QtWidgets`?

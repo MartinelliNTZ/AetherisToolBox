@@ -1,7 +1,11 @@
-[1.1.3][2026.07.15][22:51] - Feedback visual ao salvar configurações
-  - ConfigurationPlugin._on_salvar: adicionado try/except com MessageBox.show_info/show_error
-  - Adicionado import de utils.MessageBox.MessageBox
-[1.1.2][2026.07.15][22:45] - Otimização thread principal + animação smooth CPU/RAM
+[1.1.2][2026.07.15][22:55] - ToastNotification widget + substituição do MessageBox no ConfigurationPlugin
+  - Criado resources/widgets/ToastNotification.py: notificação toast estilo Android com fade out não-bloqueante
+  - Adicionado ToastNotification ao catálogo de SKILL_WIDGETS.md
+  - ConfigurationPlugin._on_salvar: MessageBox trocado por ToastNotification (mensagem não-bloqueante)
+  - Removido import de utils.MessageBox.MessageBox
+[1.1.1][2026.07.15][22:51] - Feedback visual ao salvar configurações
+  - ConfigurationPlugin._on_salvar: adicionado try/except com ToastNotification.show
+[1.1.0][2026.07.15][22:45] - Otimização thread principal + animação smooth CPU/RAM
   - HudCircularRingsLoader: timer 60FPS agora só roda quando visível (antes rodava sempre)
   - HudCircularRingsLoader: hide_loader() para o timer; _tick() aborta se oculto
   - SystemMonitorService: cpu_count_physical/logical cacheados (syscall eliminada)
@@ -9,4 +13,4 @@
   - GridPercentView.set(): só repaint se valor mudou (evita update() desnecessário)
   - GridPercentView.animate_to(key, target, duration_ms): transição suave entre valores via QTimer 30FPS
   - MenuManager._on_stats_updated: usa animate_to() em vez de set() para efeito visual contínuo
-[1.1.1][2026.07.15] - oque eu fiz
+[1.0.0][2026.07.15] - oque eu fiz

@@ -11,12 +11,11 @@ Acessível pelo menu Sistema > Configuração.
 
 from __future__ import annotations
 
-from utils.MessageBox import MessageBox
-
 from plugins.BasePlugin import BasePlugin
 from resources.styles.ThemeManager import THEMES
 from resources.widgets.ExecutionButtons import ExecutionButtons
 from resources.widgets.GroupPainel import GroupPainel
+from resources.widgets.ToastNotification import ToastNotification
 from resources.widgets.simple.SimpleComboBox import SimpleComboBox
 
 
@@ -95,17 +94,14 @@ class ConfigurationPlugin(BasePlugin):
                 "Configurações salvas manualmente pelo usuário",
                 code="CONFIG_SAVED",
             )
-            MessageBox.show_info("Configurações salvas com sucesso!")
+            ToastNotification.show("Configurações salvas com sucesso!")
         except Exception as e:
             self.logger.error(
                 "Falha ao salvar configurações",
                 code="CONFIG_SAVE_ERR",
                 error=str(e),
             )
-            MessageBox.show_error(
-                "Falha ao salvar configurações",
-                detail=str(e),
-            )
+            ToastNotification.show("Falha ao salvar configurações", is_error=True)
 
     def _on_theme_changed(self, theme_key: str):
         """Callback quando o tema é alterado no combo."""
