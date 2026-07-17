@@ -22,6 +22,7 @@ Agir como engenheiro de software especializado no ecossistema **Aetheris ToolBox
 | Vetor/Raster | `docs/skills/SKILL_VECTOR_RASTER_LAYER_UTILS.md` | Ler dados vetoriais e raster com utilitários |
 | Estilos | `docs/skills/SKILL_STYLES.md` | Manter consistência visual e temas |
 | Contratos | `docs/ia/contracts.md` | Regras imutáveis do sistema |
+| Projetos | `docs/skills/SKILL_PROJECT.md` | Sistema de projetos .mtl, SaveProjectPlugin, menu Arquivo, AppBar status |
 | Catálogo de Classes | `docs/skills/CatalogoClasses.md` | Referência de classes do projeto |
 
 ## ⛔ REGRA DE OURO: PARE E PERGUNTE

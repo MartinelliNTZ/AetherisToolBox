@@ -1,4 +1,12 @@
-<<<<<<< HEAD
+[1.2.1][2026.07.17][14:19] - Projeto: status do projeto na AppBar + skill SKILL_PROJECT.md
+  - AppBar: novo QLabel lbl_project_status entre título e toolbar
+  - AppBar: métodos set_project_status(project_name, path) e clear_project_status()
+  - MainWindow: conexão project_changed → _update_appbar_project_status()
+  - MainWindow: carrega status inicial do projeto em _open_home_on_startup()
+  - MainWindow: import ProjectUtil adicionado
+  - SKILL_AGENT.md: adicionada referência à skill SKILL_PROJECT.md
+  - Nova skill: docs/skills/SKILL_PROJECT.md — documentação completa do sistema de projetos
+
 [1.2.0][2026.07.16][09:31] - Performance: startup 3x mais rapido + otimizacoes de I/O e CPU
   - MenuManager._setup_system_monitor(): ResourceGovernor/SystemMonitorService movido para QTimer.singleShot (deferred)
     (antes bloqueava 3s no startup, agora nao bloqueia)
