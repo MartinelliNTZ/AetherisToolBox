@@ -16,7 +16,7 @@ Fluxo:
   - 2 ComplexSelectors de saída (output) com parent linking
   - GridDoubleSpinBox para min/max scan angle
   - ExecutionButtons: USAR ORIGEM + EXECUTAR
-  - PipelineRunner em background
+  - PipelineRunner em background.
 """
 
 from __future__ import annotations
