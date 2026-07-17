@@ -1,3 +1,8 @@
+[1.2.2][2026.07.17][20:33] - SKILL_WIDGETS.md: deprecação de widgets simples e seletor individual
+  - SelectorGrid: marcado como DEPRECATED, redireciona para GridComplexSelector
+  - SimpleSelector: marcado como DEPRECATED, removida documentação detalhada, redireciona para GridComplexSelector
+  - ComplexSelector: marcado como DEPRECATED, removida documentação detalhada, redireciona para GridComplexSelector
+  - Regra: sempre usar versão grid (Grid*) — widgets individuais só internamente
 [1.2.1][2026.07.17][14:19] - Projeto: status do projeto na AppBar + skill SKILL_PROJECT.md
   - AppBar: novo QLabel lbl_project_status entre título e toolbar
   - AppBar: métodos set_project_status(project_name, path) e clear_project_status()

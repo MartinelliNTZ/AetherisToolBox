@@ -2,7 +2,7 @@
 
 Catálogo oficial de todos os widgets disponíveis em `resources/widgets/`. **Sempre consulte esta lista antes de criar UI nova.** Se o widget que você precisa não existe, crie-o em `resources/widgets/` e **adicione-o a esta lista** (Contrato 12).
 
-> ⚠️ **Contrato 11**: NUNCA importe widgets brutos de `PySide6.QtWidgets` sem antes verificar se já existe um widget pronto aqui. Componentes compostos (label + campo + botão, etc.) DEVEM ser um único widget em `resources/widgets/`.
+> ⚠️ **Contrato 11**: NUNCA importe widgets brutos de `PySide6.QtWidgets` sem antes verificar se já existe um widget pronto aqui Mesmo verificando se nao existir vc deve criar um widget, nunca usar widgs padrao. Componentes compostos (label + campo + botão, etc.) DEVEM ser um único widget em `resources/widgets/`.
 
 ---
 
@@ -58,58 +58,32 @@ bar.add_menu_item(HelpMenuItem())
 
 ---
 
-### `SelectorGrid` — `SelectorGrid.py`
-Grade de `SimpleSelector`s configurados por dicionário. Cria múltiplos seletores de arquivo/pasta em lote.
+
+### `SelectorGrid` — `SelectorGrid.py` (DEPRECATED)
+> ⚠️ **DEPRECATED** — Este widget está obsoleto. **Use `GridComplexSelector`** de `resources/widgets/complex/GridComplexSelector.py` em todas as novas ferramentas. O `GridComplexSelector` usa `ComplexSelector` internamente, que é mais flexível e suporta file/folder/files/folders com linking entre selectores, modo dinâmico (dynamic_parent) e output automático.
 
 ```python
+# ❌ NÃO USE — DEPRECATED
 from resources.widgets.SelectorGrid import SelectorGrid
-grid = SelectorGrid({
-    "Imagem Treino":   {"file_filter": "GeoTIFF (*.tif)", "default_path": "dados/treino.tif"},
-    "Imagem Classif.": {"file_filter": "GeoTIFF (*.tif)"},
-    "Saída":           {"file_filter": "GeoTIFF (*.tif)", "browse_mode": "save_file"},
-}, title="Imagens")
-grid["Imagem Treino"].path()  # acessa o caminho
-```
 
-> ⚠️ **OBSOLETO** — Use `GridComplexSelector` de `resources/widgets/complex/GridComplexSelector.py` em novas ferramentas.
+# ✅ USE ISTO EM VEZ
+from resources.widgets.complex.GridComplexSelector import GridComplexSelector
+```
 
 ---
 
-### `SimpleSelector` — `SimpleSelector.py`
-Linha com **label + QLineEdit + botão "..."** para selecionar arquivo/pasta. **O widget composto mais usado do sistema.**
 
-> ⚠️ **USE SEMPRE O GRID ** — Use `ComplexSelector` de `resources/widgets/complex/ComplexSelector.py` em novas ferramentas.
 
-Possui 3 botões independentes:
-- **`...`** — abre o explorador nativo do sistema (via `ExplorerUtils`)
-- **`📂`** — botão de caminho sugerido (opcional, ativado via `set_suggested_path()`)
-- **`📄`** — botão de arquivos do projeto (aparece automaticamente nos modos `open_file`/`open_files`)
-
-O botão **📄** abre um `ListFileDialog` com as extensões extraídas do `file_filter` atual. Só funciona se houver um projeto ativo. No modo `open_files`, o diálogo permite multi-seleção.
-
-```python
-from resources.widgets.SimpleSelector import SimpleSelector
-sel = SimpleSelector(
-    label_text="Imagem:",
-    file_filter="GeoTIFF (*.tif *.tiff)",
-    browse_mode="open_file",       # open_file, open_files, save_file, directory, directories
-)
-sel.path()      # caminho atual
-sel.paths()     # lista (multi)
-sel.set_path("novo/caminho.tif")
-```
-
-> ⚠️ **Cuidado com signal chain duplicado:** `set_path()` chama `edit.setText()` internamente, que **dispara o signal `textChanged`** → `_on_text_changed()` → `on_path_change(callback)`.  
-> **NUNCA** chame `set_path()` E depois o callback manualmente:
+### `SimpleSelector` — `SimpleSelector.py` (DEPRECATED)
+> ⚠️ **DEPRECATED** — Este widget está obsoleto. **Use `GridComplexSelector`** de `resources/widgets/complex/GridComplexSelector.py` em todas as novas ferramentas. `SimpleSelector` só deve ser usado internamente pelo grid — nunca diretamente por plugins.
+>
 > ```python
-> # ❌ ERRADO — callback será chamado DUAS VEZES
-> selector.set_path(saved_path)
-> selector.on_path_change(saved_path)  # redundante!
+> # ❌ NÃO USE — DEPRECATED
+> from resources.widgets.simple.SimpleSelector import SimpleSelector
 > 
-> # ✅ CORRETO — set_path já dispara o callback automaticamente
-> selector.set_path(saved_path)
+> # ✅ USE ISTO EM VEZ (via grid)
+> from resources.widgets.complex.GridComplexSelector import GridComplexSelector
 > ```
-> Se você precisa carregar metadados ou processar o path, conecte via `on_path_change` e use apenas `set_path()` para restaurar.
 
 ---
 
@@ -1124,116 +1098,17 @@ if dialog.exec():
 
 ---
 
-### `ComplexSelector` — `complex/ComplexSelector.py`
-Seletor avançado com suporte a file/folder/files/folders. **Evolução do `SimpleSelector`** — NÃO usa GridRadio. O comportamento é definido pelos parâmetros `allow_file`, `allow_folder` e `multiple` na criação.
 
-**Lógica central:**
-- O widget sempre guarda: `root_path` (diretório base) + `selected_list` (itens selecionados)
-- 🔍 (file) — Buscar arquivo(s) — aparece se `allow_file=True`
-- 📁 (folder) — Buscar pasta(s) — aparece se `allow_folder=True`
-- 📂 — Caminho do projeto (só output) — `ProjectUtil.get_root_folder()` + `subfolder` + `fixed_name`
-- 📄 — Arquivos do projeto (só input) — `ListFileDialog`
-
-```python
-from resources.widgets.complex.ComplexSelector import ComplexSelector
-
-# Apenas 1 arquivo
-sel = ComplexSelector(label_text="Entrada:", allow_file=True, allow_folder=False)
-
-# Apenas 1 pasta
-sel = ComplexSelector(label_text="Pasta:", allow_file=False, allow_folder=True)
-
-# Múltiplos arquivos
-sel = ComplexSelector(label_text="Arquivos:", allow_file=True, allow_folder=False, multiple=True)
-
-# Ambos (file + folder)
-sel = ComplexSelector(label_text="Dados:", allow_file=True, allow_folder=True)
-
-# Output com suggested_path + ProjectUtil
-sel = ComplexSelector(
-    label_text="Saída:",
-    allow_file=True,
-    allow_folder=False,
-    mode_type="output",
-    show_suggest_button=True,
-    fixed_name="resultado.gpkg",
-    subfolder="converted",
-)
-```
-
-**API pública:**
-```python
-# Estado
-sel.get_root_path() -> str              # Diretório base
-sel.get_selected_list() -> list[str]    # Itens selecionados
-sel.get_paths() -> list[str]            # Atalho
-sel.path() -> str                       # Primeiro item (compatível)
-sel.path_type() -> str                  # "file" | "folder" | "files" | "folders"
-sel.path_count() -> int                 # Número de itens
-sel.is_multi() -> bool                  # True se files/folders
-sel.is_single() -> bool                 # True se file/folder
-sel.is_folder_mode() -> bool            # True se folder/folders
-sel.is_file_mode() -> bool              # True se file/files
-
-# Setters
-sel.set_path(path)                      # Define path único
-sel.set_paths(paths)                    # Define múltiplos
-sel.clear()                             # Limpa tudo
-
-# Utilitários
-sel.exists() -> bool                    # Path existe?
-sel.is_file() -> bool                   # É arquivo?
-sel.is_dir() -> bool                    # É diretório?
-sel.basename() -> str                   # Nome base
-sel.dirname() -> str                    # Diretório
-sel.extension() -> str                  # Extensão
-sel.has_extension(*exts) -> bool        # Verifica extensão
-
-# Callbacks
-sel.on_path_change = callback           # recebe (paths: list[str])
-sel.on_browse_click = callback          # recebe ()
-sel.on_suggest_click = callback         # recebe ()
-
-# Configuração dinâmica
-sel.set_fixed_name("resultado.gpkg")    # Atualiza fixed_name para 📂
-```
-
-**Parâmetros do construtor:**
-| Parâmetro | Tipo | Default | Descrição |
-|-----------|------|---------|-----------|
-| `label_text` | str | "" | Label |
-| `default_path` | str | "" | Path inicial |
-| `placeholder` | str | "Caminho..." | Placeholder |
-| `tooltip` | str | "" | Tooltip |
-| `file_filter` | str | "Todos (*.*)" | Filtro |
-| `label_width` | int | 130 | Largura do label |
-| `allow_file` | bool | True | Mostra 🔍 (buscar arquivo) |
-| `allow_folder` | bool | False | Mostra 📁 (buscar pasta) |
-| `multiple` | bool | False | Multi-seleção (files/folders) |
-| `show_suggest_button` | bool | False | Mostra 📂 (só output) |
-| `show_project_button` | bool | False | Mostra 📄 (só input) |
-| `suggested_path` | str | "" | Path relativo pro 📂 |
-| `mode_type` | str | "input" | "input" ou "output" |
-| `fixed_name` | str | "" | Nome fixo do arquivo de saída (ex: "resultado.gpkg") |
-| `subfolder` | str | "" | Subpasta para output |
-
-**Propriedades dinâmicas (setters):**
-```python
-# Mostra/esconde 🔍 (botão de arquivo)
-sel.allow_file = True   # mostra
-sel.allow_file = False  # esconde
-
-# Mostra/esconde 📁 (botão de pasta)
-sel.allow_folder = True   # mostra
-sel.allow_folder = False  # esconde
-
-# Atalho para alterar modo completo de uma vez
-sel.set_mode(allow_file=True, allow_folder=False, selection_mode="file")
-
-# Atualiza fixed_name dinamicamente (útil quando extensão muda)
-sel.set_fixed_name("lasvectorconverted.shp")
-```
-`set_mode()` sanitiza automaticamente: se `selection_mode="file"` mas `allow_file=False`, corrige para `"folder"`.
+### `ComplexSelector` — `complex/ComplexSelector.py` (DEPRECATED)
+> ⚠️ **DEPRECATED** — Este widget está obsoleto. **Use `GridComplexSelector`** de `resources/widgets/complex/GridComplexSelector.py` em todas as novas ferramentas. `ComplexSelector` só deve ser usado internamente pelo grid — nunca diretamente por plugins.
+>
+> ```python
+> # ❌ NÃO USE — DEPRECATED
+> from resources.widgets.complex.ComplexSelector import ComplexSelector
+> 
+> # ✅ USE ISTO EM VEZ (via grid)
+> from resources.widgets.complex.GridComplexSelector import GridComplexSelector
+> ```
 
 ---
 
