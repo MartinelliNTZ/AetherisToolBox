@@ -33,16 +33,17 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QPixmap
+from PySide6.QtGui import QPixmap, QEnterEvent
 from PySide6.QtWidgets import (
     QFrame, QGridLayout, QLabel, QSizePolicy, QVBoxLayout, QWidget,
 )
 
 from resources.styles.AppStyles import AppStyles
+from resources.styles.BaseStyle import BaseStyle
 
 
 class _CardWidget(QFrame):
-    """Card individual dentro do GridCardView."""
+    """Card individual dentro do GridCardView com sombra, hover e bordas arredondadas."""
 
     def __init__(
         self,
@@ -54,6 +55,32 @@ class _CardWidget(QFrame):
         self.setObjectName("grid_card_view_card")
         self.setFrameShape(QFrame.Shape.StyledPanel)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.setMouseTracking(True)
+
+        current_theme = AppStyles.current_theme
+
+        # ── Borda arredondada via QSS ──────────────────────────────
+        radius = current_theme.BORDER_RADIUS_CARD
+        self.setStyleSheet(
+            f"QFrame#grid_card_view_card {{"
+            f"  background-color: {current_theme.SURFACE_3};"
+            f"  border: 1px solid {current_theme.BORDER_DEFAULT};"
+            f"  border-radius: {radius}px;"
+            f"}}"
+        )
+
+        # ── Sombra padrão via BaseStyle ───────────────────────────
+        BaseStyle.apply_drop_shadow(
+            self,
+            blur=current_theme.SHADOW_BLUR_MD,
+            offset_x=0,
+            offset_y=current_theme.SHADOW_OFFSET_Y_MD,
+            color_rgb=current_theme.SHADOW_COLOR_RGB,
+            alpha=current_theme.SHADOW_COLOR_ALPHA,
+        )
+
+        # ── Estado de hover ────────────────────────────────────────
+        self._hovered = False
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(12, 10, 12, 10)
@@ -73,8 +100,9 @@ class _CardWidget(QFrame):
                 )
             else:
                 logo_label.setStyleSheet(
-                    "background-color: #2A2A30; border-radius: 18px; "
-                    "border: 1px solid #3A3A40;"
+                    f"background-color: {current_theme.SURFACE_4}; "
+                    f"border-radius: 18px; "
+                    f"border: 1px solid {current_theme.BORDER_DEFAULT};"
                 )
             layout.addWidget(logo_label)
 
@@ -92,22 +120,22 @@ class _CardWidget(QFrame):
                 label_type = item.get("type", "simple")
                 if label_type == "great_accent":
                     label.setStyleSheet(
-                        f"color: {AppStyles.current_theme.ACCENT}; "
+                        f"color: {current_theme.ACCENT}; "
                         f"font-size: 22px; font-weight: bold;"
                     )
                 elif label_type == "great":
                     label.setStyleSheet(
-                        f"color: {AppStyles.current_theme.TEXT_SECONDARY}; "
+                        f"color: {current_theme.TEXT_LOW}; "
                         f"font-size: 22px; font-weight: bold;"
                     )
                 elif label_type == "simple_accent":
                     label.setStyleSheet(
-                        f"color: {AppStyles.current_theme.ACCENT}; "
+                        f"color: {current_theme.ACCENT}; "
                         f"font-size: 12px;"
                     )
                 else:  # simple
                     label.setStyleSheet(
-                        f"color: {AppStyles.current_theme.TEXT_SECONDARY}; "
+                        f"color: {current_theme.TEXT_LOW}; "
                         f"font-size: 12px;"
                     )
 
@@ -119,6 +147,63 @@ class _CardWidget(QFrame):
                 self._label_widgets.append(label)
 
         layout.addStretch(1)
+
+    # ── Hover: anima glow e borda ─────────────────────────────────
+
+    def enterEvent(self, event: QEnterEvent) -> None:
+        """Ao entrar, ativa o glow e muda a borda para accent."""
+        current_theme = AppStyles.current_theme
+        self._hovered = True
+
+        # Troca a borda para accent
+        radius = current_theme.BORDER_RADIUS_CARD
+        self.setStyleSheet(
+            f"QFrame#grid_card_view_card {{"
+            f"  background-color: {current_theme.SURFACE_3};"
+            f"  border: 1px solid {current_theme.BORDER_ACCENT};"
+            f"  border-radius: {radius}px;"
+            f"}}"
+        )
+
+        # Aplica glow no hover via BaseStyle
+        glow_color_rgb = current_theme.GLOW_COLOR_RGB or current_theme.ACCENT
+        BaseStyle.apply_drop_shadow(
+            self,
+            blur=current_theme.GLOW_BLUR,
+            offset_x=current_theme.GLOW_OFFSET_X,
+            offset_y=current_theme.GLOW_OFFSET_Y,
+            color_rgb=glow_color_rgb,
+            alpha=current_theme.GLOW_ALPHA,
+        )
+
+        super().enterEvent(event)
+
+    def leaveEvent(self, event) -> None:
+        """Ao sair, desativa o glow e restaura a borda padrão."""
+        current_theme = AppStyles.current_theme
+        self._hovered = False
+
+        # Restaura a borda padrão
+        radius = current_theme.BORDER_RADIUS_CARD
+        self.setStyleSheet(
+            f"QFrame#grid_card_view_card {{"
+            f"  background-color: {current_theme.SURFACE_3};"
+            f"  border: 1px solid {current_theme.BORDER_DEFAULT};"
+            f"  border-radius: {radius}px;"
+            f"}}"
+        )
+
+        # Restaura a sombra padrão
+        BaseStyle.apply_drop_shadow(
+            self,
+            blur=current_theme.SHADOW_BLUR_MD,
+            offset_x=0,
+            offset_y=current_theme.SHADOW_OFFSET_Y_MD,
+            color_rgb=current_theme.SHADOW_COLOR_RGB,
+            alpha=current_theme.SHADOW_COLOR_ALPHA,
+        )
+
+        super().leaveEvent(event)
 
     def set_label_text(self, index: int, text: str) -> None:
         """Atualiza o texto de um label pelo índice."""
@@ -167,6 +252,8 @@ class GridCardView(QWidget):
         self._clear_all()
         self._cards.clear()
 
+        current_theme = AppStyles.current_theme
+
         # Título opcional
         title = config.get("title")
         if title:
@@ -174,7 +261,7 @@ class GridCardView(QWidget):
             self._title_label.setObjectName("grid_card_view_title")
             self._title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             self._title_label.setStyleSheet(
-                f"color: {AppStyles.current_theme.ACCENT}; "
+                f"color: {current_theme.ACCENT}; "
                 f"font-size: 16px; font-weight: bold;"
             )
             self._main_layout.addWidget(self._title_label)
@@ -194,7 +281,6 @@ class GridCardView(QWidget):
             self._cards.append(card)
 
         # Garante que todos os cards na mesma linha tenham a mesma altura
-        # setRowStretch força o grid a distribuir espaço igual entre linhas
         total_rows = (len(cards_data) + items_per_row - 1) // items_per_row if cards_data else 0
         for r in range(total_rows):
             self._grid.setRowStretch(r, 1)

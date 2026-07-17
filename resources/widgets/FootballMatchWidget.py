@@ -16,11 +16,13 @@ Uso:
 from __future__ import annotations
 
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QEnterEvent
 from PySide6.QtWidgets import (
     QLabel, QFrame, QHBoxLayout, QVBoxLayout, QSizePolicy,
 )
 
 from core.model.FootballModel import Fixture
+from resources.styles.AppStyles import AppStyles
 from utils.FormatUtils import FormatUtils
 
 
@@ -45,9 +47,21 @@ class FootballMatchWidget(QFrame):
     # ── UI setup ───────────────────────────────────────────────────
 
     def _setup_ui(self) -> None:
+        current_theme = AppStyles.current_theme
+        radius = current_theme.BORDER_RADIUS_CARD
+
         self.setObjectName("football_match_card")
         self.setFrameShape(QFrame.Shape.StyledPanel)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.setMouseTracking(True)
+
+        self.setStyleSheet(
+            f"QFrame#football_match_card {{"
+            f"  background-color: {current_theme.SURFACE_3};"
+            f"  border: 1px solid {current_theme.BORDER_DEFAULT};"
+            f"  border-radius: {radius}px;"
+            f"}}"
+        )
 
         self._main_layout = QVBoxLayout(self)
         self._main_layout.setContentsMargins(12, 8, 12, 8)
@@ -59,11 +73,15 @@ class FootballMatchWidget(QFrame):
 
         self._date_label = QLabel()
         self._date_label.setObjectName("match_date")
-        self._date_label.setStyleSheet("color: #888890; font-size: 11px;")
+        self._date_label.setStyleSheet(
+            f"color: {current_theme.TEXT_LOW}; font-size: 11px;"
+        )
 
         self._league_label = QLabel()
         self._league_label.setObjectName("match_league")
-        self._league_label.setStyleSheet("color: #A1A1AA; font-size: 11px;")
+        self._league_label.setStyleSheet(
+            f"color: {current_theme.TEXT_LOW}; font-size: 11px;"
+        )
         self._league_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
 
         self._header_layout.addWidget(self._date_label)
@@ -87,12 +105,16 @@ class FootballMatchWidget(QFrame):
 
         self._home_name = QLabel()
         self._home_name.setObjectName("team_name")
-        self._home_name.setStyleSheet("color: #E8E8E8; font-size: 13px; font-weight: bold;")
+        self._home_name.setStyleSheet(
+            f"color: {current_theme.TEXT_HIGH}; font-size: 13px; font-weight: bold;"
+        )
         self._home_name.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self._home_goals = QLabel()
         self._home_goals.setObjectName("team_goals")
-        self._home_goals.setStyleSheet("color: #F5C842; font-size: 18px; font-weight: bold;")
+        self._home_goals.setStyleSheet(
+            f"color: {current_theme.ACCENT}; font-size: 18px; font-weight: bold;"
+        )
         self._home_goals.setAlignment(
             Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
         )
@@ -104,7 +126,9 @@ class FootballMatchWidget(QFrame):
         # Score separator
         self._score_label = QLabel()
         self._score_label.setObjectName("match_score")
-        self._score_label.setStyleSheet("color: #F5C842; font-size: 22px; font-weight: bold;")
+        self._score_label.setStyleSheet(
+            f"color: {current_theme.ACCENT}; font-size: 22px; font-weight: bold;"
+        )
         self._score_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._score_label.setFixedWidth(40)
 
@@ -120,12 +144,16 @@ class FootballMatchWidget(QFrame):
 
         self._away_name = QLabel()
         self._away_name.setObjectName("team_name")
-        self._away_name.setStyleSheet("color: #E8E8E8; font-size: 13px; font-weight: bold;")
+        self._away_name.setStyleSheet(
+            f"color: {current_theme.TEXT_HIGH}; font-size: 13px; font-weight: bold;"
+        )
         self._away_name.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self._away_goals = QLabel()
         self._away_goals.setObjectName("team_goals")
-        self._away_goals.setStyleSheet("color: #F5C842; font-size: 18px; font-weight: bold;")
+        self._away_goals.setStyleSheet(
+            f"color: {current_theme.ACCENT}; font-size: 18px; font-weight: bold;"
+        )
         self._away_goals.setAlignment(
             Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
         )
@@ -145,11 +173,15 @@ class FootballMatchWidget(QFrame):
 
         self._status_label = QLabel()
         self._status_label.setObjectName("match_status")
-        self._status_label.setStyleSheet("color: #888890; font-size: 11px;")
+        self._status_label.setStyleSheet(
+            f"color: {current_theme.TEXT_LOW}; font-size: 11px;"
+        )
 
         self._venue_label = QLabel()
         self._venue_label.setObjectName("match_venue")
-        self._venue_label.setStyleSheet("color: #888890; font-size: 11px;")
+        self._venue_label.setStyleSheet(
+            f"color: {current_theme.TEXT_LOW}; font-size: 11px;"
+        )
         self._venue_label.setAlignment(
             Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
         )
@@ -159,9 +191,38 @@ class FootballMatchWidget(QFrame):
         self._footer_layout.addWidget(self._venue_label)
         self._main_layout.addLayout(self._footer_layout)
 
+    # ── Hover ──────────────────────────────────────────────────────
+
+    def enterEvent(self, event: QEnterEvent) -> None:
+        """Ao entrar, destaca a borda com accent e ilumina o fundo."""
+        current_theme = AppStyles.current_theme
+        radius = current_theme.BORDER_RADIUS_CARD
+        self.setStyleSheet(
+            f"QFrame#football_match_card {{"
+            f"  background-color: {current_theme.SURFACE_4};"
+            f"  border: 1px solid {current_theme.BORDER_ACCENT};"
+            f"  border-radius: {radius}px;"
+            f"}}"
+        )
+        super().enterEvent(event)
+
+    def leaveEvent(self, event) -> None:
+        """Ao sair, restaura a borda e fundo padrão."""
+        current_theme = AppStyles.current_theme
+        radius = current_theme.BORDER_RADIUS_CARD
+        self.setStyleSheet(
+            f"QFrame#football_match_card {{"
+            f"  background-color: {current_theme.SURFACE_3};"
+            f"  border: 1px solid {current_theme.BORDER_DEFAULT};"
+            f"  border-radius: {radius}px;"
+            f"}}"
+        )
+        super().leaveEvent(event)
+
     # ── Populate data ──────────────────────────────────────────────
 
     def _populate(self) -> None:
+        current_theme = AppStyles.current_theme
         fixture = self._fixture
 
         # Date/time Brasília
@@ -187,7 +248,6 @@ class FootballMatchWidget(QFrame):
 
         if has_result:
             if has_fulltime and has_penalty:
-                # Ex: "0(4)" para home, "0(3)" para away
                 home_text = f"{fixture.score.fulltime_home}({fixture.score.penalty_home})"
                 away_text = f"{fixture.score.fulltime_away}({fixture.score.penalty_away})"
             elif has_fulltime:
@@ -210,17 +270,21 @@ class FootballMatchWidget(QFrame):
         # Status
         status_text = fixture.status_long or fixture.status or ""
         if "Finished" in status_text:
-            self._status_label.setStyleSheet("color: #666670; font-size: 11px;")
+            self._status_label.setStyleSheet(
+                f"color: {current_theme.TEXT_DISABLED}; font-size: 11px;"
+            )
         elif fixture.status in {"LIVE", "1H", "2H", "HT", "ET"}:
             self._status_label.setStyleSheet(
-                "color: #22C55E; font-size: 11px; font-weight: bold;"
+                f"color: {current_theme.COLOR_SUCCESS}; font-size: 11px; font-weight: bold;"
             )
         elif fixture.status == "PEN":
             self._status_label.setStyleSheet(
-                "color: #F5C842; font-size: 11px; font-weight: bold;"
+                f"color: {current_theme.ACCENT}; font-size: 11px; font-weight: bold;"
             )
         else:
-            self._status_label.setStyleSheet("color: #888890; font-size: 11px;")
+            self._status_label.setStyleSheet(
+                f"color: {current_theme.TEXT_LOW}; font-size: 11px;"
+            )
         self._status_label.setText(status_text)
 
         # Venue
@@ -237,10 +301,12 @@ class FootballMatchWidget(QFrame):
     @staticmethod
     def _load_logo_placeholder(label: QLabel) -> None:
         """Marca o espaço do logo com um placeholder visual."""
+        current_theme = AppStyles.current_theme
         label.setText("")
         label.setStyleSheet(
-            "background-color: #2A2A30; border-radius: 18px; "
-            "border: 1px solid #3A3A40;"
+            f"background-color: {current_theme.SURFACE_4}; "
+            f"border-radius: 18px; "
+            f"border: 1px solid {current_theme.BORDER_DEFAULT};"
         )
 
     # ── Properties ─────────────────────────────────────────────────
