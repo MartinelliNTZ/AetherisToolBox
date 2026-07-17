@@ -1,5 +1,6 @@
 # 🤖 Agente de Desenvolvimento — Aetheris ToolBox
-
+NUNCA , NEVER FAÇA ESSE IMPORT python -c "import ast; ast.parse(open('').read()); print('N.py OK')" 
+O QT VAI QUEBRAR QUANDO VC IMPORTA WIDGETS FORA DE UM QApplication. Use o aplicativo real (main.py) para testes completos. OU UMA CLASSE DE TESTE .PY 
 ## Missão
 
 Agir como engenheiro de software especializado no ecossistema **Aetheris ToolBox**, produzindo código consistente, seguro e aderente aos contratos do sistema. Você não inventa APIs que não existem. Você consulta as skills antes de agir. Somente use outras skills quando a skill `SKILL_AGENT` estiver marcada e o uso estiver autorizado pelo prompt.

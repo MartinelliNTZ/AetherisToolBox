@@ -122,7 +122,7 @@ class CrsSearchDialog(BaseDialog):
         self._tree.setRootIsDecorated(True)
         self._tree.setAnimated(True)
         self._tree.setSortingEnabled(False)
-        self._tree.setStyleSheet(AppStyles.tree_branch_style())
+        self._tree.setStyleSheet(AppStyles.tree_style())
         self._tree.itemDoubleClicked.connect(self._on_item_double_clicked)
         self.main_layout.addWidget(self._tree, 1)
 

@@ -969,8 +969,42 @@ class AppStyles(BaseStyle):
             f"color: {t.ACCENT}; " f"text-decoration: underline; " f"cursor: pointer;"
         )
 
-    # tree_branch_style foi removido — o corpo estava vazio (código morto).
-    # Se for necessário no futuro, implementar com SVG inline via tokens semânticos.
+    @classmethod
+    def tree_style(cls) -> str:
+        """
+        Estilo completo para QTreeWidget (usado em CrsSearchDialog, etc.).
+        Inclui header, itens, hover, selected e branch indicators.
+        """
+        t = theme_manager.theme
+        return (
+            f"QTreeWidget {{"
+            f"  background-color: {t.SURFACE_1};"
+            f"  color: {t.TEXT_MEDIUM};"
+            f"  border: 1px solid {t.BORDER_DEFAULT};"
+            f"  border-radius: {t.RADIUS_SM}px;"
+            f"  font-size: {t.FONT_SIZE_SMALL}px;"
+            f"}}"
+            f"QTreeWidget::item:hover {{"
+            f"  background-color: {t.SURFACE_3};"
+            f"}}"
+            f"QTreeWidget::item:selected {{"
+            f"  background-color: {t.ACCENT};"
+            f"  color: {t.SURFACE_0};"
+            f"}}"
+            f"QHeaderView::section {{"
+            f"  background-color: {t.SURFACE_3};"
+            f"  color: {t.TEXT_LOW};"
+            f"  border: none;"
+            f"  border-bottom: 2px solid {t.ACCENT};"
+            f"  padding: 4px 6px;"
+            f"  font-weight: {t.FONT_WEIGHT_EXTRABOLD};"
+            f"  font-size: {t.FONT_SIZE_SMALL}px;"
+            f"}}"
+            f"QTreeWidget::branch:has-children:!has-siblings:closed,"
+            f"QTreeWidget::branch:closed:has-children:has-siblings {{"
+            f"  border-image: none;"
+            f"}}"
+        )
 
     @classmethod
     def grid_percent_font_label(cls) -> str:
