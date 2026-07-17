@@ -28,6 +28,7 @@ from core.manager.SignalManager import SignalManager
 from core.model.Tool import Tool
 from core.enum.ResizeMode import ResizeMode
 from resources.widgets.app_bar import AppBar
+from utils.ProjectUtil import ProjectUtil
 from core.config.MenuManager import MenuManager
 from core.config.WorkspaceManager import WorkspaceManager
 from core.dialogs.AboutDialog import AboutDialog
@@ -277,6 +278,9 @@ class MainWindow(QMainWindow):
         SignalManager.instance().execution_finished.connect(self._on_execution_finished)
         SignalManager.instance().execution_cancelled.connect(self._on_execution_cancelled)
 
+        # Project status na AppBar
+        SignalManager.instance().project_changed.connect(self._update_appbar_project_status)
+
     # ── Handlers ───────────────────────────────────────────────────
 
     def _emit_startup_signals(self) -> None:
@@ -316,6 +320,9 @@ class MainWindow(QMainWindow):
             logger.info("Home aberta via startup signal", code="HOME_OPENED")
         else:
             logger.warning("WorkspaceManager indisponivel ao abrir Home", code="HOME_OPEN_FAIL")
+
+        # Carrega status inicial do projeto na AppBar
+        self._update_appbar_project_status()
 
         # Depois de abrir Home, agenda o monitor deferred (ResourceGovernor + psutil)
         # para rodar APÓS a UI estar totalmente responsiva
@@ -439,6 +446,34 @@ class MainWindow(QMainWindow):
         """Cancelamento: esconde HUD e reseta progresso."""
         self._hud.hide_loader()
         self._on_progress_reset()
+
+    # ── Project status na AppBar ───────────────────────────────────
+
+    def _update_appbar_project_status(self) -> None:
+        """
+        Lê current_project das preferências do sistema e atualiza a AppBar.
+        Se não houver projeto ativo, exibe [Não salvo].
+        """
+        try:
+            from utils.Preferences import Preferences
+            from core.enum.ToolKey import ToolKey
+            sys_prefs = Preferences.load_tool_prefs(ToolKey.SYSTEM)
+            current_project = sys_prefs.get("current_project", None)
+            if current_project and Path(current_project).is_file():
+                project_data = ProjectUtil.load_project(current_project)
+                if project_data:
+                    name = project_data.get("project_name", "")
+                    path = project_data.get("file_path", current_project)
+                    self.appbar.set_project_status(name, path)
+                else:
+                    self.appbar.set_project_status(
+                        Path(current_project).stem,
+                        current_project,
+                    )
+            else:
+                self.appbar.clear_project_status()
+        except Exception:
+            self.appbar.clear_project_status()
 
     def _toggle_maximize_restore(self) -> None:
         if self.isMaximized():

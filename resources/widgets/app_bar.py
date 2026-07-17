@@ -58,6 +58,12 @@ class AppBar(QWidget):
         self.lbl_window_title.setObjectName("window_title")
         layout.addWidget(self.lbl_window_title)
 
+        # --- Project status ---
+        self.lbl_project_status = QLabel("")
+        self.lbl_project_status.setObjectName("project_status")
+        self.lbl_project_status.setStyleSheet("color: #78716C; font-size: 11px; padding: 0 4px;")
+        layout.addWidget(self.lbl_project_status)
+
         # --- Toolbar area ---
         self.toolbar_container = QWidget()
         self.toolbar_container.setObjectName("appbar_toolbar")
@@ -105,6 +111,24 @@ class AppBar(QWidget):
 
     def set_title(self, title: str) -> None:
         self.lbl_window_title.setText(title)
+
+    # ── Project status ──────────────────────────────────────────────
+
+    def set_project_status(self, project_name: str, project_path: str) -> None:
+        """
+        Define o texto do status do projeto na AppBar.
+        Formato:  - [project_name] - [path]
+        """
+        from pathlib import Path
+        path_obj = Path(project_path)
+        display_path = str(path_obj.parent.resolve()) if not path_obj.suffix else str(path_obj.resolve())
+        self.lbl_project_status.setText(f"  -  [{project_name}] - {display_path}")
+        self.lbl_project_status.setToolTip(project_path)
+
+    def clear_project_status(self) -> None:
+        """Limpa o status do projeto (exibe [Não salvo])."""
+        self.lbl_project_status.setText("  -  [Não salvo]")
+        self.lbl_project_status.setToolTip("")
 
     def _on_max_restore(self):
         self._maximized = not self._maximized
