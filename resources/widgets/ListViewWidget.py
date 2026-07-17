@@ -47,6 +47,8 @@ class ListViewWidget(QWidget):
         parent=None,
     ):
         super().__init__(parent)
+        self.setObjectName("list_view_widget")
+        self.setStyleSheet("QWidget#list_view_widget { background: transparent; }")
         self._scroll = scroll
         self._scroll_area: Optional[QScrollArea] = None
 
@@ -61,8 +63,11 @@ class ListViewWidget(QWidget):
                 Qt.ScrollBarPolicy.ScrollBarAsNeeded
             )
             self._scroll_area.setFrameShape(QScrollArea.Shape.NoFrame)
+            self._scroll_area.setStyleSheet("QScrollArea { background: transparent; }")
 
             self._content = QWidget()
+            self._content.setStyleSheet("background: transparent;")
+            self._content.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
             self.content_layout = QVBoxLayout(self._content)
             self.content_layout.setSpacing(spacing)
             self.content_layout.setContentsMargins(*margins)

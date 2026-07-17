@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 [1.2.0][2026.07.16][09:31] - Performance: startup 3x mais rapido + otimizacoes de I/O e CPU
   - MenuManager._setup_system_monitor(): ResourceGovernor/SystemMonitorService movido para QTimer.singleShot (deferred)
     (antes bloqueava 3s no startup, agora nao bloqueia)
@@ -11,6 +12,23 @@
   - main_controller.py (PipelineWorker): import do TensorFlow movido para dentro de run() (lazy load real)
   - MenuManager.build(): adicionado logs [TIMING] para cada etapa do bootstrap
   - MenuManager._setup_system_monitor(): view criada imediatamente; ResourceGovernor/psutil adiado
+=======
+[1.1.5][2026.07.16][21:12] - Estilização FootballMatchWidget com tokens do tema + hover
+  - FootballMatchWidget: QSS agora usa tokens do tema (SURFACE_3, BORDER_DEFAULT, ACCENT, TEXT_LOW, etc.)
+  - FootballMatchWidget: adicionado border-radius via BORDER_RADIUS_CARD do tema
+  - FootballMatchWidget: adicionado hover com enterEvent/leaveEvent (borda accent + fundo SURFACE_4)
+  - FootballMatchWidget: _load_logo_placeholder usa tokens do tema em vez de cores fixas
+  - GridCardView: adicionado border-radius via BORDER_RADIUS_CARD + hover com borda accent
+[1.1.4][2026.07.16][20:34] - Clima na Home + GridCardView genérico
+  - Criado resources/widgets/GridCardView.py: widget genérico de grid de cards configurável por dict
+  - Criado core/model/WeatherModel.py: dataclass WeatherData com from_api_response()
+  - Criado core/papeline/task/WeatherFetchTask.py: fetch WeatherStack com cache diário
+  - Criado core/papeline/step/WeatherFetchStep.py: step orquestrador da pipeline
+  - Modificado plugins/home/HomePlugin.py: adicionada pipeline de clima com GridCardView
+  - Adicionado WEATHER_API_KEY em core/config/ApiKeys.py
+  - Adicionado WEATHER_FETCH em core/enum/ToolKey.py
+  - Adicionado GridCardView ao catálogo de SKILL_WIDGETS.md
+>>>>>>> 7461ad11848f082177eb948a708dd0acc0525aeb
 [1.1.3][2026.07.15][23:05] - Toast via MessageBox.show_toast + AppStyles.toast_style com gradiente do tema
   - utils.MessageBox: adicionado show_toast(text, is_error) — ponto de entrada único para ToastNotification
   - AppStyles: adicionado toast_style(is_error) com gradiente ACCENT ou COLOR_DANGER do tema
