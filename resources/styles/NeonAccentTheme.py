@@ -212,7 +212,9 @@ class NeonAccentTheme(BaseTheme):
     ICON_MD = 20
     ICON_LG = 24
     ICON_XL = 32
-    TOOLBAR_ICON_SIZE = 20
+    TOOLBAR_ICON_SIZE = 34
+    TOOLBAR_BTN_SIZE = 40
+    TOOLBAR_BTN_HOVER_GROW = 4
 
     # ═══════════════════════════════════════════════════════════
     # ANIMATION
