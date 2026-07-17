@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (
 
 from core.model.FootballModel import Fixture
 from resources.styles.AppStyles import AppStyles
+from resources.styles.BaseStyle import BaseStyle
 from utils.FormatUtils import FormatUtils
 
 
@@ -61,6 +62,16 @@ class FootballMatchWidget(QFrame):
             f"  border: 1px solid {current_theme.BORDER_DEFAULT};"
             f"  border-radius: {radius}px;"
             f"}}"
+        )
+
+        # ── Sombra igual ao GridCardView ──────────────────────────
+        BaseStyle.apply_drop_shadow(
+            self,
+            blur=current_theme.SHADOW_BLUR_MD,
+            offset_x=0,
+            offset_y=current_theme.SHADOW_OFFSET_Y_MD,
+            color_rgb=current_theme.SHADOW_COLOR_RGB,
+            alpha=current_theme.SHADOW_COLOR_ALPHA,
         )
 
         self._main_layout = QVBoxLayout(self)
@@ -199,7 +210,7 @@ class FootballMatchWidget(QFrame):
         radius = current_theme.BORDER_RADIUS_CARD
         self.setStyleSheet(
             f"QFrame#football_match_card {{"
-            f"  background-color: {current_theme.SURFACE_4};"
+            f"  background-color: {current_theme.SURFACE_3};"
             f"  border: 1px solid {current_theme.BORDER_ACCENT};"
             f"  border-radius: {radius}px;"
             f"}}"

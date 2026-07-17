@@ -1,3 +1,9 @@
+[1.1.5][2026.07.16][21:12] - Estilização FootballMatchWidget com tokens do tema + hover
+  - FootballMatchWidget: QSS agora usa tokens do tema (SURFACE_3, BORDER_DEFAULT, ACCENT, TEXT_LOW, etc.)
+  - FootballMatchWidget: adicionado border-radius via BORDER_RADIUS_CARD do tema
+  - FootballMatchWidget: adicionado hover com enterEvent/leaveEvent (borda accent + fundo SURFACE_4)
+  - FootballMatchWidget: _load_logo_placeholder usa tokens do tema em vez de cores fixas
+  - GridCardView: adicionado border-radius via BORDER_RADIUS_CARD + hover com borda accent
 [1.1.4][2026.07.16][20:34] - Clima na Home + GridCardView genérico
   - Criado resources/widgets/GridCardView.py: widget genérico de grid de cards configurável por dict
   - Criado core/model/WeatherModel.py: dataclass WeatherData com from_api_response()

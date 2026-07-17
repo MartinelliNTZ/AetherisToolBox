@@ -121,22 +121,22 @@ class _CardWidget(QFrame):
                 if label_type == "great_accent":
                     label.setStyleSheet(
                         f"color: {current_theme.ACCENT}; "
-                        f"font-size: 22px; font-weight: bold;"
+                        f"font-size: 12px; font-weight: bold;"
                     )
                 elif label_type == "great":
                     label.setStyleSheet(
                         f"color: {current_theme.TEXT_LOW}; "
-                        f"font-size: 22px; font-weight: bold;"
+                        f"font-size: 12px; font-weight: bold;"
                     )
                 elif label_type == "simple_accent":
                     label.setStyleSheet(
                         f"color: {current_theme.ACCENT}; "
-                        f"font-size: 12px;"
+                        f"font-size: 9px;"
                     )
                 else:  # simple
                     label.setStyleSheet(
                         f"color: {current_theme.TEXT_LOW}; "
-                        f"font-size: 12px;"
+                        f"font-size: 9px;"
                     )
 
                 tooltip = item.get("tooltip")
@@ -262,7 +262,7 @@ class GridCardView(QWidget):
             self._title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             self._title_label.setStyleSheet(
                 f"color: {current_theme.ACCENT}; "
-                f"font-size: 16px; font-weight: bold;"
+                f"font-size: 12px; font-weight: bold;"
             )
             self._main_layout.addWidget(self._title_label)
 

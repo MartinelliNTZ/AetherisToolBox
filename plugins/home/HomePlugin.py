@@ -5,12 +5,14 @@ HomeTool — Página inicial do Aetheris ToolBox
 Widget exibido por padrão ao abrir o software.
 Apresenta um resumo visual das ferramentas disponíveis
 e boas-vindas ao usuário. Exibe partidas de futebol do dia
-após a pipeline de fetch ser concluída.
+e dados climáticos lado a lado em painéis, após a conclusão
+das pipelines de fetch.
 """
 
 from __future__ import annotations
 
 from PySide6.QtCore import Qt, QTimer
+from PySide6.QtWidgets import QHBoxLayout, QSizePolicy
 
 from core.enum.ToolKey import ToolKey
 from core.model.FootballModel import Fixture
@@ -32,11 +34,11 @@ class HomePlugin(BasePlugin):
     """
     Página inicial do Aetheris ToolBox.
     Aberta por padrão ao iniciar o software.
-    Ao iniciar, executa a pipeline de fetching de futebol
-    via PipelineRunner + FootballFetchStep em background.
+    Executa pipelines de fetching de futebol e clima em background.
 
-    Quando a pipeline termina, carrega os dados filtrados
-    e exibe as partidas em um GroupPainel com scroll.
+    Quando as pipelines terminam, exibe os dados lado a lado:
+        - Esquerda: partidas de futebol do dia em GroupPainel com scroll
+        - Direita:  dados climáticos em GroupPainel com GridCardView
     """
 
     def __init__(self, parent=None):
@@ -70,12 +72,28 @@ class HomePlugin(BasePlugin):
         # === SEPARATOR ===
         self.main_layout.addWidget(SeparatorWidget(orientation="horizontal"))
 
-        # === FOOTBALL MATCHES ===
+        # === SIDE BY SIDE: FOOTBALL | WEATHER ===
+        self._side_layout = QHBoxLayout()
+        self._side_layout.setSpacing(16)
+
+        # --- Football panel (left) ---
         self._matches_container = GroupPainel("Partidas de Futebol — Hoje")
         self._scroll_list = ListViewWidget(spacing=6, scroll=True)
         self._matches_container.group_layout.addWidget(self._scroll_list)
         self._matches_container.setVisible(False)
-        self.main_layout.addWidget(self._matches_container)
+        self._side_layout.addWidget(self._matches_container, stretch=2)
+
+        # --- Weather panel (right) ---
+        self._weather_panel = GroupPainel("Clima")
+        self._weather_panel.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
+        )
+        # GridCardView será inserido dentro do group_layout do weather_panel
+        self._weather_view = None
+        self._weather_panel.setVisible(False)
+        self._side_layout.addWidget(self._weather_panel, stretch=1)
+
+        self.main_layout.addLayout(self._side_layout)
 
         # ── Placeholder ────────────────────────────────────────────
         self._placeholder = SimpleLabel(
@@ -204,7 +222,7 @@ class HomePlugin(BasePlugin):
             code="HOME_WEATHER_ERR",
             error=error_msg,
         )
-        # Exibe card de erro (GridCardView com title próprio)
+        # Exibe card de erro (GridCardView com title próprio) dentro do painel
         error_config = {
             "title": "⚠️ Clima indisponível",
             "items_per_row": 1,
@@ -215,19 +233,15 @@ class HomePlugin(BasePlugin):
             ],
         }
         self._weather_view = GridCardView(error_config)
-        self.main_layout.insertWidget(
-            self.main_layout.indexOf(self._placeholder),
-            self._weather_view,
-        )
+        self._weather_panel.group_layout.addWidget(self._weather_view)
+        self._weather_panel.setVisible(True)
 
     def _display_weather(self, data: WeatherData) -> None:
-        """Exibe dados climáticos usando GridCardView genérico."""
+        """Exibe dados climáticos usando GridCardView genérico dentro do weather panel."""
         config = self._build_weather_card_config(data)
         self._weather_view = GridCardView(config)
-        self.main_layout.insertWidget(
-            self.main_layout.indexOf(self._placeholder),
-            self._weather_view,
-        )
+        self._weather_panel.group_layout.addWidget(self._weather_view)
+        self._weather_panel.setVisible(True)
 
     @staticmethod
     def _build_weather_card_config(data: WeatherData) -> dict:
