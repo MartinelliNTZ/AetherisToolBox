@@ -25,16 +25,8 @@ from PySide6.QtWidgets import (
 class GroupPainel(QWidget):
     """
     Container com título dourado estilo QGroupBox.
-    Fornece um layout interno (group_layout) para adicionar widgets filhos.
 
-    Uso:
-        grp = GroupPainel("Título do Grupo")
-        grp.group_layout.addWidget(QLabel("Conteúdo"))
-        parent_layout.addWidget(grp)
-
-    Para layout em grade:
-        grp = GroupPainel("Título", layout_type=QGridLayout)
-        grp.group_layout.addWidget(QLabel("Item"), 0, 0)
+    ⚠️ NÃO instanciar diretamente. Sempre usar via GridGroupPainel.
     """
 
     def __init__(

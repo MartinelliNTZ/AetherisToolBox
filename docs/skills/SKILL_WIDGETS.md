@@ -25,15 +25,22 @@ appbar.close_clicked.connect(self.close)
 ---
 
 ### `GroupPainel` — `GroupPainel.py`
-Container com fundo escuro e título dourado (estilo QGroupBox). Ideal para agrupar widgets relacionados.
+⚠️ **NÃO INSTANCIÁVEL DIRETAMENTE** — Use `GridGroupPainel` de `resources/widgets/grid/GridGroupPainel.py` **mesmo para 1 único painel**.
 
 ```python
+# ❌ NÃO USE — NÃO INSTANCIÁVEL
 from resources.widgets.GroupPainel import GroupPainel
 grupo = GroupPainel("Configurações")
-grupo.group_layout.addWidget(QLabel("Opções:"))  # QVBoxLayout interno
+
+# ✅ USE ISTO EM VEZ (sempre via GridGroupPainel)
+from resources.widgets.grid.GridGroupPainel import GridGroupPainel
+from resources.widgets.GroupPainel import GroupPainel
+
+grid = GridGroupPainel(GroupPainel("Configurações"))
+main_layout.addWidget(grid)
 ```
 
-Suporta `layout_type=QGridLayout` para layout em grade.
+> `GroupPainel` só deve ser instanciado **dentro de `GridGroupPainel`**. Para exibir labels, use `GridLabel` de `resources/widgets/grid/GridLabel.py`.
 
 ---
 
@@ -109,13 +116,20 @@ btn = SimpleSecondaryButton("Salvar Config")
 ---
 
 ### `SimpleLabel` — `SimpleLabel.py`
-Label padrão com fonte monospace e cor clara (#A1A1AA). Ideal para mensagens auxiliares, dicas e hints na interface.
+⚠️ **NÃO INSTANCIÁVEL DIRETAMENTE** — Use `GridLabel` de `resources/widgets/grid/GridLabel.py` para exibir qualquer label.
 
 ```python
+# ❌ NÃO USE — NÃO INSTANCIÁVEL
 from resources.widgets.SimpleLabel import SimpleLabel
-
 label = SimpleLabel("Pressione ESC para cancelar")
+
+# ✅ USE ISTO EM VEZ (sempre via GridLabel)
+from resources.widgets.grid.GridLabel import GridLabel
+
+grid = GridLabel({"hint": {"label": "Dica", "value": "Pressione ESC para cancelar"}})
 ```
+
+> `SimpleLabel` só deve ser usado **internamente** por outros widgets.
 
 ---
 
@@ -395,8 +409,10 @@ grid.changed.connect(self._on_value_changed)
 ### `GridLabel` — `GridLabel.py`
 Grade de labels informativos exibindo pares "label: valor" com estilo monospace. Suporta múltiplas colunas e valores clicáveis (links). Ideal para exibir metadados e propriedades.
 
+⚠️ **Este é o widget PADRÃO para exibir qualquer label no sistema.** Use sempre este widget em vez de `SimpleLabel`.
+
 ```python
-from resources.widgets.GridLabel import GridLabel
+from resources.widgets.grid.GridLabel import GridLabel
 
 config = {
     "name": {
@@ -778,14 +794,22 @@ class MeuPlugin(BasePlugin):
 ### `GridGroupPainel` — `GridGroupPainel.py`
 Container que distribui N instâncias de `GroupPainel` em colunas com stretch=1 igual para todas. Ideal para organizar painéis lado a lado.
 
+⚠️ **Use sempre `GridGroupPainel` — mesmo para 1 único painel.** `GroupPainel` não pode ser instanciado diretamente.
+
 ```python
-from resources.widgets.GridGroupPainel import GridGroupPainel
+from resources.widgets.grid.GridGroupPainel import GridGroupPainel
+from resources.widgets.GroupPainel import GroupPainel
 
+# Para 1 painel
+painel = GroupPainel("Configurações")
+painel.group_layout.addWidget(...)
+
+grid = GridGroupPainel(painel)
+main_layout.addWidget(grid)
+
+# Para múltiplos painéis lado a lado
 painel_a = GroupPainel("Painel A")
-painel_a.group_layout.addWidget(...)
-
 painel_b = GroupPainel("Painel B")
-painel_b.group_layout.addWidget(...)
 
 grid = GridGroupPainel(painel_a, painel_b)
 main_layout.addWidget(grid)
@@ -793,7 +817,6 @@ main_layout.addWidget(grid)
 
 **Propriedades:**
 - `painels` → lista de GroupPainel
-- `painel(index)` → retorna o GroupPainel do índice
 
 ---
 

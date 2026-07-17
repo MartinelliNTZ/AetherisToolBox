@@ -22,7 +22,7 @@ from core.papeline.step import FootballFetchStep
 from core.papeline.step.WeatherFetchStep import WeatherFetchStep
 from plugins.BasePlugin import BasePlugin
 from resources.widgets.FootballMatchWidget import FootballMatchWidget
-from resources.widgets.GridCardView import GridCardView
+from resources.widgets.grid.GridCardView import GridCardView
 from resources.widgets.GroupPainel import GroupPainel
 from resources.widgets.ListViewWidget import ListViewWidget
 from resources.widgets.SeparatorWidget import SeparatorWidget
