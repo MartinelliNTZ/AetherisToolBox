@@ -32,7 +32,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QRect, QPropertyAnimation, QEasingCurve
 from PySide6.QtGui import QPixmap, QEnterEvent
 from PySide6.QtWidgets import (
     QFrame, QGridLayout, QLabel, QSizePolicy, QVBoxLayout, QWidget,
@@ -81,6 +81,10 @@ class _CardWidget(QFrame):
 
         # ── Estado de hover ────────────────────────────────────────
         self._hovered = False
+
+        # ── Geometria base para animação ───────────────────────────
+        self._base_geometry: QRect | None = None
+        self._grow_px = 4
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(12, 10, 12, 10)
@@ -148,12 +152,51 @@ class _CardWidget(QFrame):
 
         layout.addStretch(1)
 
-    # ── Hover: anima glow e borda ─────────────────────────────────
+    # ── showEvent: captura a geometria real após o layout ─────────
+
+    def showEvent(self, event) -> None:
+        """Captura a geometria base após o widget ser exibido."""
+        super().showEvent(event)
+        if self._base_geometry is None:
+            geo = self.geometry()
+            if geo.isValid() and not geo.isEmpty():
+                self._base_geometry = geo
+
+    # ── Hover: anima geometria, glow e borda ──────────────────────
+
+    def _animate_geometry(
+        self, target_rect: QRect, duration: int
+    ) -> None:
+        """Anima a geometria (pos + size) do card."""
+        anim = QPropertyAnimation(self, b"geometry")
+        anim.setDuration(duration)
+        anim.setStartValue(self.geometry())
+        anim.setEndValue(target_rect)
+        anim.setEasingCurve(QEasingCurve.Type.OutCubic)
+        anim.start()
 
     def enterEvent(self, event: QEnterEvent) -> None:
-        """Ao entrar, ativa o glow e muda a borda para accent."""
+        """Ao entrar: sobe no Y, cresce, glow e borda accent."""
         current_theme = AppStyles.current_theme
         self._hovered = True
+
+        duration = current_theme.ANIMATION_FAST
+        gp = self._grow_px
+
+        # Se não temos geometria base ainda, captura agora
+        if self._base_geometry is None:
+            self._base_geometry = self.geometry()
+
+        base = self._base_geometry
+        if base and base.isValid():
+            # Sobe 4px no Y e cresce 4px em cada dimensão
+            target = QRect(
+                base.x(),
+                base.y() - gp,
+                base.width() + gp,
+                base.height() + gp,
+            )
+            self._animate_geometry(target, duration)
 
         # Troca a borda para accent
         radius = current_theme.BORDER_RADIUS_CARD
@@ -165,23 +208,31 @@ class _CardWidget(QFrame):
             f"}}"
         )
 
-        # Aplica glow no hover via BaseStyle
+        # Aplica glow com fallback para temas que tem GLOW_BLUR/ALPHA = 0
+        glow_blur = current_theme.GLOW_BLUR if current_theme.GLOW_BLUR > 0 else 12
+        glow_alpha = current_theme.GLOW_ALPHA if current_theme.GLOW_ALPHA > 0 else 60
         glow_color_rgb = current_theme.GLOW_COLOR_RGB or current_theme.ACCENT
         BaseStyle.apply_drop_shadow(
             self,
-            blur=current_theme.GLOW_BLUR,
+            blur=glow_blur,
             offset_x=current_theme.GLOW_OFFSET_X,
-            offset_y=current_theme.GLOW_OFFSET_Y,
+            offset_y=current_theme.GLOW_OFFSET_Y + 4,
             color_rgb=glow_color_rgb,
-            alpha=current_theme.GLOW_ALPHA,
+            alpha=glow_alpha,
         )
 
         super().enterEvent(event)
 
     def leaveEvent(self, event) -> None:
-        """Ao sair, desativa o glow e restaura a borda padrão."""
+        """Ao sair: restaura geometria, sombra e borda padrão."""
         current_theme = AppStyles.current_theme
         self._hovered = False
+
+        duration = current_theme.ANIMATION_FAST
+
+        base = self._base_geometry
+        if base and base.isValid():
+            self._animate_geometry(base, duration)
 
         # Restaura a borda padrão
         radius = current_theme.BORDER_RADIUS_CARD
@@ -193,7 +244,8 @@ class _CardWidget(QFrame):
             f"}}"
         )
 
-        # Restaura a sombra padrão
+        # Remove o glow e restaura a sombra padrão
+        self.setGraphicsEffect(None)
         BaseStyle.apply_drop_shadow(
             self,
             blur=current_theme.SHADOW_BLUR_MD,
