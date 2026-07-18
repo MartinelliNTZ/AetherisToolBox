@@ -14,7 +14,8 @@ Uso:
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt, Signal, QSize
+from PySide6.QtCore import Qt, Signal, QSize, QRectF, QRect, QPoint
+from PySide6.QtGui import QPainterPath, QPainter, QColor, QPixmap
 from PySide6.QtWidgets import QToolButton
 
 from core.model.Tool import Tool
@@ -44,6 +45,7 @@ class ToolbarButton(QToolButton):
         self.setObjectName("toolgroup_btn")
         self.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setAttribute(Qt.WA_StyledBackground, True)
 
         # Usa min/max em vez de setFixedSize para animacao funcionar
         size = self._base_btn_size
@@ -60,6 +62,40 @@ class ToolbarButton(QToolButton):
             grow_px=AppStyles.toolbar_btn_hover_grow(),
             grow_icon_px=self._base_icon_size + AppStyles.toolbar_btn_hover_grow(),
         )
+
+    def paintEvent(self, event):
+        """Pintura completa com clip arredondado no fundo e no ícone.
+        
+        O QToolButton padrão desenha o ícone quadrado ignorando
+        border-radius. Aqui pintamos tudo manualmente com QPainter
+        usando um clip path arredondado, garantindo que tanto o
+        fundo (hover/pressed) quanto o ícone fiquem arredondados.
+        """
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+
+        radius = AppStyles.toolbar_btn_border_radius()
+        path = QPainterPath()
+        path.addRoundedRect(QRectF(self.rect()), radius, radius)
+        painter.setClipPath(path)
+
+        # ── Background: hover/pressed ──
+        t = AppStyles.current_theme
+        if self.isDown():
+            painter.fillRect(self.rect(), QColor(t.SURFACE_2))
+        elif self.underMouse():
+            painter.fillRect(self.rect(), QColor(t.SURFACE_4))
+
+        # ── Ícone ──
+        icon = self.icon()
+        if not icon.isNull():
+            icon_sz = self.iconSize()
+            x = (self.width() - icon_sz.width()) // 2
+            y = (self.height() - icon_sz.height()) // 2
+            icon.paint(painter, QRect(x, y, icon_sz.width(), icon_sz.height()))
+
+        painter.end()
 
     @property
     def tool(self) -> Tool:

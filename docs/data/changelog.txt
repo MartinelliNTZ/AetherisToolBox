@@ -1,3 +1,7 @@
+[1.2.5][2026.07.17][21:22] - ToolbarButton: correção border-radius (WA_StyledBackground)
+  - Adicionado setAttribute(Qt.WA_StyledBackground, True) no ToolbarButton para forçar QToolButton a respeitar border-radius no Windows
+  - PearlWhiteTheme: BORDER_RADIUS_TOOLBAR_BTN alterado de 4 para 999 (pill total / totalmente arredondado)
+
 [1.2.4][2026.07.17][21:12] - PearlWhiteTheme: tema claro branco + dourado (oposto do DarkCharcoal)
   - Criado resources/styles/PearlWhiteTheme.py: subclasse de BaseTheme com paleta exclusivamente branco + dourado
   - Registrado em ThemeManager.THEMES como "pearl_white" com label "Pearl White"

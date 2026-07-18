@@ -519,6 +519,115 @@ Para testes completos, execute o aplicativo real (`main.py`).
 | **Lazy loading** | Temas são carregados sob demanda — só o módulo do tema ativo é importado. |
 | **Compatibilidade** | Ao modificar `BaseTheme`, atualize todos os temas concretos para sobrescrever os novos tokens. |
 
+## 🧪 Lições Aprendidas (Problemas e Soluções)
+
+### ❌ O que NÃO funciona
+
+1. **Importar `ThemeManager` ou `theme_manager` diretamente em widgets**
+   ```python
+   # ERRADO — viola Contrato 19
+   from resources.styles.ThemeManager import theme_manager
+   t = theme_manager.theme
+   ```
+   **Problema:** Cria acoplamento direto com o ThemeManager. Se o sistema de temas mudar, todo widget que fez isso quebra.
+
+2. **`paintEvent` com QPainter que termina antes do `super().paintEvent()`**
+   ```python
+   # ERRADO — não funciona
+   def paintEvent(self, event):
+       painter = QPainter(self)
+       painter.setClipPath(path)
+       painter.end()  # ← QPainter morre aqui
+       super().paintEvent(event)  # ← super() cria OUTRO QPainter, ignorando o clip
+   ```
+   **Problema:** O `super().paintEvent()` abre seu próprio `QPainter` que ignora qualquer clip configurado anteriormente. O clip só vale dentro do mesmo `QPainter`.
+
+3. **Apenas `setAttribute(Qt.WA_StyledBackground)` sem `paintEvent` custom**
+   ```python
+   # ERRADO — não arredonda o ícone
+   self.setAttribute(Qt.WA_StyledBackground, True)
+   ```
+   **Problema:** O `QToolButton` no Windows respeita o `border-radius` do QSS no fundo, mas o **ícone** continua sendo desenhado quadrado pelo `QToolButton.paintEvent()` padrão.
+
+4. **`QToolButton` com `border-radius` no QSS sem `WA_StyledBackground`**
+   ```python
+   # ERRADO — QToolButton no Windows ignora border-radius
+   self.setStyleSheet("border-radius: 999px;")
+   ```
+   **Problema:** No Windows, `QToolButton` não respeita `border-radius` vindo de QSS a menos que `WA_StyledBackground` esteja ativo.
+
+### ✅ O que funciona de verdade
+
+1. **Acessar tema via `AppStyles.current_theme`**
+   ```python
+   from resources.styles.AppStyles import AppStyles
+   
+   # ÚNICA forma correta de acessar o tema em widgets
+   t = AppStyles.current_theme
+   cor_fundo = t.SURFACE_1
+   cor_texto = t.TEXT_MEDIUM
+   ```
+   **Por que funciona:** `AppStyles` já tem `current_theme` como atributo de classe, atualizado automaticamente quando o tema muda. Nenhum import direto do `ThemeManager`.
+
+2. **Arredondar QToolButton com ícone (paintEvent completo manual)**
+   ```python
+   def paintEvent(self, event):
+       """Pintura completa com clip arredondado no fundo e no ícone."""
+       painter = QPainter(self)
+       painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+       painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+       
+       # Clip arredondado
+       radius = AppStyles.toolbar_btn_border_radius()
+       path = QPainterPath()
+       path.addRoundedRect(QRectF(self.rect()), radius, radius)
+       painter.setClipPath(path)
+       
+       # Background hover/pressed
+       t = AppStyles.current_theme
+       if self.isDown():
+           painter.fillRect(self.rect(), QColor(t.SURFACE_2))
+       elif self.underMouse():
+           painter.fillRect(self.rect(), QColor(t.SURFACE_4))
+       
+       # Ícone (também arredondado pelo clip)
+       icon = self.icon()
+       if not icon.isNull():
+           icon_sz = self.iconSize()
+           x = (self.width() - icon_sz.width()) // 2
+           y = (self.height() - icon_sz.height()) // 2
+           icon.paint(painter, QRect(x, y, icon_sz.width(), icon_sz.height()))
+       
+       painter.end()  # ← NÃO chama super().paintEvent()!
+   ```
+   **Por que funciona:** Faz a pintura COMPLETA manualmente com um único `QPainter`. O clip path arredondado afeta tanto o fundo quanto o ícone. Não chama `super().paintEvent()`.
+
+3. **`setAttribute(Qt.WA_StyledBackground, True)` + `paintEvent` custom**
+   ```python
+   # No __init__:
+   self.setAttribute(Qt.WA_StyledBackground, True)
+   self.setStyleSheet(AppStyles.toolbar_btn_style())
+   
+   # No paintEvent: pintura manual com clip (como acima)
+   ```
+   **Por que funciona:** `WA_StyledBackground` força o `QToolButton` a respeitar o QSS no Windows, e o `paintEvent` manual garante que o ícone também seja arredondado.
+
+4. **`BORDER_RADIUS_TOOLBAR_BTN = 999` para pill total**
+   ```python
+   # No tema concreto (ex: PearlWhiteTheme.py):
+   BORDER_RADIUS_TOOLBAR_BTN = 999  # pill / totalmente redondo
+   ```
+   **Por que funciona:** O valor `999` é maior que qualquer tamanho de botão, então o Qt interpreta como "totalmente arredondado" (pill shape).
+
+### 🔍 Checklist para widgets com paintEvent custom
+
+- [ ] Usei `AppStyles.current_theme` (NUNCA `theme_manager.theme` ou `ct.theme`)?
+- [ ] O `QPainter` é criado e finalizado DENTRO do `paintEvent`, sem chamar `super().paintEvent()` depois?
+- [ ] O clip path com `addRoundedRect` é aplicado ANTES de pintar qualquer coisa?
+- [ ] Usei `setAttribute(Qt.WA_StyledBackground, True)` no `__init__` se for `QToolButton`?
+- [ ] O `border-radius` vem de um token do tema (ex: `BORDER_RADIUS_TOOLBAR_BTN`), nunca hardcoded?
+- [ ] Importei apenas `AppStyles` (nunca `ThemeManager`, `BaseTheme` ou `ct`)?
+
 ---
 
 ## 🆕 Sistema de Tipos de Gradiente (GradientType)
