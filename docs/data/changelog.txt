@@ -1,10 +1,11 @@
-[1.2.4][2026.07.17][21:04] - PearlWhiteTheme: tema claro pérola + dourado (oposto do DarkCharcoal)
-  - Criado resources/styles/PearlWhiteTheme.py: subclasse de BaseTheme com fundos branco/pérola e texto escuro
+[1.2.4][2026.07.17][21:12] - PearlWhiteTheme: tema claro branco + dourado (oposto do DarkCharcoal)
+  - Criado resources/styles/PearlWhiteTheme.py: subclasse de BaseTheme com paleta exclusivamente branco + dourado
   - Registrado em ThemeManager.THEMES como "pearl_white" com label "Pearl White"
-  - SURFACE invertida: SURFACE_0=#F5F0EB (mais escura), SURFACE_1=#FAF6F0 (branco quente), SURFACE_5=#D5CCC0
-  - TEXT invertido: TEXT_HIGH=#1A1A1A, TEXT_MEDIUM=#2E2E2E, TEXT_LOW=#6B6B6B
-  - BORDER invertidas: tons bege/marrom claro sobre fundo claro
-  - SHADOW invertidas: tons marrons em vez de pretos para sombra em fundo claro
+  - SURFACE: apenas variações sutis de branco (#FFFFFF, #FCFCFC, #FAFAFA, #F5F5F5, #F0F0F0)
+  - TEXT: preto puro #000000 + rgba(0,0,0,opacity) — sem cinza
+  - BORDER: dourado translúcido rgba(201,168,76,opacity) — sem cinza
+  - SHADOW: dourado translúcido rgba(201,168,76,opacity) — sem cinza/preto
+  - ACCENT: dourado #C9A84C — única cor cromática do tema
 
 [1.2.3][2026.07.17][20:48] - GroupPainel e SimpleLabel marcados como não instanciáveis
   - GroupPainel: docstring marca como NÃO instanciável diretamente, usar sempre via GridGroupPainel

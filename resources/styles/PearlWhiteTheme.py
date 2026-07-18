@@ -1,15 +1,16 @@
 # -*- coding: utf-8 -*-
 """
-PearlWhiteTheme — Tema claro Pérola + Dourado
+PearlWhiteTheme — Tema claro Branco + Dourado
 ==============================================
 Subclasse de BaseTheme com valores para o tema claro, oposto ao
-DarkCharcoalTheme. Usa fundos branco/pérola com acentos dourados.
+DarkCharcoalTheme. Usa apenas branco e dourado — sem cinza.
 
-Todas as superfícies são invertidas em relação ao tema escuro:
-- SURFACE_0 (fundo absoluto) = pérola mais escura
-- SURFACE_1 (fundo janela)   = branco quente
-- SURFACE_5 (hover)          = tom mais escuro (inverso do escuro)
-- TEXT_HIGH                  = preto suave (inverso do branco)
+Paleta minimalista:
+- SURFACE: variações sutis de branco (quase imperceptíveis)
+- TEXT: preto puro (#000000) e variações muito próximas
+- ACCENT: dourado (#C9A84C) — único destaque cromático
+- BORDER: dourado translúcido ou branco sutil
+- SHADOW: dourado translúcido em vez de cinza/preto
 """
 
 from __future__ import annotations
@@ -19,76 +20,74 @@ from resources.styles.BaseTheme import BaseTheme
 
 class PearlWhiteTheme(BaseTheme):
     """
-    Tema Pearl White + Gold — design claro e elegante com fundos
-    em tons de pérola e detalhes em dourado.
+    Tema Pearl White + Gold — design claro minimalista.
+    Apenas branco, preto e dourado — sem cinza.
     """
 
     # ═══════════════════════════════════════════════════════════════════
-    # 1. ACCENT — Dourado (mesmo do DarkCharcoal para consistência)
+    # 1. ACCENT — Dourado (única cor de destaque)
     # ═══════════════════════════════════════════════════════════════════
 
     ACCENT = "#C9A84C"
     ACCENT_HOVER = "#D4B85A"
     ACCENT_ACTIVE = "#B8983E"
-    ACCENT_DIM = "#8A7A3A"
+    ACCENT_DIM = "#A08830"
     ACCENT_LIGHT = "#E8D08A"
-    ACCENT_SOFT = "rgba(201,168,76,0.12)"
+    ACCENT_SOFT = "rgba(201,168,76,0.08)"
     ACCENT_TEXT = "#C9A84C"
     ACCENT_BRIGHT = "#E0C878"
     ACCENT_GRADIENT = ("#C9A84C", "#B8963A")
 
     # ═══════════════════════════════════════════════════════════════════
-    # 2. SURFACE — Profundidade (0 = fundo, 5 = topo)
-    #    Invertido: claro → escuro conforme sobe
+    # 2. SURFACE — Apenas branco (variações mínimas)
     # ═══════════════════════════════════════════════════════════════════
 
-    SURFACE_0 = "#F5F0EB"       # pérola base (fundo absoluto)
-    SURFACE_1 = "#FAF6F0"       # branco quente (fundo janela)
-    SURFACE_2 = "#F0EBE3"       # pérola suave (painéis)
-    SURFACE_3 = "#E8E0D6"       # bege claro (cards)
-    SURFACE_4 = "#DDD5CA"       # bege médio (inputs)
-    SURFACE_5 = "#D5CCC0"       # bege escuro (hover)
-    TITLE_BAR = "#F0EBE3"       # mesma SURFACE_2
+    SURFACE_0 = "#F7F7F7"       # off-white quase imperceptível (fundo absoluto)
+    SURFACE_1 = "#FFFFFF"       # branco puro (fundo janela)
+    SURFACE_2 = "#FCFCFC"       # branco levemente diferente (painéis)
+    SURFACE_3 = "#FAFAFA"       # branco quase igual (cards)
+    SURFACE_4 = "#F5F5F5"       # branco com diferença mínima (inputs)
+    SURFACE_5 = "#F0F0F0"       # branco mais escuro (hover)
+    TITLE_BAR = "#FCFCFC"       # mesma SURFACE_2
 
     # ── Gradientes de superfície (top-left → bottom-right) ─────
-    # Invertidos: mais claros no topo, mais escuros na base
-    GRADIENT_BUTTON = ("#FAF6F0", "#DDD5CA")   # SURFACE_1 → SURFACE_4
-    GRADIENT_PANEL = ("#F0EBE3", "#D5CCC0")     # SURFACE_2 → SURFACE_5
-    GRADIENT_TAB = ("#E8E0D6", "#DDD5CA")       # SURFACE_3 → SURFACE_4
-    GRADIENT_INPUT = ("#FAF6F0", "#DDD5CA")     # SURFACE_1 → SURFACE_4
+    GRADIENT_BUTTON = ("#FFFFFF", "#F5F5F5")
+    GRADIENT_PANEL = ("#FCFCFC", "#F0F0F0")
+    GRADIENT_TAB = ("#FAFAFA", "#F5F5F5")
+    GRADIENT_INPUT = ("#FFFFFF", "#F5F5F5")
 
     # ═══════════════════════════════════════════════════════════════════
-    # 3. TEXT — Hierarquia (invertido: escuro sobre claro)
+    # 3. TEXT — Preto puro (sem cinza — usa opacidade do preto)
     # ═══════════════════════════════════════════════════════════════════
 
-    TEXT_HIGH = "#1A1A1A"
-    TEXT_MEDIUM = "#2E2E2E"
-    TEXT_LOW = "#6B6B6B"
-    TEXT_DISABLED = "#A0A0A0"
+    TEXT_HIGH = "#000000"
+    TEXT_MEDIUM = "rgba(0,0,0,0.85)"
+    TEXT_LOW = "rgba(0,0,0,0.55)"
+    TEXT_DISABLED = "rgba(0,0,0,0.30)"
     TEXT_ON_ACCENT = "#FFFFFF"
     TEXT_ON_DANGER = "#FFFFFF"
 
     # ═══════════════════════════════════════════════════════════════════
-    # 4. BORDER — Hierarquia (invertido: mais escuros que fundo)
+    # 4. BORDER — Dourado translúcido ou branco sutil
     # ═══════════════════════════════════════════════════════════════════
 
-    BORDER_SUBTLE = "#E0D8CE"
-    BORDER_DEFAULT = "#D0C8BC"
-    BORDER_STRONG = "#B8B0A4"
+    BORDER_SUBTLE = "rgba(201,168,76,0.15)"
+    BORDER_DEFAULT = "rgba(201,168,76,0.25)"
+    BORDER_STRONG = "rgba(201,168,76,0.40)"
     BORDER_ACCENT = "#C9A84C"
-    DIVIDER = "#E0D8CE"
+    DIVIDER = "rgba(201,168,76,0.12)"
 
     # ═══════════════════════════════════════════════════════════════════
-    # 5. SHADOW — Sombras (mais escuras no tema claro)
+    # 5. SHADOW — Dourado translúcido (sem cinza/preto)
     # ═══════════════════════════════════════════════════════════════════
 
-    SHADOW_SM = "#8B7D6B"
-    SHADOW_MD = "#6B5D4B"
-    SHADOW_LG = "#4B3D2B"
-    SHADOW_XL = "#2B1D0B"
-    SHADOW_ACCENT = "#C9A84C30"
-    GLOW = "#C9A84C20"
-    GLOW_STRONG = "#C9A84C35"
+    SHADOW_SM = "rgba(201,168,76,0.10)"
+    SHADOW_MD = "rgba(201,168,76,0.15)"
+    SHADOW_LG = "rgba(201,168,76,0.20)"
+    SHADOW_XL = "rgba(201,168,76,0.25)"
+    SHADOW_ACCENT = "rgba(201,168,76,0.30)"
+    GLOW = "rgba(201,168,76,0.12)"
+    GLOW_STRONG = "rgba(201,168,76,0.20)"
 
     # ═══════════════════════════════════════════════════════════════════
     # 6. RADIUS — Escala global
@@ -167,7 +166,7 @@ class PearlWhiteTheme(BaseTheme):
     # 13. OVERLAY / Glass
     # ═══════════════════════════════════════════════════════════════════
 
-    OVERLAY_BG = "rgba(245, 240, 235, 0.80)"
+    OVERLAY_BG = "rgba(255, 255, 255, 0.85)"
     BACKDROP_BLUR = "4px"
 
     # ═══════════════════════════════════════════════════════════════════
