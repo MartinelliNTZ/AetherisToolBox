@@ -75,6 +75,13 @@ THEMES: dict[str, dict] = {
         "author":      "Aetheris ToolBox",
         "version":     "1.0.0",
     },
+    "pearl_white": {
+        "module":      "resources.styles.PearlWhiteTheme",
+        "label":       "Pearl White",
+        "description": "Tema claro pérola com detalhes em dourado. "
+                       "Oposto do Dark Charcoal: fundos branco/pérola, "
+                       "texto escuro e acentos dourados elegantes.",
+    },
 }
 
 # ═══════════════════════════════════════════════════════════════════
