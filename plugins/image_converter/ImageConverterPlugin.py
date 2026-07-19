@@ -82,12 +82,13 @@ class ImageConverterPlugin(BasePlugin):
         })
         self.main_layout.addWidget(self._btns)
 
-        # ── Grid: Arquivos + Preview (aumentado) ──────────────────────
+        # ── Grid: Arquivos + Preview (stretch=2 para mais altura) ─────
         grp_arquivos = GroupPainel("Arquivos")
         grp_arquivos.group_layout.addWidget(self._file_list)
         grp_preview = GroupPainel("Pré-Visualização")
         grp_preview.group_layout.addWidget(self._preview)
-        self.main_layout.addWidget(GridGroupPainel(grp_arquivos, grp_preview))
+        grid_files = GridGroupPainel(grp_arquivos, grp_preview)
+        self.main_layout.addWidget(grid_files, 2)
 
         # ── Formato de Saída + Pasta de Saída ─────────────────────────
         format_items = {
@@ -114,11 +115,8 @@ class ImageConverterPlugin(BasePlugin):
         grp_formato = GroupPainel("Formato e Destino")
         grp_formato.group_layout.addWidget(self._combo_format)
         grp_formato.group_layout.addWidget(self._sel_output)
-        self.main_layout.addWidget(grp_formato)
 
         # ── Configurações (dinâmico) ──────────────────────────────────
-
-        # Quality slider (só visível para JPEG/WEBP)
         self._slider_quality = GridSlider(
             config={
                 "quality": {
@@ -136,13 +134,11 @@ class ImageConverterPlugin(BasePlugin):
         self._panel_quality.section_layout.addWidget(self._slider_quality)
         self._panel_quality.setVisible(False)
 
-        # ICO sizes (só visível para ICO)
         self._grid_ico_sizes = GridCheckBox(ICO_SIZES, num_columns=3)
         self._panel_ico = SectionPanel(object_name="panel_ico")
         self._panel_ico.section_layout.addWidget(self._grid_ico_sizes)
         self._panel_ico.setVisible(False)
 
-        # Resize: largura + altura (2 colunas)
         self._spin_resize = GridDoubleSpinBox(
             config={
                 "width": {
@@ -169,7 +165,6 @@ class ImageConverterPlugin(BasePlugin):
         self._spin_resize.set_enabled("width", False)
         self._spin_resize.set_enabled("height", False)
 
-        # ── Opções unificadas (único GridCheckBox com num_columns=3) ──
         self._grid_opts = GridCheckBox(
             config={
                 "resize_enabled": {
@@ -207,7 +202,9 @@ class ImageConverterPlugin(BasePlugin):
         grp_config.group_layout.addWidget(self._panel_ico)
         grp_config.group_layout.addWidget(self._spin_resize)
         grp_config.group_layout.addWidget(self._grid_opts)
-        self.main_layout.addWidget(grp_config)
+
+        # ── Formato + Configurações lado a lado ───────────────────────
+        self.main_layout.addWidget(GridGroupPainel(grp_formato, grp_config))
 
         # ── Carrega pasta do projeto ──────────────────────────────────
         if self.sys_preferences:
@@ -225,18 +222,14 @@ class ImageConverterPlugin(BasePlugin):
             self.page.set_badge(self.page.PRONTA)
 
     def _on_format_changed(self, fmt: str):
-        """Atualiza visibilidade dos painéis conforme formato selecionado."""
         fmt_info = OUTPUT_IMAGE_FORMATS.get(fmt, {})
         is_lossy = fmt_info.get("lossy", False)
         is_ico = fmt_info.get("supports_ico_sizes", False)
-
         self._panel_quality.setVisible(is_lossy)
         self._panel_ico.setVisible(is_ico)
-
         self.logger.info(f"Formato alterado: {fmt}", code="IMG_CONV_FORMAT")
 
     def _on_opts_changed(self):
-        """Habilita/desabilita spin boxes de redimensionamento conforme checkboxes."""
         enabled = self._grid_opts.is_item_checked("resize_enabled")
         self._spin_resize.set_enabled("width", enabled)
         self._spin_resize.set_enabled("height", enabled)
@@ -310,9 +303,7 @@ class ImageConverterPlugin(BasePlugin):
         self.page.set_badge(self.page.RUNNING)
         self._btns.set_enabled("convert", False)
 
-        SignalManager.instance().hud_show.emit({
-            "message": "Convertendo imagens...",
-        })
+        SignalManager.instance().hud_show.emit({"message": "Convertendo imagens..."})
         SignalManager.instance().execution_started.emit(self.tool_key)
 
         QTimer.singleShot(
@@ -402,24 +393,6 @@ class ImageConverterPlugin(BasePlugin):
         resize: dict | None = None,
         ico_sizes: list[int] | None = None,
     ) -> str:
-        """
-        Converte uma única imagem para o formato especificado.
-
-        Args:
-            input_path: Caminho da imagem de entrada
-            output_path: Caminho da imagem de saída
-            output_format: Formato de saída (PNG, JPEG, WEBP, ICO, etc.)
-            quality: Qualidade para formatos lossy (1-100)
-            resize: Config de redimensionamento {"width", "height", "keep_aspect"}
-            ico_sizes: Lista de tamanhos para ICO
-
-        Returns:
-            output_path
-
-        Raises:
-            ValueError: Se formato não suportado
-            OSError: Se falha ao ler/escrever
-        """
         from PIL import Image
 
         img = Image.open(input_path)
