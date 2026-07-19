@@ -349,7 +349,7 @@ class EmeraldTealTheme(BaseTheme):
     SPLITTER_HANDLE_WIDTH_H = 4
     SPLITTER_HANDLE_WIDTH_V = 4
 
-    MENU_PADDING = "2px"
+    MENU_PADDING = "10px 30px"
     MENU_MARGIN_V = "1px 0"
     MENU_ITEM_PADDING = "4px 16px 4px 8px"
     MENU_SEPARATOR_HEIGHT = "1px"

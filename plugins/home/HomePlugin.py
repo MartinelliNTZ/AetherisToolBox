@@ -27,6 +27,7 @@ from resources.widgets.GroupPainel import GroupPainel
 from resources.widgets.ListViewWidget import ListViewWidget
 from resources.widgets.SeparatorWidget import SeparatorWidget
 from resources.widgets.simple.SimpleLabel import SimpleLabel
+from resources.widgets.simple.SimpleThemeButton import SimpleThemeButton
 from utils.JsonUtil import JsonUtil
 
 
@@ -68,6 +69,24 @@ class HomePlugin(BasePlugin):
         subtitle.setObjectName("header_subtitle")
         subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.main_layout.addWidget(subtitle)
+
+        # === SimpleThemeButton (demo do botão autossuficiente) ===
+        self._theme_btn = SimpleThemeButton(
+            "BOTÃO TEMÁTICO",
+            min_width=200,
+            min_height=38,
+            shadow_enabled=True,
+            border_radius=35,
+        )
+        self._theme_btn.setSizePolicy(
+            QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed
+        )
+        btn_layout = QHBoxLayout()
+        btn_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        btn_layout.addWidget(self._theme_btn)
+        self.main_layout.addLayout(btn_layout)
+        print(self._theme_btn.styleSheet()) 
+        print(self._theme_btn.style().metaObject().className())# Debug: imprime stylesheet do botão
 
         # === SEPARATOR ===
         self.main_layout.addWidget(SeparatorWidget(orientation="horizontal"))

@@ -53,10 +53,12 @@ class SimpleThemeButton(QPushButton):
         min_width: int = 180,
         min_height: int = 34,
         shadow_enabled: bool = True,
+        border_radius: int | None = None,
     ):
         super().__init__(text, parent)
 
         self._shadow_enabled = shadow_enabled
+        self._border_radius = border_radius
 
         self.setCursor(Qt.CursorShape.PointingHandCursor)
 
@@ -125,7 +127,7 @@ class SimpleThemeButton(QPushButton):
             f"stop:1 {t.ACCENT})"
         )
 
-        border_radius = t.BORDER_RADIUS_BUTTON
+        border_radius = self._border_radius if self._border_radius is not None else t.BORDER_RADIUS_BUTTON
         padding_v = t.BUTTON_PADDING_V_PRIMARY
         padding_h = t.BUTTON_PADDING_H_PRIMARY
         font_weight = t.BUTTON_FONT_WEIGHT_PRIMARY or t.FONT_WEIGHT_HEAVY
@@ -141,6 +143,7 @@ class SimpleThemeButton(QPushButton):
             f"  padding: {padding_v}px {padding_h}px;"
             f"  font-weight: {font_weight};"
             f"  font-size: {font_size}px;"
+            f"min-height: 60px;"
             f"  letter-spacing: {letter_spacing}px;"
             f"}}"
             f"QPushButton:hover {{"

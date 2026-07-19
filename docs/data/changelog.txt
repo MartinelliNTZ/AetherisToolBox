@@ -1,3 +1,22 @@
+[1.2.12][2026.07.19][17:20] - Ajuste: MENU_PADDING do EmeraldTealTheme alterado de "2px" para "10px 30px"
+  - EmeraldTealTheme.py: MENU_PADDING = "2px" → "10px 30px" (padding vertical 10px, horizontal 30px)
+  - Changelog atualizado
+
+[1.2.11][2026.07.19][15:45] - Correção: BaseStyle.global_stylesheet() sobrescrevia border-radius de QPushButton
+  - Removido seletor genérico `QWidget` do QSS global (linha `QMainWindow, QWidget` → `QMainWindow`)
+  - O seletor `QWidget` aplicava font-family/font-size/background-color em TODOS os widgets,
+    incluindo QPushButton, sobrescrevendo o border-radius definido via setStyleSheet() local
+  - SimpleThemeButton agora respeita o border_radius=35 sem interferência global
+  - Changelog atualizado
+
+[1.2.10][2026.07.19][15:38] - Novo SimpleThemeButton: botão 100% autossuficiente com estilo vindo do tema
+  - Criado resources/widgets/simple/SimpleThemeButton.py: botão QPushButton que gera QSS internamente
+  - SimpleThemeButton importa theme_manager diretamente (sem AppStyles para estilização)
+  - SimpleThemeButton usa BORDER_RADIUS_BUTTON, GLOW_BUTTON_ENABLED e demais tokens do tema
+  - SimpleThemeButton: API pública update_theme() e set_shadow_enabled()
+  - SimpleThemeButton integrado ao HomePlugin.py como botão de exemplo
+  - Changelog atualizado
+
 [1.2.9][2026.07.19][12:10] - Estruturação do SimplePrimaryButton com parâmetros de estilo + novo tema Emerald Teal
   - SimplePrimaryButton: adicionado parâmetros style_key, min_width, min_height, custom_stylesheet, shadow_enabled, shadow_blur/offset/color/alpha
   - SimplePrimaryButton: adicionado set_style_key(), set_custom_stylesheet(), set_shadow_params() em runtime
