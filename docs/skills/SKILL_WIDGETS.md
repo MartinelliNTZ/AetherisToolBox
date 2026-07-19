@@ -1669,6 +1669,29 @@ ToastNotification.show("Falha ao processar", is_error=True)
 
 ---
 
+### `MapInfos` — `MapInfos.py`
+Barra de informações horizontais para visualizadores geoespaciais. Exibe labels lado a lado (coordenadas, zoom, CRS, contagem de camadas) com separadores verticais. Ideal para a parte inferior de visualizadores de mapa.
+
+```python
+from resources.widgets.MapInfos import MapInfos
+
+infos = MapInfos()
+infos.set_coords(-15.78, -47.93)
+infos.set_zoom(12)
+infos.set_crs("EPSG:3857")
+infos.set_layer_count(3)
+infos.clear_coords()
+```
+
+**API pública:**
+- `set_coords(lat, lon)` — atualiza coordenadas
+- `set_zoom(zoom)` — atualiza nível de zoom
+- `set_crs(crs)` — atualiza CRS
+- `set_layer_count(count)` — atualiza contagem de camadas
+- `clear_coords()` — limpa coordenadas
+
+---
+
 ## ✅ Checklist ao criar/alterar UI
 
 - [ ] Consultei o catálogo acima antes de importar de `PySide6.QtWidgets`?

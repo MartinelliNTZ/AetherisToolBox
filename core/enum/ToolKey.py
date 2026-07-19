@@ -43,6 +43,7 @@ class ToolKey(str, Enum):
     FOOTBALL_FETCH = "FootballFetch"
     WEATHER_FETCH = "WeatherFetch"
     SCAN_ANGLE_FILTER = "ScanAngleFilter"
+    MAP_VIEWER = "MapViewer"
 
     CUT_BY_TRAJECTORY = "CutByTrajectory"  # Ainda não implementado
     IBGE_HNOR_ORGANIZER = "IBGEHnorOrganizer"  # Ainda não implementado

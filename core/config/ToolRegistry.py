@@ -330,6 +330,17 @@ class ToolRegistry:
             category=CategoryTool.CENTRAL,
             show_in_toolbar=True,
         ),
+        ToolKey.MAP_VIEWER.value: Tool(
+            name=ToolKey.MAP_VIEWER.value,
+            title="Visualizador de Mapas",
+            widget_factory=_make_factory(
+                "plugins.map_viewer.MapViewerPlugin", "MapViewerPlugin"
+            ),
+            tooltip="Visualizador de mapas com basemap de satélite (arraste LAS, SHP, KML)",
+            tool_type=ToolType.SYSTEM,
+            category=CategoryTool.CENTRAL,
+            show_in_toolbar=True,
+        ),
     }
 
     def register_default_tools(self) -> None:

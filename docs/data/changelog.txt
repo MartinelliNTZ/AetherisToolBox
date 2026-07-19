@@ -1,3 +1,20 @@
+[1.2.8][2026.07.18][23:14] - MapViewerPlugin: visualizador geoespacial com basemap de satélite
+  - Criado plugins/map_viewer/MapViewerPlugin.py: plugin visualizador de mapas (BasePlugin)
+  - Criado plugins/map_viewer/MapCanvasWidget.py: canvas com tiles XYZ, zoom/pan via mouse e drag & drop
+  - Criado plugins/map_viewer/TileManager.py: download e cache LRU de tiles (memória + disco via ExplorerUtils)
+  - Criado plugins/map_viewer/LayerManager.py: gerenciamento de camadas (LAS, SHP, KML) com limite de 10
+  - Criado plugins/map_viewer/model/MapLayer.py: DTO de camada com path, tipo, CRS, bounds
+  - Criado plugins/map_viewer/renderers/LasLayerRenderer.py: renderizador LAS/LAZ com subsampling adaptativo
+  - Criado plugins/map_viewer/renderers/VectorLayerRenderer.py: renderizador SHP/GPKG via VectorLayerSource/geopandas
+  - Criado plugins/map_viewer/renderers/KmlLayerRenderer.py: renderizador KML via fastkml/lxml
+  - Criado resources/widgets/MapInfos.py: widget reutilizável de info horizontal (coords, zoom, CRS, camadas)
+  - Adicionado MAP_VIEWER em core/enum/ToolKey.py
+  - Registrado MapViewer em core/config/ToolRegistry.py (ToolType.POINTS, CategoryTool.CENTRAL)
+  - Adicionado fastkml em requirements.txt
+  - Sem ExecutionButtons (ferramenta apenas visualiza, não executa)
+  - Cache de tiles via ExplorerUtils.get_system_temp_dir()
+  - SKILL_WIDGETS.md: adicionado MapInfos ao catálogo
+
 [1.2.7][2026.07.18][22:39] - ExecutionButtons integrado ao header do PluginPage
   - PluginPage._build_header(): adicionado ExecutionButtons entre título e badge
   - PluginPage: novo atributo self.buttons (ExecutionButtons | None)
