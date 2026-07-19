@@ -28,6 +28,7 @@ class ToolKey(str, Enum):
     FILE_MANAGER = "FileManager"
     UNTRACEABLE = "Untraceable"
     ICO_CONVERTER = "IcoConverter"
+    IMAGE_CONVERTER = "ImageConverter"
     DOCLING = "Docling"
     MRK_SUBSTITUTOR = "MrkSubstitutor"
     LAS_BLACK_FILTER = "LasBlackFilter"

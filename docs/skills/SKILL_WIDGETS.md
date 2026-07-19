@@ -406,6 +406,53 @@ grid.changed.connect(self._on_value_changed)
 
 ---
 
+### `GridSlider` — `grid/GridSlider.py`
+Grade de sliders horizontais genéricos com label e valor numérico. Widget reutilizável — qualquer plugin que precisar de um valor numérico ajustável via slider pode usá-lo.
+
+Configuração via dicionário com suporte a label, default, min, max, step, suffix e description.
+
+```python
+from resources.widgets.grid.GridSlider import GridSlider
+
+slider = GridSlider({
+    "quality": {
+        "label": "Qualidade:",
+        "default": 95,
+        "min": 1,
+        "max": 100,
+        "step": 1,
+        "suffix": "%",
+        "description": "Qualidade para formatos lossy",
+    },
+})
+slider.values          # {"quality": 95}
+slider.get("quality")  # 95
+slider.set("quality", 80)
+slider.set_on_changed("quality", self._on_quality_changed)
+slider.set_enabled("quality", False)
+```
+
+**API pública (callbacks, não Signals):**
+- `values` → dict com valores atuais
+- `get(key)` → valor de um campo
+- `set(key, value, block_callbacks=False)` → define valor programaticamente
+- `set_on_changed(key, callback)` → callback recebe `(key, value)` quando o slider muda
+- `set_enabled(key, enabled)` → habilita/desabilita
+- `set_values(values, block_callbacks=True)` → define múltiplos valores
+
+**Parâmetros do config:**
+| Parâmetro | Tipo | Default | Descrição |
+|-----------|------|---------|-----------|
+| `label` | str | — | Texto do label |
+| `default` | int | 50 | Valor inicial |
+| `min` | int | 0 | Valor mínimo |
+| `max` | int | 100 | Valor máximo |
+| `step` | int | 1 | Incremento |
+| `suffix` | str | "" | Sufixo (ex: "%", "px") |
+| `description` | str | "" | Tooltip |
+
+---
+
 ### `GridLabel` — `GridLabel.py`
 Grade de labels informativos exibindo pares "label: valor" com estilo monospace. Suporta múltiplas colunas e valores clicáveis (links). Ideal para exibir metadados e propriedades.
 

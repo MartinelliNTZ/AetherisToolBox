@@ -1,3 +1,15 @@
+[1.2.6][2026.07.18][21:00] - ImageConverterPlugin: novo conversor universal de imagens
+  - Criado plugins/image_converter/ImageConverterPlugin.py: converte entre PNG, JPG, WEBP, ICO, BMP, GIF, TIFF
+  - Criado resources/widgets/grid/GridSlider.py: slider horizontal genérico com label e valor numérico
+  - Adicionado IMAGE_CONVERTER em core/enum/ToolKey.py
+  - Adicionado OUTPUT_IMAGE_FORMATS em utils/DictManager.py
+  - Registrado ImageConverter em core/config/ToolRegistry.py (ToolType.IMAGE, CategoryTool.CENTRAL)
+  - SKILL_WIDGETS.md: adicionado GridSlider ao catálogo
+  - Suporte a redimensionamento (GridDoubleSpinBox), qualidade (GridSlider), ICO multi-tamanho (GridCheckBox)
+  - Tratamento de alpha para JPEG/BMP (fundo branco automático)
+  - Prevenção de sobrescrita com opção "Sobrescrever sem perguntar"
+  - UI adaptativa: controles aparecem/desaparecem conforme formato selecionado
+
 [1.2.5][2026.07.17][21:22] - ToolbarButton: correção border-radius (WA_StyledBackground)
   - Adicionado setAttribute(Qt.WA_StyledBackground, True) no ToolbarButton para forçar QToolButton a respeitar border-radius no Windows
   - PearlWhiteTheme: BORDER_RADIUS_TOOLBAR_BTN alterado de 4 para 999 (pill total / totalmente arredondado)

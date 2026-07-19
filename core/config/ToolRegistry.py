@@ -199,6 +199,18 @@ class ToolRegistry:
             category=CategoryTool.CENTRAL,
             show_in_toolbar=True,
         ),
+        ToolKey.IMAGE_CONVERTER.value: Tool(
+            name=ToolKey.IMAGE_CONVERTER.value,
+            title="Conversor de Imagens",
+            widget_factory=_make_factory(
+                "plugins.image_converter.ImageConverterPlugin",
+                "ImageConverterPlugin",
+            ),
+            tooltip="Converte imagens entre formatos (PNG, JPG, WEBP, ICO, etc.)",
+            tool_type=ToolType.RASTER,
+            category=CategoryTool.CENTRAL,
+            show_in_toolbar=True,
+        ),
         ToolKey.DOCLING.value: Tool(
             name=ToolKey.DOCLING.value,
             title="Docling",

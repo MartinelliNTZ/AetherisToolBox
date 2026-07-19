@@ -75,6 +75,17 @@ GEOPROCESSOR_EXTENSIONS: Dict[str, Dict[str, Any]] = {
     "qix":     {"label": ".qix",     "description": "Shapefile (índice QGIS)", "default": True},
 }
 
+# ── Formatos de Saída de Imagem (ImageConverter) ──
+OUTPUT_IMAGE_FORMATS: Dict[str, Dict[str, Any]] = {
+    "PNG":  {"label": "PNG",  "description": "Portable Network Graphics (lossless)", "ext": ".png",  "lossy": False, "supports_alpha": True,  "supports_ico_sizes": False},
+    "JPEG": {"label": "JPEG", "description": "Joint Photographic Experts Group (lossy)", "ext": ".jpg",  "lossy": True,  "supports_alpha": False, "supports_ico_sizes": False},
+    "BMP":  {"label": "BMP",  "description": "Bitmap Image (lossless)", "ext": ".bmp",  "lossy": False, "supports_alpha": False, "supports_ico_sizes": False},
+    "GIF":  {"label": "GIF",  "description": "Graphics Interchange Format (palette)", "ext": ".gif",  "lossy": True,  "supports_alpha": True,  "supports_ico_sizes": False},
+    "TIFF": {"label": "TIFF", "description": "Tagged Image File Format (lossless)", "ext": ".tif",  "lossy": False, "supports_alpha": True,  "supports_ico_sizes": False},
+    "WEBP": {"label": "WEBP", "description": "WebP Image (lossy/lossless)", "ext": ".webp", "lossy": True,  "supports_alpha": True,  "supports_ico_sizes": False},
+    "ICO":  {"label": "ICO",  "description": "Windows Icon (multi-size)", "ext": ".ico",  "lossy": False, "supports_alpha": True,  "supports_ico_sizes": True},
+}
+
 # ── Imagens / Raster ──
 IMAGE_EXTENSIONS: Dict[str, Dict[str, Any]] = {
     ".bmp":   {"label": ".bmp",   "description": "Bitmap Image", "default": True},
