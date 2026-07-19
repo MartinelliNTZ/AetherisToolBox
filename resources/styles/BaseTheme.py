@@ -249,6 +249,8 @@ class BaseTheme:
         BUTTON_PADDING_H_PRIMARY: Padding horizontal de botão primário.
         BUTTON_LETTER_SPACING_NORMAL: Letter-spacing de botão normal.
         BUTTON_LETTER_SPACING_PRIMARY: Letter-spacing de botão primário.
+        BUTTON_FONT_SIZE_PRIMARY: Tamanho da fonte de botão primário (px). 0 = usa FONT_SIZE_NORMAL.
+        BUTTON_FONT_WEIGHT_PRIMARY: Peso da fonte de botão primário. 0 = usa FONT_WEIGHT_HEAVY.
 
         ── SPECIFICS (toolbar) ─────────────────────────────
         TOOLBAR_BTN_PADDING_V: Padding vertical do botão toolbar.
@@ -1158,6 +1160,12 @@ class BaseTheme:
 
     BUTTON_LETTER_SPACING_PRIMARY: str = ""
     """LETTER-SPACING do texto de botão primário em CSS."""
+
+    BUTTON_FONT_SIZE_PRIMARY: int = 0
+    """TAMANHO da fonte do botão primário em px. 0 = usa FONT_SIZE_NORMAL."""
+
+    BUTTON_FONT_WEIGHT_PRIMARY: int = 0
+    """PESO da fonte do botão primário. 0 = usa FONT_WEIGHT_HEAVY."""
 
     # ── Toolbar ──
 

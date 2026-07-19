@@ -1,3 +1,12 @@
+[1.2.9][2026.07.19][12:10] - Estruturação do SimplePrimaryButton com parâmetros de estilo + novo tema Emerald Teal
+  - SimplePrimaryButton: adicionado parâmetros style_key, min_width, min_height, custom_stylesheet, shadow_enabled, shadow_blur/offset/color/alpha
+  - SimplePrimaryButton: adicionado set_style_key(), set_custom_stylesheet(), set_shadow_params() em runtime
+  - SimplePrimaryButton: style_key mapeia para AppStyles (primary, secondary, danger, ghost, remove)
+  - Criado resources/styles/EmeraldTealTheme.py: tema escuro esmeralda-teal inspirado no botao.py
+  - EmeraldTealTheme: gradiente vertical 3-stop (#1c6b63→#0f5952→#0a3d38), border-radius pill 35px, sombra 3D preta
+  - EmeraldTealTheme: registrado em ThemeManager.THEMES como "emerald_teal"
+  - Changelog atualizado
+
 [1.2.8][2026.07.18][23:14] - MapViewerPlugin: visualizador geoespacial com basemap de satélite
   - Criado plugins/map_viewer/MapViewerPlugin.py: plugin visualizador de mapas (BasePlugin)
   - Criado plugins/map_viewer/MapCanvasWidget.py: canvas com tiles XYZ, zoom/pan via mouse e drag & drop

@@ -82,6 +82,13 @@ THEMES: dict[str, dict] = {
                        "Oposto do Dark Charcoal: fundos branco/pérola, "
                        "texto escuro e acentos dourados elegantes.",
     },
+    "emerald_teal": {
+        "module":      "resources.styles.EmeraldTealTheme",
+        "label":       "Emerald Teal",
+        "description": "Tema escuro esmeralda-teal com gradiente vertical "
+                       "3-stop, bordas pill (35px) e sombra 3D preta. "
+                       "Inspirado no design de botão gradiente verde.",
+    },
 }
 
 # ═══════════════════════════════════════════════════════════════════
