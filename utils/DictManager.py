@@ -75,6 +75,16 @@ GEOPROCESSOR_EXTENSIONS: Dict[str, Dict[str, Any]] = {
     "qix":     {"label": ".qix",     "description": "Shapefile (índice QGIS)", "default": True},
 }
 
+# ── Tamanhos de Ícone ICO (ImageConverter) ──
+ICO_SIZES: Dict[str, Dict[str, Any]] = {
+    "16":   {"label": "16 pixels",   "description": "16x16", "default": True},
+    "32":   {"label": "32 pixels",   "description": "32x32", "default": True},
+    "48":   {"label": "48 pixels",   "description": "48x48", "default": True},
+    "64":   {"label": "64 pixels",   "description": "64x64", "default": True},
+    "128":  {"label": "128 pixels",  "description": "128x128", "default": True},
+    "256":  {"label": "256 pixels",  "description": "256x256", "default": False},
+}
+
 # ── Formatos de Saída de Imagem (ImageConverter) ──
 OUTPUT_IMAGE_FORMATS: Dict[str, Dict[str, Any]] = {
     "PNG":  {"label": "PNG",  "description": "Portable Network Graphics (lossless)", "ext": ".png",  "lossy": False, "supports_alpha": True,  "supports_ico_sizes": False},

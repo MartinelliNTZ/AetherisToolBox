@@ -1,4 +1,11 @@
 [1.2.6][2026.07.18][21:00] - ImageConverterPlugin: novo conversor universal de imagens
+  - ICO_SIZES movido para utils/DictManager.py como constante reutilizável
+  - HUD agora via SignalManager (hud_show/hud_update/hud_hide + execution_started/execution_finished)
+  - Substituído SimpleSelector por GridComplexSelector (subfolder="ImageConverter")
+  - Unificado painéis Opções + Configurações em único GroupPainel
+  - Pasta de Saída movida para dentro do painel "Formato e Destino"
+  - Removido HudCircularRingsLoader direto e resizeEvent
+  - Removido try sem logger em _load_project_folder
   - Criado plugins/image_converter/ImageConverterPlugin.py: converte entre PNG, JPG, WEBP, ICO, BMP, GIF, TIFF
   - Criado resources/widgets/grid/GridSlider.py: slider horizontal genérico com label e valor numérico
   - Adicionado IMAGE_CONVERTER em core/enum/ToolKey.py
