@@ -8,14 +8,14 @@ e ICO multi-tamanho.
 
 Usa:
 - PIL (Pillow) para processamento de imagens
-- SignalManager para progresso e console (Contrato 20)
-- HUD Loader para feedback visual durante carregamento/conversão
+- SignalManager para progresso, console e HUD (Contrato 20)
 - FileListView + PreviewPanel para gestão de arquivos
 - ExecutionButtons (Contrato 18) para botão CONVERTER
 - SimpleComboBox para seleção de formato de saída
 - GridSlider para qualidade (genérico, reutilizável)
 - GridDoubleSpinBox para dimensões de redimensionamento
 - GridCheckBox para tamanhos ICO e opções
+- GridComplexSelector para pasta de saída
 """
 
 from __future__ import annotations
@@ -26,14 +26,11 @@ from typing import Dict, Any
 from PySide6.QtCore import QTimer
 
 from core.enum.ToolKey import ToolKey
-from core.enum.DefaultPathCategory import DefaultPathCategory
 from core.manager.SignalManager import SignalManager
-from core.ui.HudCircularRingsLoader import HudCircularRingsLoader
 from plugins.BasePlugin import BasePlugin
 from resources.widgets.ExecutionButtons import ExecutionButtons
 from resources.widgets.FileListView import FileListView
 from resources.widgets.PreviewPanel import PreviewPanel
-from resources.widgets.simple.SimpleSelector import SimpleSelector
 from resources.widgets.simple.SimpleComboBox import SimpleComboBox
 from resources.widgets.grid.GridCheckBox import GridCheckBox
 from resources.widgets.grid.GridSlider import GridSlider
@@ -41,20 +38,9 @@ from resources.widgets.grid.GridDoubleSpinBox import GridDoubleSpinBox
 from resources.widgets.grid.GridGroupPainel import GridGroupPainel
 from resources.widgets.GroupPainel import GroupPainel
 from resources.widgets.SectionPanel import SectionPanel
-from utils.DictManager import IMAGE_EXTENSIONS, OUTPUT_IMAGE_FORMATS
-from utils.ExplorerUtils import ExplorerUtils
+from resources.widgets.complex.GridComplexSelector import GridComplexSelector
+from utils.DictManager import IMAGE_EXTENSIONS, OUTPUT_IMAGE_FORMATS, ICO_SIZES
 from utils.MessageBox import MessageBox
-
-
-# Tamanhos ICO (específico do ICO, permanece no plugin)
-ICO_SIZES: Dict[str, Dict[str, Any]] = {
-    "16":   {"label": "16 pixels",   "description": "16x16", "default": True},
-    "32":   {"label": "32 pixels",   "description": "32x32", "default": True},
-    "48":   {"label": "48 pixels",   "description": "48x48", "default": True},
-    "64":   {"label": "64 pixels",   "description": "64x64", "default": True},
-    "128":  {"label": "128 pixels",  "description": "128x128", "default": True},
-    "256":  {"label": "256 pixels",  "description": "256x256", "default": False},
-}
 
 
 class ImageConverterPlugin(BasePlugin):
@@ -72,10 +58,6 @@ class ImageConverterPlugin(BasePlugin):
 
     def _build_ui(self):
         super()._build_ui()
-
-        # ── HUD Loader (overlay) ──────────────────────────────────────
-        self._loader = HudCircularRingsLoader(self)
-        self._loader.setGeometry(0, 0, self.width(), self.height())
 
         # ── Preview ───────────────────────────────────────────────────
         self._preview = PreviewPanel()
@@ -100,15 +82,14 @@ class ImageConverterPlugin(BasePlugin):
         })
         self.main_layout.addWidget(self._btns)
 
-        # ── Grid: Arquivos + Preview ──────────────────────────────────
+        # ── Grid: Arquivos + Preview (aumentado) ──────────────────────
         grp_arquivos = GroupPainel("Arquivos")
         grp_arquivos.group_layout.addWidget(self._file_list)
         grp_preview = GroupPainel("Pré-Visualização")
         grp_preview.group_layout.addWidget(self._preview)
         self.main_layout.addWidget(GridGroupPainel(grp_arquivos, grp_preview))
 
-        # ── Formato de Saída ──────────────────────────────────────────
-        # Converte OUTPUT_IMAGE_FORMATS para dict {chave: label} para SimpleComboBox
+        # ── Formato de Saída + Pasta de Saída ─────────────────────────
         format_items = {
             key: info["label"]
             for key, info in OUTPUT_IMAGE_FORMATS.items()
@@ -118,8 +99,21 @@ class ImageConverterPlugin(BasePlugin):
             on_item_changed=self._on_format_changed,
             label="Formato de Saída:",
         )
-        grp_formato = GroupPainel("Formato de Saída")
+
+        self._sel_output = GridComplexSelector({
+            "Pasta de Saída": {
+                "mode_type": "output",
+                "allow_file": False,
+                "allow_folder": True,
+                "multiple": False,
+                "subfolder": "ImageConverter",
+                "show_suggest_button": True,
+            },
+        })
+
+        grp_formato = GroupPainel("Formato e Destino")
         grp_formato.group_layout.addWidget(self._combo_format)
+        grp_formato.group_layout.addWidget(self._sel_output)
         self.main_layout.addWidget(grp_formato)
 
         # ── Configurações (dinâmico) ──────────────────────────────────
@@ -140,32 +134,15 @@ class ImageConverterPlugin(BasePlugin):
         )
         self._panel_quality = SectionPanel(object_name="panel_quality")
         self._panel_quality.section_layout.addWidget(self._slider_quality)
-        self._panel_quality.setVisible(False)  # oculto inicialmente
+        self._panel_quality.setVisible(False)
 
         # ICO sizes (só visível para ICO)
         self._grid_ico_sizes = GridCheckBox(ICO_SIZES, num_columns=3)
         self._panel_ico = SectionPanel(object_name="panel_ico")
         self._panel_ico.section_layout.addWidget(self._grid_ico_sizes)
-        self._panel_ico.setVisible(False)  # oculto inicialmente
+        self._panel_ico.setVisible(False)
 
-        # Resize controls
-        self._grid_resize_opts = GridCheckBox(
-            config={
-                "resize_enabled": {
-                    "label": "Redimensionar",
-                    "description": "Habilita redimensionamento da imagem",
-                    "default": False,
-                },
-                "keep_aspect": {
-                    "label": "Manter proporção",
-                    "description": "Mantém a proporção original ao redimensionar",
-                    "default": True,
-                },
-            },
-            num_columns=2,
-        )
-        self._grid_resize_opts.changed.connect(self._on_resize_opts_changed)
-
+        # Resize: largura + altura (2 colunas)
         self._spin_resize = GridDoubleSpinBox(
             config={
                 "width": {
@@ -187,21 +164,24 @@ class ImageConverterPlugin(BasePlugin):
                     "suffix": "px",
                 },
             },
+            columns=2,
         )
-        # Desabilita spin boxes inicialmente
         self._spin_resize.set_enabled("width", False)
         self._spin_resize.set_enabled("height", False)
 
-        grp_config = GroupPainel("Configurações")
-        grp_config.group_layout.addWidget(self._panel_quality)
-        grp_config.group_layout.addWidget(self._panel_ico)
-        grp_config.group_layout.addWidget(self._grid_resize_opts)
-        grp_config.group_layout.addWidget(self._spin_resize)
-        self.main_layout.addWidget(grp_config)
-
-        # ── Opções ────────────────────────────────────────────────────
+        # ── Opções unificadas (único GridCheckBox com num_columns=3) ──
         self._grid_opts = GridCheckBox(
             config={
+                "resize_enabled": {
+                    "label": "Redimensionar",
+                    "description": "Habilita redimensionamento da imagem",
+                    "default": False,
+                },
+                "keep_aspect": {
+                    "label": "Manter proporção",
+                    "description": "Mantém a proporção original ao redimensionar",
+                    "default": True,
+                },
                 "subfolders": {
                     "label": "Vasculhar subpastas",
                     "description": "Inclui arquivos de subpastas recursivamente",
@@ -218,34 +198,16 @@ class ImageConverterPlugin(BasePlugin):
                     "default": False,
                 },
             },
-            num_columns=1,
+            num_columns=3,
         )
-        grp_opts = GroupPainel("Opções")
-        grp_opts.group_layout.addWidget(self._grid_opts)
-        self.main_layout.addWidget(grp_opts)
+        self._grid_opts.changed.connect(self._on_opts_changed)
 
-        # ── Pasta de Saída ────────────────────────────────────────────
-        suggested_output = ""
-        default_output = ""
-        if self.sys_preferences:
-            root = self.sys_preferences.get("root_folder", "")
-            if root:
-                suggested_output = ExplorerUtils.get_default_path(DefaultPathCategory.IMAGE, root)
-                default_output = ExplorerUtils.ensure_directory(suggested_output)
-
-        saved_output = self.preferences.get("output_dir", default_output)
-
-        self._sel_output = SimpleSelector(
-            label_text="Pasta de Saída:",
-            placeholder="Onde salvar as imagens convertidas...",
-            default_path=saved_output,
-            browse_mode="directory",
-            label_width=120,
-            suggested_path=suggested_output if suggested_output != saved_output else "",
-        )
-        grp_saida = GroupPainel("Pasta de Saída")
-        grp_saida.group_layout.addWidget(self._sel_output)
-        self.main_layout.addWidget(grp_saida)
+        grp_config = GroupPainel("Configurações e Opções")
+        grp_config.group_layout.addWidget(self._panel_quality)
+        grp_config.group_layout.addWidget(self._panel_ico)
+        grp_config.group_layout.addWidget(self._spin_resize)
+        grp_config.group_layout.addWidget(self._grid_opts)
+        self.main_layout.addWidget(grp_config)
 
         # ── Carrega pasta do projeto ──────────────────────────────────
         if self.sys_preferences:
@@ -253,21 +215,8 @@ class ImageConverterPlugin(BasePlugin):
             if root:
                 for folder in [os.path.join(root, d) for d in ("image", "images", "raster")] + [root]:
                     if os.path.isdir(folder):
-                        self._loader.show_loader()
-                        self._loader.set_progress(30, "Carregando imagens do projeto...")
-                        QTimer.singleShot(50, lambda f=folder: self._load_project_folder(f))
+                        self._file_list.add_files([folder])
                         break
-
-    def _load_project_folder(self, folder: str):
-        """Carrega imagens da pasta do projeto com loader."""
-        try:
-            self._file_list.add_files([folder])
-        finally:
-            self._loader.hide_loader()
-
-    def resizeEvent(self, event):
-        super().resizeEvent(event)
-        self._loader.setGeometry(0, 0, self.width(), self.height())
 
     # ── Callbacks ────────────────────────────────────────────────────
 
@@ -281,17 +230,14 @@ class ImageConverterPlugin(BasePlugin):
         is_lossy = fmt_info.get("lossy", False)
         is_ico = fmt_info.get("supports_ico_sizes", False)
 
-        # Quality slider: só para formatos lossy (JPEG, WEBP)
         self._panel_quality.setVisible(is_lossy)
-
-        # ICO sizes: só para ICO
         self._panel_ico.setVisible(is_ico)
 
         self.logger.info(f"Formato alterado: {fmt}", code="IMG_CONV_FORMAT")
 
-    def _on_resize_opts_changed(self):
-        """Habilita/desabilita spin boxes de redimensionamento."""
-        enabled = self._grid_resize_opts.is_item_checked("resize_enabled")
+    def _on_opts_changed(self):
+        """Habilita/desabilita spin boxes de redimensionamento conforme checkboxes."""
+        enabled = self._grid_opts.is_item_checked("resize_enabled")
         self._spin_resize.set_enabled("width", enabled)
         self._spin_resize.set_enabled("height", enabled)
 
@@ -311,7 +257,6 @@ class ImageConverterPlugin(BasePlugin):
         fmt_info = OUTPUT_IMAGE_FORMATS.get(output_format, {})
         ext = fmt_info.get("ext", ".png")
 
-        # Validação ICO sizes
         if fmt_info.get("supports_ico_sizes", False):
             sizes_checked = self._grid_ico_sizes.checked
             if not sizes_checked:
@@ -323,9 +268,8 @@ class ImageConverterPlugin(BasePlugin):
 
         quality = self._slider_quality.get("quality") if fmt_info.get("lossy", False) else 95
 
-        # Redimensionamento
-        resize_enabled = self._grid_resize_opts.is_item_checked("resize_enabled")
-        keep_aspect = self._grid_resize_opts.is_item_checked("keep_aspect")
+        resize_enabled = self._grid_opts.is_item_checked("resize_enabled")
+        keep_aspect = self._grid_opts.is_item_checked("keep_aspect")
         resize = None
         if resize_enabled:
             resize = {
@@ -335,7 +279,7 @@ class ImageConverterPlugin(BasePlugin):
             }
 
         save_in_origin = self._grid_opts.is_item_checked("save_in_origin")
-        output_dir = "" if save_in_origin else self._sel_output.path()
+        output_dir = "" if save_in_origin else self._sel_output["Pasta de Saída"].path()
 
         if not save_in_origin and not output_dir:
             MessageBox.show_warning(
@@ -365,8 +309,12 @@ class ImageConverterPlugin(BasePlugin):
         )
         self.page.set_badge(self.page.RUNNING)
         self._btns.set_enabled("convert", False)
-        self._loader.set_progress(0, "Convertendo imagens...")
-        self._loader.show_loader()
+
+        SignalManager.instance().hud_show.emit({
+            "message": "Convertendo imagens...",
+        })
+        SignalManager.instance().execution_started.emit(self.tool_key)
+
         QTimer.singleShot(
             0,
             lambda: self._run_conversion(
@@ -385,20 +333,17 @@ class ImageConverterPlugin(BasePlugin):
             for idx, img_path in enumerate(paths, start=1):
                 try:
                     out_dir = os.path.dirname(img_path) if save_in_origin else output_dir
-                    ExplorerUtils.ensure_directory(out_dir)
+                    os.makedirs(out_dir, exist_ok=True)
 
-                    # Gera nome de saída
                     base_name = os.path.splitext(os.path.basename(img_path))[0]
                     out_path = os.path.join(out_dir, f"{base_name}{ext}")
 
-                    # Prevenção de sobrescrita
                     if os.path.exists(out_path) and not overwrite:
                         resp = MessageBox.show_question(
                             f"Arquivo já existe:\n{out_path}\n\nDeseja sobrescrever?",
                             title="Sobrescrever?",
                         )
                         if resp != MessageBox.YES:
-                            # Pula este arquivo
                             ok_count += 1
                             self.logger.info(f"Pulado (já existe): {out_path}", code="IMG_CONV_SKIPPED")
                             continue
@@ -418,7 +363,10 @@ class ImageConverterPlugin(BasePlugin):
 
                 pct = (idx / total) * 100.0
                 SignalManager.instance().progress_update.emit(pct)
-                self._loader.set_progress(pct, f"Convertendo {idx}/{total}...")
+                SignalManager.instance().hud_update.emit({
+                    "message": f"Convertendo {idx}/{total}...",
+                    "progress": pct,
+                })
 
             self.logger.info(
                 f"Conversão finalizada: {ok_count} ok, {err_count} err",
@@ -439,7 +387,8 @@ class ImageConverterPlugin(BasePlugin):
             SignalManager.instance().console_message.emit(f"Erro fatal: {e}")
             self.page.set_badge(self.page.ERROR)
         finally:
-            self._loader.hide_loader()
+            SignalManager.instance().hud_hide.emit()
+            SignalManager.instance().execution_finished.emit(self.tool_key)
             self._btns.set_enabled("convert", True)
             SignalManager.instance().progress_update.emit(0.0)
             self.save_prefs()
@@ -475,13 +424,11 @@ class ImageConverterPlugin(BasePlugin):
 
         img = Image.open(input_path)
 
-        # Converte para RGBA se necessário (para manipulação de alpha)
         if img.mode in ("P", "PA", "I", "F"):
             img = img.convert("RGBA")
         elif img.mode not in ("RGB", "RGBA", "LA", "L"):
             img = img.convert("RGBA")
 
-        # Redimensionamento
         if resize and resize.get("width") and resize.get("height"):
             target_w = resize["width"]
             target_h = resize["height"]
@@ -492,18 +439,15 @@ class ImageConverterPlugin(BasePlugin):
             else:
                 img = img.resize((target_w, target_h), Image.Resampling.LANCZOS)
 
-        # Tratamento de alpha para formatos que não suportam
         if output_format in ("JPEG", "BMP") and img.mode in ("RGBA", "LA", "P"):
             background = Image.new("RGB", img.size, (255, 255, 255))
             if img.mode == "P":
                 img = img.convert("RGBA")
-            # Usa canal alpha como máscara
             background.paste(img, mask=img.split()[-1])
             img = background
         elif output_format in ("JPEG", "BMP") and img.mode == "RGBA":
             img = img.convert("RGB")
 
-        # Salva com parâmetros específicos do formato
         save_params = {}
 
         if output_format == "JPEG":
@@ -549,7 +493,7 @@ class ImageConverterPlugin(BasePlugin):
             self._grid_ico_sizes.set_all(ico_states)
 
         resize_enabled = self.preferences.get("resize_enabled", False)
-        self._grid_resize_opts.set_all({
+        self._grid_opts.set_all({
             "resize_enabled": resize_enabled,
             "keep_aspect": self.preferences.get("keep_aspect", True),
         })
@@ -561,7 +505,7 @@ class ImageConverterPlugin(BasePlugin):
 
         out = self.preferences.get("output_dir", "")
         if out:
-            self._sel_output.set_path(out)
+            self._sel_output["Pasta de Saída"].set_path(out)
 
         opts = self.preferences.get("options", {})
         if opts:
@@ -571,9 +515,9 @@ class ImageConverterPlugin(BasePlugin):
         self.preferences["output_format"] = self._combo_format.current_value
         self.preferences["quality"] = self._slider_quality.get("quality")
         self.preferences["ico_sizes"] = self._grid_ico_sizes.all
-        self.preferences["resize_enabled"] = self._grid_resize_opts.is_item_checked("resize_enabled")
+        self.preferences["resize_enabled"] = self._grid_opts.is_item_checked("resize_enabled")
         self.preferences["resize_width"] = int(self._spin_resize.get("width"))
         self.preferences["resize_height"] = int(self._spin_resize.get("height"))
-        self.preferences["keep_aspect"] = self._grid_resize_opts.is_item_checked("keep_aspect")
-        self.preferences["output_dir"] = self._sel_output.path()
+        self.preferences["keep_aspect"] = self._grid_opts.is_item_checked("keep_aspect")
+        self.preferences["output_dir"] = self._sel_output["Pasta de Saída"].path()
         self.preferences["options"] = self._grid_opts.all
