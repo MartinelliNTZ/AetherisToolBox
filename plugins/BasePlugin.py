@@ -70,8 +70,10 @@ class BasePlugin(QWidget):
         sys_prefs: bool = False,
         title: str | None = None,
         show_project_path: bool = False,
+        buttons_config: dict | None = None,
     ) -> None:
         self._show_project_path = show_project_path
+        self._buttons_config = buttons_config
         super().__init__(parent)
         self.tool_key = tool_key
         self._title = title
@@ -107,18 +109,9 @@ class BasePlugin(QWidget):
         outer.setContentsMargins(0, 0, 0, 0)
         outer.setSpacing(0)
 
-        self.page = PluginPage(self, title=self._title)
+        self.page = PluginPage(self, title=self._title, buttons_config=self._buttons_config)
         self.main_layout = self.page.main_layout
         outer.addWidget(self.page)
-
-        # Exibe caminho do projeto no header se solicitado
-        if self._show_project_path:
-            try:
-                root = self.sys_preferences.get("root_folder", "") if self.sys_preferences else ""
-                if root:
-                    self.page.set_project_path(root)
-            except Exception as e:
-                self.logger.warning("Não foi possível exibir caminho do projeto", code="SHOW_PATH_ERR", error=str(e))
 
     def closeEvent(self, event) -> None:  # type: ignore[override]
         self.logger.info(

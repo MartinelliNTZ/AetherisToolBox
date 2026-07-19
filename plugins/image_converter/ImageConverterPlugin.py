@@ -28,7 +28,6 @@ from PySide6.QtCore import QTimer
 from core.enum.ToolKey import ToolKey
 from core.manager.SignalManager import SignalManager
 from plugins.BasePlugin import BasePlugin
-from resources.widgets.ExecutionButtons import ExecutionButtons
 from resources.widgets.FileListView import FileListView
 from resources.widgets.PreviewPanel import PreviewPanel
 from resources.widgets.simple.SimpleComboBox import SimpleComboBox
@@ -52,6 +51,14 @@ class ImageConverterPlugin(BasePlugin):
             sys_prefs=True,
             title="Conversor de Imagens",
             show_project_path=False,
+            buttons_config={
+                "convert": {
+                    "text": "CONVERTER",
+                    "callback": self._on_convert,
+                    "type": "primary",
+                    "description": "Converte todas as imagens para o formato selecionado",
+                },
+            },
         )
         self.logger.info("Conversor de Imagens inicializado", code="IMG_CONV_READY")
         self.page.set_badge(self.page.PRONTA)
@@ -69,18 +76,6 @@ class ImageConverterPlugin(BasePlugin):
             preview_widget=self._preview,
         )
         self._file_list.files_changed.connect(self._on_files_changed)
-
-        # ── ExecutionButtons ──────────────────────────────────────────
-        self._btns = ExecutionButtons(self)
-        self._btns.setup({
-            "convert": {
-                "text": "CONVERTER",
-                "callback": self._on_convert,
-                "type": "primary",
-                "description": "Converte todas as imagens para o formato selecionado",
-            },
-        })
-        self.main_layout.addWidget(self._btns)
 
         # ── Grid: Arquivos + Preview (stretch=2 para mais altura) ─────
         grp_arquivos = GroupPainel("Arquivos")
@@ -301,7 +296,7 @@ class ImageConverterPlugin(BasePlugin):
             f"Convertendo {len(paths)} imagem(ns) para {output_format}..."
         )
         self.page.set_badge(self.page.RUNNING)
-        self._btns.set_enabled("convert", False)
+        self.page.buttons.set_enabled("convert", False)
 
         SignalManager.instance().hud_show.emit({"message": "Convertendo imagens..."})
         SignalManager.instance().execution_started.emit(self.tool_key)
@@ -380,7 +375,7 @@ class ImageConverterPlugin(BasePlugin):
         finally:
             SignalManager.instance().hud_hide.emit()
             SignalManager.instance().execution_finished.emit(self.tool_key)
-            self._btns.set_enabled("convert", True)
+            self.page.buttons.set_enabled("convert", True)
             SignalManager.instance().progress_update.emit(0.0)
             self.save_prefs()
 

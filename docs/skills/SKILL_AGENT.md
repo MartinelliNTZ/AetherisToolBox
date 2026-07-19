@@ -93,6 +93,7 @@ Nunca `except:` sem capturar a exceção. Nunca `except:` sem logar. Use `Except
 - **Nunca** a MainWindow deve importar ou manipular `MenuBar`, `CentralWorkspace` ou `SideWorkspace` diretamente (Contratos 14 e 16).
 - **Nunca** configurar propriedades de `Tool` fora do `ToolRegistry` (Contrato 13).
 - **Nunca** importar ou chamar `QFileDialog` fora de `utils/ExplorerUtils.py` (Contrato 17).
+- **Nunca** criar `ExecutionButtons` manualmente no `_build_ui()` de um plugin. Sempre use o parâmetro `buttons_config` no `super().__init__()` do `BasePlugin`. Os botões são automaticamente posicionados no header do `PluginPage` na ordem: Título → Badge → [stretch] → ExecutionButtons. Acesse via `self.page.buttons` para habilitar/desabilitar. (Contrato 18)
 
 ## ⚡ Uso Consciente de Tokens
 

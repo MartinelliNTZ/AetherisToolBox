@@ -1,3 +1,16 @@
+[1.2.7][2026.07.18][22:39] - ExecutionButtons integrado ao header do PluginPage
+  - PluginPage._build_header(): adicionado ExecutionButtons entre título e badge
+  - PluginPage: novo atributo self.buttons (ExecutionButtons | None)
+  - PluginPage.__init__(): novo parâmetro buttons_config (dict | None) — se None, oculta os buttons
+  - BasePlugin.__init__(): novo parâmetro buttons_config (dict | None) — repassado ao PluginPage
+  - BasePlugin._build_ui(): removido bloco de exibição de project_path (show_project_path mantido como parâmetro)
+  - ImageConverterPlugin: botão CONVERTER movido para buttons_config no super().__init__()
+  - ImageConverterPlugin: removido import e instância manual de ExecutionButtons
+  - ImageConverterPlugin: self._btns substituído por self.page.buttons
+  - DoclingPlugin: botões CONVERTER e SALVAR MD movidos para buttons_config no super().__init__()
+  - DoclingPlugin: removido import e instância manual de ExecutionButtons
+  - DoclingPlugin: self._btns substituído por self.page.buttons
+
 [1.2.6][2026.07.18][21:00] - ImageConverterPlugin: novo conversor universal de imagens
   - ICO_SIZES movido para utils/DictManager.py como constante reutilizável
   - HUD agora via SignalManager (hud_show/hud_update/hud_hide + execution_started/execution_finished)

@@ -35,25 +35,34 @@ Crie um novo diretório em `plugins/` e implemente sua classe herdando de `BaseP
 **Arquivo:** `plugins/minha_ferramenta/main_widget.py`
 ```python
 from core.model.BasePlugin import BasePlugin
-from resources.widgets.SimplePrimaryButton import SimplePrimaryButton  # ✅ widget reutilizável
 from resources.widgets.GroupDiv import GroupDiv                          # ✅ container com título
 
 class MinhaFerramentaWidget(BasePlugin):
     def __init__(self, parent=None):
-        super().__init__(tool_key="MinhaFerramenta", parent=parent)
+        super().__init__(
+            tool_key="MinhaFerramenta",
+            parent=parent,
+            title="Minha Ferramenta",
+            buttons_config={
+                "executar": {
+                    "text": "EXECUTAR",
+                    "callback": self._on_executar,
+                    "type": "primary",
+                    "description": "Inicia o processamento",
+                },
+            },
+        )
         # ⚠️ NÃO chame self._build_ui() nem self.load_prefs() aqui!
         # BasePlugin.__init__ já chama ambos automaticamente.
         self.logger.info("Ferramenta inicializada com sucesso!", code="TOOL_READY")
 
     def _build_ui(self):
-        layout = QVBoxLayout(self)
+        super()._build_ui()
+        # NÃO crie ExecutionButtons manualmente — eles já estão no header do PluginPage
+        # Acesse via self.page.buttons para habilitar/desabilitar
         grupo = GroupDiv("Configurações")
         # ... adicionar widgets do grupo
-        layout.addWidget(grupo)
-
-        btn = SimplePrimaryButton("EXECUTAR")
-        btn.clicked.connect(self._on_executar)
-        layout.addWidget(btn)
+        self.main_layout.addWidget(grupo)
 
     def load_prefs(self):
         """Obrigatório — carrega preferências salvas."""
@@ -62,6 +71,11 @@ class MinhaFerramentaWidget(BasePlugin):
     def save_prefs(self):
         """Obrigatório — salva preferências."""
         pass
+
+    def _on_executar(self):
+        self.page.buttons.set_enabled("executar", False)
+        # ... execução ...
+        self.page.buttons.set_enabled("executar", True)
 ```
 
 > ⚠️ **Cuidado com signal chain ao restaurar paths:**  

@@ -34,6 +34,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QLabel, QFrame, QHBoxLayout
 
 from resources.widgets.BasePage import BasePage
+from resources.widgets.ExecutionButtons import ExecutionButtons
 
 
 class _BadgeState(Enum):
@@ -96,18 +97,30 @@ class PluginPage(BasePage):
         _BadgeState.INFO: "#3498db",       # azul
     }
 
-    def __init__(self, parent: QWidget | None = None, title: str | None = None) -> None:
+    def __init__(
+        self,
+        parent: QWidget | None = None,
+        title: str | None = None,
+        buttons_config: dict | None = None,
+    ) -> None:
         super().__init__(parent)
 
         self.header: QWidget | None = None
         self.badge: Badge | None = None
+        self.buttons: ExecutionButtons | None = None
         self._project_path_label: QLabel | None = None
 
         if title:
             self._build_header(title)
 
+        if buttons_config:
+            self.buttons.setup(buttons_config)
+            self.buttons.setVisible(True)
+        elif self.buttons is not None:
+            self.buttons.setVisible(False)
+
     def _build_header(self, title: str) -> None:
-        """Constrói o header com título e espaço reservado para badge."""
+        """Constrói o header com título, badge e execution buttons alinhados à direita."""
         header = QWidget()
         header_layout = QHBoxLayout(header)
         header_layout.setContentsMargins(0, 0, 0, 0)
@@ -117,9 +130,18 @@ class PluginPage(BasePage):
         header_title.setObjectName("header_title")
         header_layout.addWidget(header_title, 0)
         header_layout.setStretchFactor(header_title, 0)
-
-        # Espaço elástico entre título e project_path
         header_layout.addStretch(1)
+        # Badge de status (ao lado do título)
+        self.badge = Badge("")
+        self.badge.setVisible(False)
+        header_layout.addWidget(self.badge, 0)
+
+        # Espaço elástico empurra buttons para a direita
+
+
+        # ExecutionButtons alinhados à direita
+        self.buttons = ExecutionButtons(header)
+        header_layout.addWidget(self.buttons, 0)
 
         self._header_layout = header_layout
         self._header_title = header_title
@@ -159,7 +181,7 @@ class PluginPage(BasePage):
 
     def set_badge(self, state: _BadgeState) -> Badge:
         """
-        Define o estado do badge no header, alinhado à direita.
+        Define o estado do badge no header, ao lado do título.
 
         Args:
             state: Uma das constantes da classe:
@@ -167,7 +189,7 @@ class PluginPage(BasePage):
                    page.CANCELED, page.INFO
 
         Returns:
-            Badge: Instância do badge criado/atualizado.
+            Badge: Instância do badge atualizado.
         """
         if not hasattr(self, '_header_layout'):
             raise RuntimeError(
@@ -178,11 +200,8 @@ class PluginPage(BasePage):
         text = state.value
         bg_color = self._BADGE_COLORS[state]
 
-        if self.badge is None:
-            self.badge = Badge(text)
-            self._header_layout.addWidget(self.badge, alignment=Qt.AlignmentFlag.AlignRight)
-        else:
-            self.badge.setText(text)
+        self.badge.setText(text)
+        self.badge.setVisible(True)
 
         # Aplica o estilo encapsulado — plugin não precisa saber de AppStyles
         self.badge.setStyleSheet(

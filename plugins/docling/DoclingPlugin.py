@@ -14,7 +14,6 @@ from core.manager.SignalManager import SignalManager
 from plugins.BasePlugin import BasePlugin
 from core.papeline.PipelineRunner import PipelineRunner
 from core.papeline.step import DoclingConvertStep
-from resources.widgets.ExecutionButtons import ExecutionButtons
 from resources.widgets.grid.GridCheckBox import GridCheckBox
 from resources.widgets.grid.GridDoubleSpinBox import GridDoubleSpinBox
 from resources.widgets.GroupPainel import GroupPainel
@@ -41,6 +40,20 @@ class DoclingPlugin(BasePlugin):
             tool_key=ToolKey.DOCLING.value,
             parent=parent,
             title="Docling → Markdown",
+            buttons_config={
+                "converter": {
+                    "text": "CONVERTER",
+                    "callback": self._on_converter,
+                    "type": "primary",
+                    "description": "Converte o documento para Markdown",
+                },
+                "salvar": {
+                    "text": "SALVAR MD",
+                    "callback": self._on_salvar,
+                    "type": "secondary",
+                    "description": "Salva o Markdown gerado em arquivo .md",
+                },
+            },
         )
         self._runner: PipelineRunner | None = None
         self._current_markdown: str = ""
@@ -49,23 +62,6 @@ class DoclingPlugin(BasePlugin):
 
     def _build_ui(self):
         super()._build_ui()
-
-        self._btns = ExecutionButtons(self)
-        self._btns.setup({
-            "converter": {
-                "text": "CONVERTER",
-                "callback": self._on_converter,
-                "type": "primary",
-                "description": "Converte o documento para Markdown",
-            },
-            "salvar": {
-                "text": "SALVAR MD",
-                "callback": self._on_salvar,
-                "type": "secondary",
-                "description": "Salva o Markdown gerado em arquivo .md",
-            },
-        })
-        self.main_layout.addWidget(self._btns)
 
         self._sel_grid = GridSelector(
             specs={
@@ -148,7 +144,7 @@ class DoclingPlugin(BasePlugin):
         self._current_markdown = ""
         self._txt_preview.clear_content()
         self.page.set_badge(self.page.RUNNING)
-        self._btns.set_enabled("converter", False)
+        self.page.buttons.set_enabled("converter", False)
 
         # ── Estima tempo baseado no tamanho do arquivo (MB) ──────────
         size_bytes = os.path.getsize(file_path)
@@ -203,7 +199,7 @@ class DoclingPlugin(BasePlugin):
 
     def _on_runner_finished(self):
         self._runner = None
-        self._btns.set_enabled("converter", True)
+        self.page.buttons.set_enabled("converter", True)
         SignalManager.instance().hud_hide.emit()
         SignalManager.instance().progress_update.emit(0.0)
 

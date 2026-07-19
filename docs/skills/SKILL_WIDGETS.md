@@ -79,6 +79,19 @@ from resources.widgets.complex.GridComplexSelector import GridComplexSelector
 
 ---
 
+### `GridSelector` — `grid/GridSelector.py` (DEPRECATED)
+> ⚠️ **DEPRECATED** — Este widget está obsoleto. **Use `GridComplexSelector`** de `resources/widgets/complex/GridComplexSelector.py` em todas as novas ferramentas. 
+>
+> ```python
+> # ❌ NÃO USE — DEPRECATED
+> from resources.widgets.grid.GridSelector import GridSelector
+> 
+> # ✅ USE ISTO EM VEZ (via grid)
+> from resources.widgets.complex.GridComplexSelector import GridComplexSelector
+> ```
+
+---
+
 
 
 ### `SimpleSelector` — `SimpleSelector.py` (DEPRECATED)
@@ -816,6 +829,10 @@ Container base padrão para todos os plugins. Fornece:
 
   O estilo (cor de fundo, padding, font) é aplicado automaticamente.
 
+- **ExecutionButtons integrado no header** — ordem: `Título → Badge → [stretch] → ExecutionButtons`
+  - Se `buttons_config` for `None`, os botões ficam ocultos
+  - Se `buttons_config` for um dict, `ExecutionButtons.setup()` é chamado automaticamente
+
 Usado automaticamente pelo `BasePlugin._build_ui()`.
 
 ```python
@@ -826,13 +843,47 @@ page = PluginPage(title="Meu Plugin")
 page.main_layout.addWidget(QLabel("conteúdo"))
 page.set_badge(page.PRONTA)
 
-# Uso via BasePlugin (padrão)
+# Com buttons_config
+page = PluginPage(
+    title="Meu Plugin",
+    buttons_config={
+        "executar": {"text": "EXECUTAR", "callback": self._on_executar, "type": "primary"},
+    },
+)
+
+# Uso via BasePlugin (padrão) — botões passados no super().__init__()
 class MeuPlugin(BasePlugin):
+    def __init__(self, parent=None):
+        super().__init__(
+            tool_key="MinhaFerramenta",
+            title="Minha Ferramenta",
+            buttons_config={
+                "executar": {
+                    "text": "EXECUTAR",
+                    "callback": self._on_executar,
+                    "type": "primary",
+                },
+            },
+        )
+
     def _build_ui(self):
         super()._build_ui()
         self.main_layout.addWidget(QLabel("meu widget"))
         self.page.set_badge(self.page.PRONTA)
+
+    def _on_executar(self):
+        self.page.buttons.set_enabled("executar", False)  # desabilita via header
+        # ... execução ...
+        self.page.buttons.set_enabled("executar", True)
 ```
+
+**Parâmetros do construtor:**
+- `title: str | None` — se informado, cria header com título, badge e execution buttons
+- `buttons_config: dict | None` — config dos botões (mesmo formato do `ExecutionButtons.setup()`)
+
+**Atributos públicos:**
+- `self.buttons` → `ExecutionButtons | None` — instância dos botões no header
+- `self.badge` → `Badge` — badge de status (sempre existe se title foi informado)
 
 **Constantes do badge:** `page.PRONTA`, `page.RUNNING`, `page.ERROR`, `page.CANCELED`, `page.INFO`
 
