@@ -37,20 +37,6 @@ from resources.styles.BaseTheme import BaseTheme
 
 
 THEMES: dict[str, dict] = {
-    "dark_charcoal": {
-        "module":      "resources.styles.DarkCharcoalTheme",
-        "label":       "Dark Charcoal",
-        "description": "Tema escuro minimalista com detalhes em dourado. "
-                       "Profundidade via sombras, fundo preto-azulado e "
-                       "acento dourado elegante.",
-    },
-    "zero_graus": {
-        "module":      "resources.styles.ZeroGrausTheme",
-        "label":       "Zero Graus",
-        "description": "Tema cristalino Ice Glass. Tons azulados profundos, "
-                       "brilho frio mbar-azulado e superfícies que "
-                       "simulam gelo translúcido.",
-    },
     "blue_theme": {
         "module":      "resources.styles.BlueTheme",
         "label":       "Blue Theme",
@@ -58,11 +44,20 @@ THEMES: dict[str, dict] = {
                        "https://dribbble.com/shots/23707627-Modern-Dashboard-UI-Design. "
                        "Fundo azul-escuro profundo, cards em glassmorphism sutil, "
                        "acento azul elétrico vibrante e texto branco suave.",
-    },    "neon_accent": {
-        "module":      "resources.styles.NeonAccentTheme",
-        "label":       "Neon Accent",
-        "description": "Tema com destaque neon, utilizando cores vibrantes e "
-                       "efeitos de brilho para um visual moderno e impactante.",
+    },
+    "dark_charcoal": {
+        "module":      "resources.styles.DarkCharcoalTheme",
+        "label":       "Dark Charcoal",
+        "description": "Tema escuro minimalista com detalhes em dourado. "
+                       "Profundidade via sombras, fundo preto-azulado e "
+                       "acento dourado elegante.",
+    },
+    "emerald_teal": {
+        "module":      "resources.styles.EmeraldTealTheme",
+        "label":       "Emerald Teal",
+        "description": "Tema escuro esmeralda-teal com gradiente vertical "
+                       "3-stop, bordas pill (35px) e sombra 3D preta. "
+                       "Inspirado no design de botão gradiente verde.",
     },
     "gold_premium": {
         "module":      "resources.styles.GoldPremiumTheme",
@@ -75,6 +70,12 @@ THEMES: dict[str, dict] = {
         "author":      "Aetheris ToolBox",
         "version":     "1.0.0",
     },
+    "neon_accent": {
+        "module":      "resources.styles.NeonAccentTheme",
+        "label":       "Neon Accent",
+        "description": "Tema com destaque neon, utilizando cores vibrantes e "
+                       "efeitos de brilho para um visual moderno e impactante.",
+    },
     "pearl_white": {
         "module":      "resources.styles.PearlWhiteTheme",
         "label":       "Pearl White",
@@ -82,12 +83,12 @@ THEMES: dict[str, dict] = {
                        "Oposto do Dark Charcoal: fundos branco/pérola, "
                        "texto escuro e acentos dourados elegantes.",
     },
-    "emerald_teal": {
-        "module":      "resources.styles.EmeraldTealTheme",
-        "label":       "Emerald Teal",
-        "description": "Tema escuro esmeralda-teal com gradiente vertical "
-                       "3-stop, bordas pill (35px) e sombra 3D preta. "
-                       "Inspirado no design de botão gradiente verde.",
+    "zero_graus": {
+        "module":      "resources.styles.ZeroGrausTheme",
+        "label":       "Zero Graus",
+        "description": "Tema cristalino Ice Glass. Tons azulados profundos, "
+                       "brilho frio mbar-azulado e superfícies que "
+                       "simulam gelo translúcido.",
     },
 }
 

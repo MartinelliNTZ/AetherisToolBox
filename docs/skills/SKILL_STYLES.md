@@ -65,8 +65,8 @@ Classe base abstrata que define **todos os tokens semânticos** do sistema. Cada
 | 3 | **TEXT** | `TEXT_*` | Hierarquia tipográfica | `TEXT_HIGH`, `TEXT_MEDIUM`, `TEXT_LOW`, `TEXT_DISABLED` |
 | 4 | **BORDER** | `BORDER_*` | Hierarquia de bordas | `BORDER_SUBTLE`, `BORDER_DEFAULT`, `BORDER_STRONG` |
 | 5 | **SHADOW** | `SHADOW_*` | Sombras por tamanho | `SHADOW_SM`, `SHADOW_MD`, `SHADOW_LG`, `SHADOW_XL` |
-| 6 | **RADIUS** | `RADIUS_*` | Escala global de cantos arredondados | `RADIUS_XS`(2) a `RADIUS_XL`(16), `RADIUS_FULL` |
-| 7 | **SPACE** | `SPACE_*` | Escala global de espaçamento | `SPACE_XXS`(2) a `SPACE_3XL`(48) |
+| 6 | **RADIUS** | `RADIUS_*` | Escala global de cantos arredondados (int) | `RADIUS_XS`(2) a `RADIUS_XL`(16), `RADIUS_FULL` |
+| 7 | **SPACE** | `SPACE_*` | Escala global de espaçamento (int) | `SPACE_XXS`(2) a `SPACE_3XL`(48) |
 | 8 | **ICON** | `ICON_*` | Tamanhos de ícone | `ICON_XS`(12) a `ICON_XL`(32), `TOOLBAR_ICON_SIZE`(20) |
 | 9 | **ANIMATION** | `ANIMATION_*` | Durações de animação (ms) | `ANIMATION_FAST`(120), `ANIMATION_SLOW`(260) |
 | 10 | **OPACITY** | `OPACITY_*` | Níveis de opacidade | `OPACITY_DISABLED`(0.35), `OPACITY_ACTIVE`(1.0) |
@@ -76,8 +76,8 @@ Classe base abstrata que define **todos os tokens semânticos** do sistema. Cada
 | 14 | **FOCUS_RING** | `FOCUS_RING_*` | Anel de foco visual | `FOCUS_RING_COLOR`, `FOCUS_RING_WIDTH` |
 | 15 | **STATUS** | `COLOR_*` | Cores de estado semântico | `COLOR_SUCCESS`, `COLOR_WARNING`, `COLOR_DANGER`, `COLOR_INFO` |
 | 16 | **FONT** | `FONT_*` | Tipografia | `FONT_FAMILY_DEFAULT`, `FONT_SIZE_NORMAL`, `FONT_WEIGHT_BOLD` |
-| 17 | **DIMENSIONS** | `*` | Alturas e tamanhos de widgets | `INPUT_HEIGHT`, `BUTTON_HEIGHT`, `SCROLLBAR_WIDTH`, `TOOLBAR_BTN_SIZE` |
-| 18 | **SPECIFICS** | `BORDER_RADIUS_*`, `*_PADDING`, etc. | Tokens específicos de implementação | `BORDER_RADIUS_CARD`, `BADGE_PADDING_V`, `MENU_PADDING` |
+| 17 | **DIMENSIONS** | `*` | Alturas e tamanhos de widgets | `INPUT_HEIGHT`(int), `BUTTON_HEIGHT`(int), `SCROLLBAR_WIDTH`(str c/px), `TOOLBAR_BTN_SIZE`(int) |
+| 18 | **SPECIFICS** | `BORDER_RADIUS_*`, `*_PADDING`, etc. | Tokens específicos de implementação | `BORDER_RADIUS_CARD`(str c/px), `BADGE_PADDING_V`(str c/px), `MENU_PADDING`(str c/px) |
 
 **Aliases de compatibilidade retroativa** (mapeiam nomes antigos → tokens semânticos):
 
@@ -505,6 +505,93 @@ python -c "import ast; ast.parse(open('arquivo.py', encoding='utf-8').read()); p
 
 Para testes completos, execute o aplicativo real (`main.py`).
 
+---
+
+## 🧠 Regra de Decisão: Token com Unidade (px) vs Token Numérico
+
+Todo token de tema que representa uma **grandeza dimensional usada em QSS** deve ser uma **string com a unidade `px`** (ex: `"12px"`, `"-6px"`, `"999px"`). Tokens que só são lidos em Python puro (QSize, setFixedHeight, animation.setDuration, QPainter) permanecem **numéricos** (`int`/`float`).
+
+### Critério de decisão (aplicar token por token)
+
+Para cada token do tema, pergunte:
+> "Esse valor é usado em algum lugar dentro de uma f-string de QSS (global_stylesheet, ou qualquer outro .py que monte `setStyleSheet(...)`)?"
+
+| Cenário | Formato do valor | Exemplo |
+|---------|------------------|---------|
+| **SIM, só em QSS** | string com unidade: `"12px"`, `"-6px"`, `"999px"`, `"0.3px"`, `"18px"` | `SCROLLBAR_WIDTH = "6px"` |
+| **SIM, mas também é lido em Python puro** (QSize, setFixedHeight, effect.setBlurRadius, animation.setDuration) | mantenha numérico, resolva o QSS de outro modo (veja "Casos ambíguos") | `RADIUS_MD = 8` |
+| **NÃO é usado em QSS, só em Python** | mantenha numérico | `ANIMATION_FAST = 120` |
+
+### ⚠️ Casos ambíguos: token usado tanto em QSS quanto em Python
+
+Exemplo: `RADIUS_MD = 8` é usado em QSS (`border-radius`) e em `QPainterPath.addRoundedRect()` no paintEvent.
+
+| ❌ NUNCA faça | ✅ Faça |
+|--------------|---------|
+| `RADIUS_MD = "8px"` — quebra paintEvent que espera `int` | Mantenha `RADIUS_MD = 8` (int). No QSS, `BaseStyle` formata como `f"{t.RADIUS_MD}px"` |
+| `FONT_SIZE_NORMAL = 13` + `BaseStyle` concatenar `px` | Faça `FONT_SIZE_NORMAL = "13px"` (string) — só é usado em QSS |
+
+### Checklist prático por família de token
+
+| Família | Ação |
+|---------|------|
+| `FONT_SIZE_*` | string com px (ex: `"13px"`) |
+| `BORDER_RADIUS_*` (toda a família) | string com px, mesmo quando o valor é 0 → `"0px"` |
+| `*_LETTER_SPACING`, `LETTER_SPACING_*` | já devem ser string (`"0.3px"`) — confirmar, não deixar número puro |
+| `*_PADDING_V`, `*_PADDING_H`, `*_PADDING` (paddings de widgets) | já devem ser string — se algum vier numérico, converter |
+| `SCROLLBAR_WIDTH`, `SCROLLBAR_MIN_HEIGHT` | string com px |
+| `TAB_CLOSE_BUTTON_SIZE`, `CLOSE_BUTTON_BORDER_RADIUS` | string com px |
+| `PROGRESS_BAR_HEIGHT` | string com px |
+| `TITLE_BTN_HEIGHT`, `TITLE_BTN_WIDTH`, `TITLE_BTN_FONT_SIZE` | string com px |
+| `GROUP_MARGIN_TOP`, `GROUP_TITLE_LEFT`, `GROUP_TITLE_TOP` | string com px (cuidado com negativos: `"-6px"`) |
+| `SPLITTER_HANDLE_WIDTH` (e variantes `_H`/`_V`, se usadas em QSS) | string com px |
+| `CHECKBOX_SIZE`, `CHECKBOX_SPACING` | string com px |
+| `SPINBOX_BTN_WIDTH` | string com px |
+| `COMBOBOX_MIN_WIDTH`, `COMBOBOX_DROPDOWN_WIDTH` | string com px |
+| `TEXT_EDIT_FONT_SIZE` | string com px |
+| `WINDOW_TITLE_FONT_SIZE` | string com px |
+| `HEADER_FONT_SIZE` | string com px |
+| `CARD_PADDING_V`, `CARD_PADDING_H` | string com px |
+| `MENUBAR_ITEM_BORDER_RADIUS`, `GROUP_TITLE_BORDER_RADIUS`, `COMBOBOX_POPUP_BORDER_RADIUS` | string com px |
+| `BUTTON_FONT_SIZE_PRIMARY` | string com px |
+
+### Famílias que NÃO devem ser convertidas (manter int/float)
+
+| Família | Motivo |
+|---------|--------|
+| `ICON_XS/SM/MD/LG/XL` | usados em `QSize(t.ICON_MD, t.ICON_MD)` |
+| `TOOLBAR_ICON_SIZE`, `TOOLBAR_BTN_SIZE`, `TOOLBAR_BTN_HOVER_GROW` | `QSize()` / animação hover grow |
+| `ANIMATION_FAST/NORMAL/SLOW` | milissegundos, `animation.setDuration(t.ANIMATION_FAST)` |
+| `INPUT_HEIGHT`, `BUTTON_HEIGHT`, `BUTTON_HEIGHT_PRIMARY`, `ITEM_HEIGHT`, `TAB_HEIGHT`, `RADIO_SIZE` | `setFixedHeight()` / `QSize()` |
+| `RADIUS_XS...RADIUS_FULL`, `SPACE_XXS...SPACE_3XL` | escalas genéricas consumidas em Python (layouts, margins, paintEvent) |
+| `OPACITY_*`, `ELEVATION_*` | float/índice sem unidade |
+| `SHADOW_BLUR_*`, `GLOW_BLUR`, `GLOW_OFFSET_*`, `SHADOW_OFFSET_Y_*` | `QGraphicsDropShadowEffect` Python puro |
+| `SHADOW_COLOR_ALPHA`, `GLOW_ALPHA`, `GLOW_STRONG_ALPHA` | alpha 0-255, sem unidade |
+| `FONT_LETTER_SPACING_DISPLAY` | `QFont.setLetterSpacing()` Python puro |
+| `BADGE_OUTLINE_BORDER_WIDTH`, `BADGE_OUTLINE_BG_ALPHA` | inteiros sem unidade |
+| `BORDER_GRADIENT_WIDTH` | float sem unidade |
+| `BUTTON_FONT_WEIGHT_PRIMARY` | inteiro sem unidade |
+
+### Antipadrão: pxpx
+
+**Nunca faça o valor carregar unidade E o BaseStyle concatenar unidade ao mesmo tempo.** É exatamente essa duplicação que gera `pxpx`.
+
+```python
+# ❌ ERRADO — gera "12pxpx" no QSS
+FONT_SIZE_NORMAL = "12px"    # já tem px
+# BaseStyle faz: f"{t.FONT_SIZE_NORMAL}px" → "12pxpx"
+
+# ✅ CERTO — string com px embutido
+FONT_SIZE_NORMAL = "12px"    # já tem px
+# BaseStyle usa diretamente: t.FONT_SIZE_NORMAL → "12px"
+
+# ✅ CERTO — int puro, BaseStyle formata
+RADIUS_MD = 8                # int
+# BaseStyle faz: f"{t.RADIUS_MD}px" → "8px"
+```
+
+---
+
 ## ⚠️ Regras e Boas Práticas
 
 | Regra | Descrição |
@@ -518,6 +605,8 @@ Para testes completos, execute o aplicativo real (`main.py`).
 | **Tema padrão** | `dark_charcoal` é o tema padrão se não houver preferência salva. |
 | **Lazy loading** | Temas são carregados sob demanda — só o módulo do tema ativo é importado. |
 | **Compatibilidade** | Ao modificar `BaseTheme`, atualize todos os temas concretos para sobrescrever os novos tokens. |
+| **px em tokens QSS** | Tokens usados exclusivamente em QSS devem ser `str` com `px`. Tokens usados em Python puro devem ser `int`/`float`. Tokens usados em ambos devem ser numéricos e o QSS formata com `f"{valor}px"`. |
+| **Sem pxpx** | Nunca duplique a unidade. Se o valor já é `"12px"`, o BaseStyle não deve concatenar outro `px`. Se o valor é `12` (int), o BaseStyle formata como `f"{12}px"`. |
 
 ## 🧪 Lições Aprendidas (Problemas e Soluções)
 
@@ -612,12 +701,12 @@ Para testes completos, execute o aplicativo real (`main.py`).
    ```
    **Por que funciona:** `WA_StyledBackground` força o `QToolButton` a respeitar o QSS no Windows, e o `paintEvent` manual garante que o ícone também seja arredondado.
 
-4. **`BORDER_RADIUS_TOOLBAR_BTN = 999` para pill total**
+4. **`BORDER_RADIUS_TOOLBAR_BTN = "999px"` para pill total**
    ```python
    # No tema concreto (ex: PearlWhiteTheme.py):
-   BORDER_RADIUS_TOOLBAR_BTN = 999  # pill / totalmente redondo
+   BORDER_RADIUS_TOOLBAR_BTN = "999px"  # pill / totalmente redondo
    ```
-   **Por que funciona:** O valor `999` é maior que qualquer tamanho de botão, então o Qt interpreta como "totalmente arredondado" (pill shape).
+   **Por que funciona:** O valor `999px` é maior que qualquer tamanho de botão, então o Qt interpreta como "totalmente arredondado" (pill shape).
 
 ### 🔍 Checklist para widgets com paintEvent custom
 
@@ -742,6 +831,9 @@ class MeuTemaPremium(BaseTheme):
 - [ ] O tema foi registrado no dicionário `THEMES` do `ThemeManager`?
 - [ ] O módulo foi adicionado ao `__init__.py` de `resources/styles/`?
 - [ ] Esta skill foi atualizada com o novo tema?
+- [ ] Tokens de QSS (FONT_SIZE_*, BORDER_RADIUS_*, SCROLLBAR_WIDTH, etc.) são string com `px`?
+- [ ] Tokens de Python puro (ICON_*, ANIMATION_*, INPUT_HEIGHT, etc.) são int/float?
+- [ ] Tokens usados em ambos (RADIUS_*, SPACE_*) são int (o QSS formata com `f"{valor}px"`)?
 - [ ] **(Opcional)** Definir `GRADIENT_ACCENT_TYPE`/`GRADIENT_BUTTON_TYPE`/`GRADIENT_TAB_TYPE` para gradientes customizados?
 - [ ] **(Opcional)** Ativar `GLOW_BUTTON_ENABLED`/`GLOW_TAB_ENABLED` para efeito de brilho?
 
@@ -757,6 +849,7 @@ class MeuTemaPremium(BaseTheme):
 - [ ] Usei nome extenso `current_theme` (nunca `t`, `ct` ou variavel ambigua)?
 - [ ] **(Widgets custom)** Se o widget usa gradiente em paintEvent, ele consulta `GRADIENT_*_STOPS` do tema?
 - [ ] **Nao criei** metodos-ponte no AppStyles para cores avulsas? AppStyles só deve expor estilos QSS completos.
+- [ ] **Tokens numéricos no QSS**: Se o token é `int` (ex: `RADIUS_MD = 8`), o QSS deve formatar como `f"{valor}px"`. Se o token já é `str` com `px`, usar direto.
 
 ---
 

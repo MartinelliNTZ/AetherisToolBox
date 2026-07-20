@@ -292,11 +292,11 @@ class GoldPremiumTheme(BaseTheme):
     # widgets com paintEvent customizado (ex: GoldText).
     FONT_LETTER_SPACING_DISPLAY: int = 2
 
-    FONT_SIZE_TITLE = 24
-    FONT_SIZE_BIG = 18
-    FONT_SIZE_NORMAL = 13
-    FONT_SIZE_SMALL = 11
-    FONT_SIZE_TINY = 10
+    FONT_SIZE_TITLE = "24px"
+    FONT_SIZE_BIG = "18px"
+    FONT_SIZE_NORMAL = "13px"
+    FONT_SIZE_SMALL = "11px"
+    FONT_SIZE_TINY = "10px"
 
     FONT_WEIGHT_NORMAL = 400
     FONT_WEIGHT_BOLD = 600
@@ -311,52 +311,52 @@ class GoldPremiumTheme(BaseTheme):
     BUTTON_HEIGHT = 0
     BUTTON_HEIGHT_PRIMARY = 0
     ITEM_HEIGHT = 0
-    CHECKBOX_SIZE = 16
+    CHECKBOX_SIZE = "16px"
     RADIO_SIZE = 16
-    SCROLLBAR_WIDTH = 6
-    SCROLLBAR_MIN_HEIGHT = 30
+    SCROLLBAR_WIDTH = "6px"
+    SCROLLBAR_MIN_HEIGHT = "30px"
     TAB_HEIGHT = 0
-    TAB_CLOSE_BUTTON_SIZE = 20
-    CLOSE_BUTTON_BORDER_RADIUS = 3
-    PROGRESS_BAR_HEIGHT = 20
-    TITLE_BTN_HEIGHT = 24
-    TITLE_BTN_WIDTH = 30
-    TITLE_BTN_FONT_SIZE = 11
+    TAB_CLOSE_BUTTON_SIZE = "20px"
+    CLOSE_BUTTON_BORDER_RADIUS = "3px"
+    PROGRESS_BAR_HEIGHT = "20px"
+    TITLE_BTN_HEIGHT = "24px"
+    TITLE_BTN_WIDTH = "30px"
+    TITLE_BTN_FONT_SIZE = "11px"
     TOOLBAR_BTN_SIZE = 42
     TOOLBAR_BTN_HOVER_GROW = 5
-    GROUP_MARGIN_TOP = 10
-    SPLITTER_HANDLE_WIDTH = 4
+    GROUP_MARGIN_TOP = "10px"
+    SPLITTER_HANDLE_WIDTH = "4px"
 
     # ═══════════════════════════════════════════════════════════════════
     # 18. SPECIFICS — Tokens específicos de implementação
     # ═══════════════════════════════════════════════════════════════════
 
     # ── Border Radius ────────────────────────────────────────────
-    BORDER_RADIUS_CARD = 12
-    BORDER_RADIUS_BUTTON = 8
-    BORDER_RADIUS_INPUT = 8
-    BORDER_RADIUS_CHECKBOX = 4
-    BORDER_RADIUS_RADIO = 0
-    BORDER_RADIUS_BADGE = 5
-    BORDER_RADIUS_PROGRESS = 6
-    BORDER_RADIUS_TABLE = 10
-    BORDER_RADIUS_TITLE_BTN = 4
-    BORDER_RADIUS_TOOLBAR_BTN = 5
-    BORDER_RADIUS_GHOST = 6
-    BORDER_RADIUS_TOOL_SELECTOR = 8
-    BORDER_RADIUS_SCROLLBAR = 3
-    BORDER_RADIUS_SPINBOX_BTN = 2
-    BORDER_RADIUS_TAB_CLOSE = 3
-    BORDER_RADIUS_COMBO_POPUP = 5
-    BORDER_RADIUS_MENU = 8
-    BORDER_RADIUS_MENU_ITEM = 4
-    BORDER_RADIUS_GROUP_TITLE = 5
-    BORDER_RADIUS_DIALOG = 20
-    MENUBAR_ITEM_BORDER_RADIUS = 1
+    BORDER_RADIUS_CARD = "12px"
+    BORDER_RADIUS_BUTTON = "8px"
+    BORDER_RADIUS_INPUT = "8px"
+    BORDER_RADIUS_CHECKBOX = "4px"
+    BORDER_RADIUS_RADIO = "0px"
+    BORDER_RADIUS_BADGE = "5px"
+    BORDER_RADIUS_PROGRESS = "6px"
+    BORDER_RADIUS_TABLE = "10px"
+    BORDER_RADIUS_TITLE_BTN = "4px"
+    BORDER_RADIUS_TOOLBAR_BTN = "5px"
+    BORDER_RADIUS_GHOST = "6px"
+    BORDER_RADIUS_TOOL_SELECTOR = "8px"
+    BORDER_RADIUS_SCROLLBAR = "3px"
+    BORDER_RADIUS_SPINBOX_BTN = "2px"
+    BORDER_RADIUS_TAB_CLOSE = "3px"
+    BORDER_RADIUS_COMBO_POPUP = "5px"
+    BORDER_RADIUS_MENU = "8px"
+    BORDER_RADIUS_MENU_ITEM = "4px"
+    BORDER_RADIUS_GROUP_TITLE = "5px"
+    BORDER_RADIUS_DIALOG = "20px"
+    MENUBAR_ITEM_BORDER_RADIUS = "1px"
 
     # ── Checkbox ─────────────────────────────────────────────────
     CHECKBOX_BORDER_WIDTH = 0
-    CHECKBOX_SPACING = 8
+    CHECKBOX_SPACING = "8px"
 
     # ── Badge ────────────────────────────────────────────────────
     BADGE_PADDING_V = "3px"
@@ -393,25 +393,25 @@ class GoldPremiumTheme(BaseTheme):
 
     # ── SpinBox ──────────────────────────────────────────────────
     SPINBOX_PADDING = "4px 10px"
-    SPINBOX_BTN_WIDTH = 16
+    SPINBOX_BTN_WIDTH = "16px"
     SPINBOX_BTN_MARGIN = "1px"
 
     # ── ComboBox ─────────────────────────────────────────────────
     COMBOBOX_PADDING = "4px 10px"
-    COMBOBOX_MIN_WIDTH = 80
-    COMBOBOX_DROPDOWN_WIDTH = 22
+    COMBOBOX_MIN_WIDTH = "80px"
+    COMBOBOX_DROPDOWN_WIDTH = "22px"
     COMBOBOX_ARROW_SIZE = "4px"
-    COMBOBOX_POPUP_BORDER_RADIUS = 5
+    COMBOBOX_POPUP_BORDER_RADIUS = "5px"
 
     # ── TextEdit / TextBrowser ───────────────────────────────────
     TEXT_EDIT_PADDING = "10px"
-    TEXT_EDIT_FONT_SIZE = 12
+    TEXT_EDIT_FONT_SIZE = "12px"
 
     # ── GroupBox ─────────────────────────────────────────────────
-    GROUP_TITLE_LEFT = 6
-    GROUP_TITLE_TOP = -2
+    GROUP_TITLE_LEFT = "6px"
+    GROUP_TITLE_TOP = "-2px"
     GROUP_TITLE_PADDING = "0 8px"
-    GROUP_TITLE_BORDER_RADIUS = 5
+    GROUP_TITLE_BORDER_RADIUS = "5px"
     GROUP_TITLE_LETTER_SPACING = "0.6px"
 
     # ── Letter Spacing ───────────────────────────────────────────
@@ -425,7 +425,7 @@ class GoldPremiumTheme(BaseTheme):
     LETTER_SPACING_WINDOW_TITLE = "0.4px"
 
     # ── Window Title ─────────────────────────────────────────────
-    WINDOW_TITLE_FONT_SIZE = 11
+    WINDOW_TITLE_FONT_SIZE = "11px"
     WINDOW_TITLE_LETTER_SPACING = "0.4px"
 
     # ── Title Bar ────────────────────────────────────────────────
@@ -433,12 +433,12 @@ class GoldPremiumTheme(BaseTheme):
     TITLE_BAR_BORDER_COLOR = ""
 
     # ── Card ─────────────────────────────────────────────────────
-    CARD_PADDING_V = 18
-    CARD_PADDING_H = 12
+    CARD_PADDING_V = "18px"
+    CARD_PADDING_H = "12px"
 
     # ── Splitter ─────────────────────────────────────────────────
-    SPLITTER_HANDLE_WIDTH_H = 4
-    SPLITTER_HANDLE_WIDTH_V = 4
+    SPLITTER_HANDLE_WIDTH_H = "4px"
+    SPLITTER_HANDLE_WIDTH_V = "4px"
 
     # ── Menu ─────────────────────────────────────────────────────
     MENU_PADDING = "3px"
@@ -448,7 +448,7 @@ class GoldPremiumTheme(BaseTheme):
     MENU_SEPARATOR_MARGIN = "3px 8px"
 
     # ── Table / Header ───────────────────────────────────────────
-    HEADER_FONT_SIZE = 11
+    HEADER_FONT_SIZE = "11px"
     HEADER_LETTER_SPACING = "0.4px"
     TABLE_ITEM_PADDING = "4px 8px"
     HEADER_PADDING = "5px 8px"

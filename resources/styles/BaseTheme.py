@@ -13,22 +13,29 @@ Grupos de tokens semânticos (organizados por categoria):
     3.  TEXT         — Hierarquia tipográfica
     4.  BORDER       — Hierarquia de bordas
     5.  SHADOW       — Sombras por tamanho
-    6.  RADIUS       — Escala global de cantos arredondados
-    7.  SPACE        — Escala global de espaçamento (px)
-    8.  ICON         — Tamanhos de ícone (px)
-    9.  ANIMATION    — Durações de animação (ms) + easing
-    10. OPACITY      — Níveis de opacidade (0.0–1.0)
-    11. LAYOUT       — Layout global (padding, gap, max-width)
-    12. ELEVATION    — Níveis de elevação (z-index conceitual)
+    6.  RADIUS       — Escala global de cantos arredondados (int, usado em Python e QSS com f"{v}px")
+    7.  SPACE        — Escala global de espaçamento (int, usado em Python e QSS com f"{v}px")
+    8.  ICON         — Tamanhos de ícone (int, usado em QSize)
+    9.  ANIMATION    — Durações de animação (int ms) + easing
+    10. OPACITY      — Níveis de opacidade (float 0.0–1.0)
+    11. LAYOUT       — Layout global (int, padding, gap, max-width)
+    12. ELEVATION    — Níveis de elevação (int, z-index conceitual)
     13. OVERLAY      — Sobreposições / glass effect
     14. FOCUS_RING   — Anel de foco visual
     15. STATUS       — Cores de estado (success, warning, danger, info)
-    16. FONT         — Tipografia (famílias, tamanhos, pesos)
-    17. DIMENSIONS   — Alturas e tamanhos de widgets
+    16. FONT         — Tipografia (famílias, tamanhos str c/ px, pesos int)
+    17. DIMENSIONS   — Alturas e tamanhos de widgets (int para Python, str c/ px para QSS)
     18. GRADIENT     — Configurações de gradiente multi-stop, tipo e ângulo
-    19. SPECIFICS    — Tokens específicos de implementação (compatibilidade)
+    19. SPECIFICS    — Tokens específicos de implementação (str c/ px para QSS, int para Python)
 
     Aliases de compatibilidade retroativa (mapeiam nomes antigos → semânticos)
+
+    ═══════════════════════════════════════════════════════════════
+    REGRA DE TIPOS:
+    - str com "px":  usado APENAS em QSS (ex: FONT_SIZE_NORMAL, BORDER_RADIUS_CARD)
+    - int:           usado em Python puro (ex: ICON_MD → QSize, ANIMATION_FAST → setDuration)
+    - int (ambíguo): usado tanto em QSS quanto em Python (ex: RADIUS_MD → paintEvent + QSS com f"{v}px")
+    ═══════════════════════════════════════════════════════════════
 """
 
 from __future__ import annotations
@@ -86,302 +93,126 @@ class BaseTheme:
         SHADOW_ACCENT: Sombra com cor de acento (glow em string).
         GLOW: Brilho sutil (string cor+alpha).
         GLOW_STRONG: Brilho forte (string cor+alpha).
-        SHADOW_BLUR_SM/MD/LG/XL: Blur radius numérico para drop shadow.
-        SHADOW_OFFSET_Y_SM/MD/LG: Offset vertical da sombra (px).
+        SHADOW_BLUR_SM/MD/LG/XL: Blur radius int para drop shadow.
+        SHADOW_OFFSET_Y_SM/MD/LG: Offset vertical da sombra (int px).
         SHADOW_COLOR_RGB: Cor base da sombra sem alfa (#RRGGBB).
-        SHADOW_COLOR_ALPHA: Alfa da sombra (0-255, 0=invisível).
-        GLOW_BLUR: Blur radius do glow (px).
-        GLOW_OFFSET_X/Y: Offset do glow (px).
+        SHADOW_COLOR_ALPHA: Alfa da sombra (int 0-255).
+        GLOW_BLUR: Blur radius do glow (int px).
+        GLOW_OFFSET_X/Y: Offset do glow (int px).
         GLOW_COLOR_RGB: Cor do glow (#RRGGBB). Vazio = usa ACCENT.
-        GLOW_ALPHA: Alfa do glow (0-255, 0=invisível).
+        GLOW_ALPHA: Alfa do glow (int 0-255).
         GLOW_STRONG_BLUR/ALPHA: Blur e alfa do glow forte.
 
         ── RADIUS ──────────────────────────────────────────
-        RADIUS_XS: 2px (checkbox, scrollbar, spin btn).
-        RADIUS_SM: 4px (badge, toolbar btn).
-        RADIUS_MD: 6px (button, input, menu).
-        RADIUS_LG: 10px (card, table, progress).
-        RADIUS_XL: 16px (diálogos, painéis).
-        RADIUS_FULL: 999px (círculo/pill).
+        RADIUS_XS/MD/LG/XL/FULL: int (usado em paintEvent e QSS com f"{v}px").
 
         ── SPACE ───────────────────────────────────────────
-        SPACE_XXS: 2px (micro espaçamento).
-        SPACE_XS: 4px (muito pequeno).
-        SPACE_SM: 8px (pequeno).
-        SPACE_MD: 12px (médio).
-        SPACE_LG: 16px (grande).
-        SPACE_XL: 24px (extra grande).
-        SPACE_2XL: 32px (seção).
-        SPACE_3XL: 48px (seção grande).
+        SPACE_XXS/XS/SM/MD/LG/XL/2XL/3XL: int (usado em layouts Python e QSS com f"{v}px").
 
         ── ICON ────────────────────────────────────────────
-        ICON_XS: 12px (tiny indicator).
-        ICON_SM: 16px (menu item).
-        ICON_MD: 20px (botão padrão).
-        ICON_LG: 24px (seção, header).
-        ICON_XL: 32px (featured, empty state).
-        TOOLBAR_ICON_SIZE: Tamanho do ícone na toolbar (px).
+        ICON_XS/SM/MD/LG/XL, TOOLBAR_ICON_SIZE: int (usado em QSize).
 
         ── ANIMATION ───────────────────────────────────────
-        ANIMATION_FAST: 120ms (hover, micro-interações).
-        ANIMATION_NORMAL: 180ms (transições padrão).
-        ANIMATION_SLOW: 260ms (expansão, colapso).
-        EASING_STANDARD: Curva de easing (ex: cubic-bezier).
+        ANIMATION_FAST/NORMAL/SLOW: int ms. EASING_STANDARD: str.
 
         ── OPACITY ─────────────────────────────────────────
-        OPACITY_DISABLED: Opacidade de widget desabilitado.
-        OPACITY_MUTED: Opacidade de texto/elemento secundário.
-        OPACITY_HOVER: Opacidade de feedback hover.
-        OPACITY_ACTIVE: Opacidade de estado ativo/pressed.
+        OPACITY_DISABLED/MUTED/HOVER/ACTIVE: float 0.0-1.0.
 
         ── LAYOUT ──────────────────────────────────────────
-        PAGE_PADDING: Padding externo da página (px).
-        SECTION_GAP: Espaçamento entre seções (px).
-        GRID_GAP: Gap em layouts grid (px).
-        CONTENT_MAX_WIDTH: Largura máxima do conteúdo (px).
+        PAGE_PADDING, SECTION_GAP, GRID_GAP, CONTENT_MAX_WIDTH: int px.
 
         ── ELEVATION ───────────────────────────────────────
-        ELEVATION_FLAT: Z-index flat (0).
-        ELEVATION_LOW: Z-index baixo (1).
-        ELEVATION_MEDIUM: Z-index médio (2).
-        ELEVATION_HIGH: Z-index alto (3).
+        ELEVATION_FLAT/LOW/MEDIUM/HIGH: int (z-index).
 
         ── OVERLAY ─────────────────────────────────────────
-        OVERLAY_BG: Cor de fundo de modais/dialogs (rgba).
-        BACKDROP_BLUR: Valor de desfoque do backdrop (ex: '4px').
+        OVERLAY_BG: str rgba. BACKDROP_BLUR: str com px.
 
         ── FOCUS_RING ──────────────────────────────────────
-        FOCUS_RING_COLOR: Cor do anel de foco.
-        FOCUS_RING_WIDTH: Espessura do anel (ex: '2px').
-        FOCUS_RING_OFFSET: Distância do elemento (ex: '1px').
+        FOCUS_RING_COLOR: str. FOCUS_RING_WIDTH/OFFSET: str com px.
 
         ── STATUS ──────────────────────────────────────────
-        COLOR_SUCCESS: Verde - operação bem-sucedida.
-        COLOR_SUCCESS_HOVER: Hover do success.
-        COLOR_SUCCESS_DIM: Versão escurecida do success.
-        COLOR_WARNING: Amarelo/laranja - atenção.
-        COLOR_WARNING_HOVER: Hover do warning.
-        COLOR_WARNING_DIM: Versão escurecida do warning.
-        COLOR_DANGER: Vermelho - erro/perigo.
-        COLOR_DANGER_HOVER: Hover do danger.
-        COLOR_DANGER_DIM: Versão escurecida do danger.
-        COLOR_INFO: Azul - informação.
-        COLOR_INFO_HOVER: Hover do info.
-        COLOR_INFO_DIM: Versão escurecida do info.
+        COLOR_SUCCESS/WARNING/DANGER/INFO e variantes: str cor.
 
         ── FONT ────────────────────────────────────────────
-        FONT_FAMILY_DEFAULT: Família de fonte padrão.
-        FONT_FAMILY_MONO: Família de fonte monoespaçada.
-        FONT_FAMILY_DISPLAY: Fonte display/serif (vazio=usa DEFAULT).
-        FONT_LETTER_SPACING_DISPLAY: Letter-spacing numérico para display.
-        FONT_SIZE_TITLE: Tamanho da fonte de título (px).
-        FONT_SIZE_BIG: Tamanho da fonte grande (px).
-        FONT_SIZE_NORMAL: Tamanho da fonte normal (px).
-        FONT_SIZE_SMALL: Tamanho da fonte pequena (px).
-        FONT_SIZE_TINY: Tamanho da fonte muito pequena (px).
-        FONT_WEIGHT_NORMAL: Peso normal (400).
-        FONT_WEIGHT_BOLD: Peso bold (600).
-        FONT_WEIGHT_EXTRABOLD: Peso extra bold (700).
-        FONT_WEIGHT_HEAVY: Peso heavy (800).
+        FONT_FAMILY_*: str. FONT_SIZE_*: str com px (QSS).
+        FONT_WEIGHT_*: int. FONT_LETTER_SPACING_DISPLAY: int (QFont Python).
 
         ── DIMENSIONS ──────────────────────────────────────
-        INPUT_HEIGHT: Altura de inputs (px).
-        BUTTON_HEIGHT: Altura de botões standard (px).
-        BUTTON_HEIGHT_PRIMARY: Altura de botões primários (px).
-        ITEM_HEIGHT: Altura de itens de lista (px).
-        CHECKBOX_SIZE: Largura/altura do checkbox (px).
-        RADIO_SIZE: Largura/altura do radio button (px).
-        SCROLLBAR_WIDTH: Largura da scrollbar vertical (px).
-        SCROLLBAR_MIN_HEIGHT: Altura mínima do handle da scrollbar (px).
-        TAB_HEIGHT: Altura de tabs (px).
-        TAB_CLOSE_BUTTON_SIZE: Tamanho do botão fechar tab (px).
-        CLOSE_BUTTON_BORDER_RADIUS: Border-radius do botão fechar (px).
-        PROGRESS_BAR_HEIGHT: Altura da progress bar (px).
-        TITLE_BTN_HEIGHT: Altura dos botões da title bar (px).
-        TITLE_BTN_WIDTH: Largura dos botões da title bar (px).
-        TITLE_BTN_FONT_SIZE: Tamanho da fonte dos botões da title bar (px).
-        TOOLBAR_BTN_SIZE: Tamanho do botão da toolbar (px).
-        TOOLBAR_BTN_HOVER_GROW: Pixels extras no hover (animação grow).
-        GROUP_MARGIN_TOP: Margem superior do groupbox (px).
-        SPLITTER_HANDLE_WIDTH: Largura do handle do splitter (px).
+        INPUT_HEIGHT, BUTTON_HEIGHT, ITEM_HEIGHT, TAB_HEIGHT, RADIO_SIZE: int (setFixedHeight/QSize).
+        CHECKBOX_SIZE, SCROLLBAR_WIDTH, SCROLLBAR_MIN_HEIGHT, TAB_CLOSE_BUTTON_SIZE: str com px (QSS).
+        CLOSE_BUTTON_BORDER_RADIUS, PROGRESS_BAR_HEIGHT: str com px (QSS).
+        TITLE_BTN_HEIGHT, TITLE_BTN_WIDTH, TITLE_BTN_FONT_SIZE: str com px (QSS).
+        TOOLBAR_BTN_SIZE, TOOLBAR_BTN_HOVER_GROW: int (QSize/animacão).
+        GROUP_MARGIN_TOP, SPLITTER_HANDLE_WIDTH: str com px (QSS).
 
         ── SPECIFICS (border radius) ───────────────────────
-        BORDER_RADIUS_CARD: Border-radius de cards.
-        BORDER_RADIUS_BUTTON: Border-radius de botões.
-        BORDER_RADIUS_INPUT: Border-radius de inputs.
-        BORDER_RADIUS_CHECKBOX: Border-radius de checkbox.
-        BORDER_RADIUS_RADIO: Border-radius de radio button.
-        BORDER_RADIUS_BADGE: Border-radius de badges.
-        BORDER_RADIUS_PROGRESS: Border-radius de progress bar.
-        BORDER_RADIUS_TABLE: Border-radius de tabelas.
-        BORDER_RADIUS_TITLE_BTN: Border-radius dos botões title bar.
-        BORDER_RADIUS_TOOLBAR_BTN: Border-radius dos botões toolbar.
-        BORDER_RADIUS_GHOST: Border-radius do botão ghost.
-        BORDER_RADIUS_TOOL_SELECTOR: Border-radius do seletor de tool.
-        BORDER_RADIUS_SCROLLBAR: Border-radius da scrollbar.
-        BORDER_RADIUS_SPINBOX_BTN: Border-radius dos botões spinbox.
-        BORDER_RADIUS_TAB_CLOSE: Border-radius do botão fechar tab.
-        BORDER_RADIUS_COMBO_POPUP: Border-radius do popup combobox.
-        BORDER_RADIUS_MENU: Border-radius do menu dropdown.
-        BORDER_RADIUS_MENU_ITEM: Border-radius dos itens de menu.
-        BORDER_RADIUS_GROUP_TITLE: Border-radius do título groupbox.
-        BORDER_RADIUS_DIALOG: Border-radius de diálogos.
-        MENUBAR_ITEM_BORDER_RADIUS: Border-radius dos itens da menubar.
+        BORDER_RADIUS_*: str com px (QSS). MENUBAR_ITEM_BORDER_RADIUS: str com px.
 
         ── SPECIFICS (checkbox) ────────────────────────────
-        CHECKBOX_BORDER_WIDTH: Largura da borda do checkbox (px).
-        CHECKBOX_SPACING: Espaçamento entre checkbox e label (px).
+        CHECKBOX_BORDER_WIDTH: int. CHECKBOX_SPACING: str com px.
 
         ── SPECIFICS (badge) ───────────────────────────────
-        BADGE_PADDING_V: Padding vertical do badge.
-        BADGE_PADDING_H: Padding horizontal do badge.
-        BADGE_LETTER_SPACING: Letter-spacing do badge.
-        BADGE_OUTLINE_ENABLED: Se True, usa badge outline.
-        BADGE_OUTLINE_BORDER_WIDTH: Largura da borda do badge outline.
-        BADGE_OUTLINE_BG_ALPHA: Alfa do fundo translúcido do badge outline.
+        BADGE_PADDING_*, BADGE_LETTER_SPACING: str com px.
 
         ── SPECIFICS (button) ──────────────────────────────
-        BUTTON_PADDING_V: Padding vertical de botão padrão.
-        BUTTON_PADDING_H: Padding horizontal de botão padrão.
-        BUTTON_PADDING_V_SMALL: Padding vertical de botão pequeno.
-        BUTTON_PADDING_H_SMALL: Padding horizontal de botão pequeno.
-        BUTTON_PADDING_V_PRIMARY: Padding vertical de botão primário.
-        BUTTON_PADDING_H_PRIMARY: Padding horizontal de botão primário.
-        BUTTON_LETTER_SPACING_NORMAL: Letter-spacing de botão normal.
-        BUTTON_LETTER_SPACING_PRIMARY: Letter-spacing de botão primário.
-        BUTTON_FONT_SIZE_PRIMARY: Tamanho da fonte de botão primário (px). 0 = usa FONT_SIZE_NORMAL.
-        BUTTON_FONT_WEIGHT_PRIMARY: Peso da fonte de botão primário. 0 = usa FONT_WEIGHT_HEAVY.
+        BUTTON_PADDING_*, BUTTON_LETTER_SPACING_*: str com px.
+        BUTTON_FONT_SIZE_PRIMARY: str com px. BUTTON_FONT_WEIGHT_PRIMARY: int.
 
-        ── SPECIFICS (toolbar) ─────────────────────────────
-        TOOLBAR_BTN_PADDING_V: Padding vertical do botão toolbar.
-        TOOLBAR_BTN_PADDING_H: Padding horizontal do botão toolbar.
-
-        ── SPECIFICS (tool selector) ───────────────────────
-        TOOL_SELECTOR_PADDING_V: Padding vertical do seletor de tool.
-        TOOL_SELECTOR_PADDING_H: Padding horizontal do seletor de tool.
-        TOOL_SELECTOR_LETTER_SPACING: Letter-spacing do seletor de tool.
-
-        ── SPECIFICS (input) ───────────────────────────────
-        INPUT_PADDING_V: Padding vertical de input.
-        INPUT_PADDING_H: Padding horizontal de input.
+        ── SPECIFICS (toolbar/tool selector/input) ─────────
+        TOOLBAR_BTN_PADDING_*, TOOL_SELECTOR_PADDING_*, INPUT_PADDING_*: str com px.
 
         ── SPECIFICS (spinbox) ─────────────────────────────
-        SPINBOX_PADDING: Padding do spinbox.
-        SPINBOX_BTN_WIDTH: Largura dos botões do spinbox (px).
-        SPINBOX_BTN_MARGIN: Margem dos botões do spinbox.
+        SPINBOX_PADDING, SPINBOX_BTN_MARGIN: str com px. SPINBOX_BTN_WIDTH: str com px.
 
         ── SPECIFICS (combobox) ────────────────────────────
-        COMBOBOX_PADDING: Padding do combobox.
-        COMBOBOX_MIN_WIDTH: Largura mínima do combobox (px).
-        COMBOBOX_DROPDOWN_WIDTH: Largura do dropdown button (px).
-        COMBOBOX_ARROW_SIZE: Tamanho da seta do combobox.
-        COMBOBOX_POPUP_BORDER_RADIUS: Border-radius do popup combobox.
+        COMBOBOX_PADDING, COMBOBOX_ARROW_SIZE: str com px.
+        COMBOBOX_MIN_WIDTH, COMBOBOX_DROPDOWN_WIDTH: str com px.
+        COMBOBOX_POPUP_BORDER_RADIUS: str com px.
 
         ── SPECIFICS (text edit) ───────────────────────────
-        TEXT_EDIT_PADDING: Padding do text edit.
-        TEXT_EDIT_FONT_SIZE: Tamanho da fonte do text edit (px).
+        TEXT_EDIT_PADDING: str com px. TEXT_EDIT_FONT_SIZE: str com px.
 
         ── SPECIFICS (groupbox) ────────────────────────────
-        GROUP_TITLE_LEFT: Offset horizontal do título (px).
-        GROUP_TITLE_TOP: Offset vertical do título (px).
-        GROUP_TITLE_PADDING: Padding do título.
-        GROUP_TITLE_BORDER_RADIUS: Border-radius do título (px).
-        GROUP_TITLE_LETTER_SPACING: Letter-spacing do título.
+        GROUP_TITLE_LEFT, GROUP_TITLE_TOP, GROUP_TITLE_BORDER_RADIUS: str com px.
+        GROUP_TITLE_PADDING, GROUP_TITLE_LETTER_SPACING: str com px.
 
         ── SPECIFICS (letter spacing) ──────────────────────
-        LETTER_SPACING_TITLE: Letter-spacing de títulos grandes.
-        LETTER_SPACING_BADGE: Letter-spacing de badges.
-        LETTER_SPACING_GROUP: Letter-spacing de título groupbox.
-        LETTER_SPACING_BUTTON: Letter-spacing de botão normal.
-        LETTER_SPACING_BUTTON_PRIMARY: Letter-spacing de botão primário.
-        LETTER_SPACING_HEADER: Letter-spacing de cabeçalho de tabela.
-        LETTER_SPACING_TOOL_SELECTOR: Letter-spacing de seletor de tool.
-        LETTER_SPACING_WINDOW_TITLE: Letter-spacing de título da janela.
+        LETTER_SPACING_*: str com px.
 
         ── SPECIFICS (window title) ────────────────────────
-        WINDOW_TITLE_FONT_SIZE: Tamanho da fonte do título da janela (px).
-        WINDOW_TITLE_LETTER_SPACING: Letter-spacing do título da janela.
+        WINDOW_TITLE_FONT_SIZE: str com px. WINDOW_TITLE_LETTER_SPACING: str com px.
 
         ── SPECIFICS (title bar) ───────────────────────────
-        TITLE_BAR_BORDER_WIDTH: Largura da borda da title bar.
-        TITLE_BAR_BORDER_COLOR: Cor da borda da title bar (vazio=usa BG_PANEL).
+        TITLE_BAR_BORDER_WIDTH: str com px. TITLE_BAR_BORDER_COLOR: str.
 
         ── SPECIFICS (card) ────────────────────────────────
-        CARD_PADDING_V: Padding vertical de card (px).
-        CARD_PADDING_H: Padding horizontal de card (px).
+        CARD_PADDING_V, CARD_PADDING_H: str com px.
 
         ── SPECIFICS (splitter) ────────────────────────────
-        SPLITTER_HANDLE_WIDTH_H: Largura do handle horizontal (px).
-        SPLITTER_HANDLE_WIDTH_V: Largura do handle vertical (px).
+        SPLITTER_HANDLE_WIDTH_H, SPLITTER_HANDLE_WIDTH_V: str com px.
 
         ── SPECIFICS (menu) ────────────────────────────────
-        MENU_PADDING: Padding do menu dropdown.
-        MENU_MARGIN_V: Margem vertical do menu.
-        MENU_ITEM_PADDING: Padding dos itens de menu.
-        MENU_SEPARATOR_HEIGHT: Altura do separador de menu.
-        MENU_SEPARATOR_MARGIN: Margem do separador de menu.
+        MENU_PADDING, MENU_MARGIN_V, MENU_ITEM_PADDING, MENU_SEPARATOR_HEIGHT/MARGIN: str com px.
 
         ── SPECIFICS (table) ───────────────────────────────
-        HEADER_FONT_SIZE: Tamanho da fonte do cabeçalho (px).
-        HEADER_LETTER_SPACING: Letter-spacing do cabeçalho.
-        TABLE_ITEM_PADDING: Padding dos itens de tabela.
-        HEADER_PADDING: Padding do cabeçalho.
+        HEADER_FONT_SIZE: str com px. HEADER_LETTER_SPACING: str com px.
+        TABLE_ITEM_PADDING, HEADER_PADDING: str com px.
 
         ── GRADIENT CONFIG ─────────────────────────────────
-        GRADIENT_BUTTON: Par (start,end) para gradiente de botão secundário.
-        GRADIENT_PANEL: Par (start,end) para gradiente de painéis.
-        GRADIENT_TAB: Par (start,end) para gradiente de tabs.
-        GRADIENT_INPUT: Par (start,end) para gradiente de inputs.
-        GRADIENT_ACCENT_TYPE: Tipo de gradiente acento (GradientType ou None=LINEAR).
-        GRADIENT_ACCENT_STOPS: Stops multi-stop para gradiente acento.
-        GRADIENT_ACCENT_ANGLE: Ângulo do gradiente acento (graus).
-        GRADIENT_BUTTON_TYPE: Tipo de gradiente de botão secundário.
-        GRADIENT_BUTTON_STOPS: Stops multi-stop para botão secundário.
-        GRADIENT_BUTTON_ANGLE: Ângulo do gradiente de botão secundário.
-        GRADIENT_TAB_TYPE: Tipo de gradiente de tab.
-        GRADIENT_TAB_STOPS: Stops multi-stop para tab.
-        GRADIENT_TAB_ANGLE: Ângulo do gradiente de tab.
-        GLOW_BUTTON_ENABLED: Se True, ativa glow em botões secundários.
-        GLOW_TAB_ENABLED: Se True, ativa glow em tabs selecionadas.
-        GRADIENT_RADIAL_CX/CY: Centro do gradiente radial (0.0-1.0).
-        GRADIENT_RADIAL_FX/FY: Ponto focal do gradiente radial (0.0-1.0).
-        GRADIENT_RADIAL_RADIUS: Raio do gradiente radial (0.0-1.0).
-        GRADIENT_CONICAL_CX/CY: Centro do gradiente cônico (0.0-1.0).
-        GRADIENT_CONICAL_ANGLE: Ângulo inicial do gradiente cônico.
+        GRADIENT_BUTTON/PANEL/TAB/INPUT: tuple[str,str].
+        GRADIENT_ACCENT/BUTTON/TAB_TYPE/STOPS/ANGLE: multi-stop config.
+        GLOW_BUTTON_ENABLED, GLOW_TAB_ENABLED: bool.
+        GRADIENT_RADIAL_*, GRADIENT_CONICAL_*: float.
 
         ── ALIASES DE COMPATIBILIDADE ──────────────────────
-        BG_DEEPEST: Alias → SURFACE_0 (fundo absoluto).
-        BG_DARK: Alias → SURFACE_1 (fundo padrão).
-        BG_PANEL: Alias → SURFACE_2 (painéis base).
-        BG_CARD: Alias → SURFACE_3 (cards).
-        BG_ELEVATED: Alias → SURFACE_4 (elementos elevados).
-        BG_SURFACE: Alias → SURFACE_5 (superfície hover).
-        TITLE_BAR_BG: Alias → TITLE_BAR (barra de título).
-        SHADOW: Alias → SHADOW_SM (sombra pequena).
-        SHADOW_DEEP: Alias → SHADOW_LG (sombra profunda).
-        BORDER: Alias → BORDER_DEFAULT (borda padrão).
-        BORDER_HOVER: Alias → BORDER_ACCENT (borda hover).
-        TEXT_BRIGHT: Alias → TEXT_HIGH (títulos).
-        TEXT_PRIMARY: Alias → TEXT_MEDIUM (corpo).
-        TEXT_SECONDARY: Alias → TEXT_LOW (secundário).
-        TEXT_MUTED: Alias → TEXT_DISABLED (desabilitado).
-        TEXT_ACCENT: Alias → ACCENT_TEXT (texto accent).
-        TEXT_ACCENT_BRIGHT: Alias → ACCENT_BRIGHT (texto accent brilhante).
-        ACCENT_COLOR: Alias → ACCENT (cor accent).
-        ACCENT_COLOR_HOVER: Alias → ACCENT_HOVER.
-        ACCENT_COLOR_ACTIVE: Alias → ACCENT_ACTIVE.
-        ACCENT_COLOR_DIM: Alias → ACCENT_DIM.
-        ACCENT_COLOR_LIGHT: Alias → ACCENT_LIGHT.
-        ACCENT_COLOR_GRADIENT: Alias → ACCENT_GRADIENT.
-        SUCCESS: Alias → COLOR_SUCCESS.
-        SUCCESS_HOVER: Alias → COLOR_SUCCESS_HOVER.
-        SUCCESS_DIM: Alias → COLOR_SUCCESS_DIM.
-        WARNING: Alias → COLOR_WARNING.
-        WARNING_HOVER: Alias → COLOR_WARNING_HOVER.
-        WARNING_DIM: Alias → COLOR_WARNING_DIM.
-        DANGER: Alias → COLOR_DANGER.
-        DANGER_HOVER: Alias → COLOR_DANGER_HOVER.
-        DANGER_DIM: Alias → COLOR_DANGER_DIM.
+        BG_DEEPEST/DARK/PANEL/CARD/ELEVATED/SURFACE: str → SURFACE_*.
+        TITLE_BAR_BG: str → TITLE_BAR.
+        SHADOW/SHADOW_DEEP: str → SHADOW_SM/LG.
+        BORDER/BORDER_HOVER: str → BORDER_DEFAULT/ACCENT.
+        TEXT_BRIGHT/PRIMARY/SECONDARY/MUTED: str → TEXT_*.
+        TEXT_ACCENT/ACCENT_BRIGHT: str → ACCENT_TEXT/BRIGHT.
+        ACCENT_COLOR_*: str → ACCENT_*.
+        SUCCESS/WARNING/DANGER_*: str → COLOR_*.
     """
 
     # ═══════════════════════════════════════════════════════════════════
@@ -643,701 +474,668 @@ class BaseTheme:
     """BRILHO FORTE — string cor+alpha para glow intenso em QSS."""
 
     SHADOW_BLUR_SM: int = 0
-    """DESFOQUE da sombra pequena em pixels para QGraphicsDropShadowEffect."""
+    """DESFOQUE da sombra pequena em pixels para QGraphicsDropShadowEffect (int Python)."""
 
     SHADOW_BLUR_MD: int = 0
-    """DESFOQUE da sombra média em pixels para QGraphicsDropShadowEffect."""
+    """DESFOQUE da sombra média em pixels para QGraphicsDropShadowEffect (int Python)."""
 
     SHADOW_BLUR_LG: int = 0
-    """DESFOQUE da sombra grande em pixels para QGraphicsDropShadowEffect."""
+    """DESFOQUE da sombra grande em pixels para QGraphicsDropShadowEffect (int Python)."""
 
     SHADOW_BLUR_XL: int = 0
-    """DESFOQUE da sombra extra grande em pixels para QGraphicsDropShadowEffect."""
+    """DESFOQUE da sombra extra grande em pixels para QGraphicsDropShadowEffect (int Python)."""
 
     SHADOW_OFFSET_Y_SM: int = 0
-    """DESLOCAMENTO VERTICAL da sombra pequena (px). Positivo = sombra para baixo."""
+    """DESLOCAMENTO VERTICAL da sombra pequena (int px). Positivo = sombra para baixo."""
 
     SHADOW_OFFSET_Y_MD: int = 0
-    """DESLOCAMENTO VERTICAL da sombra média (px)."""
+    """DESLOCAMENTO VERTICAL da sombra média (int px)."""
 
     SHADOW_OFFSET_Y_LG: int = 0
-    """DESLOCAMENTO VERTICAL da sombra grande (px)."""
+    """DESLOCAMENTO VERTICAL da sombra grande (int px)."""
 
     SHADOW_COLOR_RGB: str = "#000000"
     """COR BASE da sombra sem alfa em formato #RRGGBB.
     Para QGraphicsDropShadowEffect programático."""
 
     SHADOW_COLOR_ALPHA: int = 0
-    """ALFA (opacidade) da sombra (0-255). 0 = invisível."""
+    """ALFA (opacidade) da sombra (int 0-255). 0 = invisível."""
 
     GLOW_BLUR: int = 0
-    """DESFOQUE do glow em pixels para QGraphicsDropShadowEffect.
+    """DESFOQUE do glow em pixels para QGraphicsDropShadowEffect (int).
     0 = glow desligado."""
 
     GLOW_OFFSET_X: int = 0
-    """DESLOCAMENTO HORIZONTAL do glow em pixels."""
+    """DESLOCAMENTO HORIZONTAL do glow em pixels (int)."""
 
     GLOW_OFFSET_Y: int = 0
-    """DESLOCAMENTO VERTICAL do glow em pixels."""
+    """DESLOCAMENTO VERTICAL do glow em pixels (int)."""
 
     GLOW_COLOR_RGB: str = ""
     """COR do glow em #RRGGBB. Vazio = usa ACCENT do tema como fallback."""
 
     GLOW_ALPHA: int = 0
-    """ALFA do glow (0-255). 0 = glow invisível."""
+    """ALFA do glow (int 0-255). 0 = glow invisível."""
 
     GLOW_STRONG_BLUR: int = 0
-    """DESFOQUE do glow forte em pixels."""
+    """DESFOQUE do glow forte em pixels (int)."""
 
     GLOW_STRONG_ALPHA: int = 0
-    """ALFA do glow forte (0-255)."""
+    """ALFA do glow forte (int 0-255)."""
 
     # ═══════════════════════════════════════════════════════════════════
-    # 6. RADIUS — Escala global de arredondamento (pixels)
+    # 6. RADIUS — Escala global de arredondamento (int, usado em Python e QSS com f"{v}px")
     # ═══════════════════════════════════════════════════════════════════
 
     RADIUS_XS: int = 0
-    """CANTO ARREDONDADO extra pequeno (2px).
+    """CANTO ARREDONDADO extra pequeno (int, usado em paintEvent e QSS com f"{v}px").
     Aplicado em: checkbox, scrollbar handle, spinbox buttons."""
 
     RADIUS_SM: int = 0
-    """CANTO ARREDONDADO pequeno (4px).
+    """CANTO ARREDONDADO pequeno (int).
     Aplicado em: badges, toolbar buttons, group title."""
 
     RADIUS_MD: int = 0
-    """CANTO ARREDONDADO médio (6px).
+    """CANTO ARREDONDADO médio (int).
     Aplicado em: botões padrão, inputs, menus dropdown."""
 
     RADIUS_LG: int = 0
-    """CANTO ARREDONDADO grande (10px).
+    """CANTO ARREDONDADO grande (int).
     Aplicado em: cards, tabelas, progress bar."""
 
     RADIUS_XL: int = 0
-    """CANTO ARREDONDADO extra grande (16px).
+    """CANTO ARREDONDADO extra grande (int).
     Aplicado em: diálogos, painéis grandes."""
 
     RADIUS_FULL: int = 999
-    """CANTO ARREDONDADO total (999px) — círculo/pílula.
+    """CANTO ARREDONDADO total (int) — círculo/pílula.
     Aplicado em: radio button, badges em formato pill."""
 
     # ═══════════════════════════════════════════════════════════════════
-    # 7. SPACE — Escala global de espaçamento (pixels inteiros)
+    # 7. SPACE — Escala global de espaçamento (int, usado em Python e QSS com f"{v}px")
     # ═══════════════════════════════════════════════════════════════════
 
     SPACE_XXS: int = 0
-    """ESPAÇAMENTO micro (2px). Entre elementos muito próximos."""
+    """ESPAÇAMENTO micro (int). Entre elementos muito próximos."""
 
     SPACE_XS: int = 0
-    """ESPAÇAMENTO muito pequeno (4px)."""
+    """ESPAÇAMENTO muito pequeno (int)."""
 
     SPACE_SM: int = 0
-    """ESPAÇAMENTO pequeno (8px). Ex: entre botões adjacentes."""
+    """ESPAÇAMENTO pequeno (int). Ex: entre botões adjacentes."""
 
     SPACE_MD: int = 0
-    """ESPAÇAMENTO médio (12px). Ex: padding interno de cards."""
+    """ESPAÇAMENTO médio (int). Ex: padding interno de cards."""
 
     SPACE_LG: int = 0
-    """ESPAÇAMENTO grande (16px). Ex: entre seções de formulário."""
+    """ESPAÇAMENTO grande (int). Ex: entre seções de formulário."""
 
     SPACE_XL: int = 0
-    """ESPAÇAMENTO extra grande (24px). Ex: margem entre seções."""
+    """ESPAÇAMENTO extra grande (int). Ex: margem entre seções."""
 
     SPACE_2XL: int = 0
-    """ESPAÇAMENTO de seção (32px). Ex: antes/depois de grupos grandes."""
+    """ESPAÇAMENTO de seção (int). Ex: antes/depois de grupos grandes."""
 
     SPACE_3XL: int = 0
-    """ESPAÇAMENTO de seção grande (48px). Ex: padding de página."""
+    """ESPAÇAMENTO de seção grande (int). Ex: padding de página."""
 
     # ═══════════════════════════════════════════════════════════════════
-    # 8. ICON — Tamanhos de ícone (pixels)
+    # 8. ICON — Tamanhos de ícone (int, usado em QSize)
     # ═══════════════════════════════════════════════════════════════════
 
     ICON_XS: int = 0
-    """ÍCONE extra pequeno (12px). Indicadores tiny, bullets, status dots."""
+    """ÍCONE extra pequeno (int px). Indicadores tiny, bullets, status dots."""
 
     ICON_SM: int = 0
-    """ÍCONE pequeno (16px). Itens de menu, ícones em listas."""
+    """ÍCONE pequeno (int px). Itens de menu, ícones em listas."""
 
     ICON_MD: int = 0
-    """ÍCONE médio (20px). Botão padrão, toolbar."""
+    """ÍCONE médio (int px). Botão padrão, toolbar."""
 
     ICON_LG: int = 0
-    """ÍCONE grande (24px). Seção, header de grupo, ícone de tab."""
+    """ÍCONE grande (int px). Seção, header de grupo, ícone de tab."""
 
     ICON_XL: int = 0
-    """ÍCONE extra grande (32px). Featured, empty state, ícone principal."""
+    """ÍCONE extra grande (int px). Featured, empty state, ícone principal."""
 
     TOOLBAR_ICON_SIZE: int = 0
-    """ÍCONE da TOOLBAR em pixels."""
+    """ÍCONE da TOOLBAR em pixels (int, usado em QSize)."""
 
     # ═══════════════════════════════════════════════════════════════════
-    # 9. ANIMATION — Durações de animação (ms) + easing
+    # 9. ANIMATION — Durações de animação (int ms) + easing
     # ═══════════════════════════════════════════════════════════════════
 
     ANIMATION_FAST: int = 0
-    """DURAÇÃO de animação RÁPIDA em milissegundos (aprox. 120ms).
+    """DURAÇÃO de animação RÁPIDA em milissegundos (int).
     Usado em: hover de botões, micro-interações, feedback de clique."""
 
     ANIMATION_NORMAL: int = 0
-    """DURAÇÃO de animação NORMAL em milissegundos (aprox. 180ms).
+    """DURAÇÃO de animação NORMAL em milissegundos (int).
     Usado em: transições padrão, fade in/out, mudança de cor."""
 
     ANIMATION_SLOW: int = 0
-    """DURAÇÃO de animação LENTA em milissegundos (aprox. 260ms).
+    """DURAÇÃO de animação LENTA em milissegundos (int).
     Usado em: expansão/colapso de painéis, abertura de menus."""
 
     EASING_STANDARD: str = ""
     """CURVA de easing (aceleração/desaceleração) para animações."""
 
     # ═══════════════════════════════════════════════════════════════════
-    # 10. OPACITY — Níveis de opacidade (0.0 = transparente, 1.0 = opaco)
+    # 10. OPACITY — Níveis de opacidade (float 0.0 = transparente, 1.0 = opaco)
     # ═══════════════════════════════════════════════════════════════════
 
     OPACITY_DISABLED: float = 0.0
-    """OPACIDADE de widgets desabilitados.
-    Ex: 0.35 = botão desabilitado fica 65% transparente."""
+    """OPACIDADE de widgets desabilitados (float)."""
 
     OPACITY_MUTED: float = 0.0
-    """OPACIDADE de texto/elementos secundários.
-    Ex: 0.60 = metadados e labels secundários."""
+    """OPACIDADE de texto/elementos secundários (float)."""
 
     OPACITY_HOVER: float = 0.0
-    """OPACIDADE de feedback hover.
-    Ex: 0.85 = elemento fica ligeiramente mais opaco no hover."""
+    """OPACIDADE de feedback hover (float)."""
 
     OPACITY_ACTIVE: float = 0.0
-    """OPACIDADE de estado ativo/pressionado.
-    Ex: 1.0 = totalmente opaco quando ativo."""
+    """OPACIDADE de estado ativo/pressionado (float)."""
 
     # ═══════════════════════════════════════════════════════════════════
-    # 11. LAYOUT — Layout global
+    # 11. LAYOUT — Layout global (int px)
     # ═══════════════════════════════════════════════════════════════════
 
     PAGE_PADDING: int = 0
-    """PADDING externo da página em pixels.
-    Espaço entre a borda da janela e o conteúdo principal."""
+    """PADDING externo da página em pixels (int)."""
 
     SECTION_GAP: int = 0
-    """ESPAÇAMENTO entre seções da página em pixels.
-    Distância vertical entre grupos de conteúdo."""
+    """ESPAÇAMENTO entre seções da página em pixels (int)."""
 
     GRID_GAP: int = 0
-    """GAP (espaçamento entre células) em layouts grid."""
+    """GAP (espaçamento entre células) em layouts grid (int)."""
 
     CONTENT_MAX_WIDTH: int = 0
-    """LARGURA MÁXIMA do conteúdo da página em pixels.
-    Impede que o conteúdo se estique demais em monitores largos."""
+    """LARGURA MÁXIMA do conteúdo da página em pixels (int)."""
 
     # ═══════════════════════════════════════════════════════════════════
-    # 12. ELEVATION — Níveis de elevação (z-index conceitual)
+    # 12. ELEVATION — Níveis de elevação (int, z-index conceitual)
     # ═══════════════════════════════════════════════════════════════════
 
     ELEVATION_FLAT: int = 0
-    """ELEVAÇÃO flat — z-index 0. Elementos no nível do plano de fundo."""
+    """ELEVAÇÃO flat — z-index 0 (int)."""
 
     ELEVATION_LOW: int = 0
-    """ELEVAÇÃO baixa — z-index 1. Elementos ligeiramente acima do fundo."""
+    """ELEVAÇÃO baixa — z-index 1 (int)."""
 
     ELEVATION_MEDIUM: int = 0
-    """ELEVAÇÃO média — z-index 2. Cards, menus, popups."""
+    """ELEVAÇÃO média — z-index 2 (int). Cards, menus, popups."""
 
     ELEVATION_HIGH: int = 0
-    """ELEVAÇÃO alta — z-index 3. Modais, dialogs, overlays."""
+    """ELEVAÇÃO alta — z-index 3 (int). Modais, dialogs, overlays."""
 
     # ═══════════════════════════════════════════════════════════════════
     # 13. OVERLAY — Sobreposições / Glass effect
     # ═══════════════════════════════════════════════════════════════════
 
     OVERLAY_BG: str = ""
-    """FUNDO de sobreposição (backdrop) de modais e diálogos.
-    Cor semi-transparente que cobre a tela atrás de um dialog modal."""
+    """FUNDO de sobreposição (backdrop) de modais e diálogos (str rgba)."""
 
     BACKDROP_BLUR: str = ""
-    """DESFOQUE do backdrop (efeito vidro) em CSS.
-    Ex: '4px' — desfoque sutil atrás do modal."""
+    """DESFOQUE do backdrop (efeito vidro) em CSS (str com px)."""
 
     # ═══════════════════════════════════════════════════════════════════
     # 14. FOCUS_RING — Anel de foco visual
     # ═══════════════════════════════════════════════════════════════════
 
     FOCUS_RING_COLOR: str = ""
-    """COR do anel de foco (indicador visual de teclado).
-    Aparece ao redor de inputs e botões quando focados via Tab."""
+    """COR do anel de foco (str)."""
 
     FOCUS_RING_WIDTH: str = ""
-    """ESPESSURA do anel de foco em CSS."""
+    """ESPESSURA do anel de foco em CSS (str com px)."""
 
     FOCUS_RING_OFFSET: str = ""
-    """DISTÂNCIA do anel de foco em relação ao elemento (CSS).
-    Valor positivo = anel afastado da borda."""
+    """DISTÂNCIA do anel de foco em relação ao elemento (str com px)."""
 
     # ═══════════════════════════════════════════════════════════════════
     # 15. STATUS — Cores de estado semântico
     # ═══════════════════════════════════════════════════════════════════
 
     COLOR_SUCCESS: str = ""
-    """VERDE — indica operação bem-sucedida.
-    Usado em: badge success (badge verde), feedback positivo."""
+    """VERDE — indica operação bem-sucedida (str)."""
 
     COLOR_SUCCESS_HOVER: str = ""
-    """VERDE claro — hover do success."""
+    """VERDE claro — hover do success (str)."""
 
     COLOR_SUCCESS_DIM: str = ""
-    """VERDE escuro — versão escurecida do success."""
+    """VERDE escuro — versão escurecida do success (str)."""
 
     COLOR_WARNING: str = ""
-    """AMARELO/LARANJA — indica atenção ou warning.
-    Usado em: badge running (em execução), badge canceled."""
+    """AMARELO/LARANJA — indica atenção ou warning (str)."""
 
     COLOR_WARNING_HOVER: str = ""
-    """LARANJA claro — hover do warning."""
+    """LARANJA claro — hover do warning (str)."""
 
     COLOR_WARNING_DIM: str = ""
-    """LARANJA escuro — versão escurecida do warning."""
+    """LARANJA escuro — versão escurecida do warning (str)."""
 
     COLOR_DANGER: str = ""
-    """VERMELHO — indica erro, perigo, ação destrutiva.
-    Usado em: badge error, botão danger, botão fechar (close)."""
+    """VERMELHO — indica erro, perigo, ação destrutiva (str)."""
 
     COLOR_DANGER_HOVER: str = ""
-    """VERMELHO claro — hover do danger."""
+    """VERMELHO claro — hover do danger (str)."""
 
     COLOR_DANGER_DIM: str = ""
-    """VERMELHO escuro — versão escurecida do danger. Fundo de botão danger."""
+    """VERMELHO escuro — versão escurecida do danger (str)."""
 
     COLOR_INFO: str = ""
-    """AZUL — indica informação.
-    Usado em: badge info, dicas, notificações informativas."""
+    """AZUL — indica informação (str)."""
 
     COLOR_INFO_HOVER: str = ""
-    """AZUL claro — hover do info."""
+    """AZUL claro — hover do info (str)."""
 
     COLOR_INFO_DIM: str = ""
-    """AZUL escuro — versão escurecida do info."""
+    """AZUL escuro — versão escurecida do info (str)."""
 
     # ═══════════════════════════════════════════════════════════════════
     # 16. FONT — Tipografia
     # ═══════════════════════════════════════════════════════════════════
 
     FONT_FAMILY_DEFAULT: str = ""
-    """FAMÍLIA de fonte PADRÃO para toda a interface.
-    Lista de fallback separada por vírgulas."""
+    """FAMÍLIA de fonte PADRÃO para toda a interface (str)."""
 
     FONT_FAMILY_MONO: str = ""
-    """FAMÍLIA de fonte MONOESPAÇADA (código, logs, números)."""
+    """FAMÍLIA de fonte MONOESPAÇADA (str)."""
 
     FONT_FAMILY_DISPLAY: str = ""
-    """FAMÍLIA de fonte DISPLAY/SERIF para títulos editoriais.
-    Vazio = usa FONT_FAMILY_DEFAULT como fallback."""
+    """FAMÍLIA de fonte DISPLAY/SERIF para títulos editoriais (str)."""
 
     FONT_LETTER_SPACING_DISPLAY: int = 0
-    """ESPAÇAMENTO entre letras (letter-spacing) em pixels para fonte display.
-    Aplica-se via QFont.setLetterSpacing. 0 = sem espaço extra."""
+    """ESPAÇAMENTO entre letras para fonte display (int, QFont.setLetterSpacing Python).
+    0 = sem espaço extra. NÃO é QSS."""
 
-    FONT_SIZE_TITLE: int = 0
-    """TAMANHO da fonte de título em pixels.
-    Usado em: header_title (título principal da seção)."""
+    FONT_SIZE_TITLE: str = ""
+    """TAMANHO da fonte de título — string com px (QSS).
+    Usado em: header_title."""
 
-    FONT_SIZE_BIG: int = 0
-    """TAMANHO da fonte GRANDE em pixels.
-    Usado em: about_title, textos de destaque."""
+    FONT_SIZE_BIG: str = ""
+    """TAMANHO da fonte GRANDE — string com px (QSS)."""
 
-    FONT_SIZE_NORMAL: int = 0
-    """TAMANHO da fonte NORMAL em pixels.
-    Usado em: corpo de texto, botões primários, labels."""
+    FONT_SIZE_NORMAL: str = ""
+    """TAMANHO da fonte NORMAL — string com px (QSS)."""
 
-    FONT_SIZE_SMALL: int = 0
-    """TAMANHO da fonte PEQUENA em pixels.
-    Usado em: botões secundários, header de tabela, menu items, badges."""
+    FONT_SIZE_SMALL: str = ""
+    """TAMANHO da fonte PEQUENA — string com px (QSS)."""
 
-    FONT_SIZE_TINY: int = 0
-    """TAMANHO da fonte MUITO PEQUENA em pixels.
-    Usado em: tool selector, copyright, window title, badges."""
+    FONT_SIZE_TINY: str = ""
+    """TAMANHO da fonte MUITO PEQUENA — string com px (QSS)."""
 
     FONT_WEIGHT_NORMAL: int = 400
-    """PESO da fonte NORMAL (400 — regular)."""
+    """PESO da fonte NORMAL (int 400 — regular)."""
 
     FONT_WEIGHT_BOLD: int = 600
-    """PESO da fonte BOLD (600 — semi-bold/negrito médio)."""
+    """PESO da fonte BOLD (int 600 — semi-bold)."""
 
     FONT_WEIGHT_EXTRABOLD: int = 700
-    """PESO da fonte EXTRA BOLD (700 — bold)."""
+    """PESO da fonte EXTRA BOLD (int 700 — bold)."""
 
     FONT_WEIGHT_HEAVY: int = 800
-    """PESO da fonte HEAVY (800 — extra bold, maior peso)."""
+    """PESO da fonte HEAVY (int 800 — extra bold)."""
 
     # ═══════════════════════════════════════════════════════════════════
     # 17. DIMENSIONS — Alturas e tamanhos de widgets
     # ═══════════════════════════════════════════════════════════════════
 
     INPUT_HEIGHT: int = 0
-    """ALTURA de campos de input (QLineEdit) em pixels.
-    Controla a altura visual de todos os inputs de texto."""
+    """ALTURA de campos de input (int, usado em setFixedHeight)."""
 
     BUTTON_HEIGHT: int = 0
-    """ALTURA de botões padrão (QPushButton) em pixels."""
+    """ALTURA de botões padrão (int, usado em setFixedHeight)."""
 
     BUTTON_HEIGHT_PRIMARY: int = 0
-    """ALTURA de botões primários em pixels."""
+    """ALTURA de botões primários (int, usado em setFixedHeight)."""
 
     ITEM_HEIGHT: int = 0
-    """ALTURA de itens de lista em pixels.
-    Controla a altura de cada linha em QListWidget, QComboBox dropdown."""
+    """ALTURA de itens de lista (int, usado em setFixedHeight)."""
 
-    CHECKBOX_SIZE: int = 0
-    """LARGURA/ALTURA do checkbox (quadrado) em pixels."""
+    CHECKBOX_SIZE: str = ""
+    """LARGURA/ALTURA do checkbox — string com px (QSS)."""
 
     RADIO_SIZE: int = 0
-    """LARGURA/ALTURA do radio button (círculo) em pixels."""
+    """LARGURA/ALTURA do radio button (int, usado em QSize)."""
 
-    SCROLLBAR_WIDTH: int = 0
-    """LARGURA da scrollbar vertical em pixels."""
+    SCROLLBAR_WIDTH: str = ""
+    """LARGURA da scrollbar vertical — string com px (QSS)."""
 
-    SCROLLBAR_MIN_HEIGHT: int = 0
-    """ALTURA MÍNIMA do pegador (handle) da scrollbar em pixels."""
+    SCROLLBAR_MIN_HEIGHT: str = ""
+    """ALTURA MÍNIMA do handle da scrollbar — string com px (QSS)."""
 
     TAB_HEIGHT: int = 0
-    """ALTURA das abas (tabs) em pixels."""
+    """ALTURA das abas (tabs) (int, usado em setFixedHeight)."""
 
-    TAB_CLOSE_BUTTON_SIZE: int = 0
-    """TAMANHO (largura=altura) do botão fechar (X) da tab em pixels."""
+    TAB_CLOSE_BUTTON_SIZE: str = ""
+    """TAMANHO do botão fechar (X) da tab — string com px (QSS)."""
 
-    CLOSE_BUTTON_BORDER_RADIUS: int = 0
-    """AREDONDAMENTO do botão fechar na tab em pixels."""
+    CLOSE_BUTTON_BORDER_RADIUS: str = ""
+    """AREDONDAMENTO do botão fechar na tab — string com px (QSS)."""
 
-    PROGRESS_BAR_HEIGHT: int = 0
-    """ALTURA da barra de progresso (QProgressBar) em pixels."""
+    PROGRESS_BAR_HEIGHT: str = ""
+    """ALTURA da barra de progresso — string com px (QSS)."""
 
-    TITLE_BTN_HEIGHT: int = 0
-    """ALTURA dos botões de janela (minimizar, maximizar, fechar) em pixels."""
+    TITLE_BTN_HEIGHT: str = ""
+    """ALTURA dos botões de janela — string com px (QSS)."""
 
-    TITLE_BTN_WIDTH: int = 0
-    """LARGURA dos botões de janela em pixels."""
+    TITLE_BTN_WIDTH: str = ""
+    """LARGURA dos botões de janela — string com px (QSS)."""
 
-    TITLE_BTN_FONT_SIZE: int = 0
-    """TAMANHO da fonte (ícone) dos botões de janela em pixels."""
+    TITLE_BTN_FONT_SIZE: str = ""
+    """TAMANHO da fonte dos botões de janela — string com px (QSS)."""
 
     TOOLBAR_BTN_SIZE: int = 0
-    """TAMANHO (largura=altura) do botão da toolbar em pixels."""
+    """TAMANHO do botão da toolbar (int, usado em QSize)."""
 
     TOOLBAR_BTN_HOVER_GROW: int = 0
-    """PIXELS EXTRAS que o botão da toolbar cresce no hover.
-    Simula animação de crescimento ao passar o mouse."""
+    """PIXELS EXTRAS no hover (int, animação hover grow)."""
 
-    GROUP_MARGIN_TOP: int = 0
-    """MARGEM SUPERIOR do QGroupBox em pixels.
-    Espaço reservado para o título do groupbox."""
+    GROUP_MARGIN_TOP: str = ""
+    """MARGEM SUPERIOR do QGroupBox — string com px (QSS)."""
 
-    SPLITTER_HANDLE_WIDTH: int = 0
-    """LARGURA do pegador do QSplitter em pixels.
-    Barra que o usuário arrasta para redimensionar painéis."""
+    SPLITTER_HANDLE_WIDTH: str = ""
+    """LARGURA do pegador do QSplitter — string com px (QSS)."""
 
     # ═══════════════════════════════════════════════════════════════════
     # 18. SPECIFICS — Tokens específicos de implementação
     # ═══════════════════════════════════════════════════════════════════
 
-    # ── Border Radius específicos ──
+    # ── Border Radius específicos (str com px, usados em QSS) ──
 
-    BORDER_RADIUS_CARD: int = 0
-    """AREDONDAMENTO de CARDS."""
+    BORDER_RADIUS_CARD: str = ""
+    """AREDONDAMENTO de CARDS — string com px (QSS)."""
 
-    BORDER_RADIUS_BUTTON: int = 0
-    """AREDONDAMENTO de BOTÕES."""
+    BORDER_RADIUS_BUTTON: str = ""
+    """AREDONDAMENTO de BOTÕES — string com px (QSS)."""
 
-    BORDER_RADIUS_INPUT: int = 0
-    """AREDONDAMENTO de INPUTS."""
+    BORDER_RADIUS_INPUT: str = ""
+    """AREDONDAMENTO de INPUTS — string com px (QSS)."""
 
-    BORDER_RADIUS_CHECKBOX: int = 0
-    """AREDONDAMENTO do CHECKBOX."""
+    BORDER_RADIUS_CHECKBOX: str = ""
+    """AREDONDAMENTO do CHECKBOX — string com px (QSS)."""
 
-    BORDER_RADIUS_RADIO: int = 0
-    """AREDONDAMENTO do RADIO BUTTON. Usar 0 ou RADIUS_FULL."""
+    BORDER_RADIUS_RADIO: str = ""
+    """AREDONDAMENTO do RADIO BUTTON — string com px (QSS). Usar "0px" ou "999px"."""
 
-    BORDER_RADIUS_BADGE: int = 0
-    """AREDONDAMENTO de BADGES."""
+    BORDER_RADIUS_BADGE: str = ""
+    """AREDONDAMENTO de BADGES — string com px (QSS)."""
 
-    BORDER_RADIUS_PROGRESS: int = 0
-    """AREDONDAMENTO da PROGRESS BAR."""
+    BORDER_RADIUS_PROGRESS: str = ""
+    """AREDONDAMENTO da PROGRESS BAR — string com px (QSS)."""
 
-    BORDER_RADIUS_TABLE: int = 0
-    """AREDONDAMENTO de TABELAS."""
+    BORDER_RADIUS_TABLE: str = ""
+    """AREDONDAMENTO de TABELAS — string com px (QSS)."""
 
-    BORDER_RADIUS_TITLE_BTN: int = 0
-    """AREDONDAMENTO dos botões da title bar."""
+    BORDER_RADIUS_TITLE_BTN: str = ""
+    """AREDONDAMENTO dos botões da title bar — string com px (QSS)."""
 
-    BORDER_RADIUS_TOOLBAR_BTN: int = 0
-    """AREDONDAMENTO dos botões da toolbar."""
+    BORDER_RADIUS_TOOLBAR_BTN: str = ""
+    """AREDONDAMENTO dos botões da toolbar — string com px (QSS)."""
 
-    BORDER_RADIUS_GHOST: int = 0
-    """AREDONDAMENTO do botão GHOST."""
+    BORDER_RADIUS_GHOST: str = ""
+    """AREDONDAMENTO do botão GHOST — string com px (QSS)."""
 
-    BORDER_RADIUS_TOOL_SELECTOR: int = 0
-    """AREDONDAMENTO do seletor de tool."""
+    BORDER_RADIUS_TOOL_SELECTOR: str = ""
+    """AREDONDAMENTO do seletor de tool — string com px (QSS)."""
 
-    BORDER_RADIUS_SCROLLBAR: int = 0
-    """AREDONDAMENTO da SCROLLBAR."""
+    BORDER_RADIUS_SCROLLBAR: str = ""
+    """AREDONDAMENTO da SCROLLBAR — string com px (QSS)."""
 
-    BORDER_RADIUS_SPINBOX_BTN: int = 0
-    """AREDONDAMENTO dos botões do SPINBOX."""
+    BORDER_RADIUS_SPINBOX_BTN: str = ""
+    """AREDONDAMENTO dos botões do SPINBOX — string com px (QSS)."""
 
-    BORDER_RADIUS_TAB_CLOSE: int = 0
-    """AREDONDAMENTO do botão fechar tab."""
+    BORDER_RADIUS_TAB_CLOSE: str = ""
+    """AREDONDAMENTO do botão fechar tab — string com px (QSS)."""
 
-    BORDER_RADIUS_MENU: int = 0
-    """AREDONDAMENTO do MENU DROPDOWN."""
+    BORDER_RADIUS_MENU: str = ""
+    """AREDONDAMENTO do MENU DROPDOWN — string com px (QSS)."""
 
-    BORDER_RADIUS_MENU_ITEM: int = 0
-    """AREDONDAMENTO dos ITENS DE MENU."""
+    BORDER_RADIUS_MENU_ITEM: str = ""
+    """AREDONDAMENTO dos ITENS DE MENU — string com px (QSS)."""
 
-    BORDER_RADIUS_GROUP_TITLE: int = 0
-    """AREDONDAMENTO do TÍTULO DO GROUPBOX."""
+    BORDER_RADIUS_GROUP_TITLE: str = ""
+    """AREDONDAMENTO do TÍTULO DO GROUPBOX — string com px (QSS)."""
 
-    BORDER_RADIUS_DIALOG: int = 0
-    """AREDONDAMENTO de DIÁLOGOS."""
+    BORDER_RADIUS_DIALOG: str = ""
+    """AREDONDAMENTO de DIÁLOGOS — string com px (QSS)."""
 
-    MENUBAR_ITEM_BORDER_RADIUS: int = 0
-    """AREDONDAMENTO dos itens da MENUBAR."""
+    MENUBAR_ITEM_BORDER_RADIUS: str = ""
+    """AREDONDAMENTO dos itens da MENUBAR — string com px (QSS)."""
 
     @property
-    def BORDER_RADIUS_COMBO_POPUP(self) -> int:
-        """Alias de compatibilidade → COMBOBOX_POPUP_BORDER_RADIUS (border-radius do popup combobox)."""
+    def BORDER_RADIUS_COMBO_POPUP(self) -> str:
+        """Alias de compatibilidade → COMBOBOX_POPUP_BORDER_RADIUS (str com px)."""
         return self.COMBOBOX_POPUP_BORDER_RADIUS
 
     # ── Checkbox ──
 
     CHECKBOX_BORDER_WIDTH: int = 0
-    """LARGURA da BORDA do quadrado do checkbox em pixels."""
+    """LARGURA da BORDA do checkbox (int, usado em QSS com f"{v}px")."""
 
-    CHECKBOX_SPACING: int = 0
-    """ESPAÇAMENTO entre o checkbox e o texto ao lado em pixels."""
+    CHECKBOX_SPACING: str = ""
+    """ESPAÇAMENTO entre checkbox e label — string com px (QSS)."""
 
     # ── Badge ──
 
     BADGE_PADDING_V: str = ""
-    """PADDING VERTICAL interno do badge em CSS.
-    Espaço acima/abaixo do texto dentro do badge."""
+    """PADDING VERTICAL do badge — string com px (QSS)."""
 
     BADGE_PADDING_H: str = ""
-    """PADDING HORIZONTAL interno do badge em CSS.
-    Espaço à esquerda/direita do texto dentro do badge."""
+    """PADDING HORIZONTAL do badge — string com px (QSS)."""
 
     BADGE_LETTER_SPACING: str = ""
-    """ESPAÇAMENTO entre letras (letter-spacing) do texto do badge em CSS."""
+    """LETTER-SPACING do texto do badge — string com px (QSS)."""
 
     BADGE_OUTLINE_ENABLED: bool = False
-    """Se True, badges usam estilo outline (borda + fundo translúcido).
-    Se False, usam estilo preenchido (fundo sólido)."""
+    """Se True, badges usam estilo outline."""
 
     BADGE_OUTLINE_BORDER_WIDTH: int = 1
-    """ESPESSURA da borda do badge outline em pixels."""
+    """ESPESSURA da borda do badge outline (int, sem unidade)."""
 
     BADGE_OUTLINE_BG_ALPHA: int = 0
-    """ALFA do fundo translúcido do badge outline (0-255).
-    0 = completamente transparente, 255 = sólido."""
+    """ALFA do fundo translúcido do badge outline (int 0-255)."""
 
     # ── Button ──
 
     BUTTON_PADDING_V: str = ""
-    """PADDING VERTICAL de botão padrão em CSS."""
+    """PADDING VERTICAL de botão padrão — string com px (QSS)."""
 
     BUTTON_PADDING_H: str = ""
-    """PADDING HORIZONTAL de botão padrão em CSS."""
+    """PADDING HORIZONTAL de botão padrão — string com px (QSS)."""
 
     BUTTON_PADDING_V_SMALL: str = ""
-    """PADDING VERTICAL de botão pequeno em CSS."""
+    """PADDING VERTICAL de botão pequeno — string com px (QSS)."""
 
     BUTTON_PADDING_H_SMALL: str = ""
-    """PADDING HORIZONTAL de botão pequeno em CSS."""
+    """PADDING HORIZONTAL de botão pequeno — string com px (QSS)."""
 
     BUTTON_PADDING_V_PRIMARY: str = ""
-    """PADDING VERTICAL de botão primário em CSS."""
+    """PADDING VERTICAL de botão primário — string com px (QSS)."""
 
     BUTTON_PADDING_H_PRIMARY: str = ""
-    """PADDING HORIZONTAL de botão primário em CSS."""
+    """PADDING HORIZONTAL de botão primário — string com px (QSS)."""
 
     BUTTON_LETTER_SPACING_NORMAL: str = ""
-    """LETTER-SPACING do texto de botão normal em CSS."""
+    """LETTER-SPACING de botão normal — string com px (QSS)."""
 
     BUTTON_LETTER_SPACING_PRIMARY: str = ""
-    """LETTER-SPACING do texto de botão primário em CSS."""
+    """LETTER-SPACING de botão primário — string com px (QSS)."""
 
-    BUTTON_FONT_SIZE_PRIMARY: int = 0
-    """TAMANHO da fonte do botão primário em px. 0 = usa FONT_SIZE_NORMAL."""
+    BUTTON_FONT_SIZE_PRIMARY: str = ""
+    """TAMANHO da fonte do botão primário — string com px (QSS). Vazio = usa FONT_SIZE_NORMAL."""
 
     BUTTON_FONT_WEIGHT_PRIMARY: int = 0
-    """PESO da fonte do botão primário. 0 = usa FONT_WEIGHT_HEAVY."""
+    """PESO da fonte do botão primário (int). 0 = usa FONT_WEIGHT_HEAVY."""
 
     # ── Toolbar ──
 
     TOOLBAR_BTN_PADDING_V: str = ""
-    """PADDING VERTICAL do botão da toolbar em CSS."""
+    """PADDING VERTICAL do botão toolbar — string com px (QSS)."""
 
     TOOLBAR_BTN_PADDING_H: str = ""
-    """PADDING HORIZONTAL do botão da toolbar em CSS."""
+    """PADDING HORIZONTAL do botão toolbar — string com px (QSS)."""
 
     # ── Tool Selector ──
 
     TOOL_SELECTOR_PADDING_V: str = ""
-    """PADDING VERTICAL do seletor de tool (ferramenta ativa) em CSS."""
+    """PADDING VERTICAL do seletor de tool — string com px (QSS)."""
 
     TOOL_SELECTOR_PADDING_H: str = ""
-    """PADDING HORIZONTAL do seletor de tool em CSS."""
+    """PADDING HORIZONTAL do seletor de tool — string com px (QSS)."""
 
     TOOL_SELECTOR_LETTER_SPACING: str = ""
-    """LETTER-SPACING do texto do seletor de tool em CSS."""
+    """LETTER-SPACING do seletor de tool — string com px (QSS)."""
 
     # ── Input ──
 
     INPUT_PADDING_V: str = ""
-    """PADDING VERTICAL de campos de input em CSS."""
+    """PADDING VERTICAL de input — string com px (QSS)."""
 
     INPUT_PADDING_H: str = ""
-    """PADDING HORIZONTAL de campos de input em CSS."""
+    """PADDING HORIZONTAL de input — string com px (QSS)."""
 
     # ── SpinBox ──
 
     SPINBOX_PADDING: str = ""
-    """PADDING do spinbox (valor + setas) em CSS."""
+    """PADDING do spinbox — string com px (QSS)."""
 
-    SPINBOX_BTN_WIDTH: int = 0
-    """LARGURA dos botões de seta do spinbox em pixels."""
+    SPINBOX_BTN_WIDTH: str = ""
+    """LARGURA dos botões do spinbox — string com px (QSS)."""
 
     SPINBOX_BTN_MARGIN: str = ""
-    """MARGEM dos botões de seta do spinbox em CSS."""
+    """MARGEM dos botões do spinbox — string com px (QSS)."""
 
     # ── ComboBox ──
 
     COMBOBOX_PADDING: str = ""
-    """PADDING do combobox em CSS."""
+    """PADDING do combobox — string com px (QSS)."""
 
-    COMBOBOX_MIN_WIDTH: int = 0
-    """LARGURA MÍNIMA do combobox em pixels."""
+    COMBOBOX_MIN_WIDTH: str = ""
+    """LARGURA MÍNIMA do combobox — string com px (QSS)."""
 
-    COMBOBOX_DROPDOWN_WIDTH: int = 0
-    """LARGURA do botão de dropdown (seta) do combobox em pixels."""
+    COMBOBOX_DROPDOWN_WIDTH: str = ""
+    """LARGURA do dropdown button — string com px (QSS)."""
 
     COMBOBOX_ARROW_SIZE: str = ""
-    """TAMANHO da seta do combobox (triângulo) em CSS."""
+    """TAMANHO da seta do combobox — string com px (QSS)."""
 
-    COMBOBOX_POPUP_BORDER_RADIUS: int = 0
-    """AREDONDAMENTO do POPUP do combobox (lista suspensa) em pixels."""
+    COMBOBOX_POPUP_BORDER_RADIUS: str = ""
+    """AREDONDAMENTO do POPUP do combobox — string com px (QSS)."""
 
     # ── TextEdit / TextBrowser ──
 
     TEXT_EDIT_PADDING: str = ""
-    """PADDING do editor de texto (QTextEdit) em CSS."""
+    """PADDING do text edit — string com px (QSS)."""
 
-    TEXT_EDIT_FONT_SIZE: int = 0
-    """TAMANHO da fonte no editor de texto em pixels."""
+    TEXT_EDIT_FONT_SIZE: str = ""
+    """TAMANHO da fonte do text edit — string com px (QSS)."""
 
     # ── GroupBox ──
 
-    GROUP_TITLE_LEFT: int = 0
-    """DESLOCAMENTO HORIZONTAL do título do groupbox em pixels.
-    Move o título para a esquerda/direita em relação à borda."""
+    GROUP_TITLE_LEFT: str = ""
+    """DESLOCAMENTO HORIZONTAL do título — string com px (QSS)."""
 
-    GROUP_TITLE_TOP: int = 0
-    """DESLOCAMENTO VERTICAL do título do groupbox em pixels.
-    Valor negativo = sobe o título para alinhar com a borda superior."""
+    GROUP_TITLE_TOP: str = ""
+    """DESLOCAMENTO VERTICAL do título — string com px (QSS). Valor negativo = sobe."""
 
     GROUP_TITLE_PADDING: str = ""
-    """PADDING do título do groupbox em CSS."""
+    """PADDING do título do groupbox — string com px (QSS)."""
 
-    GROUP_TITLE_BORDER_RADIUS: int = 0
-    """AREDONDAMENTO do título do groupbox em pixels."""
+    GROUP_TITLE_BORDER_RADIUS: str = ""
+    """AREDONDAMENTO do título do groupbox — string com px (QSS)."""
 
     GROUP_TITLE_LETTER_SPACING: str = ""
-    """LETTER-SPACING do título do groupbox em CSS."""
+    """LETTER-SPACING do título do groupbox — string com px (QSS)."""
 
     # ── Letter Spacing ──
 
     LETTER_SPACING_TITLE: str = ""
-    """LETTER-SPACING de títulos grandes (header_title) em CSS."""
+    """LETTER-SPACING de títulos grandes — string com px (QSS)."""
 
     LETTER_SPACING_BADGE: str = ""
-    """LETTER-SPACING de badges em CSS."""
+    """LETTER-SPACING de badges — string com px (QSS)."""
 
     LETTER_SPACING_GROUP: str = ""
-    """LETTER-SPACING de título de groupbox em CSS."""
+    """LETTER-SPACING de título groupbox — string com px (QSS)."""
 
     LETTER_SPACING_BUTTON: str = ""
-    """LETTER-SPACING de botão normal em CSS."""
+    """LETTER-SPACING de botão normal — string com px (QSS)."""
 
     LETTER_SPACING_BUTTON_PRIMARY: str = ""
-    """LETTER-SPACING de botão primário em CSS."""
+    """LETTER-SPACING de botão primário — string com px (QSS)."""
 
     LETTER_SPACING_HEADER: str = ""
-    """LETTER-SPACING de cabeçalho de tabela em CSS."""
+    """LETTER-SPACING de cabeçalho de tabela — string com px (QSS)."""
 
     LETTER_SPACING_TOOL_SELECTOR: str = ""
-    """LETTER-SPACING de seletor de tool em CSS."""
+    """LETTER-SPACING de seletor de tool — string com px (QSS)."""
 
     LETTER_SPACING_WINDOW_TITLE: str = ""
-    """LETTER-SPACING de título da janela em CSS."""
+    """LETTER-SPACING de título da janela — string com px (QSS)."""
 
     # ── Window Title ──
 
-    WINDOW_TITLE_FONT_SIZE: int = 0
-    """TAMANHO da fonte do título da janela (na title bar) em pixels."""
+    WINDOW_TITLE_FONT_SIZE: str = ""
+    """TAMANHO da fonte do título da janela — string com px (QSS)."""
 
     WINDOW_TITLE_LETTER_SPACING: str = ""
-    """LETTER-SPACING do título da janela em CSS."""
+    """LETTER-SPACING do título da janela — string com px (QSS)."""
 
     # ── Title Bar ──
 
     TITLE_BAR_BORDER_WIDTH: str = ""
-    """LARGURA da borda inferior da title bar em CSS."""
+    """LARGURA da borda inferior da title bar — string com px (QSS)."""
 
     TITLE_BAR_BORDER_COLOR: str = ""
-    """COR da borda inferior da title bar.
-    Vazio = usa SURFACE_2 (BG_PANEL) como fallback."""
+    """COR da borda inferior da title bar. Vazio = usa SURFACE_2 como fallback."""
 
     # ── Card ──
 
-    CARD_PADDING_V: int = 0
-    """PADDING VERTICAL de cards em pixels."""
+    CARD_PADDING_V: str = ""
+    """PADDING VERTICAL de cards — string com px (QSS)."""
 
-    CARD_PADDING_H: int = 0
-    """PADDING HORIZONTAL de cards em pixels."""
+    CARD_PADDING_H: str = ""
+    """PADDING HORIZONTAL de cards — string com px (QSS)."""
 
     # ── Splitter ──
 
-    SPLITTER_HANDLE_WIDTH_H: int = 0
-    """LARGURA do pegador do SPLITTER HORIZONTAL em pixels."""
+    SPLITTER_HANDLE_WIDTH_H: str = ""
+    """LARGURA do handle do splitter horizontal — string com px (QSS)."""
 
-    SPLITTER_HANDLE_WIDTH_V: int = 0
-    """LARGURA do pegador do SPLITTER VERTICAL em pixels."""
+    SPLITTER_HANDLE_WIDTH_V: str = ""
+    """LARGURA do handle do splitter vertical — string com px (QSS)."""
 
     # ── Menu ──
 
     MENU_PADDING: str = ""
-    """PADDING interno do menu dropdown em CSS."""
+    """PADDING do menu dropdown — string com px (QSS)."""
 
     MENU_MARGIN_V: str = ""
-    """MARGEM vertical do menu dropdown (espaço externo) em CSS."""
+    """MARGEM vertical do menu — string com px (QSS)."""
 
     MENU_ITEM_PADDING: str = ""
-    """PADDING de cada item do menu em CSS."""
+    """PADDING dos itens de menu — string com px (QSS)."""
 
     MENU_SEPARATOR_HEIGHT: str = ""
-    """ALTURA da linha separadora do menu em CSS."""
+    """ALTURA do separador de menu — string com px (QSS)."""
 
     MENU_SEPARATOR_MARGIN: str = ""
-    """MARGEM da linha separadora do menu em CSS."""
+    """MARGEM do separador de menu — string com px (QSS)."""
 
     # ── Table / Header ──
 
-    HEADER_FONT_SIZE: int = 0
-    """TAMANHO da fonte do cabeçalho de tabela em pixels."""
+    HEADER_FONT_SIZE: str = ""
+    """TAMANHO da fonte do cabeçalho — string com px (QSS)."""
 
     HEADER_LETTER_SPACING: str = ""
-    """LETTER-SPACING do cabeçalho de tabela em CSS."""
+    """LETTER-SPACING do cabeçalho — string com px (QSS)."""
 
     TABLE_ITEM_PADDING: str = ""
-    """PADDING das células da tabela em CSS."""
+    """PADDING das células da tabela — string com px (QSS)."""
 
     HEADER_PADDING: str = ""
-    """PADDING das células do cabeçalho em CSS."""
+    """PADDING das células do cabeçalho — string com px (QSS)."""
 
     # ═══════════════════════════════════════════════════════════════════
     # ALIASES DE COMPATIBILIDADE RETROATIVA

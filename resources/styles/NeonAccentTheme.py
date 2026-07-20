@@ -285,11 +285,11 @@ class NeonAccentTheme(BaseTheme):
     FONT_FAMILY_DISPLAY = ""  # usa FONT_FAMILY_DEFAULT (o estilo neon não usa serifa)
     FONT_LETTER_SPACING_DISPLAY = 1
 
-    FONT_SIZE_TITLE = 30
-    FONT_SIZE_BIG = 22
-    FONT_SIZE_NORMAL = 14
-    FONT_SIZE_SMALL = 12
-    FONT_SIZE_TINY = 11
+    FONT_SIZE_TITLE = "30px"
+    FONT_SIZE_BIG = "22px"
+    FONT_SIZE_NORMAL = "14px"
+    FONT_SIZE_SMALL = "12px"
+    FONT_SIZE_TINY = "11px"
 
     FONT_WEIGHT_NORMAL = 400
     FONT_WEIGHT_BOLD = 600
@@ -303,51 +303,51 @@ class NeonAccentTheme(BaseTheme):
     BUTTON_HEIGHT = 36
     BUTTON_HEIGHT_PRIMARY = 40
     ITEM_HEIGHT = 32
-    CHECKBOX_SIZE = 16
+    CHECKBOX_SIZE = "16px"
     RADIO_SIZE = 16
-    SCROLLBAR_WIDTH = 10
-    SCROLLBAR_MIN_HEIGHT = 24
+    SCROLLBAR_WIDTH = "10px"
+    SCROLLBAR_MIN_HEIGHT = "24px"
     TAB_HEIGHT = 34
-    TAB_CLOSE_BUTTON_SIZE = 16
-    CLOSE_BUTTON_BORDER_RADIUS = 4
-    PROGRESS_BAR_HEIGHT = 6
-    TITLE_BTN_HEIGHT = 30
-    TITLE_BTN_WIDTH = 44
-    TITLE_BTN_FONT_SIZE = 12
+    TAB_CLOSE_BUTTON_SIZE = "16px"
+    CLOSE_BUTTON_BORDER_RADIUS = "4px"
+    PROGRESS_BAR_HEIGHT = "6px"
+    TITLE_BTN_HEIGHT = "30px"
+    TITLE_BTN_WIDTH = "44px"
+    TITLE_BTN_FONT_SIZE = "12px"
     TOOLBAR_BTN_SIZE = 32
     TOOLBAR_BTN_HOVER_GROW = 2
-    GROUP_MARGIN_TOP = 14
-    SPLITTER_HANDLE_WIDTH = 4
+    GROUP_MARGIN_TOP = "14px"
+    SPLITTER_HANDLE_WIDTH = "4px"
 
     # ═══════════════════════════════════════════════════════════
     # SPECIFICS — Border radius
     # ═══════════════════════════════════════════════════════════
-    BORDER_RADIUS_CARD = 14
-    BORDER_RADIUS_BUTTON = 10
-    BORDER_RADIUS_INPUT = 8
-    BORDER_RADIUS_CHECKBOX = 4
-    BORDER_RADIUS_RADIO = 999
-    BORDER_RADIUS_BADGE = 11
-    BORDER_RADIUS_PROGRESS = 4
-    BORDER_RADIUS_TABLE = 10
-    BORDER_RADIUS_TITLE_BTN = 6
-    BORDER_RADIUS_TOOLBAR_BTN = 4
-    BORDER_RADIUS_GHOST = 8
-    BORDER_RADIUS_TOOL_SELECTOR = 8
-    BORDER_RADIUS_SCROLLBAR = 5
-    BORDER_RADIUS_SPINBOX_BTN = 4
-    BORDER_RADIUS_TAB_CLOSE = 4
-    BORDER_RADIUS_MENU = 10
-    BORDER_RADIUS_MENU_ITEM = 6
-    BORDER_RADIUS_GROUP_TITLE = 4
-    BORDER_RADIUS_DIALOG = 16
-    MENUBAR_ITEM_BORDER_RADIUS = 6
+    BORDER_RADIUS_CARD = "14px"
+    BORDER_RADIUS_BUTTON = "10px"
+    BORDER_RADIUS_INPUT = "8px"
+    BORDER_RADIUS_CHECKBOX = "4px"
+    BORDER_RADIUS_RADIO = "999px"
+    BORDER_RADIUS_BADGE = "11px"
+    BORDER_RADIUS_PROGRESS = "4px"
+    BORDER_RADIUS_TABLE = "10px"
+    BORDER_RADIUS_TITLE_BTN = "6px"
+    BORDER_RADIUS_TOOLBAR_BTN = "4px"
+    BORDER_RADIUS_GHOST = "8px"
+    BORDER_RADIUS_TOOL_SELECTOR = "8px"
+    BORDER_RADIUS_SCROLLBAR = "5px"
+    BORDER_RADIUS_SPINBOX_BTN = "4px"
+    BORDER_RADIUS_TAB_CLOSE = "4px"
+    BORDER_RADIUS_MENU = "10px"
+    BORDER_RADIUS_MENU_ITEM = "6px"
+    BORDER_RADIUS_GROUP_TITLE = "4px"
+    BORDER_RADIUS_DIALOG = "16px"
+    MENUBAR_ITEM_BORDER_RADIUS = "6px"
 
     # ═══════════════════════════════════════════════════════════
     # SPECIFICS — Checkbox
     # ═══════════════════════════════════════════════════════════
     CHECKBOX_BORDER_WIDTH = 1
-    CHECKBOX_SPACING = 8
+    CHECKBOX_SPACING = "8px"
 
     # ═══════════════════════════════════════════════════════════
     # SPECIFICS — Badge (outline dourado, como na referência)
@@ -394,31 +394,31 @@ class NeonAccentTheme(BaseTheme):
     # SPECIFICS — SpinBox
     # ═══════════════════════════════════════════════════════════
     SPINBOX_PADDING = "6px"
-    SPINBOX_BTN_WIDTH = 18
+    SPINBOX_BTN_WIDTH = "18px"
     SPINBOX_BTN_MARGIN = "1px"
 
     # ═══════════════════════════════════════════════════════════
     # SPECIFICS — ComboBox
     # ═══════════════════════════════════════════════════════════
     COMBOBOX_PADDING = "8px"
-    COMBOBOX_MIN_WIDTH = 120
-    COMBOBOX_DROPDOWN_WIDTH = 24
+    COMBOBOX_MIN_WIDTH = "120px"
+    COMBOBOX_DROPDOWN_WIDTH = "24px"
     COMBOBOX_ARROW_SIZE = "10px"
-    COMBOBOX_POPUP_BORDER_RADIUS = 10
+    COMBOBOX_POPUP_BORDER_RADIUS = "10px"
 
     # ═══════════════════════════════════════════════════════════
     # SPECIFICS — TextEdit
     # ═══════════════════════════════════════════════════════════
     TEXT_EDIT_PADDING = "8px"
-    TEXT_EDIT_FONT_SIZE = 13
+    TEXT_EDIT_FONT_SIZE = "13px"
 
     # ═══════════════════════════════════════════════════════════
     # SPECIFICS — GroupBox
     # ═══════════════════════════════════════════════════════════
-    GROUP_TITLE_LEFT = 12
-    GROUP_TITLE_TOP = -8
+    GROUP_TITLE_LEFT = "12px"
+    GROUP_TITLE_TOP = "-8px"
     GROUP_TITLE_PADDING = "0px 6px"
-    GROUP_TITLE_BORDER_RADIUS = 4
+    GROUP_TITLE_BORDER_RADIUS = "4px"
     GROUP_TITLE_LETTER_SPACING = "1px"
 
     # ═══════════════════════════════════════════════════════════
@@ -436,7 +436,7 @@ class NeonAccentTheme(BaseTheme):
     # ═══════════════════════════════════════════════════════════
     # SPECIFICS — Window title
     # ═══════════════════════════════════════════════════════════
-    WINDOW_TITLE_FONT_SIZE = 12
+    WINDOW_TITLE_FONT_SIZE = "12px"
     WINDOW_TITLE_LETTER_SPACING = "2px"
 
     # ═══════════════════════════════════════════════════════════
@@ -448,14 +448,14 @@ class NeonAccentTheme(BaseTheme):
     # ═══════════════════════════════════════════════════════════
     # SPECIFICS — Card
     # ═══════════════════════════════════════════════════════════
-    CARD_PADDING_V = 50
-    CARD_PADDING_H = 60
+    CARD_PADDING_V = "50px"
+    CARD_PADDING_H = "60px"
 
     # ═══════════════════════════════════════════════════════════
     # SPECIFICS — Splitter
     # ═══════════════════════════════════════════════════════════
-    SPLITTER_HANDLE_WIDTH_H = 4
-    SPLITTER_HANDLE_WIDTH_V = 4
+    SPLITTER_HANDLE_WIDTH_H = "4px"
+    SPLITTER_HANDLE_WIDTH_V = "4px"
 
     # ═══════════════════════════════════════════════════════════
     # SPECIFICS — Menu
@@ -469,7 +469,7 @@ class NeonAccentTheme(BaseTheme):
     # ═══════════════════════════════════════════════════════════
     # SPECIFICS — Table / Header
     # ═══════════════════════════════════════════════════════════
-    HEADER_FONT_SIZE = 12
+    HEADER_FONT_SIZE = "12px"
     HEADER_LETTER_SPACING = "1px"
     TABLE_ITEM_PADDING = "6px 10px"
     HEADER_PADDING = "8px 10px"
