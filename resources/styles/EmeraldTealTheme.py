@@ -16,6 +16,22 @@ Cores principais do botao.py (referência):
     - Background da janela: #0a2f2b
 
 Subclasse de BaseTheme com todos os tokens sobrescritos.
+
+Convenção deste tema (alinhada ao AppStyles):
+    Tokens que o AppStyles usa DIRETAMENTE em uma propriedade CSS
+    (font-size, border-radius, etc.) já vêm como string com a unidade
+    embutida (ex.: FONT_SIZE_SMALL = "11px"). Isso evita que o AppStyles
+    precise concatenar "px" manualmente em cada f-string.
+
+    Tokens que são usados apenas programaticamente (aritmética, QSize,
+    setFixedHeight, contagem de pixels em Python) permanecem como int
+    puro — ex.: INPUT_HEIGHT, ICON_*, TOOLBAR_ICON_SIZE, TOOLBAR_BTN_SIZE,
+    TOOLBAR_BTN_HOVER_GROW.
+
+    BORDER_RADIUS_TOOLBAR_BTN é usado nos dois mundos: como CSS
+    (toolbar_btn_style) e como int puro (toolbar_btn_border_radius()).
+    Por isso ele guarda a string com "px", e o método programático faz
+    o parse de volta para int (ver AppStyles.toolbar_btn_border_radius).
 """
 
 from __future__ import annotations
@@ -114,14 +130,16 @@ class EmeraldTealTheme(BaseTheme):
 
     # ═══════════════════════════════════════════════════════════════════
     # 6. RADIUS — Escala global
+    # Usada como valor CSS direto em vários lugares (ex.: RADIUS_SM no
+    # AppStyles) → string com "px" embutido.
     # ═══════════════════════════════════════════════════════════════════
 
-    RADIUS_XS = 2
-    RADIUS_SM = 4
-    RADIUS_MD = 6
-    RADIUS_LG = 12
-    RADIUS_XL = 20
-    RADIUS_FULL = 999
+    RADIUS_XS = "2px"
+    RADIUS_SM = "4px"
+    RADIUS_MD = "6px"
+    RADIUS_LG = "12px"
+    RADIUS_XL = "20px"
+    RADIUS_FULL = "999px"
 
     # ═══════════════════════════════════════════════════════════════════
     # 7. SPACE — Escala global de espaçamento
@@ -137,7 +155,7 @@ class EmeraldTealTheme(BaseTheme):
     SPACE_3XL = 48
 
     # ═══════════════════════════════════════════════════════════════════
-    # 8. ICON — Tamanhos
+    # 8. ICON — Tamanhos (uso programático — QSize, setIconSize etc.)
     # ═══════════════════════════════════════════════════════════════════
 
     ICON_XS = 12
@@ -219,16 +237,19 @@ class EmeraldTealTheme(BaseTheme):
 
     # ═══════════════════════════════════════════════════════════════════
     # 16. FONT
+    # FONT_SIZE_* é usado como valor CSS direto no AppStyles → string
+    # com "px" embutido. FONT_WEIGHT_* nunca teve unidade (número puro
+    # de CSS) e permanece int.
     # ═══════════════════════════════════════════════════════════════════
 
     FONT_FAMILY_DEFAULT = "'Segoe UI', 'Inter', 'Roboto', sans-serif"
     FONT_FAMILY_MONO = "'Consolas', 'Courier New', monospace"
 
-    FONT_SIZE_TITLE = 21
-    FONT_SIZE_BIG = 16
-    FONT_SIZE_NORMAL = 13
-    FONT_SIZE_SMALL = 11
-    FONT_SIZE_TINY = 10
+    FONT_SIZE_TITLE = "21px"
+    FONT_SIZE_BIG = "16px"
+    FONT_SIZE_NORMAL = "13px"
+    FONT_SIZE_SMALL = "11px"
+    FONT_SIZE_TINY = "10px"
 
     FONT_WEIGHT_NORMAL = 400
     FONT_WEIGHT_BOLD = 600
@@ -236,7 +257,8 @@ class EmeraldTealTheme(BaseTheme):
     FONT_WEIGHT_HEAVY = 800
 
     # ═══════════════════════════════════════════════════════════════════
-    # 17. DIMENSIONS
+    # 17. DIMENSIONS — uso programático (aritmética, setFixedHeight etc.)
+    # Permanecem int puro.
     # ═══════════════════════════════════════════════════════════════════
 
     INPUT_HEIGHT = 24
@@ -259,29 +281,31 @@ class EmeraldTealTheme(BaseTheme):
 
     # ═══════════════════════════════════════════════════════════════════
     # 18. SPECIFICS — BORDER_RADIUS
+    # Todos usados como valor CSS direto no AppStyles → string com "px"
+    # embutido.
     # ═══════════════════════════════════════════════════════════════════
 
-    BORDER_RADIUS_CARD = 10
-    BORDER_RADIUS_BUTTON = 35
-    BORDER_RADIUS_INPUT = 6
-    BORDER_RADIUS_CHECKBOX = 3
-    BORDER_RADIUS_RADIO = 0
-    BORDER_RADIUS_BADGE = 4
-    BORDER_RADIUS_PROGRESS = 5
-    BORDER_RADIUS_TABLE = 8
-    BORDER_RADIUS_TITLE_BTN = 3
-    BORDER_RADIUS_TOOLBAR_BTN = 4
-    BORDER_RADIUS_GHOST = 5
-    BORDER_RADIUS_TOOL_SELECTOR = 6
-    BORDER_RADIUS_SCROLLBAR = 3
-    BORDER_RADIUS_SPINBOX_BTN = 2
-    BORDER_RADIUS_TAB_CLOSE = 3
-    BORDER_RADIUS_COMBO_POPUP = 4
-    BORDER_RADIUS_MENU = 6
-    BORDER_RADIUS_MENU_ITEM = 3
-    BORDER_RADIUS_GROUP_TITLE = 4
-    BORDER_RADIUS_DIALOG = 16
-    MENUBAR_ITEM_BORDER_RADIUS = 1
+    BORDER_RADIUS_CARD = "10px"
+    BORDER_RADIUS_BUTTON = "35px"
+    BORDER_RADIUS_INPUT = "6px"
+    BORDER_RADIUS_CHECKBOX = "3px"
+    BORDER_RADIUS_RADIO = "0px"
+    BORDER_RADIUS_BADGE = "4px"
+    BORDER_RADIUS_PROGRESS = "5px"
+    BORDER_RADIUS_TABLE = "8px"
+    BORDER_RADIUS_TITLE_BTN = "3px"
+    BORDER_RADIUS_TOOLBAR_BTN = "4px"
+    BORDER_RADIUS_GHOST = "5px"
+    BORDER_RADIUS_TOOL_SELECTOR = "6px"
+    BORDER_RADIUS_SCROLLBAR = "3px"
+    BORDER_RADIUS_SPINBOX_BTN = "2px"
+    BORDER_RADIUS_TAB_CLOSE = "3px"
+    BORDER_RADIUS_COMBO_POPUP = "4px"
+    BORDER_RADIUS_MENU = "6px"
+    BORDER_RADIUS_MENU_ITEM = "3px"
+    BORDER_RADIUS_GROUP_TITLE = "4px"
+    BORDER_RADIUS_DIALOG = "16px"
+    MENUBAR_ITEM_BORDER_RADIUS = "1px"
 
     CHECKBOX_BORDER_WIDTH = 0
     CHECKBOX_SPACING = 8
@@ -298,7 +322,7 @@ class EmeraldTealTheme(BaseTheme):
     BUTTON_PADDING_H_PRIMARY = "30px"
     BUTTON_LETTER_SPACING_NORMAL = "0.3px"
     BUTTON_LETTER_SPACING_PRIMARY = "0.5px"
-    BUTTON_FONT_SIZE_PRIMARY = 20
+    BUTTON_FONT_SIZE_PRIMARY = "20px"
     BUTTON_FONT_WEIGHT_PRIMARY = 700
     LETTER_SPACING_TITLE = "1px"
     LETTER_SPACING_BADGE = "0.3px"
@@ -355,7 +379,7 @@ class EmeraldTealTheme(BaseTheme):
     MENU_SEPARATOR_HEIGHT = "1px"
     MENU_SEPARATOR_MARGIN = "2px 6px"
 
-    HEADER_FONT_SIZE = 11
+    HEADER_FONT_SIZE = "11px"
     HEADER_LETTER_SPACING = "0.3px"
     TABLE_ITEM_PADDING = "3px 6px"
     HEADER_PADDING = "4px 6px"

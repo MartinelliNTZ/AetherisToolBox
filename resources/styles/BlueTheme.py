@@ -6,17 +6,21 @@ ModernDashboardTheme
 Tema inspirado no dashboard:
 https://dribbble.com/shots/23707627-Modern-Dashboard-UI-Design
 
-Características visuais extraídas da referência:
-- Fundo navy profundo quase preto.
-- Painéis azul-escuro com leve gradiente.
-- Accent azul elétrico.
-- Inputs com superfície mais clara.
-- Cards com cantos grandes e visual "soft".
-- Texto branco com hierarquia bem definida.
-- Sombras frias azuladas.
-- Layout extremamente espaçado.
-
 Este tema herda de BaseTheme e preenche os tokens mais relevantes.
+
+⚠ CONVENÇÃO DE UNIDADES
+------------------------
+Todo token consumido apenas dentro de QSS (BaseStyle.global_stylesheet)
+já carrega sua unidade como string (ex: "12px", "-6px", "999px").
+O BaseStyle NUNCA concatena "px" — apenas interpola {t.TOKEN} puro.
+Isso evita bugs como "20pxpx" ou "0.5pxpx".
+
+Tokens que são consumidos como valor numérico puro em código Python
+(QSize, setFixedHeight, setDuration, blur/offset de sombra, etc.)
+permanecem como int/float, pois converter para string quebraria
+essas chamadas. Ex: ICON_*, ANIMATION_*, RADIO_SIZE, TOOLBAR_ICON_SIZE,
+TOOLBAR_BTN_SIZE, TOOLBAR_BTN_HOVER_GROW, BUTTON_HEIGHT*, INPUT_HEIGHT,
+ITEM_HEIGHT, TAB_HEIGHT.
 """
 
 from __future__ import annotations
@@ -25,13 +29,6 @@ from resources.styles.BaseTheme import BaseTheme
 
 
 class BlueTheme(BaseTheme):
-    # Ajustes principais em relação à versão anterior:
-    # - Paleta mais clara e vibrante (azuis luminosos)
-    # - Menos padding
-    # - Heights mais compactos
-    # - Border radius moderado
-    # - Visual mais próximo do dashboard da referência
-
 
     # ==========================================================
     # ACCENT
@@ -93,7 +90,7 @@ class BlueTheme(BaseTheme):
     GLOW_STRONG = "rgba(30,167,255,0.25)"
 
     # ==========================================================
-    # RADIUS
+    # RADIUS (escala genérica — mantida numérica, uso em Python)
     # ==========================================================
     RADIUS_XS = 3
     RADIUS_SM = 6
@@ -103,7 +100,7 @@ class BlueTheme(BaseTheme):
     RADIUS_FULL = 999
 
     # ==========================================================
-    # SPACING
+    # SPACING (escala genérica — mantida numérica, uso em Python)
     # ==========================================================
     SPACE_XXS = 2
     SPACE_XS = 4
@@ -115,7 +112,7 @@ class BlueTheme(BaseTheme):
     SPACE_3XL = 40
 
     # ==========================================================
-    # ICON — Tamanhos de ícone (pixels)
+    # ICON — usados como int (QSize) em código Python, sem unidade
     # ==========================================================
     ICON_XS = 12
     ICON_SM = 16
@@ -123,10 +120,11 @@ class BlueTheme(BaseTheme):
     ICON_LG = 24
     ICON_XL = 32
     TOOLBAR_ICON_SIZE = 40
-    TOOLBAR_BTN_SIZE = 40
+    TOOLBAR_BTN_SIZE = 36
+    TOOLBAR_BTN_HOVER_GROW = 6
 
     # ==========================================================
-    # ANIMATION
+    # ANIMATION — milissegundos, uso em setDuration() (int)
     # ==========================================================
     ANIMATION_FAST = 120
     ANIMATION_NORMAL = 180
@@ -134,7 +132,7 @@ class BlueTheme(BaseTheme):
     EASING_STANDARD = "cubic-bezier(0.4, 0, 0.2, 1)"
 
     # ==========================================================
-    # OPACITY
+    # OPACITY (float 0..1, sem unidade)
     # ==========================================================
     OPACITY_DISABLED = 0.35
     OPACITY_MUTED = 0.60
@@ -142,7 +140,7 @@ class BlueTheme(BaseTheme):
     OPACITY_ACTIVE = 1.0
 
     # ==========================================================
-    # LAYOUT
+    # LAYOUT — mantidos numéricos (uso em código Python / layouts)
     # ==========================================================
     PAGE_PADDING = 18
     SECTION_GAP = 18
@@ -150,7 +148,7 @@ class BlueTheme(BaseTheme):
     CONTENT_MAX_WIDTH = 1600
 
     # ==========================================================
-    # ELEVATION
+    # ELEVATION (índice, sem unidade)
     # ==========================================================
     ELEVATION_FLAT = 0
     ELEVATION_LOW = 1
@@ -195,11 +193,12 @@ class BlueTheme(BaseTheme):
     FONT_FAMILY_DEFAULT = "'Segoe UI', 'Inter', sans-serif"
     FONT_FAMILY_MONO = "'Cascadia Code', 'Consolas', monospace"
 
-    FONT_SIZE_TITLE = 32
-    FONT_SIZE_BIG = 18
-    FONT_SIZE_NORMAL = 12
-    FONT_SIZE_SMALL = 11
-    FONT_SIZE_TINY = 10
+    # >>> convertidos para string com unidade (consumidos só em QSS) <
+    FONT_SIZE_TITLE = "32px"
+    FONT_SIZE_BIG = "18px"
+    FONT_SIZE_NORMAL = "12px"
+    FONT_SIZE_SMALL = "11px"
+    FONT_SIZE_TINY = "10px"
 
     FONT_WEIGHT_NORMAL = 400
     FONT_WEIGHT_BOLD = 600
@@ -209,53 +208,54 @@ class BlueTheme(BaseTheme):
     # ==========================================================
     # DIMENSIONS
     # ==========================================================
+    # mantidos como int — usados em setFixedHeight/QSize no Python
     INPUT_HEIGHT = 34
     BUTTON_HEIGHT = 34
     BUTTON_HEIGHT_PRIMARY = 38
     ITEM_HEIGHT = 30
-    CHECKBOX_SIZE = 16
     RADIO_SIZE = 16
-    SCROLLBAR_WIDTH = 8
-    SCROLLBAR_MIN_HEIGHT = 24
     TAB_HEIGHT = 32
-    TAB_CLOSE_BUTTON_SIZE = 12
-    CLOSE_BUTTON_BORDER_RADIUS = 6
-    PROGRESS_BAR_HEIGHT = 8
-    TITLE_BTN_HEIGHT = 30
-    TITLE_BTN_WIDTH = 44
-    TITLE_BTN_FONT_SIZE = 13
-    GROUP_MARGIN_TOP = 14
-    SPLITTER_HANDLE_WIDTH = 3
-    TOOLBAR_BTN_SIZE = 36
-    TOOLBAR_BTN_HOVER_GROW = 6
+
+    # >>> convertidos para string com unidade (usados em QSS) <
+    CHECKBOX_SIZE = "16px"
+    SCROLLBAR_WIDTH = "8px"
+    SCROLLBAR_MIN_HEIGHT = "24px"
+    TAB_CLOSE_BUTTON_SIZE = "12px"
+    PROGRESS_BAR_HEIGHT = "8px"
+    TITLE_BTN_HEIGHT = "30px"
+    TITLE_BTN_WIDTH = "44px"
+    GROUP_MARGIN_TOP = "14px"
+    SPLITTER_HANDLE_WIDTH = "3px"
 
     # ==========================================================
-    # SPECIFIC RADII
+    # SPECIFIC RADII — >>> todos convertidos para string com "px" <
+    # (família BORDER_RADIUS_* é 100% consumida em QSS)
     # ==========================================================
-    BORDER_RADIUS_CARD = 14
-    BORDER_RADIUS_BUTTON = 999
-    BORDER_RADIUS_INPUT = 8
-    BORDER_RADIUS_CHECKBOX = 4
-    BORDER_RADIUS_RADIO = 999
-    BORDER_RADIUS_BADGE = 999
-    BORDER_RADIUS_PROGRESS = 999
-    BORDER_RADIUS_TABLE = 12
-    BORDER_RADIUS_TITLE_BTN = 6
-    BORDER_RADIUS_TOOLBAR_BTN = 999
-    BORDER_RADIUS_GHOST = 999
-    BORDER_RADIUS_TOOL_SELECTOR = 999
-    BORDER_RADIUS_SCROLLBAR = 999
-    BORDER_RADIUS_SPINBOX_BTN = 4
-    BORDER_RADIUS_TAB_CLOSE = 999
-    BORDER_RADIUS_COMBO_POPUP = 10
-    BORDER_RADIUS_MENU = 12
-    BORDER_RADIUS_MENU_ITEM = 8
-    BORDER_RADIUS_GROUP_TITLE = 6
-    BORDER_RADIUS_DIALOG = 16
-    MENUBAR_ITEM_BORDER_RADIUS = 6
+    BORDER_RADIUS_CARD = "14px"
+    BORDER_RADIUS_BUTTON = "999px"
+    BORDER_RADIUS_INPUT = "8px"
+    BORDER_RADIUS_CHECKBOX = "4px"
+    BORDER_RADIUS_RADIO = "999px"
+    BORDER_RADIUS_BADGE = "999px"
+    BORDER_RADIUS_PROGRESS = "999px"
+    BORDER_RADIUS_TABLE = "12px"
+    BORDER_RADIUS_TITLE_BTN = "6px"
+    BORDER_RADIUS_TOOLBAR_BTN = "999px"
+    BORDER_RADIUS_GHOST = "999px"
+    BORDER_RADIUS_TOOL_SELECTOR = "999px"
+    BORDER_RADIUS_SCROLLBAR = "999px"
+    BORDER_RADIUS_SPINBOX_BTN = "4px"
+    BORDER_RADIUS_TAB_CLOSE = "999px"
+    BORDER_RADIUS_COMBO_POPUP = "10px"
+    BORDER_RADIUS_MENU = "12px"
+    BORDER_RADIUS_MENU_ITEM = "8px"
+    BORDER_RADIUS_GROUP_TITLE = "6px"
+    BORDER_RADIUS_DIALOG = "16px"
+    MENUBAR_ITEM_BORDER_RADIUS = "6px"
+    CLOSE_BUTTON_BORDER_RADIUS = "6px"
 
     # ==========================================================
-    # PADDINGS / SPECIFICS
+    # PADDINGS / SPECIFICS (já eram strings com unidade — mantidos)
     # ==========================================================
     BADGE_PADDING_V = "2px"
     BADGE_PADDING_H = "8px"
@@ -282,34 +282,40 @@ class BlueTheme(BaseTheme):
     INPUT_PADDING_H = "10px"
 
     SPINBOX_PADDING = "4px 8px"
-    SPINBOX_BTN_WIDTH = 18
+    # >>> convertido: usado com px em QSS <
+    SPINBOX_BTN_WIDTH = "18px"
     SPINBOX_BTN_MARGIN = "1px"
 
     COMBOBOX_PADDING = "6px 10px"
-    COMBOBOX_MIN_WIDTH = 100
-    COMBOBOX_DROPDOWN_WIDTH = 22
+    # >>> convertidos: usados com px em QSS <
+    COMBOBOX_MIN_WIDTH = "100px"
+    COMBOBOX_DROPDOWN_WIDTH = "22px"
     COMBOBOX_ARROW_SIZE = "4px"
-    COMBOBOX_POPUP_BORDER_RADIUS = 10
 
     TEXT_EDIT_PADDING = "10px"
-    TEXT_EDIT_FONT_SIZE = 11
+    # >>> convertido <
+    TEXT_EDIT_FONT_SIZE = "11px"
 
-    GROUP_TITLE_LEFT = 8
-    GROUP_TITLE_TOP = -6
+    # >>> convertidos: usados com px em QSS (GROUP_TITLE_TOP é negativo) <
+    GROUP_TITLE_LEFT = "8px"
+    GROUP_TITLE_TOP = "-6px"
     GROUP_TITLE_PADDING = "2px 6px"
-    GROUP_TITLE_BORDER_RADIUS = 6
     GROUP_TITLE_LETTER_SPACING = "0.3px"
 
-    HEADER_FONT_SIZE = 10
+    # >>> convertido <
+    HEADER_FONT_SIZE = "10px"
     HEADER_LETTER_SPACING = "0.3px"
     TABLE_ITEM_PADDING = "6px"
     HEADER_PADDING = "8px 10px"
 
-    WINDOW_TITLE_FONT_SIZE = 11
+    # >>> convertido <
+    WINDOW_TITLE_FONT_SIZE = "11px"
     WINDOW_TITLE_LETTER_SPACING = "0.2px"
+    # >>> convertido <
+    TITLE_BTN_FONT_SIZE = "13px"
 
-    CARD_PADDING_V = 14
-    CARD_PADDING_H = 14
+    CARD_PADDING_V = "14px"
+    CARD_PADDING_H = "14px"
 
     MENU_PADDING = "6px"
     MENU_MARGIN_V = "4px"
@@ -318,7 +324,8 @@ class BlueTheme(BaseTheme):
     MENU_SEPARATOR_MARGIN = "4px 6px"
 
     CHECKBOX_BORDER_WIDTH = 1
-    CHECKBOX_SPACING = 6
+    # >>> convertido: usado como "spacing: {t.X}px" em QSS <
+    CHECKBOX_SPACING = "6px"
 
     # ==========================================================
     # LEGACY ALIASES

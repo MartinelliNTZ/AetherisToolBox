@@ -7,6 +7,19 @@ Subclasse de BaseTheme com valores para o tema escuro atual.
 Todos os grupos semânticos têm valores concretos.
 Aliases de compatibilidade (BG_DARK, GOLD, etc.) apontam
 para os mesmos valores → código legado continua funcionando.
+
+⚠ CONVENÇÃO DE UNIDADES
+------------------------
+Todo token consumido apenas dentro de QSS (BaseStyle.global_stylesheet)
+carrega sua unidade como string (ex: "13px", "-2px", "999px").
+O BaseStyle NUNCA concatena "px" — apenas interpola {t.TOKEN} puro.
+Isso evita bugs como "20pxpx" ou "0.5pxpx".
+
+Tokens consumidos como valor numérico puro em código Python
+(QSize, setFixedHeight, setDuration, blur/offset de sombra, etc.)
+permanecem int/float: ICON_*, ANIMATION_*, RADIO_SIZE,
+TOOLBAR_ICON_SIZE, TOOLBAR_BTN_SIZE, TOOLBAR_BTN_HOVER_GROW,
+INPUT_HEIGHT, BUTTON_HEIGHT*, ITEM_HEIGHT, TAB_HEIGHT.
 """
 
 from __future__ import annotations
@@ -45,13 +58,10 @@ class DarkCharcoalTheme(BaseTheme):
     SURFACE_5 = "#24242B"
     TITLE_BAR = "#0A0A0D"
 
-    # ── Gradientes de superfície (top-left → bottom-right) ─────
-    # start = mais escuro (~ SURFACE_0 / SURFACE_2), end = SURFACE_4 / SURFACE_5
-    # PANEL/TAB precisam contrastar com SURFACE_1 (fundo da janela)
-    GRADIENT_BUTTON = ("#08080A", "#1E1E24")   # SURFACE_0 → SURFACE_4
-    GRADIENT_PANEL = ("#121216", "#24242B")     # SURFACE_3 → SURFACE_5 (mais claro, contrasta com fundo)
-    GRADIENT_TAB = ("#18181D", "#1E1E24")       # SURFACE_3 → SURFACE_4 (mais claro que fundo)
-    GRADIENT_INPUT = ("#0C0C0F", "#1E1E24")    # SURFACE_1 → SURFACE_4
+    GRADIENT_BUTTON = ("#08080A", "#1E1E24")
+    GRADIENT_PANEL = ("#121216", "#24242B")
+    GRADIENT_TAB = ("#18181D", "#1E1E24")
+    GRADIENT_INPUT = ("#0C0C0F", "#1E1E24")
 
     # ═══════════════════════════════════════════════════════════════════
     # 3. TEXT — Hierarquia
@@ -87,7 +97,7 @@ class DarkCharcoalTheme(BaseTheme):
     GLOW_STRONG = "#C9A84C25"
 
     # ═══════════════════════════════════════════════════════════════════
-    # 6. RADIUS — Escala global
+    # 6. RADIUS — Escala global (uso em Python — mantida numérica)
     # ═══════════════════════════════════════════════════════════════════
 
     RADIUS_XS = 2
@@ -98,7 +108,7 @@ class DarkCharcoalTheme(BaseTheme):
     RADIUS_FULL = 999
 
     # ═══════════════════════════════════════════════════════════════════
-    # 7. SPACE — Escala global de espaçamento
+    # 7. SPACE — Escala global de espaçamento (uso em Python)
     # ═══════════════════════════════════════════════════════════════════
 
     SPACE_XXS = 2
@@ -111,7 +121,7 @@ class DarkCharcoalTheme(BaseTheme):
     SPACE_3XL = 48
 
     # ═══════════════════════════════════════════════════════════════════
-    # 8. ICON — Tamanhos
+    # 8. ICON — Tamanhos (uso em QSize/Python — mantidos int)
     # ═══════════════════════════════════════════════════════════════════
 
     ICON_XS = 12
@@ -124,7 +134,7 @@ class DarkCharcoalTheme(BaseTheme):
     TOOLBAR_BTN_HOVER_GROW = 4
 
     # ═══════════════════════════════════════════════════════════════════
-    # 9. ANIMATION
+    # 9. ANIMATION — milissegundos, uso em setDuration() (int)
     # ═══════════════════════════════════════════════════════════════════
 
     ANIMATION_FAST = 120
@@ -133,7 +143,7 @@ class DarkCharcoalTheme(BaseTheme):
     EASING_STANDARD = "cubic-bezier(0.4, 0, 0.2, 1)"
 
     # ═══════════════════════════════════════════════════════════════════
-    # 10. OPACITY
+    # 10. OPACITY (float 0..1, sem unidade)
     # ═══════════════════════════════════════════════════════════════════
 
     OPACITY_DISABLED = 0.35
@@ -142,7 +152,7 @@ class DarkCharcoalTheme(BaseTheme):
     OPACITY_ACTIVE = 1.0
 
     # ═══════════════════════════════════════════════════════════════════
-    # 11. LAYOUT
+    # 11. LAYOUT (uso em Python — mantidos numéricos)
     # ═══════════════════════════════════════════════════════════════════
 
     PAGE_PADDING = 24
@@ -151,7 +161,7 @@ class DarkCharcoalTheme(BaseTheme):
     CONTENT_MAX_WIDTH = 1600
 
     # ═══════════════════════════════════════════════════════════════════
-    # 12. ELEVATION
+    # 12. ELEVATION (índice, sem unidade)
     # ═══════════════════════════════════════════════════════════════════
 
     ELEVATION_FLAT = 0
@@ -198,11 +208,12 @@ class DarkCharcoalTheme(BaseTheme):
     FONT_FAMILY_DEFAULT = "'Segoe UI', 'Inter', 'Roboto', sans-serif"
     FONT_FAMILY_MONO = "'Consolas', 'Courier New', monospace"
 
-    FONT_SIZE_TITLE = 21
-    FONT_SIZE_BIG = 16
-    FONT_SIZE_NORMAL = 13
-    FONT_SIZE_SMALL = 11
-    FONT_SIZE_TINY = 10
+    # >>> convertidos: usados só em QSS (font-size: {t.X}) <
+    FONT_SIZE_TITLE = "21px"
+    FONT_SIZE_BIG = "16px"
+    FONT_SIZE_NORMAL = "13px"
+    FONT_SIZE_SMALL = "11px"
+    FONT_SIZE_TINY = "10px"
 
     FONT_WEIGHT_NORMAL = 400
     FONT_WEIGHT_BOLD = 600
@@ -213,52 +224,59 @@ class DarkCharcoalTheme(BaseTheme):
     # 17. DIMENSIONS
     # ═══════════════════════════════════════════════════════════════════
 
+    # mantidos int — usados em setFixedHeight/QSize no Python
     INPUT_HEIGHT = 24
     BUTTON_HEIGHT = 0
     BUTTON_HEIGHT_PRIMARY = 0
     ITEM_HEIGHT = 0
-    CHECKBOX_SIZE = 16
     RADIO_SIZE = 16
-    SCROLLBAR_WIDTH = 6
-    SCROLLBAR_MIN_HEIGHT = 28
     TAB_HEIGHT = 0
-    TAB_CLOSE_BUTTON_SIZE = 20
-    CLOSE_BUTTON_BORDER_RADIUS = 3
-    PROGRESS_BAR_HEIGHT = 18
-    TITLE_BTN_HEIGHT = 22
-    TITLE_BTN_WIDTH = 28
-    TITLE_BTN_FONT_SIZE = 11
-    GROUP_MARGIN_TOP = 8
-    SPLITTER_HANDLE_WIDTH = 4
+
+    # >>> convertidos: usados em QSS com sufixo px <
+    CHECKBOX_SIZE = "16px"
+    SCROLLBAR_WIDTH = "6px"
+    SCROLLBAR_MIN_HEIGHT = "28px"
+    TAB_CLOSE_BUTTON_SIZE = "20px"
+    CLOSE_BUTTON_BORDER_RADIUS = "3px"
+    PROGRESS_BAR_HEIGHT = "18px"
+    TITLE_BTN_HEIGHT = "22px"
+    TITLE_BTN_WIDTH = "28px"
+    TITLE_BTN_FONT_SIZE = "11px"
+    GROUP_MARGIN_TOP = "8px"
+    SPLITTER_HANDLE_WIDTH = "4px"
 
     # ═══════════════════════════════════════════════════════════════════
-    # 18. SPECIFICS — BORDER_RADIUS (usam RADIUS semântico como base)
+    # 18. SPECIFICS — BORDER_RADIUS
+    # >>> toda a família BORDER_RADIUS_* convertida para string "px" <
+    # (100% consumida dentro de QSS)
     # ═══════════════════════════════════════════════════════════════════
 
-    BORDER_RADIUS_CARD = 10       # ≈ RADIUS_LG
-    BORDER_RADIUS_BUTTON = 6       # ≈ RADIUS_MD
-    BORDER_RADIUS_INPUT = 6        # ≈ RADIUS_MD
-    BORDER_RADIUS_CHECKBOX = 3     # ≈ RADIUS_XS+1
-    BORDER_RADIUS_RADIO = 0
-    BORDER_RADIUS_BADGE = 4        # ≈ RADIUS_SM
-    BORDER_RADIUS_PROGRESS = 5
-    BORDER_RADIUS_TABLE = 8        # ≈ RADIUS_SM*2
-    BORDER_RADIUS_TITLE_BTN = 3
-    BORDER_RADIUS_TOOLBAR_BTN = 4   # ≈ RADIUS_SM
-    BORDER_RADIUS_GHOST = 5
-    BORDER_RADIUS_TOOL_SELECTOR = 6  # ≈ RADIUS_MD
-    BORDER_RADIUS_SCROLLBAR = 3
-    BORDER_RADIUS_SPINBOX_BTN = 2    # ≈ RADIUS_XS
-    BORDER_RADIUS_TAB_CLOSE = 3
-    BORDER_RADIUS_COMBO_POPUP = 4    # ≈ RADIUS_SM
-    BORDER_RADIUS_MENU = 6          # ≈ RADIUS_MD
-    BORDER_RADIUS_MENU_ITEM = 3
-    BORDER_RADIUS_GROUP_TITLE = 4   # ≈ RADIUS_SM
-    BORDER_RADIUS_DIALOG = 16       # ≈ RADIUS_XL
-    MENUBAR_ITEM_BORDER_RADIUS = 1
+    BORDER_RADIUS_CARD = "10px"
+    BORDER_RADIUS_BUTTON = "6px"
+    BORDER_RADIUS_INPUT = "6px"
+    BORDER_RADIUS_CHECKBOX = "3px"
+    BORDER_RADIUS_RADIO = "0px"
+    BORDER_RADIUS_BADGE = "4px"
+    BORDER_RADIUS_PROGRESS = "5px"
+    BORDER_RADIUS_TABLE = "8px"
+    BORDER_RADIUS_TITLE_BTN = "3px"
+    BORDER_RADIUS_TOOLBAR_BTN = "4px"
+    BORDER_RADIUS_GHOST = "5px"
+    BORDER_RADIUS_TOOL_SELECTOR = "6px"
+    BORDER_RADIUS_SCROLLBAR = "3px"
+    BORDER_RADIUS_SPINBOX_BTN = "2px"
+    BORDER_RADIUS_TAB_CLOSE = "3px"
+    BORDER_RADIUS_COMBO_POPUP = "4px"
+    BORDER_RADIUS_MENU = "6px"
+    BORDER_RADIUS_MENU_ITEM = "3px"
+    BORDER_RADIUS_GROUP_TITLE = "4px"
+    BORDER_RADIUS_DIALOG = "16px"
+    MENUBAR_ITEM_BORDER_RADIUS = "1px"
 
+    # mantido — largura de borda, não aparece concatenado com "px" no BaseStyle atual
     CHECKBOX_BORDER_WIDTH = 0
-    CHECKBOX_SPACING = 8
+    # >>> convertido: "spacing: {t.CHECKBOX_SPACING}" em QSS <
+    CHECKBOX_SPACING = "8px"
 
     BADGE_PADDING_V = "3px"
     BADGE_PADDING_H = "12px"
@@ -292,32 +310,41 @@ class DarkCharcoalTheme(BaseTheme):
     INPUT_PADDING_H = "2px"
 
     SPINBOX_PADDING = "3px 8px"
-    SPINBOX_BTN_WIDTH = 16
+    # >>> convertido: "width: {t.SPINBOX_BTN_WIDTH}" em QSS <
+    SPINBOX_BTN_WIDTH = "16px"
     SPINBOX_BTN_MARGIN = "1px"
 
     COMBOBOX_PADDING = "3px 8px"
-    COMBOBOX_MIN_WIDTH = 80
-    COMBOBOX_DROPDOWN_WIDTH = 22
+    # >>> convertidos: usados com px em QSS <
+    COMBOBOX_MIN_WIDTH = "80px"
+    COMBOBOX_DROPDOWN_WIDTH = "22px"
     COMBOBOX_ARROW_SIZE = "4px"
-    COMBOBOX_POPUP_BORDER_RADIUS = 4
+    COMBOBOX_POPUP_BORDER_RADIUS = "4px"
 
     TEXT_EDIT_PADDING = "8px"
-    TEXT_EDIT_FONT_SIZE = 12
+    # >>> convertido <
+    TEXT_EDIT_FONT_SIZE = "12px"
 
-    GROUP_TITLE_LEFT = 4
-    GROUP_TITLE_TOP = -2
+    # >>> convertidos: usados com px em QSS (GROUP_TITLE_TOP é negativo) <
+    GROUP_TITLE_LEFT = "4px"
+    GROUP_TITLE_TOP = "-2px"
     GROUP_TITLE_PADDING = "0 6px"
-    GROUP_TITLE_BORDER_RADIUS = 4
+    GROUP_TITLE_BORDER_RADIUS = "4px"
     GROUP_TITLE_LETTER_SPACING = "0.5px"
 
-    WINDOW_TITLE_FONT_SIZE = 11
+    # >>> convertido <
+    WINDOW_TITLE_FONT_SIZE = "11px"
     WINDOW_TITLE_LETTER_SPACING = "0.3px"
 
     TITLE_BAR_BORDER_WIDTH = "1px"
     TITLE_BAR_BORDER_COLOR = ""  # usa BG_PANEL por compatibilidade
-    CARD_PADDING_V = 16
-    CARD_PADDING_H = 10
 
+    # >>> convertidos <
+    CARD_PADDING_V = "16px"
+    CARD_PADDING_H = "10px"
+
+    # mantidos numéricos — não usados no global_stylesheet atual;
+    # se forem usados em QSS em outro lugar, convertam para "4px" também
     SPLITTER_HANDLE_WIDTH_H = 4
     SPLITTER_HANDLE_WIDTH_V = 4
 
@@ -327,17 +354,16 @@ class DarkCharcoalTheme(BaseTheme):
     MENU_SEPARATOR_HEIGHT = "1px"
     MENU_SEPARATOR_MARGIN = "2px 6px"
 
-    HEADER_FONT_SIZE = 11
+    # >>> convertido <
+    HEADER_FONT_SIZE = "11px"
     HEADER_LETTER_SPACING = "0.3px"
     TABLE_ITEM_PADDING = "3px 6px"
     HEADER_PADDING = "4px 6px"
 
     # ═══════════════════════════════════════════════════════════════════
     # ALIASES DE COMPATIBILIDADE RETROATIVA
-    # Mapeiam nomes antigos → tokens semânticos
     # ═══════════════════════════════════════════════════════════════════
 
-    # ── Fundos (BG_*) → SURFACE ─────────────────────────────────────
     BG_DEEPEST = SURFACE_0
     BG_DARK = SURFACE_1
     BG_PANEL = SURFACE_2
@@ -346,15 +372,12 @@ class DarkCharcoalTheme(BaseTheme):
     BG_SURFACE = SURFACE_5
     TITLE_BAR_BG = TITLE_BAR
 
-    # ── Sombras → SHADOW ────────────────────────────────────────────
     SHADOW = SHADOW_SM
     SHADOW_DEEP = SHADOW_LG
 
-    # ── Bordas → BORDER ─────────────────────────────────────────────
     BORDER = BORDER_DEFAULT
     BORDER_HOVER = BORDER_ACCENT
 
-    # ── Texto (TEXT_*) → TEXT ───────────────────────────────────────
     TEXT_BRIGHT = TEXT_HIGH
     TEXT_PRIMARY = TEXT_MEDIUM
     TEXT_SECONDARY = TEXT_LOW
@@ -362,7 +385,6 @@ class DarkCharcoalTheme(BaseTheme):
     TEXT_ACCENT = ACCENT_TEXT
     TEXT_ACCENT_BRIGHT = ACCENT_BRIGHT
 
-    # ── Acento (ACCENT_COLOR_*) → ACCENT ─────────────────────────────
     ACCENT_COLOR = ACCENT
     ACCENT_COLOR_HOVER = ACCENT_HOVER
     ACCENT_COLOR_ACTIVE = ACCENT_ACTIVE
@@ -370,7 +392,6 @@ class DarkCharcoalTheme(BaseTheme):
     ACCENT_COLOR_LIGHT = ACCENT_LIGHT
     ACCENT_COLOR_GRADIENT = ACCENT_GRADIENT
 
-    # ── Status → COLOR_ ─────────────────────────────────────────────
     SUCCESS = COLOR_SUCCESS
     SUCCESS_HOVER = COLOR_SUCCESS_HOVER
     SUCCESS_DIM = COLOR_SUCCESS_DIM
