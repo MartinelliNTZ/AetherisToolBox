@@ -96,19 +96,40 @@ class LasToVectorTask(BaseTask):
                 y = las.y
                 z = las.z
 
-                data = {
+                # Extrai TODAS as dimensões do LAS, incluindo extra dimensions
+                data: dict[str, np.ndarray] = {
                     "X": x,
                     "Y": y,
                     "Z": z,
-                    "Intensity": las.intensity if hasattr(las, "intensity") else np.zeros(n_points, dtype=np.int32),
-                    "Classification": las.classification if hasattr(las, "classification") else np.zeros(n_points, dtype=np.uint8),
-                    "ReturnNumber": las.return_number if hasattr(las, "return_number") else np.ones(n_points, dtype=np.uint8),
                 }
 
-                if hasattr(las, "red") and hasattr(las, "green") and hasattr(las, "blue"):
-                    data["R"] = las.red
-                    data["G"] = las.green
-                    data["B"] = las.blue
+                # Dimensões padrão do LAS PointFormat
+                standard_dims = {
+                    "intensity": ("Intensity", np.uint16),
+                    "classification": ("Classification", np.uint8),
+                    "return_number": ("ReturnNumber", np.uint8),
+                    "red": ("R", np.uint16),
+                    "green": ("G", np.uint16),
+                    "blue": ("B", np.uint16),
+                }
+                for las_field, (col_name, default_dtype) in standard_dims.items():
+                    if hasattr(las, las_field) and getattr(las, las_field) is not None:
+                        data[col_name] = getattr(las, las_field)
+                    elif col_name not in ("R", "G", "B"):  # só cria default para campos obrigatórios
+                        data[col_name] = np.zeros(n_points, dtype=default_dtype)
+
+                # Extra dimensions: tudo que não for padrão
+                las_dim_names = {d.name.lower() for d in las.point_format.dimensions}
+                consumed = set(standard_dims.keys())
+                for dim_name in las_dim_names:
+                    if dim_name.lower() in consumed:
+                        continue
+                    if dim_name.lower() in ("x", "y", "z"):
+                        continue
+                    try:
+                        data[dim_name] = getattr(las, dim_name)
+                    except (AttributeError, TypeError):
+                        pass
 
                 if self._output_format == "csv":
                     self._save_csv(data, output_path)

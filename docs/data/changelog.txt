@@ -1,5 +1,7 @@
-[1.2.13][2026.07.22][10:20] - Correção: LasVectorConverter não trocava extensão .las no modo Vetor→LAS e não transferia atributos
+[1.2.13][2026.07.22][10:36] - Correção: LasVectorConverter não transferia atributos entre LAS↔Vetor em ambas direções
   - LasVectorConverterPlugin.py: _aplicar_ui_da_direcao() agora chama set_output_extension("Saída", "las") no modo vector_to_las
+  - LasToVectorTask.py: agora lê TODAS as dimensões do LAS (incluindo extra dimensions) em vez de apenas 6 campos fixos
+  - LasToVectorTask.py: itera sobre las.point_format.dimensions para capturar qualquer atributo personalizado
   - VectorToLasTask.py: _save_las() preserva todos os atributos não-padrão como extra dimensions LAS (add_extra_dims)
   - Adicionado helper _las_dtype_for_array() para escolher dtype mínimo adequado (uint8, uint16, int32, float64)
   - Atributos padrão (intensity, classification, return_number, R/G/B) continuam mapeados para campos nativos LAS
