@@ -1,3 +1,10 @@
+[1.2.13][2026.07.22][10:20] - Correção: LasVectorConverter não trocava extensão .las no modo Vetor→LAS e não transferia atributos
+  - LasVectorConverterPlugin.py: _aplicar_ui_da_direcao() agora chama set_output_extension("Saída", "las") no modo vector_to_las
+  - VectorToLasTask.py: _save_las() preserva todos os atributos não-padrão como extra dimensions LAS (add_extra_dims)
+  - Adicionado helper _las_dtype_for_array() para escolher dtype mínimo adequado (uint8, uint16, int32, float64)
+  - Atributos padrão (intensity, classification, return_number, R/G/B) continuam mapeados para campos nativos LAS
+  - Changelog atualizado
+
 [1.2.12][2026.07.19][17:20] - Ajuste: MENU_PADDING do EmeraldTealTheme alterado de "2px" para "10px 30px"
   - EmeraldTealTheme.py: MENU_PADDING = "2px" → "10px 30px" (padding vertical 10px, horizontal 30px)
   - Changelog atualizado

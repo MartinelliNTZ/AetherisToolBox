@@ -204,6 +204,20 @@ class VectorToLasTask(BaseTask):
 
         return points, attributes
 
+    @staticmethod
+    def _las_dtype_for_array(arr: np.ndarray) -> np.dtype:
+        """Returns the smallest appropriate LAS extra dim dtype for an array."""
+        if np.issubdtype(arr.dtype, np.floating):
+            return np.float64
+        iinfo = np.iinfo(np.int32)
+        if arr.min() >= 0 and arr.max() <= 255:
+            return np.uint8
+        if arr.min() >= 0 and arr.max() <= 65535:
+            return np.uint16
+        if arr.min() >= iinfo.min and arr.max() <= iinfo.max:
+            return np.int32
+        return np.float64
+
     def _save_las(self, points: np.ndarray, attributes: dict[str, np.ndarray], output_path: str) -> None:
         """Creates LAS file from point data."""
         n = len(points)
@@ -220,6 +234,7 @@ class VectorToLasTask(BaseTask):
 
         attr_lower = {k.lower(): k for k in attributes}
 
+        # ── Standard LAS fields ──────────────────────────────────
         if "intensity" in attr_lower:
             las.intensity = attributes[attr_lower["intensity"]].astype(np.uint16)
         else:
@@ -242,5 +257,38 @@ class VectorToLasTask(BaseTask):
             las.red = attributes[r_key].astype(np.uint16)
             las.green = attributes[g_key].astype(np.uint16)
             las.blue = attributes[b_key].astype(np.uint16)
+
+        # ── Extra dimensions: preserve all remaining attributes ──
+        standard_keys = {"x", "y", "z", "intensity", "classification",
+                         "returnnumber", "return_number",
+                         "r", "g", "b", "red", "green", "blue"}
+        used_keys = set(attr_lower.keys()) & standard_keys
+        consumed = {attr_lower[k] for k in used_keys}
+
+        extra_dims: list[tuple[str, np.ndarray]] = []
+        for orig_key, arr in attributes.items():
+            if orig_key in consumed:
+                continue
+            # Skip geometry-like columns that may come from geopandas
+            if orig_key.lower() in ("geometry", "geom", "wkb_geometry", "shape"):
+                continue
+            extra_dims.append((orig_key, arr))
+
+        if extra_dims:
+            params_list = []
+            for col_name, arr in extra_dims:
+                las_dtype = self._las_dtype_for_array(arr)
+                params_list.append(
+                    laspy.ExtraBytesParams(
+                        name=col_name,
+                        type=las_dtype,
+                        description=f"Atributo original: {col_name}",
+                    )
+                )
+            las.add_extra_dims(params_list)
+
+            # Write data into the new extra dims
+            for col_name, arr in extra_dims:
+                las[col_name] = arr.astype(las[col_name].dtype)
 
         las.write(output_path)
