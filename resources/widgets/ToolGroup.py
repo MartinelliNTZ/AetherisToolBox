@@ -3,7 +3,7 @@
 ToolGroup — Grupo horizontal de ferramentas na toolbar principal.
 ==================================================================
 Cada ToolGroup representa uma categoria (System, Raster, Vector, etc.)
-com botões de ícone para cada ferramenta da categoria.
+com botões de ícone para cada ferramenta da cattegoria.
 """
 
 from __future__ import annotations
