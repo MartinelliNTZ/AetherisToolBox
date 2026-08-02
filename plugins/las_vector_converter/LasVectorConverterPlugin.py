@@ -206,17 +206,20 @@ class LasVectorConverterPlugin(BasePlugin):
         Usa apenas API pública do GridComplexSelector:
           - set_input_file_filter  (substitui entrada.file_filter = ...)
           - set_input_placeholder  (substitui entrada.edit.setPlaceholderText)
+          - set_output_extension   (atualiza extensão dinâmica do output)
         """
         if direction == "las_to_vector":
             self._combo_formato.setVisible(True)
             self._spin_tile.setVisible(True)
             self._grid_io.set_input_file_filter("Entrada", self._LAS_FILTER)
             self._grid_io.set_input_placeholder("Entrada", "Selecione o arquivo LAS/LAZ...")
+            self._grid_io.set_output_extension("Saída", self._combo_formato.current_value)
         else:
             self._combo_formato.setVisible(False)
             self._spin_tile.setVisible(False)
             self._grid_io.set_input_file_filter("Entrada", self._VECTOR_FILTER)
             self._grid_io.set_input_placeholder("Entrada", "Selecione o arquivo vetor...")
+            self._grid_io.set_output_extension("Saída", "las")
 
     def _on_direction_changed(self, key: str):
         """Disparado quando o usuário altera a direção da conversão."""
