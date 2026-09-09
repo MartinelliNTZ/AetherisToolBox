@@ -1,3 +1,28 @@
+[1.2.16][2026.09.08][15:05] - Novo plugin: Merge PDF (PdfMergePlugin)
+  - Criado plugins/pdf_merge/PdfMergePlugin.py: mescla PDFs em um único PDF agrupado (v1)
+  - Arquitetura genérica por handlers (HANDLERS): dispatcher _append_file() resolve pela extensão; futuro: imagens → PDF sem mudar a UI
+  - UI seguindo SKILL_WIDGETS: FileListView (filtro PDF) + GridCheckBox (separador A4) + GridComplexSelector mode_type="output" para pasta de saída
+  - GroupPainel sempre dentro de GridGroupPainel; ExecutionButtons via buttons_config (Contrato 18)
+  - HUD via SignalManager: hud_show/hud_update/hud_hide + progress_update (Contrato 20)
+  - load_prefs/save_prefs implementados (paths, output_dir, options)
+  - Adicionado PDF_MERGE em core/enum/ToolKey.py
+  - Registrado em core/config/ToolRegistry.py (ToolType.FOLDER, CategoryTool.CENTRAL)
+  - Adicionado pypdf em requirements.txt e instalado no venv (6.18.0)
+  - Changelog atualizado
+
+[1.2.15][2026.09.08][14:40] - Refatorado SKILL_PDF_MERGE.md: saída via GridComplexSelector (sem SimpleSelector)
+[1.2.15][2026.09.08][14:40] - Refatorado SKILL_PDF_MERGE.md: saída via GridComplexSelector (sem SimpleSelector)
+  - Substituído SimpleSelector (DEPRECATED) por GridComplexSelector mode_type="output" para a pasta de saída
+  - GrupoPainel sempre dentro de GridGroupPainel no _build_ui (padrão SKILL_WIDGETS)
+  - load_prefs/save_prefs agora usam self._sel_saida["Saída"].path()/set_path
+  - Documentado signal chain do GridComplexSelector (nunca sobrescrever on_path_change; suspend_callbacks/resume_callbacks)
+  - Changelog atualizado
+
+[1.2.14][2026.09.08][14:27] - Nova skill: SKILL_PDF_MERGE.md (guia da ferramenta de merge de PDFs)
+  - Criado docs/skills/SKILL_PDF_MERGE.md: arquitetura genérica por handlers de extensão (v1: PDFs; futuro: imagens → PDF)
+  - Documenta fluxo completo: ToolKey, dependência pypdf, BasePlugin com buttons_config (Contrato 18), ToolRegistry, preferências
+  - SKILL_AGENT.md: adicionada linha de referência para a nova skill
+  - Changelog atualizado
 [1.2.13][2026.07.22][10:36] - Correção: LasVectorConverter não transferia atributos entre LAS↔Vetor em ambas direções
   - LasVectorConverterPlugin.py: _aplicar_ui_da_direcao() agora chama set_output_extension("Saída", "las") no modo vector_to_las
   - LasToVectorTask.py: agora lê TODAS as dimensões do LAS (incluindo extra dimensions) em vez de apenas 6 campos fixos

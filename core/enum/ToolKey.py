@@ -44,6 +44,7 @@ class ToolKey(str, Enum):
     WEATHER_FETCH = "WeatherFetch"
     SCAN_ANGLE_FILTER = "ScanAngleFilter"
     MAP_VIEWER = "MapViewer"
+    PDF_MERGE = "PdfMerge"
 
     CUT_BY_TRAJECTORY = "CutByTrajectory"  # Ainda não implementado
     IBGE_HNOR_ORGANIZER = "IBGEHnorOrganizer"  # Ainda não implementado

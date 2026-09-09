@@ -21,6 +21,7 @@ pyautogui
 keyboard
 fiona
 fastkml
+pypdf
 
 #NAO PAGA MEUS COMENTARIOS
 # python -m pip install -r requirements.txt

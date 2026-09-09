@@ -341,6 +341,17 @@ class ToolRegistry:
             category=CategoryTool.CENTRAL,
             show_in_toolbar=True,
         ),
+        ToolKey.PDF_MERGE.value: Tool(
+            name=ToolKey.PDF_MERGE.value,
+            title="Merge PDF",
+            widget_factory=_make_factory(
+                "plugins.pdf_merge.PdfMergePlugin", "PdfMergePlugin"
+            ),
+            tooltip="Mescla PDFs em um único arquivo PDF agrupado",
+            tool_type=ToolType.FOLDER,
+            category=CategoryTool.CENTRAL,
+            show_in_toolbar=True,
+        ),
     }
 
     def register_default_tools(self) -> None:

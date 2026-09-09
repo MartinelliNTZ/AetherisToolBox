@@ -10,6 +10,7 @@ Agir como engenheiro de software especializado no ecossistema **Aetheris ToolBox
 | Skill | Arquivo | Quando usar |
 |---|---|---|
 | Criação de Plugins | `docs/skills/SKILL_CREATE_TOOL.md` | Criar nova ferramenta, registrar no ToolRegistry |
+| Merge de PDFs | `docs/skills/SKILL_PDF_MERGE.md` | Criar ferramenta de merge de arquivos gerando PDF agrupado (v1: PDFs) |
 | FileManager | `docs/skills/SKILL_FILE_MANAGER.md` | Comportamento e regras de ferramentas de gerenciamento de arquivos |
 | Preferências | `docs/skills/SKILL_PREFERENCES.md` | Salvar/carregar estado de widgets |
 | SignalManager | `docs/skills/SKILL_COMUNICATION.md` | Comunicar entre plugins, MainWindow |
