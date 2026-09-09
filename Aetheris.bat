@@ -1,1 +1,1 @@
-c:/PythonPrograms/AetherisToolBox/.venv/Scripts/python.exe c:/PythonPrograms/AetherisToolBox/main.py
+C:\Users\MatheusMartinelli\Documents\GitHub\AetherisToolBox\.venv\Scripts\python.exe C:\Users\MatheusMartinelli\Documents\GitHub\AetherisToolBox\main.py
