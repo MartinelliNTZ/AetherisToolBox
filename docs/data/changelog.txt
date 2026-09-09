@@ -1,3 +1,16 @@
+[1.2.18][2026.09.08][15:45] - PdfMergePlugin: fix layout — panel Arquivos ocupa todo o width
+  - Causa do espaço vazio à direita: GridGroupPainel com 1 único panel cria 2 colunas com stretch 1 (col 2 vazia)
+  - 'Arquivos' agora é adicionado DIRECTO ao main_layout (main_layout.addWidget(grp_arquivos, 1)) — ocupa 100% da largura
+  - GridGroupPainel fica reservado para 2+ paneles lado a lado (Opções + Pasta de Saída)
+  - SKILL_PDF_MERGE.md atualizada: diagrama ASCII e bloco _build_ui refletem o padrão final
+  - Changelog atualizado
+[1.2.17][2026.09.08][15:30] - PdfMergePlugin: reorganizado layout (sin espacio vacío)
+  - "Arquivos" ocupa toda la largura con stretch (1)
+  - "Opções" + "Pasta de Saída" ahora lado a lado en un único GridGroupPainel
+  - GridComplexSelector sin título propio (el GroupPainel "Pasta de Saída" lo titula), mismo patrón que ImageConverterPlugin
+  - Sin cambios de estilado: solo reordenación y agrupación de widgets
+  - Changelog actualizado
+
 [1.2.16][2026.09.08][15:05] - Novo plugin: Merge PDF (PdfMergePlugin)
   - Criado plugins/pdf_merge/PdfMergePlugin.py: mescla PDFs em um único PDF agrupado (v1)
   - Arquitetura genérica por handlers (HANDLERS): dispatcher _append_file() resolve pela extensão; futuro: imagens → PDF sem mudar a UI

@@ -86,9 +86,9 @@ class PdfMergePlugin(BasePlugin):
 
         grp_arquivos = GroupPainel("Arquivos")
         grp_arquivos.group_layout.addWidget(self._file_list)
-        self.main_layout.addWidget(GridGroupPainel(grp_arquivos))
+        self.main_layout.addWidget(grp_arquivos, 1)
 
-        # ── Opções ──────────────────────────────────────────────────
+        # ── Opções + Pasta de Saída lado a lado ──────────────────────
         self._grid_opts = GridCheckBox(
             config={
                 "separator": {
@@ -101,7 +101,6 @@ class PdfMergePlugin(BasePlugin):
         )
         grp_opts = GroupPainel("Opções")
         grp_opts.group_layout.addWidget(self._grid_opts)
-        self.main_layout.addWidget(GridGroupPainel(grp_opts))
 
         # ── Pasta de Saída — GridComplexSelector (output) ───────────
         self._sel_saida = GridComplexSelector(
@@ -117,9 +116,11 @@ class PdfMergePlugin(BasePlugin):
                     "placeholder": "Onde salvar o PDF mesclado...",
                 },
             },
-            title="Pasta de Saída",
         )
-        self.main_layout.addWidget(self._sel_saida)
+        grp_saida = GroupPainel("Pasta de Saída")
+        grp_saida.group_layout.addWidget(self._sel_saida)
+
+        self.main_layout.addWidget(GridGroupPainel(grp_opts, grp_saida))
 
     # ── Signals ─────────────────────────────────────────────────────
 

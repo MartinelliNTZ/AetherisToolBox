@@ -158,15 +158,12 @@ Estrutura/layout seguindo o **Contrato 18** (botões no header do `PluginPage`, 
 
 ```
 Título → Badge → [stretch] → [MESCLAR]
-┌─ Arquivos ─────────────┐
-│ FileListView (PDFs)    │   ← reordenação por drag & drop
-└────────────────────────┘
-┌─ Opções ──────────────────┐
-│ ☑ Separador entre arquivos│
-└───────────────────────────┘
-┌─ Pasta de Saída ──────────────────┐
-│ GridComplexSelector "Saída" (📁/📂)│
-└───────────────────────────────────┘
+┌─ Arquivos (stretch 1 — ancho completo) ───┐
+│ FileListView (PDFs)                        │   ← reordenação por drag & drop
+└────────────────────────────────────────────┘
+┌─ Opções ───────────┐ ┌─ Pasta de Saída ────────────┐
+│ ☑ Separador A4     │ │ GridComplexSelector "Saída" │
+└────────────────────┘ └─────────────────────────────┘
 ```
 
 ```python
@@ -234,7 +231,9 @@ class PdfMergePlugin(BasePlugin):
 
         grp_arquivos = GroupPainel("Arquivos")
         grp_arquivos.group_layout.addWidget(self._file_list)
-        self.main_layout.addWidget(GridGroupPainel(grp_arquivos))
+        # Panel ÚNICO → va directo al layout para ocupar TODO el width
+        # (GridGroupPainel con 1 solo panel deja una columna 2 vacía a la derecha)
+        self.main_layout.addWidget(grp_arquivos, 1)
 
         # ── Opções ──────────────────────────────────────────────────
         self._grid_opts = GridCheckBox(
@@ -249,7 +248,6 @@ class PdfMergePlugin(BasePlugin):
         )
         grp_opts = GroupPainel("Opções")
         grp_opts.group_layout.addWidget(self._grid_opts)
-        self.main_layout.addWidget(GridGroupPainel(grp_opts))
 
         # ── Pasta de Saída — GridComplexSelector (output) ───────────
         self._sel_saida = GridComplexSelector(
@@ -263,12 +261,14 @@ class PdfMergePlugin(BasePlugin):
                     "show_suggest_button": True,
                     "subfolder": "pdfmerge",
                     "placeholder": "Onde salvar o PDF mesclado...",
-                    "default_path": self.preferences.get("output_dir", ""),
                 },
             },
-            title="Pasta de Saída",
         )
-        self.main_layout.addWidget(self._sel_saida)
+        grp_saida = GroupPainel("Pasta de Saída")
+        grp_saida.group_layout.addWidget(self._sel_saida)
+
+        # Opções + Saída lado a lado (2 paneles → sí usamos GridGroupPainel)
+        self.main_layout.addWidget(GridGroupPainel(grp_opts, grp_saida))
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
