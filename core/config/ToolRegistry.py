@@ -352,6 +352,17 @@ class ToolRegistry:
             category=CategoryTool.CENTRAL,
             show_in_toolbar=True,
         ),
+        ToolKey.DEV_TOOLBOX.value: Tool(
+            name=ToolKey.DEV_TOOLBOX.value,
+            title="Dev Toolbox",
+            widget_factory=_make_factory(
+                "plugins.dev_toolbox.DevToolboxPlugin", "DevToolboxPlugin"
+            ),
+            tooltip="Bancada de teste DEV: vitrina de widgets reutilizáveis e simulação de progresso",
+            tool_type=ToolType.SYSTEM,
+            category=CategoryTool.CENTRAL,
+            show_in_toolbar=True,
+        ),
     }
 
     def register_default_tools(self) -> None:

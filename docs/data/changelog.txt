@@ -1,3 +1,12 @@
+[1.2.19][2026.09.10][16:05] - Novo plugin DEV: DevToolbox (bancada de teste de widgets)
+  - Criado plugins/dev_toolbox/DevToolboxPlugin.py: ferramenta exclusiva de testes para desenvolvedores
+  - Vitrina de widgets reutilizáveis: GridRadio, GridCheckBox, GridSlider, GridDoubleSpinBox, GridLineEdit, SimpleComboBox, GridLabel, GroupPainel/GridGroupPainel
+  - Botão EXECUTAR TESTE: coleta todos os widgets, simula progresso via HUD/ProgressBar (SignalManager) e emite resultado no Console
+  - Botão RESTAURAR: restaura todos os widgets aos valores iniciais
+  - load_prefs/save_prefs implementados (Contrato 6)
+  - Adicionado DEV_TOOLBOX em core/enum/ToolKey.py
+  - Registrado em core/config/ToolRegistry.py (ToolType.SYSTEM, CategoryTool.CENTRAL)
+  - Changelog atualizado
 [1.2.18][2026.09.08][15:45] - PdfMergePlugin: fix layout — panel Arquivos ocupa todo o width
   - Causa do espaço vazio à direita: GridGroupPainel com 1 único panel cria 2 colunas com stretch 1 (col 2 vazia)
   - 'Arquivos' agora é adicionado DIRECTO ao main_layout (main_layout.addWidget(grp_arquivos, 1)) — ocupa 100% da largura

@@ -45,6 +45,7 @@ class ToolKey(str, Enum):
     SCAN_ANGLE_FILTER = "ScanAngleFilter"
     MAP_VIEWER = "MapViewer"
     PDF_MERGE = "PdfMerge"
+    DEV_TOOLBOX = "DevToolbox"
 
     CUT_BY_TRAJECTORY = "CutByTrajectory"  # Ainda não implementado
     IBGE_HNOR_ORGANIZER = "IBGEHnorOrganizer"  # Ainda não implementado
